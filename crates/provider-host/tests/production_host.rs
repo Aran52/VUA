@@ -15,15 +15,18 @@ use tar::{Builder, Header};
 use serde_json::{json, Value};
 
 use vua_orchestrator::{
-    BuildRecordStore, FileSystemSnapshotStore, FixedClock,
-    TaskState, UnityBridge, UnityCommand, UnityResult, VpmBackend, VpmCapabilities,
+    BuildRecordStore, FileSystemSnapshotStore, FixedClock, TaskState, UnityBridge, UnityCommand,
+    UnityResult, VpmBackend, VpmCapabilities,
 };
-use vua_unity_bridge::{LocalPackageIdentityStore, MaterialExecutor};
 use vua_project_manager::read_pending_mutation;
 use vua_provider_host::ProductionConfig;
+use vua_unity_bridge::{LocalPackageIdentityStore, MaterialExecutor};
 
 fn temp_root(label: &str) -> PathBuf {
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     std::env::temp_dir().join(format!("vua-prodhost-{label}-{nanos}"))
 }
 
@@ -51,8 +54,7 @@ impl UnityBridge for FakeBridge {
         if command.operation == vua_orchestrator::UnityOperation::ValidateAssetPaths {
             let mut loaded = command.payload.expected_asset_paths.clone();
             loaded.sort();
-            data["loadedAssetPaths"] =
-                loaded.into_iter().map(serde_json::Value::String).collect();
+            data["loadedAssetPaths"] = loaded.into_iter().map(serde_json::Value::String).collect();
         }
         Ok(UnityResult {
             schema_version: 1,
@@ -76,7 +78,14 @@ impl VpmBackend for NoVpm {
         "none"
     }
     fn capabilities(&self) -> VpmCapabilities {
-        VpmCapabilities { create_project: false, preview_install: false, list_packages: false, remove_packages: false, project_registry: false, resolve_project: false }
+        VpmCapabilities {
+            create_project: false,
+            preview_install: false,
+            list_packages: false,
+            remove_packages: false,
+            project_registry: false,
+            resolve_project: false,
+        }
     }
     fn preview_install(
         &self,
@@ -132,7 +141,9 @@ fn frames_input(frames: Vec<Value>) -> Paced {
         bytes.extend_from_slice(frame.to_string().as_bytes());
         bytes.push(b'\n');
     }
-    Paced { inner: std::io::Cursor::new(bytes) }
+    Paced {
+        inner: std::io::Cursor::new(bytes),
+    }
 }
 
 fn frame(id: &str, payload: Value) -> Value {
@@ -183,9 +194,7 @@ fn parse_frames(bytes: &[u8]) -> Vec<Value> {
 fn response_frame<'a>(frames: &'a [Value], request_id: &str) -> &'a Value {
     frames
         .iter()
-        .find(|frame| {
-            frame["kind"] == "response" && frame["payload"]["requestId"] == request_id
-        })
+        .find(|frame| frame["kind"] == "response" && frame["payload"]["requestId"] == request_id)
         .unwrap_or_else(|| panic!("no response for {request_id}: {frames:?}"))
 }
 
@@ -204,7 +213,9 @@ fn make_world(label: &str) -> (PathBuf, PathBuf, PathBuf) {
     let mut header = Header::new_gnu();
     header.set_size(8);
     header.set_cksum();
-    builder.append_data(&mut header, "Assets/Asset.prefab", &b"fixture!"[..]).unwrap();
+    builder
+        .append_data(&mut header, "Assets/Asset.prefab", &b"fixture!"[..])
+        .unwrap();
     builder.finish().unwrap();
 
     let project_root = base.join("target");
@@ -214,7 +225,9 @@ fn make_world(label: &str) -> (PathBuf, PathBuf, PathBuf) {
     // Already-provisioned target: the standing fixtures plan the UNCHANGED
     // v0.1 step set (zero-change law for provisioned projects).
     fs::write(
-        project_root.join("ProjectSettings").join("ProjectVersion.txt"),
+        project_root
+            .join("ProjectSettings")
+            .join("ProjectVersion.txt"),
         "2022.3.22f1",
     )
     .unwrap();
@@ -223,7 +236,9 @@ fn make_world(label: &str) -> (PathBuf, PathBuf, PathBuf) {
 }
 
 fn production_config(base: &Path, _project_root: &Path) -> (ProductionConfig, FakeBridge) {
-    let bridge = FakeBridge { commands: Arc::new(Mutex::new(Vec::new())) };
+    let bridge = FakeBridge {
+        commands: Arc::new(Mutex::new(Vec::new())),
+    };
     let executor = Arc::new(MaterialExecutor::new(
         Arc::new(bridge.clone()),
         FileSystemSnapshotStore,
@@ -341,8 +356,7 @@ fn ph_001_full_command_chain_runs_persists_and_replays() {
         let frame = frames
             .iter()
             .find(|frame| {
-                frame["kind"] == "response"
-                    && frame["payload"]["requestId"] == "req-getplan-1"
+                frame["kind"] == "response" && frame["payload"]["requestId"] == "req-getplan-1"
             })
             .expect("getplan response frame");
         panic!("getplan full frame: {}", frame);
@@ -350,10 +364,15 @@ fn ph_001_full_command_chain_runs_persists_and_replays() {
     let plan_document = response_payload(&frames, "req-getplan-1");
     assert_eq!(plan_document["plan"]["planId"], plan_id);
     assert_eq!(
-        plan_document["plan"]["stages"].as_array().expect("stages").len(),
+        plan_document["plan"]["stages"]
+            .as_array()
+            .expect("stages")
+            .len(),
         5
     );
-    let revision = plan_document["plan"]["revision"].as_u64().expect("plan revision");
+    let revision = plan_document["plan"]["revision"]
+        .as_u64()
+        .expect("plan revision");
 
     // Run 3: Confirm. The response carries Running; the worker completes
     // through the store afterwards.
@@ -386,7 +405,10 @@ fn ph_001_full_command_chain_runs_persists_and_replays() {
     let store = vua_orchestrator::SqliteTaskStore::open(base.join("provider.db")).unwrap();
     let deadline = Instant::now() + Duration::from_secs(15);
     let task = loop {
-        let task = store.task(&confirm_task_id).unwrap().expect("task persisted");
+        let task = store
+            .task(&confirm_task_id)
+            .unwrap()
+            .expect("task persisted");
         if task.state.is_terminal() {
             break task;
         }
@@ -397,7 +419,11 @@ fn ph_001_full_command_chain_runs_persists_and_replays() {
     let result = task.result.expect("result payload");
     assert_eq!(result["status"], "succeeded");
     assert_eq!(result["rollback"], "not_needed");
-    assert_eq!(bridge.commands.lock().unwrap().len(), 2, "import + validation");
+    assert_eq!(
+        bridge.commands.lock().unwrap().len(),
+        2,
+        "import + validation"
+    );
 
     // The published receipt is Gateway-readable via getBuildRecord.
     let record_id = result["buildRecordId"].as_str().unwrap().to_owned();
@@ -450,8 +476,16 @@ fn ph_001_full_command_chain_runs_persists_and_replays() {
     };
     let frames = parse_frames(&output);
     let replay = response_payload(&frames, "req-confirm-2");
-    assert_eq!(replay["task"]["taskId"], confirm_task_id.as_str(), "same task replays");
-    assert_eq!(bridge2.commands.lock().unwrap().len(), 0, "replay touches no Unity");
+    assert_eq!(
+        replay["task"]["taskId"],
+        confirm_task_id.as_str(),
+        "same task replays"
+    );
+    assert_eq!(
+        bridge2.commands.lock().unwrap().len(),
+        0,
+        "replay touches no Unity"
+    );
 
     let _ = fs::remove_dir_all(&base);
 }
@@ -549,7 +583,10 @@ fn ph_003_interrupted_production_tasks_fail_as_recoverable_on_restart() {
     let (config, _bridge) = production_config(&base, &base.join("target"));
     let mut output_buffer = Vec::new();
     vua_provider_host::run_provider_host_with(
-        frames_input(vec![frame("f1", request("req-list", "task.list", "", json!({})))]),
+        frames_input(vec![frame(
+            "f1",
+            request("req-list", "task.list", "", json!({})),
+        )]),
         &mut output_buffer,
         &path,
         Some(config),
@@ -557,7 +594,10 @@ fn ph_003_interrupted_production_tasks_fail_as_recoverable_on_restart() {
     .unwrap();
 
     let store = vua_orchestrator::SqliteTaskStore::open(&path).unwrap();
-    let task = store.task("prod-deadbeef0001").unwrap().expect("task persists");
+    let task = store
+        .task("prod-deadbeef0001")
+        .unwrap()
+        .expect("task persists");
     assert_eq!(task.state, TaskState::Failed);
     let error = task.error.expect("interrupted run carries the typed error");
     assert_eq!(error.code, "vua.task.interrupted");
@@ -635,11 +675,9 @@ fn wait_for_response(buffer: &Arc<Mutex<Vec<u8>>>, request_id: &str) -> Value {
     loop {
         let bytes = buffer.lock().unwrap().clone();
         let frames = parse_frames(&bytes);
-        let hit = frames
-            .iter()
-            .find(|frame| {
-                frame["kind"] == "response" && frame["payload"]["requestId"] == request_id
-            });
+        let hit = frames.iter().find(|frame| {
+            frame["kind"] == "response" && frame["payload"]["requestId"] == request_id
+        });
         if let Some(frame) = hit {
             return frame["payload"]["value"].clone();
         }
@@ -697,7 +735,9 @@ fn ph_004_cancel_request_reaches_the_running_worker_token() {
     let (base, source, project_root) = make_world("cancel");
     let released = Arc::new(AtomicBool::new(false));
     let executor = Arc::new(MaterialExecutor::new(
-        Arc::new(BlockingBridge { released: Arc::clone(&released) }),
+        Arc::new(BlockingBridge {
+            released: Arc::clone(&released),
+        }),
         FileSystemSnapshotStore,
         Arc::new(NoVpm),
         BuildRecordStore::new(base.join("records")),
@@ -717,7 +757,12 @@ fn ph_004_cancel_request_reaches_the_running_worker_token() {
     let path = base.join("provider.db");
     let host = std::thread::spawn(move || {
         let _ = vua_provider_host::run_provider_host_with(
-            ChannelReader { receiver, buffer: Vec::new(), position: 0, done: false },
+            ChannelReader {
+                receiver,
+                buffer: Vec::new(),
+                position: 0,
+                done: false,
+            },
             writer,
             path,
             Some(config),
@@ -743,7 +788,12 @@ fn ph_004_cancel_request_reaches_the_running_worker_token() {
     let inspection_id = inspect["inspectionId"].as_str().unwrap().to_owned();
     send(frame(
         "f2",
-        request("req-plan", "production.requestPlan", "cmd-plan", plan_params(&inspection_id)),
+        request(
+            "req-plan",
+            "production.requestPlan",
+            "cmd-plan",
+            plan_params(&inspection_id),
+        ),
     ));
     let plan = wait_for_response(&output_buffer, "req-plan");
     let plan_id = plan["planId"].as_str().unwrap().to_owned();
@@ -783,14 +833,24 @@ fn ph_004_cancel_request_reaches_the_running_worker_token() {
     let store = vua_orchestrator::SqliteTaskStore::open(base.join("provider.db")).unwrap();
     let deadline = Instant::now() + Duration::from_secs(15);
     let task = loop {
-        let task = store.task(&confirm_task_id).unwrap().expect("task persists");
+        let task = store
+            .task(&confirm_task_id)
+            .unwrap()
+            .expect("task persists");
         if task.state.is_terminal() {
             break task;
         }
-        assert!(Instant::now() < deadline, "worker never completed the cancel");
+        assert!(
+            Instant::now() < deadline,
+            "worker never completed the cancel"
+        );
         std::thread::sleep(Duration::from_millis(20));
     };
-    assert_eq!(task.state, TaskState::Cancelled, "cancellation completed: {task:?}");
+    assert_eq!(
+        task.state,
+        TaskState::Cancelled,
+        "cancellation completed: {task:?}"
+    );
     assert!(task.cancel_requested);
     let _ = fs::remove_dir_all(&base);
 }
@@ -811,9 +871,7 @@ impl UnityBridge for FailingBridge {
 
 /// Runs inspect + plan + a FAILING confirm; returns the confirm task id and
 /// plan task id for recovery requests.
-fn run_failing_confirm(
-    label: &str,
-) -> (PathBuf, PathBuf, PathBuf, String, u64, String) {
+fn run_failing_confirm(label: &str) -> (PathBuf, PathBuf, PathBuf, String, u64, String) {
     let (base, source, project_root) = make_world(label);
 
     // Run 1: inspect + plan (real executor, instant fake bridge).
@@ -869,12 +927,12 @@ fn run_failing_confirm(
     };
     let frames = parse_frames(&output);
     let plan_id = response_payload(&frames, "req-plan")["planId"]
-    .as_str()
-    .unwrap()
-    .to_owned();
+        .as_str()
+        .unwrap()
+        .to_owned();
     let plan_revision = response_payload(&frames, "req-plan")["revision"]
-    .as_u64()
-    .unwrap();
+        .as_u64()
+        .unwrap();
 
     // Run 3: confirm against the FAILING bridge. The worker persists the
     // Failed terminal state (with a receipt and recovery snapshot).
@@ -921,7 +979,10 @@ fn run_failing_confirm(
     let store = vua_orchestrator::SqliteTaskStore::open(base.join("provider.db")).unwrap();
     let deadline = Instant::now() + Duration::from_secs(15);
     let task = loop {
-        let task = store.task(&confirm_task_id).unwrap().expect("task persists");
+        let task = store
+            .task(&confirm_task_id)
+            .unwrap()
+            .expect("task persists");
         if task.state.is_terminal() {
             break task;
         }
@@ -929,7 +990,10 @@ fn run_failing_confirm(
         std::thread::sleep(Duration::from_millis(20));
     };
     assert_eq!(task.state, TaskState::Failed, "{task:?}");
-    assert_eq!(task.error.as_ref().expect("typed error").code, "vua.material.bridge_timeout");
+    assert_eq!(
+        task.error.as_ref().expect("typed error").code,
+        "vua.material.bridge_timeout"
+    );
     assert_eq!(
         task.error.as_ref().expect("typed error").message_key,
         "errors.material.executionFailed",
@@ -937,7 +1001,14 @@ fn run_failing_confirm(
          provision segment presents provisionFailed (batch 150 word-face law)"
     );
 
-    (base, source, project_root, plan_id, plan_revision, confirm_task_id)
+    (
+        base,
+        source,
+        project_root,
+        plan_id,
+        plan_revision,
+        confirm_task_id,
+    )
 }
 
 #[test]
@@ -984,7 +1055,10 @@ fn ph_005_recover_continue_reruns_fresh_and_succeeds() {
     let store = vua_orchestrator::SqliteTaskStore::open(base.join("provider.db")).unwrap();
     let deadline = Instant::now() + Duration::from_secs(15);
     let task = loop {
-        let task = store.task(&recover_task_id).unwrap().expect("task persists");
+        let task = store
+            .task(&recover_task_id)
+            .unwrap()
+            .expect("task persists");
         if task.state.is_terminal() {
             break task;
         }
@@ -995,7 +1069,11 @@ fn ph_005_recover_continue_reruns_fresh_and_succeeds() {
     let result = task.result.expect("result");
     assert_eq!(result["status"], "succeeded");
     // inspect (project credential) + import + validation
-    assert_eq!(bridge.commands.lock().unwrap().len(), 3, "continue really re-runs");
+    assert_eq!(
+        bridge.commands.lock().unwrap().len(),
+        3,
+        "continue really re-runs"
+    );
 
     // The new attempt's receipt lives under the next free attempt id; the
     // failed receipt stays intact as audit history.
@@ -1049,11 +1127,17 @@ fn ph_007_recover_rollback_restores_without_rerunning() {
     let store = vua_orchestrator::SqliteTaskStore::open(base.join("provider.db")).unwrap();
     let deadline = Instant::now() + Duration::from_secs(15);
     let task = loop {
-        let task = store.task(&recover_task_id).unwrap().expect("task persists");
+        let task = store
+            .task(&recover_task_id)
+            .unwrap()
+            .expect("task persists");
         if task.state.is_terminal() {
             break task;
         }
-        assert!(Instant::now() < deadline, "rollback recovery never completed");
+        assert!(
+            Instant::now() < deadline,
+            "rollback recovery never completed"
+        );
         std::thread::sleep(Duration::from_millis(20));
     };
     assert_eq!(task.state, TaskState::Succeeded, "{task:?}");
@@ -1064,8 +1148,15 @@ fn ph_007_recover_rollback_restores_without_rerunning() {
     // Rollback recovery runs NO Unity command and leaves the project as the
     // failed attempt's restore left it.
     // Rollback runs ONLY the read-only project inspection — never an import.
-    assert_eq!(bridge.commands.lock().unwrap().len(), 1, "rollback never imports");
-    assert_eq!(fs::read_to_string(project_root.join("vpm-manifest.json")).unwrap(), manifest_before);
+    assert_eq!(
+        bridge.commands.lock().unwrap().len(),
+        1,
+        "rollback never imports"
+    );
+    assert_eq!(
+        fs::read_to_string(project_root.join("vpm-manifest.json")).unwrap(),
+        manifest_before
+    );
 
     let _ = fs::remove_dir_all(&base);
 }
@@ -1138,9 +1229,12 @@ fn ph_007a_recover_rollback_refuses_malformed_record_snapshot_id() {
     let mut relocated = fs::read_dir(&project_root).unwrap();
     assert!(
         !relocated.any(|entry| {
-            entry
-                .ok()
-                .is_some_and(|entry| entry.file_name().to_string_lossy().starts_with("evil-target.superseded-"))
+            entry.ok().is_some_and(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("evil-target.superseded-")
+            })
         }),
         "no superseded relocation of the traversal target",
     );
@@ -1162,7 +1256,12 @@ fn ph_008_recover_requires_user_decision_and_recoverable_source() {
         vua_provider_host::run_provider_host_with(
             frames_input(vec![frame(
                 "f1",
-                request("req-no-decision", "production.recover", "cmd-guard-1", payload),
+                request(
+                    "req-no-decision",
+                    "production.recover",
+                    "cmd-guard-1",
+                    payload,
+                ),
             )]),
             &mut output_buffer,
             base.join("provider.db"),
@@ -1218,7 +1317,12 @@ fn ph_009_same_command_id_with_different_params_is_a_conflict() {
         vua_provider_host::run_provider_host_with(
             frames_input(vec![frame(
                 "f1",
-                request("req-conflict", "production.confirmPlan", "cmd-confirm-fail", payload),
+                request(
+                    "req-conflict",
+                    "production.confirmPlan",
+                    "cmd-confirm-fail",
+                    payload,
+                ),
             )]),
             &mut output_buffer,
             base.join("provider.db"),
@@ -1236,8 +1340,9 @@ fn ph_009_same_command_id_with_different_params_is_a_conflict() {
 #[test]
 fn ph_010_mutation_gate_holds_lock_and_marker_during_the_run() {
     use std::sync::atomic::{AtomicBool, Ordering};
-    use vua_project_manager::{acquire_project_lock, read_pending_mutation, LockHolder,
-        PendingMutation};
+    use vua_project_manager::{
+        acquire_project_lock, read_pending_mutation, LockHolder, PendingMutation,
+    };
 
     struct BlockingBridge {
         released: Arc<AtomicBool>,
@@ -1282,7 +1387,9 @@ fn ph_010_mutation_gate_holds_lock_and_marker_during_the_run() {
     let _ = &source;
     let released = Arc::new(AtomicBool::new(false));
     let executor = Arc::new(MaterialExecutor::new(
-        Arc::new(BlockingBridge { released: Arc::clone(&released) }),
+        Arc::new(BlockingBridge {
+            released: Arc::clone(&released),
+        }),
         FileSystemSnapshotStore,
         Arc::new(NoVpm),
         BuildRecordStore::new(base.join("records")),
@@ -1302,7 +1409,12 @@ fn ph_010_mutation_gate_holds_lock_and_marker_during_the_run() {
     let path = base.join("provider.db");
     let host = std::thread::spawn(move || {
         let _ = vua_provider_host::run_provider_host_with(
-            ChannelReader { receiver, buffer: Vec::new(), position: 0, done: false },
+            ChannelReader {
+                receiver,
+                buffer: Vec::new(),
+                position: 0,
+                done: false,
+            },
             writer,
             path,
             Some(config),
@@ -1321,18 +1433,23 @@ fn ph_010_mutation_gate_holds_lock_and_marker_during_the_run() {
             "production.startInspection",
             "cmd-inspect",
             json!({
-            "sourceFolder": source.to_string_lossy(),
-            "projectRoot": project_root.to_string_lossy(),
-            "artifactOutputRoot": base.join("artifacts").to_string_lossy(),
-            "projectId": "project",
-        }),
+                "sourceFolder": source.to_string_lossy(),
+                "projectRoot": project_root.to_string_lossy(),
+                "artifactOutputRoot": base.join("artifacts").to_string_lossy(),
+                "projectId": "project",
+            }),
         ),
     ));
     let inspect = wait_for_response(&output_buffer, "req-inspect");
     let inspection_id = inspect["inspectionId"].as_str().unwrap().to_owned();
     send(frame(
         "f2",
-        request("req-plan", "production.requestPlan", "cmd-plan", plan_params(&inspection_id)),
+        request(
+            "req-plan",
+            "production.requestPlan",
+            "cmd-plan",
+            plan_params(&inspection_id),
+        ),
     ));
     let plan = wait_for_response(&output_buffer, "req-plan");
     let plan_id = plan["planId"].as_str().unwrap().to_owned();
@@ -1354,7 +1471,10 @@ fn ph_010_mutation_gate_holds_lock_and_marker_during_the_run() {
     // attempt from "another instance" is refused naming its holder.
     let deadline = Instant::now() + Duration::from_secs(10);
     let holder_seen = loop {
-        if matches!(read_pending_mutation(&project_root), PendingMutation::Leftover(_)) {
+        if matches!(
+            read_pending_mutation(&project_root),
+            PendingMutation::Leftover(_)
+        ) {
             let holder = LockHolder {
                 channel: "other".into(),
                 profile: "other".into(),
@@ -1371,7 +1491,10 @@ fn ph_010_mutation_gate_holds_lock_and_marker_during_the_run() {
         assert!(Instant::now() < deadline, "gate never observed");
         std::thread::sleep(Duration::from_millis(10));
     };
-    assert!(holder_seen.is_some(), "the cross-profile lock names its live holder");
+    assert!(
+        holder_seen.is_some(),
+        "the cross-profile lock names its live holder"
+    );
 
     // Release the run and let it finish.
     released.store(true, Ordering::SeqCst);
@@ -1382,7 +1505,10 @@ fn ph_010_mutation_gate_holds_lock_and_marker_during_the_run() {
     let store = vua_orchestrator::SqliteTaskStore::open(base.join("provider.db")).unwrap();
     let deadline = Instant::now() + Duration::from_secs(15);
     let task = loop {
-        let task = store.task(&confirm_task_id).unwrap().expect("task persists");
+        let task = store
+            .task(&confirm_task_id)
+            .unwrap()
+            .expect("task persists");
         if task.state.is_terminal() {
             break task;
         }
@@ -1403,7 +1529,10 @@ fn ph_010_mutation_gate_holds_lock_and_marker_during_the_run() {
         if read_pending_mutation(&project_root) == PendingMutation::None {
             break;
         }
-        assert!(Instant::now() < deadline, "marker never cleared after the run");
+        assert!(
+            Instant::now() < deadline,
+            "marker never cleared after the run"
+        );
         std::thread::sleep(Duration::from_millis(10));
     }
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -1445,11 +1574,11 @@ fn ph_011_completion_event_reaches_an_idle_host_without_a_request() {
                         "production.startInspection",
                         "cmd-inspect",
                         json!({
-            "sourceFolder": source.to_string_lossy(),
-            "projectRoot": project_root.to_string_lossy(),
-            "artifactOutputRoot": base.join("artifacts").to_string_lossy(),
-            "projectId": "project",
-        }),
+                            "sourceFolder": source.to_string_lossy(),
+                            "projectRoot": project_root.to_string_lossy(),
+                            "artifactOutputRoot": base.join("artifacts").to_string_lossy(),
+                            "projectId": "project",
+                        }),
                     ),
                 ),
                 frame("f2", request("req-pump", "task.list", "", json!({}))),
@@ -1463,9 +1592,9 @@ fn ph_011_completion_event_reaches_an_idle_host_without_a_request() {
     };
     let frames = parse_frames(&output);
     let inspection_id = response_payload(&frames, "req-inspect")["inspectionId"]
-    .as_str()
-    .unwrap()
-    .to_owned();
+        .as_str()
+        .unwrap()
+        .to_owned();
     let (config, _bridge) = production_config(&base, &project_root);
     let output = {
         let mut output_buffer = Vec::new();
@@ -1488,12 +1617,12 @@ fn ph_011_completion_event_reaches_an_idle_host_without_a_request() {
     };
     let frames = parse_frames(&output);
     let plan_id = response_payload(&frames, "req-plan")["planId"]
-    .as_str()
-    .unwrap()
-    .to_owned();
+        .as_str()
+        .unwrap()
+        .to_owned();
     let plan_revision = response_payload(&frames, "req-plan")["revision"]
-    .as_u64()
-    .unwrap();
+        .as_u64()
+        .unwrap();
 
     // Now confirm against the live host and then go COMPLETELY idle: the
     // completion event must arrive on its own through the timed pump.
@@ -1504,7 +1633,12 @@ fn ph_011_completion_event_reaches_an_idle_host_without_a_request() {
     let path = base.join("provider.db");
     let host = std::thread::spawn(move || {
         let _ = vua_provider_host::run_provider_host_with(
-            ChannelReader { receiver, buffer: Vec::new(), position: 0, done: false },
+            ChannelReader {
+                receiver,
+                buffer: Vec::new(),
+                position: 0,
+                done: false,
+            },
             writer,
             path,
             Some(config),
@@ -1540,7 +1674,10 @@ fn ph_011_completion_event_reaches_an_idle_host_without_a_request() {
         if hit.is_some() {
             break true;
         }
-        assert!(Instant::now() < deadline, "completion event never reached the idle host");
+        assert!(
+            Instant::now() < deadline,
+            "completion event never reached the idle host"
+        );
         std::thread::sleep(Duration::from_millis(20));
     };
     assert!(delivered);
@@ -1576,7 +1713,9 @@ fn ph_012_crashed_lease_recovers_through_the_decision_path() {
                 "2026-09-05T00:00:00Z",
             )
             .unwrap();
-        store.mark_other_owners_interrupted("someone", "2026-09-05T00:00:01Z").unwrap();
+        store
+            .mark_other_owners_interrupted("someone", "2026-09-05T00:00:01Z")
+            .unwrap();
     }
 
     // Inspect + plan (no gate involved).
@@ -1592,11 +1731,11 @@ fn ph_012_crashed_lease_recovers_through_the_decision_path() {
                         "production.startInspection",
                         "cmd-inspect",
                         json!({
-            "sourceFolder": source.to_string_lossy(),
-            "projectRoot": project_root.to_string_lossy(),
-            "artifactOutputRoot": base.join("artifacts").to_string_lossy(),
-            "projectId": "project",
-        }),
+                            "sourceFolder": source.to_string_lossy(),
+                            "projectRoot": project_root.to_string_lossy(),
+                            "artifactOutputRoot": base.join("artifacts").to_string_lossy(),
+                            "projectId": "project",
+                        }),
                     ),
                 ),
                 frame("f2", request("req-pump", "task.list", "", json!({}))),
@@ -1610,9 +1749,9 @@ fn ph_012_crashed_lease_recovers_through_the_decision_path() {
     };
     let frames = parse_frames(&output);
     let inspection_id = response_payload(&frames, "req-inspect")["inspectionId"]
-    .as_str()
-    .unwrap()
-    .to_owned();
+        .as_str()
+        .unwrap()
+        .to_owned();
     let (config, _bridge) = production_config(&base, &project_root);
     let output = {
         let mut output_buffer = Vec::new();
@@ -1635,12 +1774,12 @@ fn ph_012_crashed_lease_recovers_through_the_decision_path() {
     };
     let frames = parse_frames(&output);
     let plan_id = response_payload(&frames, "req-plan")["planId"]
-    .as_str()
-    .unwrap()
-    .to_owned();
+        .as_str()
+        .unwrap()
+        .to_owned();
     let plan_revision = response_payload(&frames, "req-plan")["revision"]
-    .as_u64()
-    .unwrap();
+        .as_u64()
+        .unwrap();
 
     // A plain confirm hits the stale lease and is refused as
     // inspect_required — never a silent takeover, never a permanent lock.
@@ -1678,7 +1817,10 @@ fn ph_012_crashed_lease_recovers_through_the_decision_path() {
         std::thread::sleep(Duration::from_millis(20));
     };
     assert_eq!(task.state, TaskState::Failed);
-    assert_eq!(task.error.expect("typed error").code, "vua.project.inspect_required");
+    assert_eq!(
+        task.error.expect("typed error").code,
+        "vua.project.inspect_required"
+    );
 
     // The recovery decision carries the acknowledgment: the lease is taken
     // over after inspect and the run succeeds.
@@ -1725,7 +1867,11 @@ fn ph_012_crashed_lease_recovers_through_the_decision_path() {
     };
     assert_eq!(task.state, TaskState::Succeeded, "{task:?}");
     // inspect (the takeover credential) + import + validation
-    assert_eq!(bridge.commands.lock().unwrap().len(), 3, "continue re-runs after takeover");
+    assert_eq!(
+        bridge.commands.lock().unwrap().len(),
+        3,
+        "continue re-runs after takeover"
+    );
 
     // The lease now belongs to the live run and is released on completion.
     // The worker persists the terminal state BEFORE releasing the mutation
@@ -1791,7 +1937,10 @@ fn ph_013_rollback_publishes_a_recovered_record_and_versions_the_quarantine() {
         if task.state.is_terminal() {
             break task;
         }
-        assert!(Instant::now() < deadline, "rollback recovery never completed");
+        assert!(
+            Instant::now() < deadline,
+            "rollback recovery never completed"
+        );
         std::thread::sleep(Duration::from_millis(20));
     };
     assert_eq!(task.state, TaskState::Succeeded, "{task:?}");
@@ -1803,7 +1952,10 @@ fn ph_013_rollback_publishes_a_recovered_record_and_versions_the_quarantine() {
     let record = BuildRecordStore::new(base.join("records"))
         .read(recovered_record_id)
         .expect("recovery record exists");
-    assert_eq!(record.status, vua_orchestrator::BuildRecordStatus::Recovered);
+    assert_eq!(
+        record.status,
+        vua_orchestrator::BuildRecordStatus::Recovered
+    );
 
     // The superseded quarantine was VERSIONED aside, not deleted.
     let recovery_dir = project_root.join(".vua/recovery");
@@ -1837,7 +1989,12 @@ fn ph_014_rollback_paths_come_from_the_binding_not_the_caller() {
         vua_provider_host::run_provider_host_with(
             frames_input(vec![frame(
                 "f1",
-                request("req-recover", "production.recover", "cmd-recover-x", payload),
+                request(
+                    "req-recover",
+                    "production.recover",
+                    "cmd-recover-x",
+                    payload,
+                ),
             )]),
             &mut output_buffer,
             base.join("provider.db"),
@@ -1852,14 +2009,21 @@ fn ph_014_rollback_paths_come_from_the_binding_not_the_caller() {
     let store = vua_orchestrator::SqliteTaskStore::open(base.join("provider.db")).unwrap();
     let deadline = Instant::now() + Duration::from_secs(15);
     let task = loop {
-        let task = store.task(&recover_task_id).unwrap().expect("task persists");
+        let task = store
+            .task(&recover_task_id)
+            .unwrap()
+            .expect("task persists");
         if task.state.is_terminal() {
             break task;
         }
         assert!(Instant::now() < deadline, "rollback never completed");
         std::thread::sleep(Duration::from_millis(20));
     };
-    assert_eq!(task.state, TaskState::Succeeded, "rollback restores the BOUND project");
+    assert_eq!(
+        task.state,
+        TaskState::Succeeded,
+        "rollback restores the BOUND project"
+    );
     let _ = fs::remove_dir_all(&base);
 }
 
@@ -1931,11 +2095,11 @@ fn ph_016_leftover_marker_is_superseded_only_by_a_recovery_decision() {
                         "production.startInspection",
                         "cmd-inspect",
                         json!({
-            "sourceFolder": source.to_string_lossy(),
-            "projectRoot": project_root.to_string_lossy(),
-            "artifactOutputRoot": base.join("artifacts").to_string_lossy(),
-            "projectId": "project",
-        }),
+                            "sourceFolder": source.to_string_lossy(),
+                            "projectRoot": project_root.to_string_lossy(),
+                            "artifactOutputRoot": base.join("artifacts").to_string_lossy(),
+                            "projectId": "project",
+                        }),
                     ),
                 ),
                 frame("f2", request("req-pump", "task.list", "", json!({}))),
@@ -1949,9 +2113,9 @@ fn ph_016_leftover_marker_is_superseded_only_by_a_recovery_decision() {
     };
     let frames = parse_frames(&output);
     let inspection_id = response_payload(&frames, "req-inspect")["inspectionId"]
-    .as_str()
-    .unwrap()
-    .to_owned();
+        .as_str()
+        .unwrap()
+        .to_owned();
     let (config, _bridge) = production_config(&base, &project_root);
     let output = {
         let mut output_buffer = Vec::new();
@@ -1974,12 +2138,12 @@ fn ph_016_leftover_marker_is_superseded_only_by_a_recovery_decision() {
     };
     let frames = parse_frames(&output);
     let plan_id = response_payload(&frames, "req-plan")["planId"]
-    .as_str()
-    .unwrap()
-    .to_owned();
+        .as_str()
+        .unwrap()
+        .to_owned();
     let plan_revision = response_payload(&frames, "req-plan")["revision"]
-    .as_u64()
-    .unwrap();
+        .as_u64()
+        .unwrap();
 
     // A plain confirm is refused: the leftover marker demands inspect-first.
     let (config, bridge) = production_config(&base, &project_root);
@@ -2016,7 +2180,10 @@ fn ph_016_leftover_marker_is_superseded_only_by_a_recovery_decision() {
         std::thread::sleep(Duration::from_millis(20));
     };
     assert_eq!(task.state, TaskState::Failed);
-    assert_eq!(task.error.expect("typed error").code, "vua.project.inspect_required");
+    assert_eq!(
+        task.error.expect("typed error").code,
+        "vua.project.inspect_required"
+    );
     assert_eq!(bridge.commands.lock().unwrap().len(), 0);
 
     // The recovery decision supersedes the marker (archived, not deleted)
@@ -2073,7 +2240,10 @@ fn ph_016_leftover_marker_is_superseded_only_by_a_recovery_decision() {
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
         .filter(|name| name.starts_with("pending-mutation.json.superseded-"))
         .collect();
-    assert!(!archived.is_empty(), "superseded marker archived: {archived:?}");
+    assert!(
+        !archived.is_empty(),
+        "superseded marker archived: {archived:?}"
+    );
     assert_eq!(
         read_pending_mutation(&project_root),
         vua_project_manager::PendingMutation::None

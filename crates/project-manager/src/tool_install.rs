@@ -101,7 +101,12 @@ fn registry_uninstall_keys(tool_id: &str) -> &'static [(RegistryHive, &'static s
 
 fn strip_icon_path(raw: &str) -> Option<PathBuf> {
     let trimmed = raw.trim().trim_matches('"');
-    let without_index = trimmed.split(',').next().unwrap_or(trimmed).trim().trim_matches('"');
+    let without_index = trimmed
+        .split(',')
+        .next()
+        .unwrap_or(trimmed)
+        .trim()
+        .trim_matches('"');
     if without_index.is_empty() {
         return None;
     }
@@ -137,7 +142,12 @@ pub fn inspect_installer_tool(
         let version = registry
             .get_string(*hive, subkey, "DisplayVersion")
             .filter(|v| !v.trim().is_empty());
-        for value_name in ["InstallLocation", "InstallDir", "DisplayIcon", "UninstallString"] {
+        for value_name in [
+            "InstallLocation",
+            "InstallDir",
+            "DisplayIcon",
+            "UninstallString",
+        ] {
             if let Some(raw) = registry.get_string(*hive, subkey, value_name) {
                 if let Some(dir) = strip_icon_path(&raw) {
                     if !dirs.iter().any(|(d, _)| d == &dir) {
@@ -418,7 +428,13 @@ fn acquire_installer(
         .open(&stage)
         .map_err(|_| DOWNLOAD_ERROR)?;
     let owned = OwnedDownload(stage.clone());
-    let downloaded = runtime.block_on(download(&client, spec.download_url, &mut file, spec, report));
+    let downloaded = runtime.block_on(download(
+        &client,
+        spec.download_url,
+        &mut file,
+        spec,
+        report,
+    ));
     drop(file);
     let sha256 = downloaded.and_then(|()| verify_installer(&stage, spec, report))?;
     let path = publish_verified(&stage, &target, nonce, spec, report)?;
@@ -702,8 +718,7 @@ mod tests {
 
     #[test]
     fn discovery_distinguishes_verified_pe_incomplete_dir_and_missing() {
-        let root =
-            std::env::temp_dir().join(format!("vua-installer-tool-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("vua-installer-tool-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let vrct_dir = root.join("VRCT");
         let spec = installer_tool_spec("vrct").unwrap();
@@ -722,17 +737,19 @@ mod tests {
         let mut pe = vec![b'M', b'Z'];
         pe.resize(128, 0);
         std::fs::write(vrct_dir.join("VRCT.exe"), &pe).unwrap();
-        let reg = FakeRegistrySource::new().with(
-            RegistryHive::CurrentUser,
-            "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VRCT",
-            "DisplayVersion",
-            "3.6.1",
-        ).with(
-            RegistryHive::CurrentUser,
-            "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VRCT",
-            "InstallLocation",
-            &vrct_dir.to_string_lossy(),
-        );
+        let reg = FakeRegistrySource::new()
+            .with(
+                RegistryHive::CurrentUser,
+                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VRCT",
+                "DisplayVersion",
+                "3.6.1",
+            )
+            .with(
+                RegistryHive::CurrentUser,
+                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VRCT",
+                "InstallLocation",
+                &vrct_dir.to_string_lossy(),
+            );
         let found = inspect_installer_tool(&reg, &[], spec);
         assert_eq!(found.presence, "installed");
         assert_eq!(found.version.as_deref(), Some("3.6.1"));

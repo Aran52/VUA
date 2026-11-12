@@ -113,9 +113,11 @@ impl PlanDocumentStore {
     pub fn get(&self, plan_id: &str) -> io::Result<Option<Value>> {
         let path = self.path_for(plan_id)?;
         match fs::read(&path) {
-            Ok(bytes) => Ok(Some(serde_json::from_slice(&bytes).map_err(|error| {
-                io::Error::new(io::ErrorKind::InvalidData, error)
-            })?)),
+            Ok(bytes) => {
+                Ok(Some(serde_json::from_slice(&bytes).map_err(|error| {
+                    io::Error::new(io::ErrorKind::InvalidData, error)
+                })?))
+            }
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(error) => Err(error),
         }
@@ -161,7 +163,10 @@ impl PlanDocumentStore {
         let bytes = serde_json::to_vec_pretty(document)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
         {
-            let mut output = OpenOptions::new().create_new(true).write(true).open(&temporary)?;
+            let mut output = OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&temporary)?;
             output.write_all(&bytes)?;
             output.write_all(b"\n")?;
             output.sync_all()?;
@@ -228,11 +233,19 @@ mod tests {
     fn draft_publish_approve_is_idempotent_and_supersede_is_final() {
         let store = PlanDocumentStore::new(unique_root("lifecycle"));
         let plan_id = "019e0000-0000-7000-8000-000000000301";
-        store.publish_draft(plan_id, &draft_document(plan_id)).unwrap();
+        store
+            .publish_draft(plan_id, &draft_document(plan_id))
+            .unwrap();
 
         // Approve flips draft -> approved and is idempotent.
-        assert!(matches!(store.approve(plan_id).unwrap(), ApproveOutcome::Approved));
-        assert!(matches!(store.approve(plan_id).unwrap(), ApproveOutcome::AlreadyApproved));
+        assert!(matches!(
+            store.approve(plan_id).unwrap(),
+            ApproveOutcome::Approved
+        ));
+        assert!(matches!(
+            store.approve(plan_id).unwrap(),
+            ApproveOutcome::AlreadyApproved
+        ));
         let document = store.get(plan_id).unwrap().unwrap();
         assert_eq!(document["status"], "approved");
 
@@ -260,14 +273,19 @@ mod tests {
             .publish_draft("019e0000-0000-7000-8000-000000000303", &approved_document)
             .is_err());
         // planId mismatch between identity and body is a typed error.
-        assert!(store.publish_draft("another-id", &draft_document("another-id")).is_ok());
+        assert!(store
+            .publish_draft("another-id", &draft_document("another-id"))
+            .is_ok());
         let _ = document;
     }
 
     #[test]
     fn absent_reads_are_none_and_invalid_ids_are_typed() {
         let store = PlanDocumentStore::new(unique_root("absent"));
-        assert_eq!(store.get("019e0000-0000-7000-8000-000000000fff").unwrap(), None);
+        assert_eq!(
+            store.get("019e0000-0000-7000-8000-000000000fff").unwrap(),
+            None
+        );
         assert!(store.list_ids().unwrap().is_empty());
         let result = store.get("../escape");
         assert!(result.is_err());

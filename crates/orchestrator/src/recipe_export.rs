@@ -70,7 +70,9 @@ pub struct ProjectDraftExportCapabilities {
 }
 
 impl ProjectDraftExportCapabilities {
-    pub const NONE: Self = Self { export_project_draft: false };
+    pub const NONE: Self = Self {
+        export_project_draft: false,
+    };
 }
 
 impl Default for ProjectDraftExportCapabilities {
@@ -296,7 +298,9 @@ pub struct OnDiskProjectDraftExporter {
 impl OnDiskProjectDraftExporter {
     /// Production constructor: the real system clock stamps `exportedAt`.
     pub fn new() -> Self {
-        Self { clock: Arc::new(SystemClock) }
+        Self {
+            clock: Arc::new(SystemClock),
+        }
     }
 
     /// Injectable-clock constructor (the ORC-TST-001 replaceable-source
@@ -312,8 +316,12 @@ impl OnDiskProjectDraftExporter {
     /// line, and the trimmed remainder must classify as a complete version —
     /// any miss is the honest `None` (null constraint + missing marker).
     fn observed_unity_version(project_dir: &Path) -> Option<String> {
-        let text = std::fs::read_to_string(project_dir.join("ProjectSettings").join("ProjectVersion.txt"))
-            .ok()?;
+        let text = std::fs::read_to_string(
+            project_dir
+                .join("ProjectSettings")
+                .join("ProjectVersion.txt"),
+        )
+        .ok()?;
         let raw = text
             .lines()
             .find_map(|line| line.strip_prefix("m_EditorVersion:"))
@@ -362,7 +370,9 @@ impl OnDiskProjectDraftExporter {
     /// (same-id pins) maps as documents — the aggregate's rule: string-valued
     /// entries only, a missing or wrong-shaped field is an empty map, never a
     /// guessed entry. Sorted maps make the projection deterministic.
-    fn observed_manifest(project_dir: &Path) -> (BTreeMap<String, String>, BTreeMap<String, String>) {
+    fn observed_manifest(
+        project_dir: &Path,
+    ) -> (BTreeMap<String, String>, BTreeMap<String, String>) {
         let manifest_path = project_dir.join("Packages").join("vpm-manifest.json");
         // Only a FILE is a manifest (the aggregate's manifest_present gate);
         // an absent manifest is the honest empty rows projection.
@@ -393,7 +403,9 @@ impl OnDiskProjectDraftExporter {
                     entries
                         .iter()
                         .filter_map(|(id, version)| {
-                            version.as_str().map(|version| (id.clone(), version.to_owned()))
+                            version
+                                .as_str()
+                                .map(|version| (id.clone(), version.to_owned()))
                         })
                         .collect()
                 })
@@ -415,7 +427,9 @@ impl ProjectDraftExportPort for OnDiskProjectDraftExporter {
     /// gate turn available — until this override the declared-none default
     /// kept every answer honestly unavailable.
     fn export_capabilities(&self) -> ProjectDraftExportCapabilities {
-        ProjectDraftExportCapabilities { export_project_draft: true }
+        ProjectDraftExportCapabilities {
+            export_project_draft: true,
+        }
     }
 
     fn export_project_draft(
@@ -456,7 +470,9 @@ impl ProjectDraftExportPort for OnDiskProjectDraftExporter {
         Ok(ProjectDraftDocumentV01 {
             dependencies,
             draft_id: draft_identity_v7(),
-            environment: DraftEnvironmentV01 { unity_version_constraint },
+            environment: DraftEnvironmentV01 {
+                unity_version_constraint,
+            },
             exported_at: self.clock.now_rfc3339(),
             missing,
             origin: DraftOriginV01 {

@@ -24,7 +24,13 @@ pub struct LibraryCopyEvidence {
 impl BdlStore {
     /// Last complete description snapshot. Empty replaces older link evidence;
     /// account-library observations do not overwrite this independent snapshot.
-    pub fn record_description_links(&self, product_id: &str, targets: &[String], content_hash: &str, observed_at: &str) -> Result<(), BdlStoreError> {
+    pub fn record_description_links(
+        &self,
+        product_id: &str,
+        targets: &[String],
+        content_hash: &str,
+        observed_at: &str,
+    ) -> Result<(), BdlStoreError> {
         let targets = serde_json::to_string(targets)?;
         let connection = self.connection.lock().expect("SQLite connection poisoned");
         connection.execute("INSERT INTO product_description_links(product_id,target_ids,content_hash,observed_at) VALUES(?1,?2,?3,?4)
@@ -33,37 +39,66 @@ impl BdlStore {
         Ok(())
     }
 
-    pub fn library_description_links(&self) -> Result<std::collections::HashMap<String, Vec<String>>, BdlStoreError> {
+    pub fn library_description_links(
+        &self,
+    ) -> Result<std::collections::HashMap<String, Vec<String>>, BdlStoreError> {
         let connection = self.connection.lock().expect("SQLite connection poisoned");
-        let mut statement = connection.prepare("SELECT product_id,target_ids FROM product_description_links")?;
-        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
+        let mut statement =
+            connection.prepare("SELECT product_id,target_ids FROM product_description_links")?;
+        let rows = statement.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
         let mut result = std::collections::HashMap::new();
-        for row in rows { let (id, targets) = row?; result.insert(id, serde_json::from_str(&targets)?); }
+        for row in rows {
+            let (id, targets) = row?;
+            result.insert(id, serde_json::from_str(&targets)?);
+        }
         Ok(result)
     }
 
     /// Observed product-page variant choices, never account entitlement counts.
-    pub fn library_variant_counts(&self) -> Result<std::collections::HashMap<String, usize>, BdlStoreError> {
+    pub fn library_variant_counts(
+        &self,
+    ) -> Result<std::collections::HashMap<String, usize>, BdlStoreError> {
         let connection = self.connection.lock().expect("SQLite connection poisoned");
-        let mut statement = connection.prepare("SELECT product_id,COALESCE(json_array_length(subproducts),0) FROM products")?;
-        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, u32>(1)? as usize)))?;
+        let mut statement = connection.prepare(
+            "SELECT product_id,COALESCE(json_array_length(subproducts),0) FROM products",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, u32>(1)? as usize))
+        })?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
-    pub fn library_product_dates(&self) -> Result<std::collections::HashMap<String, LibraryProductDates>, BdlStoreError> {
+    pub fn library_product_dates(
+        &self,
+    ) -> Result<std::collections::HashMap<String, LibraryProductDates>, BdlStoreError> {
         let connection = self.connection.lock().expect("SQLite connection poisoned");
         let mut statement = connection.prepare(
             "SELECT p.product_id,(SELECT MIN(m.first_seen_at) FROM product_library_memberships m WHERE m.product_id=p.product_id),p.source_published_at FROM products p",
         )?;
-        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, LibraryProductDates { first_seen_at: row.get(1)?, published_at: row.get(2)? })))?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                LibraryProductDates {
+                    first_seen_at: row.get(1)?,
+                    published_at: row.get(2)?,
+                },
+            ))
+        })?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
     /// Original BOOTH category observations, without widening the frozen catalog face.
-    pub fn library_product_categories(&self) -> Result<std::collections::HashMap<String, Option<String>>, BdlStoreError> {
+    pub fn library_product_categories(
+        &self,
+    ) -> Result<std::collections::HashMap<String, Option<String>>, BdlStoreError> {
         let conn = self.connection.lock().expect("SQLite connection poisoned");
-        let mut statement = conn.prepare("SELECT product_id, source_category FROM products ORDER BY product_id")?;
-        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)))?;
+        let mut statement =
+            conn.prepare("SELECT product_id, source_category FROM products ORDER BY product_id")?;
+        let rows = statement.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+        })?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
@@ -95,7 +130,10 @@ impl BdlStore {
     /// When bought products were ordered, for the products an account library lists; a product's latest
     /// order stands. These live beside the format version, so builds that do not read them keep opening
     /// this store. Returns how many were in the library.
-    pub fn record_library_orders(&self, orders: &[(String, String)]) -> Result<usize, BdlStoreError> {
+    pub fn record_library_orders(
+        &self,
+        orders: &[(String, String)],
+    ) -> Result<usize, BdlStoreError> {
         let mut connection = self.connection.lock().expect("SQLite connection poisoned");
         let transaction = connection.transaction()?;
         let mut recorded = 0;
@@ -112,10 +150,15 @@ impl BdlStore {
     }
 
     /// Every recorded order time, by product.
-    pub fn library_order_times(&self) -> Result<std::collections::HashMap<String, String>, BdlStoreError> {
+    pub fn library_order_times(
+        &self,
+    ) -> Result<std::collections::HashMap<String, String>, BdlStoreError> {
         let connection = self.connection.lock().expect("SQLite connection poisoned");
-        let mut statement = connection.prepare("SELECT key, value FROM bdl_meta WHERE key LIKE 'library_ordered_at:%'")?;
-        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
+        let mut statement = connection
+            .prepare("SELECT key, value FROM bdl_meta WHERE key LIKE 'library_ordered_at:%'")?;
+        let rows = statement.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
         let mut times = std::collections::HashMap::new();
         for row in rows {
             let (key, value) = row?;

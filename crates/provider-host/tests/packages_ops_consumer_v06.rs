@@ -102,7 +102,7 @@ impl VpmBackend for FakeLifecycleBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn repo_lifecycle_capabilities(&self) -> RepoLifecycleCapabilities {
@@ -168,7 +168,7 @@ impl VpmBackend for NoLifecycleBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -214,7 +214,7 @@ impl VpmBackend for RefusingLifecycleBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn repo_lifecycle_capabilities(&self) -> RepoLifecycleCapabilities {
@@ -391,7 +391,9 @@ fn lifecycle_gate_is_the_new_defaulted_accessor_three_independent_bits() {
     // the wire gate reads the same bits BEFORE submit and answers the
     // same code — one code, two absence mechanisms, both honest (the
     // A3/A4 law).
-    let capable = FakeLifecycleBackend { refresh_outcome: true };
+    let capable = FakeLifecycleBackend {
+        refresh_outcome: true,
+    };
     let bits = capable.repo_lifecycle_capabilities();
     assert!(bits.enable_repo && bits.disable_repo && bits.refresh_repo);
     assert_eq!(capable.name(), "fake-lifecycle");
@@ -403,8 +405,12 @@ fn lifecycle_gate_is_the_new_defaulted_accessor_three_independent_bits() {
     // The trait-default absence arm: the defaulted methods answer the
     // standing capability_missing, never a fabricated success.
     for refusal in [
-        incapable.enable_repo(FAKE_REPO_ID).expect_err("default must refuse"),
-        incapable.disable_repo(FAKE_REPO_ID).expect_err("default must refuse"),
+        incapable
+            .enable_repo(FAKE_REPO_ID)
+            .expect_err("default must refuse"),
+        incapable
+            .disable_repo(FAKE_REPO_ID)
+            .expect_err("default must refuse"),
     ] {
         assert_eq!(refusal.code, "vua.vpm.capability_missing");
     }
@@ -426,10 +432,16 @@ fn fake_lifecycle_backend_port_facts_project_onto_the_f4_wire_shapes() {
         "operation": "packages.enableRepo",
         "params": { "repoId": FAKE_REPO_ID },
     });
-    assert!(command.is_valid(&enable_request), "{:?}", violations(&command, &enable_request));
-    FakeLifecycleBackend { refresh_outcome: true }
-        .enable_repo(FAKE_REPO_ID)
-        .expect("the fake backend must enable");
+    assert!(
+        command.is_valid(&enable_request),
+        "{:?}",
+        violations(&command, &enable_request)
+    );
+    FakeLifecycleBackend {
+        refresh_outcome: true,
+    }
+    .enable_repo(FAKE_REPO_ID)
+    .expect("the fake backend must enable");
     let enabled_receipt = json!({
         "schemaVersion": "0.6",
         "operation": "packages.enableRepo",
@@ -439,7 +451,11 @@ fn fake_lifecycle_backend_port_facts_project_onto_the_f4_wire_shapes() {
             "repoId": FAKE_REPO_ID,
         },
     });
-    assert!(result.is_valid(&enabled_receipt), "{:?}", violations(&result, &enabled_receipt));
+    assert!(
+        result.is_valid(&enabled_receipt),
+        "{:?}",
+        violations(&result, &enabled_receipt)
+    );
     let enabled_keys: Vec<String> = enabled_receipt["result"]
         .as_object()
         .unwrap()
@@ -460,7 +476,9 @@ fn fake_lifecycle_backend_port_facts_project_onto_the_f4_wire_shapes() {
     // library outcome are success and both projections are schema-valid
     // (the etag-unchanged arm is an honest outcome, never an error) ---
     for outcome in [true, false] {
-        let backend = FakeLifecycleBackend { refresh_outcome: outcome };
+        let backend = FakeLifecycleBackend {
+            refresh_outcome: outcome,
+        };
         let fact = backend
             .refresh_repo(FAKE_REPO_ID)
             .expect("the fake backend must refresh");

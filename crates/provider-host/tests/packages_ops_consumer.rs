@@ -21,10 +21,8 @@ use std::fs;
 use std::path::Path;
 
 use serde_json::{json, Value};
-use vua_orchestrator::{
-    ChangeKindV1, ChangePreviewV1, ProjectRef, VpmBackend,
-};
 use vua_orchestrator::{AppErrorV1, ChangeItemV1, ErrorCategory};
+use vua_orchestrator::{ChangeKindV1, ChangePreviewV1, ProjectRef, VpmBackend};
 
 fn read_ops_json(relative: &str) -> Value {
     // Tests run from the crate directory; the schemas live at the repo root.
@@ -70,7 +68,7 @@ impl VpmBackend for MinimalBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -140,7 +138,7 @@ impl VpmBackend for FakeRemoveBackend {
             list_packages: false,
             remove_packages: true,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -182,15 +180,13 @@ impl VpmBackend for FakeRemoveBackend {
         if confirmed_digest != FAKE_DIGEST {
             // The double-digest discipline word face: drift is a
             // RECOVERABLE conflict (re-preview, never implicit resumption).
-            return Err(
-                AppErrorV1::new(
-                    "vua.vpm.preview_drift",
-                    ErrorCategory::Conflict,
-                    "errors.vpm.previewDrift",
-                    "corr-vpm-remove",
-                )
-                .with_recoverable(true),
-            );
+            return Err(AppErrorV1::new(
+                "vua.vpm.preview_drift",
+                ErrorCategory::Conflict,
+                "errors.vpm.previewDrift",
+                "corr-vpm-remove",
+            )
+            .with_recoverable(true));
         }
         let preview = fake_preview();
         Ok(json!({ "removed": preview.items }))
@@ -207,51 +203,96 @@ fn ops_schema_admits_positive_vectors_and_rejects_negative_ones() {
         "schemas/packages-ops/v0.1/examples/packages-apply-remove.request.json",
     ] {
         let doc = read_ops_json(positive);
-        assert!(command.is_valid(&doc), "{positive}: {:?}", violations(&command, &doc));
+        assert!(
+            command.is_valid(&doc),
+            "{positive}: {:?}",
+            violations(&command, &doc)
+        );
     }
     for positive in [
         "schemas/packages-ops/v0.1/examples/packages-preview-remove.result.json",
         "schemas/packages-ops/v0.1/examples/packages-apply-remove-result-receipt.result.json",
     ] {
         let doc = read_ops_json(positive);
-        assert!(result.is_valid(&doc), "{positive}: {:?}", violations(&result, &doc));
+        assert!(
+            result.is_valid(&doc),
+            "{positive}: {:?}",
+            violations(&result, &doc)
+        );
     }
 
     // A preview request carries NO digest slot: the digest is the
     // preview's product, carrying one is a shape violation.
-    let carries_digest = read_ops_json("schemas/packages-ops/v0.1/examples/invalid-preview-extra-param.request.json");
-    assert!(!command.is_valid(&carries_digest), "a preview request with a digest must be invalid");
+    let carries_digest = read_ops_json(
+        "schemas/packages-ops/v0.1/examples/invalid-preview-extra-param.request.json",
+    );
+    assert!(
+        !command.is_valid(&carries_digest),
+        "a preview request with a digest must be invalid"
+    );
 
     // The explicit closed list: no wildcard, no empty "remove everything".
-    let empty_ids = read_ops_json("schemas/packages-ops/v0.1/examples/invalid-empty-package-ids.request.json");
-    assert!(!command.is_valid(&empty_ids), "empty packageIds must be invalid");
+    let empty_ids =
+        read_ops_json("schemas/packages-ops/v0.1/examples/invalid-empty-package-ids.request.json");
+    assert!(
+        !command.is_valid(&empty_ids),
+        "empty packageIds must be invalid"
+    );
 
     // apply without the confirmed digest has no confirmation to bind to.
-    let missing_digest = read_ops_json("schemas/packages-ops/v0.1/examples/invalid-apply-missing-digest.request.json");
-    assert!(!command.is_valid(&missing_digest), "apply without confirmedDigest must be invalid");
+    let missing_digest = read_ops_json(
+        "schemas/packages-ops/v0.1/examples/invalid-apply-missing-digest.request.json",
+    );
+    assert!(
+        !command.is_valid(&missing_digest),
+        "apply without confirmedDigest must be invalid"
+    );
 
     // The false-assertion guard: facts with no port carrier are invalid
     // by schema, not merely discouraged.
-    let plan_invented = read_ops_json("schemas/packages-ops/v0.1/examples/invalid-plan-invented-field.result.json");
-    assert!(!result.is_valid(&plan_invented), "invented updateAvailable on the plan must be invalid");
+    let plan_invented =
+        read_ops_json("schemas/packages-ops/v0.1/examples/invalid-plan-invented-field.result.json");
+    assert!(
+        !result.is_valid(&plan_invented),
+        "invented updateAvailable on the plan must be invalid"
+    );
 
-    let receipt_invented = read_ops_json("schemas/packages-ops/v0.1/examples/invalid-receipt-invented-field.result.json");
-    assert!(!result.is_valid(&receipt_invented), "invented reInspection on the receipt must be invalid");
+    let receipt_invented = read_ops_json(
+        "schemas/packages-ops/v0.1/examples/invalid-receipt-invented-field.result.json",
+    );
+    assert!(
+        !result.is_valid(&receipt_invented),
+        "invented reInspection on the receipt must be invalid"
+    );
 
     // The error-code family is vua.packages.* for this word face; a
     // reused 013 code inside the rejected arm is outside the family.
-    let code_outside = read_ops_json("schemas/packages-ops/v0.1/examples/invalid-rejected-code-outside-family.result.json");
-    assert!(!result.is_valid(&code_outside), "a non-vua.packages.* code must be invalid");
+    let code_outside = read_ops_json(
+        "schemas/packages-ops/v0.1/examples/invalid-rejected-code-outside-family.result.json",
+    );
+    assert!(
+        !result.is_valid(&code_outside),
+        "a non-vua.packages.* code must be invalid"
+    );
 
     // Operation/kind lock: the synchronous preview answers kind=plan
     // exactly, never a task-terminal arm.
-    let kind_mismatch = read_ops_json("schemas/packages-ops/v0.1/examples/invalid-preview-result-kind-receipt.result.json");
-    assert!(!result.is_valid(&kind_mismatch), "previewRemove must never answer kind=receipt");
+    let kind_mismatch = read_ops_json(
+        "schemas/packages-ops/v0.1/examples/invalid-preview-result-kind-receipt.result.json",
+    );
+    assert!(
+        !result.is_valid(&kind_mismatch),
+        "previewRemove must never answer kind=receipt"
+    );
 
     // The change-item word is the port's two-state kind; "upgrade" is
     // outside the frozen word list (A2's face, not invented here).
-    let bad_kind = read_ops_json("schemas/packages-ops/v0.1/examples/invalid-item-bad-kind.result.json");
-    assert!(!result.is_valid(&bad_kind), "item kind=upgrade is outside the two-state word");
+    let bad_kind =
+        read_ops_json("schemas/packages-ops/v0.1/examples/invalid-item-bad-kind.result.json");
+    assert!(
+        !result.is_valid(&bad_kind),
+        "item kind=upgrade is outside the two-state word"
+    );
 }
 
 #[test]
@@ -259,13 +300,18 @@ fn trait_default_answers_capability_missing_and_declares_false() {
     let backend = MinimalBackend;
     assert!(!backend.capabilities().remove_packages);
 
-    let project = ProjectRef { id: "demo".into(), root: std::path::PathBuf::from("C:/proj") };
+    let project = ProjectRef {
+        id: "demo".into(),
+        root: std::path::PathBuf::from("C:/proj"),
+    };
     let ids = vec!["com.example.pkg".to_string()];
 
     let err = backend.preview_remove(&project, &ids).unwrap_err();
     assert_eq!(err.code, "vua.vpm.capability_missing");
 
-    let err = backend.apply_remove(&project, &ids, FAKE_DIGEST).unwrap_err();
+    let err = backend
+        .apply_remove(&project, &ids, FAKE_DIGEST)
+        .unwrap_err();
     assert_eq!(err.code, "vua.vpm.capability_missing");
 }
 
@@ -273,7 +319,10 @@ fn trait_default_answers_capability_missing_and_declares_false() {
 fn fake_backend_port_facts_project_onto_the_frozen_wire_shapes() {
     let backend = FakeRemoveBackend;
     assert!(backend.capabilities().remove_packages);
-    let project = ProjectRef { id: "demo".into(), root: std::path::PathBuf::from("C:/VRChat/Projects/Chiffon") };
+    let project = ProjectRef {
+        id: "demo".into(),
+        root: std::path::PathBuf::from("C:/VRChat/Projects/Chiffon"),
+    };
     let ids = vec!["com.lilxyzw.liltoon".to_string()];
 
     // Port facts → serde projection → plan-arm wire envelope → schema.
@@ -288,11 +337,21 @@ fn fake_backend_port_facts_project_onto_the_frozen_wire_shapes() {
         "result": plan,
     });
     let validator = ops_result_validator();
-    assert!(validator.is_valid(&envelope), "{:?}", violations(&validator, &envelope));
+    assert!(
+        validator.is_valid(&envelope),
+        "{:?}",
+        violations(&validator, &envelope)
+    );
     assert_eq!(envelope["result"]["schemaVersion"], "vua.packages-ops/v0.1");
     // The frozen camelCase projection of the port facts.
-    assert_eq!(envelope["result"]["destructive"], serde_json::Value::Bool(true));
-    assert_eq!(envelope["result"]["removeLegacyFolders"][0], "Assets/lilToon");
+    assert_eq!(
+        envelope["result"]["destructive"],
+        serde_json::Value::Bool(true)
+    );
+    assert_eq!(
+        envelope["result"]["removeLegacyFolders"][0],
+        "Assets/lilToon"
+    );
     let items = envelope["result"]["items"].as_array().unwrap();
     assert_eq!(items.len(), 2);
     assert_eq!(items[0]["packageId"], "com.lilxyzw.liltoon");
@@ -319,7 +378,11 @@ fn fake_backend_port_facts_project_onto_the_frozen_wire_shapes() {
         "result": receipt,
     });
     let validator = ops_result_validator();
-    assert!(validator.is_valid(&envelope), "{:?}", violations(&validator, &envelope));
+    assert!(
+        validator.is_valid(&envelope),
+        "{:?}",
+        violations(&validator, &envelope)
+    );
     let removed = envelope["result"]["removedItems"].as_array().unwrap();
     assert_eq!(removed.len(), 2);
     assert_eq!(removed[0]["packageId"], "com.lilxyzw.liltoon");
@@ -328,7 +391,10 @@ fn fake_backend_port_facts_project_onto_the_frozen_wire_shapes() {
 #[test]
 fn digest_drift_is_a_recoverable_conflict_word_face() {
     let backend = FakeRemoveBackend;
-    let project = ProjectRef { id: "demo".into(), root: std::path::PathBuf::from("C:/proj") };
+    let project = ProjectRef {
+        id: "demo".into(),
+        root: std::path::PathBuf::from("C:/proj"),
+    };
     let ids = vec!["com.lilxyzw.liltoon".to_string()];
 
     // The apply binds to the confirmed digest; drift is refused with the

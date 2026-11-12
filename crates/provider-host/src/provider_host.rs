@@ -9,50 +9,11 @@ pub fn amf_build_identity(version: &str, build: Option<&str>) -> String {
 }
 /// Set once by the AMF executable from compile-time source facts, never a frame or environment request.
 pub fn configure_amf_build_identity(version: &str, build: Option<&str>) -> bool {
-    COMPONENT_BUILD_ID.set(amf_build_identity(version, build)).is_ok()
+    COMPONENT_BUILD_ID
+        .set(amf_build_identity(version, build))
+        .is_ok()
 }
 
-use vua_unity_bridge::{
-    MaterialCancelToken, MaterialExecutionStatus, MaterialExecutor, RollbackOutcome,
-};
-use vua_orchestrator::{
-    MaterialEntryMode, RecipeDocumentStore, RiskDecisionChoice, SourceFolderInspectionV01,
-};
-use vua_unity_bridge::{
-    MaterialIntakeConfirmationV01, MaterialIntakeEngine, MaterialIntakePlanV01, RiskDecisionV01,
-};
-use vua_unity_bridge::MaterialTaskResult;
-use vua_orchestrator::{
-    DependenciesListByProductParams, DependenciesLookupParams, DependenciesParamsError,
-    ProjectRef, PackageRequestV1, VpmBackend,
-};
-use vua_project_manager::{
-    acquire_project_lock, apply_import_copy, begin_mutation, collect_environment_managers_snapshot,
-    collect_project_inspections, plan_import_copy, read_pending_mutation, set_note,
-    verify_editor_path_system, EditorPathRefusal, EditorPathVerdict, ImportCopyRequest, LockHolder,
-    ManagerRoots,
-    MutationMarkerGuard, PendingMutation, ProjectInspectionV01, ProjectLockError, ProjectLockGuard,
-    SetNoteError, MARKER_FILE_NAME,
-    PROJECT_INSPECTION_SCHEMA_VERSION as PROJECT_INSPECTION_FAMILY_VERSION,
-};
-use vua_bdl_store::download_events::{
-    fold_lifecycle, retry_decision, ConsumerError, DownloadEventConsumer, DownloadEventV01,
-    IngestOutcome, RetryDecision,
-};
-use vua_orchestrator::{
-    AppErrorV1, BuildRecordStore, EnvironmentEngine, EnvironmentRoots, ErrorCategory,
-    IdempotentCancellation,
-    IdempotentTaskAcceptance, NanosTaskIdGenerator, NewTask, OverlayReadModel, ProjectIdentity,
-    SqliteStoreError,
-    SqliteTaskStore, StoredTask, StoredTaskEvent, StoreOverlayReadModel, SystemClock,
-    TaskEventKind, TaskMutation,
-    TaskRuntime, TaskState,
-};
-use vua_bdl_store::{
-    ArtifactMode, BdlStore, BdlStoreError, CatalogListParams, CatalogParamsError,
-    BDL_QUERIES_SCHEMA_VERSION,
-};
-use vua_orchestrator::ParamValue;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -62,6 +23,43 @@ use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use vua_bdl_store::download_events::{
+    fold_lifecycle, retry_decision, ConsumerError, DownloadEventConsumer, DownloadEventV01,
+    IngestOutcome, RetryDecision,
+};
+use vua_bdl_store::{
+    ArtifactMode, BdlStore, BdlStoreError, CatalogListParams, CatalogParamsError,
+    BDL_QUERIES_SCHEMA_VERSION,
+};
+use vua_orchestrator::ParamValue;
+use vua_orchestrator::{
+    AppErrorV1, BuildRecordStore, EnvironmentEngine, EnvironmentRoots, ErrorCategory,
+    IdempotentCancellation, IdempotentTaskAcceptance, NanosTaskIdGenerator, NewTask,
+    OverlayReadModel, ProjectIdentity, SqliteStoreError, SqliteTaskStore, StoreOverlayReadModel,
+    StoredTask, StoredTaskEvent, SystemClock, TaskEventKind, TaskMutation, TaskRuntime, TaskState,
+};
+use vua_orchestrator::{
+    DependenciesListByProductParams, DependenciesLookupParams, DependenciesParamsError,
+    PackageRequestV1, ProjectRef, VpmBackend,
+};
+use vua_orchestrator::{
+    MaterialEntryMode, RecipeDocumentStore, RiskDecisionChoice, SourceFolderInspectionV01,
+};
+use vua_project_manager::{
+    acquire_project_lock, apply_import_copy, begin_mutation, collect_environment_managers_snapshot,
+    collect_project_inspections, plan_import_copy, read_pending_mutation, set_note,
+    verify_editor_path_system, EditorPathRefusal, EditorPathVerdict, ImportCopyRequest, LockHolder,
+    ManagerRoots, MutationMarkerGuard, PendingMutation, ProjectInspectionV01, ProjectLockError,
+    ProjectLockGuard, SetNoteError, MARKER_FILE_NAME,
+    PROJECT_INSPECTION_SCHEMA_VERSION as PROJECT_INSPECTION_FAMILY_VERSION,
+};
+use vua_unity_bridge::MaterialTaskResult;
+use vua_unity_bridge::{
+    MaterialCancelToken, MaterialExecutionStatus, MaterialExecutor, RollbackOutcome,
+};
+use vua_unity_bridge::{
+    MaterialIntakeConfirmationV01, MaterialIntakeEngine, MaterialIntakePlanV01, RiskDecisionV01,
+};
 
 pub const PROVIDER_FRAME_VERSION: &str = "0.1";
 const APPLICATION_CONTRACT_VERSION: &str = "0.1";
@@ -725,7 +723,15 @@ pub fn run_provider_host_with_downloads(
     production: Option<ProductionConfig>,
     downloads: Option<DownloadConfig>,
 ) -> Result<(), ProviderHostError> {
-    run_provider_host_with_services(input, output, database_path, production, downloads, None, None)
+    run_provider_host_with_services(
+        input,
+        output,
+        database_path,
+        production,
+        downloads,
+        None,
+        None,
+    )
 }
 
 /// The full entry: additionally wires the B4 warehouse command trio
@@ -777,8 +783,20 @@ pub fn run_provider_host_full(
     editor_verifier: Option<EditorPathVerifier>,
     vpm: Option<Arc<dyn VpmBackend>>,
 ) -> Result<(), ProviderHostError> {
-    run_provider_host_with_legacy(input, output, database_path, production, downloads, warehouse,
-        use_cases, project_ops, environment, editor_verifier, vpm, None)
+    run_provider_host_with_legacy(
+        input,
+        output,
+        database_path,
+        production,
+        downloads,
+        warehouse,
+        use_cases,
+        project_ops,
+        environment,
+        editor_verifier,
+        vpm,
+        None,
+    )
 }
 
 /// Separate process authorities import their legacy tasks once, under the
@@ -876,15 +894,48 @@ pub fn run_provider_host_with_legacy(
                 Arc::new(NanosTaskIdGenerator::default()),
             )
             .and_then(|runtime| {
-                let staging_root = config.warehouse_root.parent().unwrap_or(&config.warehouse_root).join("downloads-staging");
-                let library_downloads = Arc::new(vua_acquisition::library_download::LibraryDownloadService::new(
-                    store.clone(), config.bdl.clone(), runtime.clone(), config.warehouse_root.clone(), staging_root,
-                )?);
-                let draft_root=config.warehouse_root.parent().unwrap_or(&config.warehouse_root).join("recipe-selection-drafts");
-                let library_maintenance = vua_acquisition::library_maintenance::LibraryMaintenance::new(
-                    store.clone(),config.bdl.clone(),runtime.clone(),config.warehouse_root.clone(),library_downloads.clone());
+                let staging_root = config
+                    .warehouse_root
+                    .parent()
+                    .unwrap_or(&config.warehouse_root)
+                    .join("downloads-staging");
+                let library_downloads = Arc::new(
+                    vua_acquisition::library_download::LibraryDownloadService::new(
+                        store.clone(),
+                        config.bdl.clone(),
+                        runtime.clone(),
+                        config.warehouse_root.clone(),
+                        staging_root,
+                    )?,
+                );
+                let draft_root = config
+                    .warehouse_root
+                    .parent()
+                    .unwrap_or(&config.warehouse_root)
+                    .join("recipe-selection-drafts");
+                let library_maintenance =
+                    vua_acquisition::library_maintenance::LibraryMaintenance::new(
+                        store.clone(),
+                        config.bdl.clone(),
+                        runtime.clone(),
+                        config.warehouse_root.clone(),
+                        library_downloads.clone(),
+                    );
                 Ok(Arc::new(WarehouseServices {
-                    terms: Arc::new(vua_acquisition::terms::TermsService::new(config.bdl.clone(),runtime.clone(),vua_acquisition::terms::owned_cache_root(config.warehouse_root.parent().unwrap_or(&config.warehouse_root)),Arc::new(vua_acquisition::terms::download::PublicTermsDownloader::default()),Arc::new(SystemClock))),
+                    terms: Arc::new(vua_acquisition::terms::TermsService::new(
+                        config.bdl.clone(),
+                        runtime.clone(),
+                        vua_acquisition::terms::owned_cache_root(
+                            config
+                                .warehouse_root
+                                .parent()
+                                .unwrap_or(&config.warehouse_root),
+                        ),
+                        Arc::new(
+                            vua_acquisition::terms::download::PublicTermsDownloader::default(),
+                        ),
+                        Arc::new(SystemClock),
+                    )),
                     bdl: config.bdl,
                     warehouse_root: config.warehouse_root,
                     global_default: config.global_default,
@@ -893,7 +944,10 @@ pub fn run_provider_host_with_legacy(
                     runtime,
                     library_downloads,
                     library_maintenance,
-                    selection_drafts: vua_acquisition::recipe_selection_drafts::RecipeSelectionDrafts::new(draft_root),
+                    selection_drafts:
+                        vua_acquisition::recipe_selection_drafts::RecipeSelectionDrafts::new(
+                            draft_root,
+                        ),
                 }))
             })
         })
@@ -969,22 +1023,32 @@ pub fn run_provider_host_with_legacy(
     // Proposal 021 routing batch: the default verification face is the
     // primitive's own system wiring — the route adds the wire mapping
     // only, never verification logic of its own.
-    let editor_verify: EditorPathVerifier = editor_verifier.unwrap_or_else(|| {
-        Arc::new(|input: &Path| verify_editor_path_system(input))
-    });
+    let editor_verify: EditorPathVerifier = editor_verifier
+        .unwrap_or_else(|| Arc::new(|input: &Path| verify_editor_path_system(input)));
     let amf_production = warehouse.as_ref().map(|warehouse| {
-        let root = warehouse.warehouse_root.parent().unwrap_or(&warehouse.warehouse_root).join("amf-production");
+        let root = warehouse
+            .warehouse_root
+            .parent()
+            .unwrap_or(&warehouse.warehouse_root)
+            .join("amf-production");
         let platform = crate::amf_production_adapter::NativeAmfProduction {
             read_cache: Default::default(),
-            bdl: warehouse.bdl.clone(), root: root.clone(),
-            editor_roots: project_ops.as_ref().map(|ops| ops.editor_roots.as_ref().clone()).unwrap_or_else(|| vec![PathBuf::from("C:/Program Files/Unity/Hub/Editor")]),
+            bdl: warehouse.bdl.clone(),
+            root: root.clone(),
+            editor_roots: project_ops
+                .as_ref()
+                .map(|ops| ops.editor_roots.as_ref().clone())
+                .unwrap_or_else(|| vec![PathBuf::from("C:/Program Files/Unity/Hub/Editor")]),
             explicit_editor: std::env::var_os("VUA_UNITY_EDITOR").map(PathBuf::from),
             // The AMF process runs without the host's environment services, so it finds Hub itself.
             unity_hub: Some({
                 let engine = Arc::new(EnvironmentEngine::new(
                     Arc::new(vua_orchestrator::StdProcessRunner),
                     Arc::new(SystemClock),
-                    environment.as_ref().map(|services| services.roots.clone()).unwrap_or_default(),
+                    environment
+                        .as_ref()
+                        .map(|services| services.roots.clone())
+                        .unwrap_or_default(),
                     Arc::new(vua_project_manager::VccSettingsFileReader),
                 ));
                 Arc::new(move || engine.inspect_unity_hub())
@@ -998,11 +1062,20 @@ pub fn run_provider_host_with_legacy(
     });
     let license_amf = amf_production.clone();
     let unity_license = Some(Arc::new(crate::unity_license::UnityLicenseService {
-        probe: Arc::new(crate::unity_license::NativeLicenseProbe::system().with_editors(Arc::new(move || {
-            license_amf.as_ref().map_or_else(|| Ok(Vec::new()), |amf| amf.engine.editors())
-        }))),
-        root: database_path.parent().unwrap_or_else(|| Path::new(".")).join("unity-license"),
-        amf: amf_production.clone(), runner: Arc::new(vua_orchestrator::StdProcessRunner), clock: Arc::new(SystemClock),
+        probe: Arc::new(
+            crate::unity_license::NativeLicenseProbe::system().with_editors(Arc::new(move || {
+                license_amf
+                    .as_ref()
+                    .map_or_else(|| Ok(Vec::new()), |amf| amf.engine.editors())
+            })),
+        ),
+        root: database_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join("unity-license"),
+        amf: amf_production.clone(),
+        runner: Arc::new(vua_orchestrator::StdProcessRunner),
+        clock: Arc::new(SystemClock),
     }));
     let state = HostState {
         unity_license,
@@ -1035,10 +1108,15 @@ pub fn run_provider_host_with_legacy(
         if let Some(project_ops) = &state.project_ops {
             driven_runtimes.push(project_ops.runtime.clone());
         }
-        if let Some(environment) = &state.environment { driven_runtimes.push(environment.deployment.runtime.clone()); }
+        if let Some(environment) = &state.environment {
+            driven_runtimes.push(environment.deployment.runtime.clone());
+        }
         for runtime in driven_runtimes {
             let sink = sink.clone();
-            let library_downloads = state.warehouse.as_ref().map(|warehouse| Arc::downgrade(&warehouse.library_downloads));
+            let library_downloads = state
+                .warehouse
+                .as_ref()
+                .map(|warehouse| Arc::downgrade(&warehouse.library_downloads));
             // Register before dispatch starts: even a short deployment/manual handoff must
             // publish acceptance and progress without a subscriber-thread startup race.
             let receiver = runtime.subscribe();
@@ -1054,15 +1132,23 @@ pub fn run_provider_host_with_legacy(
                         correlation_id: event.correlation_id,
                         payload: event.payload,
                     };
-                    let acquisition_completed = matches!(stored.state, TaskState::Succeeded | TaskState::SucceededWithWarnings) && stored.kind == TaskEventKind::Completed
+                    let acquisition_completed = matches!(
+                        stored.state,
+                        TaskState::Succeeded | TaskState::SucceededWithWarnings
+                    ) && stored.kind == TaskEventKind::Completed
                         && (stored.payload["foldersImported"].is_number()
-                            || stored.payload["files"].as_array().is_some_and(|files| files.iter().any(|file| file["phase"] == "stored")));
+                            || stored.payload["files"].as_array().is_some_and(|files| {
+                                files.iter().any(|file| file["phase"] == "stored")
+                            }));
                     let acquisition_trigger = format!("acquisition:{}", stored.task_id);
-                    sink.lock()
-                        .expect("runtime events poisoned")
-                        .push(stored);
-                    if let Some(downloads) = library_downloads.as_ref().and_then(|downloads| downloads.upgrade()) {
-                        let _ = downloads.reconcile(&parent_id, |event| sink.lock().expect("runtime events poisoned").push(event));
+                    sink.lock().expect("runtime events poisoned").push(stored);
+                    if let Some(downloads) = library_downloads
+                        .as_ref()
+                        .and_then(|downloads| downloads.upgrade())
+                    {
+                        let _ = downloads.reconcile(&parent_id, |event| {
+                            sink.lock().expect("runtime events poisoned").push(event)
+                        });
                         if acquisition_completed {
                             let _ = downloads.reconcile_library_sources(&acquisition_trigger);
                         }
@@ -1075,8 +1161,15 @@ pub fn run_provider_host_with_legacy(
     serve_frames(input, output, state)
 }
 
-fn serve_frames(input: impl BufRead + Send + 'static, mut output: impl Write, mut state: HostState) -> Result<(), ProviderHostError> {
-    let mut read_queries = state.amf_production.as_ref().map(|_| read_queries::ReadQueries::new());
+fn serve_frames(
+    input: impl BufRead + Send + 'static,
+    mut output: impl Write,
+    mut state: HostState,
+) -> Result<(), ProviderHostError> {
+    let mut read_queries = state
+        .amf_production
+        .as_ref()
+        .map(|_| read_queries::ReadQueries::new());
 
     // The reader runs on its own thread so the host can wake up between
     // frames: worker completion events reach an idle Gateway without it
@@ -1090,8 +1183,7 @@ fn serve_frames(input: impl BufRead + Send + 'static, mut output: impl Write, mu
             // single cumulative Take would treat ~1 MiB of total session
             // traffic as EOF and silently end the protocol.
             let read = {
-                let mut limited =
-                    std::io::Read::take(input.by_ref(), MAX_FRAME_BYTES + 1);
+                let mut limited = std::io::Read::take(input.by_ref(), MAX_FRAME_BYTES + 1);
                 std::io::BufRead::read_until(&mut limited, b'\n', &mut line)
             };
             match read {
@@ -1124,7 +1216,9 @@ fn serve_frames(input: impl BufRead + Send + 'static, mut output: impl Write, mu
                 // EOF closes admission but does not discard already accepted queries.
                 if let Some(reads) = &mut read_queries {
                     while reads.has_pending() {
-                        if let Some((frame_id, payload)) = reads.receive(Duration::from_millis(100))? {
+                        if let Some((frame_id, payload)) =
+                            reads.receive(Duration::from_millis(100))?
+                        {
                             write_frame(&mut output, &frame_id, "response", payload)?;
                         }
                         write_pending_events(&mut state, &mut output)?;
@@ -1173,7 +1267,12 @@ fn serve_frames(input: impl BufRead + Send + 'static, mut output: impl Write, mu
         pending_events.extend(drain_runtime_events(&state));
         for event in pending_events {
             let event_id = format!("sqlite-{}-{}", event.task_id, event.revision);
-            write_frame(&mut output, &event_id, "event", task_event(&event_id, &event))?;
+            write_frame(
+                &mut output,
+                &event_id,
+                "event",
+                task_event(&event_id, &event),
+            )?;
         }
         if let Some(downloads) = &state.downloads {
             let mut intents = downloads
@@ -1363,7 +1462,9 @@ fn blocking_tasks(state: &HostState) -> Result<Vec<Value>, SqliteStoreError> {
     // live jobs block shutdown; recovered jobs are inspect-required and never resume.
     if let Some(environment) = &state.environment {
         for task in environment.deployment.runtime.snapshot_all() {
-            if !task.state.is_terminal() && task.recovery_disposition == vua_orchestrator::TaskRecoveryDisposition::None {
+            if !task.state.is_terminal()
+                && task.recovery_disposition == vua_orchestrator::TaskRecoveryDisposition::None
+            {
                 tasks.push(json!({"taskId": task.task_id, "revision": task.revision, "state": state_name(task.state)}));
             }
         }
@@ -1423,13 +1524,34 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
     }
     let method = request.get("method").and_then(Value::as_str).unwrap_or("");
     if method.starts_with("terms.") {
-        return crate::terms_routes::request(state.warehouse.as_ref().map(|w|&w.terms),method,request,request_id,correlation_id);
+        return crate::terms_routes::request(
+            state.warehouse.as_ref().map(|w| &w.terms),
+            method,
+            request,
+            request_id,
+            correlation_id,
+        );
     }
-    if matches!(method, "environment.unityLicense" | "environment.checkUnityLicense") {
-        return crate::unity_license_routes::request(state.unity_license.as_ref(), method, request, request_id, correlation_id);
+    if matches!(
+        method,
+        "environment.unityLicense" | "environment.checkUnityLicense"
+    ) {
+        return crate::unity_license_routes::request(
+            state.unity_license.as_ref(),
+            method,
+            request,
+            request_id,
+            correlation_id,
+        );
     }
     if method.starts_with("amf.production.") {
-        return crate::amf_production_routes::request(state.amf_production.clone(), method, request, request_id, correlation_id);
+        return crate::amf_production_routes::request(
+            state.amf_production.clone(),
+            method,
+            request,
+            request_id,
+            correlation_id,
+        );
     }
     if method.starts_with("production.") {
         return production_request(state, method, request, request_id, correlation_id);
@@ -1453,7 +1575,7 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
         return downloads_query_request(state, method, request, request_id, correlation_id);
     }
     if method.starts_with("recipeDraft.") {
-        return recipe_selection_draft_request(state,method,request,request_id,correlation_id);
+        return recipe_selection_draft_request(state, method, request, request_id, correlation_id);
     }
     if method.starts_with("recipe.") {
         // Proposal 029 B-face loop 2: the export face is its own word-row
@@ -1508,25 +1630,54 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
     if method.starts_with("packages.") {
         return packages_request(state, method, request, request_id, correlation_id);
     }
-    if matches!(method, "environment.checkNetwork" | "environment.testWebsites") {
+    if matches!(
+        method,
+        "environment.checkNetwork" | "environment.testWebsites"
+    ) {
         return crate::network_routes::request(
-            state.environment.as_ref().map(|s| &s.network), request, request_id, correlation_id,
+            state.environment.as_ref().map(|s| &s.network),
+            request,
+            request_id,
+            correlation_id,
         );
     }
     if method == "environment.observeGameWindow" {
         return crate::game_window_routes::request(request, request_id, correlation_id);
     }
     if method == "environment.inspectManagerApps" {
-        return crate::play_session_routes::manager_apps(state.environment.as_ref().map(|s| &s.roots), request, request_id, correlation_id);
+        return crate::play_session_routes::manager_apps(
+            state.environment.as_ref().map(|s| &s.roots),
+            request,
+            request_id,
+            correlation_id,
+        );
     }
-    if matches!(method, "environment.observePlay" | "environment.startPlay" | "environment.stopPlay") {
-        return crate::play_session_routes::request(state.environment.as_ref().map(|s| &s.play), request, request_id, correlation_id);
+    if matches!(
+        method,
+        "environment.observePlay" | "environment.startPlay" | "environment.stopPlay"
+    ) {
+        return crate::play_session_routes::request(
+            state.environment.as_ref().map(|s| &s.play),
+            request,
+            request_id,
+            correlation_id,
+        );
     }
     if matches!(method, "tools.observeConnection" | "tools.actConnection") {
-        return crate::external_tool_routes::request(state.environment.as_ref().map(|s| &s.tools), request, request_id, correlation_id);
+        return crate::external_tool_routes::request(
+            state.environment.as_ref().map(|s| &s.tools),
+            request,
+            request_id,
+            correlation_id,
+        );
     }
     if matches!(method, "tools.observeInstaller" | "tools.actInstaller") {
-        return crate::external_tool_routes::installer_request(state.environment.as_ref().map(|s| &s.installer_tools), request, request_id, correlation_id);
+        return crate::external_tool_routes::installer_request(
+            state.environment.as_ref().map(|s| &s.installer_tools),
+            request,
+            request_id,
+            correlation_id,
+        );
     }
     if matches!(
         method,
@@ -1534,10 +1685,25 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
             | "environment.getScenarioSop"
             | "environment.checkScenarioEnvironment"
     ) {
-        return crate::scenario_routes::request(state.environment.as_ref().map(|s| &s.deployment),method,request,request_id,correlation_id);
+        return crate::scenario_routes::request(
+            state.environment.as_ref().map(|s| &s.deployment),
+            method,
+            request,
+            request_id,
+            correlation_id,
+        );
     }
-    if matches!(method, "environment.planDeployment" | "environment.executeDeployment") {
-        return crate::deployment_routes::request(state.environment.as_ref().map(|s| &s.deployment), method, request, request_id, correlation_id);
+    if matches!(
+        method,
+        "environment.planDeployment" | "environment.executeDeployment"
+    ) {
+        return crate::deployment_routes::request(
+            state.environment.as_ref().map(|s| &s.deployment),
+            method,
+            request,
+            request_id,
+            correlation_id,
+        );
     }
     let outcome = (|| -> Result<FrameOutcome, SqliteStoreError> {
         match method {
@@ -1589,8 +1755,15 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
             "environment.verifyEditor" => {
                 environment_verify_editor(state, request, request_id, correlation_id)
             }
-            "task.startDemo" => Ok(handle_start_demo(state, request, request_id, correlation_id)),
-            "overlay.getSnapshot" => overlay_get_snapshot(state, request, request_id, correlation_id),
+            "task.startDemo" => Ok(handle_start_demo(
+                state,
+                request,
+                request_id,
+                correlation_id,
+            )),
+            "overlay.getSnapshot" => {
+                overlay_get_snapshot(state, request, request_id, correlation_id)
+            }
             "release.openForHandoff" => {
                 release_open_for_handoff(state, request, request_id, correlation_id)
             }
@@ -1706,10 +1879,11 @@ fn served_capabilities(state: &HostState) -> Value {
     // environment implementation-verification slice flips it with the
     // VrcGetLib override.
     let packages_repo_ops_availability = match state.vpm.as_ref() {
-        Some(vpm) if {
-            let repo = vpm.repo_write_capabilities();
-            repo.add_remote_repo || repo.add_local_repo || repo.remove_repo
-        } =>
+        Some(vpm)
+            if {
+                let repo = vpm.repo_write_capabilities();
+                repo.add_remote_repo || repo.add_local_repo || repo.remove_repo
+            } =>
         {
             "available"
         }
@@ -1769,10 +1943,11 @@ fn served_capabilities(state: &HostState) -> Value {
     // slice flips it with the VrcGetLib override; the CLI backend has no
     // lifecycle face and stays honestly false.
     let packages_repo_lifecycle_ops_availability = match state.vpm.as_ref() {
-        Some(vpm) if {
-            let lifecycle = vpm.repo_lifecycle_capabilities();
-            lifecycle.enable_repo || lifecycle.disable_repo || lifecycle.refresh_repo
-        } =>
+        Some(vpm)
+            if {
+                let lifecycle = vpm.repo_lifecycle_capabilities();
+                lifecycle.enable_repo || lifecycle.disable_repo || lifecycle.refresh_repo
+            } =>
         {
             "available"
         }
@@ -1927,11 +2102,14 @@ fn served_capabilities(state: &HostState) -> Value {
             "availability": packages_repo_lifecycle_ops_availability,
         },
     ]);
-    capabilities.as_array_mut().expect("capabilities array").extend([
-        json!({"operationId":"environment.listPlaySetups","availability":"available"}),
-        json!({"operationId":"environment.getScenarioSop","availability":"available"}),
-        deployment_capability(state,"environment.checkScenarioEnvironment"),
-    ]);
+    capabilities
+        .as_array_mut()
+        .expect("capabilities array")
+        .extend([
+            json!({"operationId":"environment.listPlaySetups","availability":"available"}),
+            json!({"operationId":"environment.getScenarioSop","availability":"available"}),
+            deployment_capability(state, "environment.checkScenarioEnvironment"),
+        ]);
     capabilities.as_array_mut().expect("capabilities array").push(json!({
         "operationId": "library.importPaths", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }
     }));
@@ -2038,9 +2216,7 @@ fn handle_start_demo(
 /// Demo task deterministic progression: queued -> preparing -> running, holding
 /// at running awaiting cancellation; cancellation then completes as cancelled.
 /// Progression is driven by received frames (deterministic, no timers).
-fn advance_demo_tasks(
-    state: &mut HostState,
-) -> Result<Vec<StoredTaskEvent>, SqliteStoreError> {
+fn advance_demo_tasks(state: &mut HostState) -> Result<Vec<StoredTaskEvent>, SqliteStoreError> {
     let mut events = Vec::new();
     for task in state.store.tasks()? {
         if !task.task_id.starts_with("demo-") || task.state.is_terminal() {
@@ -2072,9 +2248,10 @@ fn advance_demo_tasks(
                 payload: json!({}),
             }
         };
-        if let Some(event) = state
-            .store
-            .mutate_task(&task.task_id, task.revision, &now_rfc3339(), mutation)?
+        if let Some(event) =
+            state
+                .store
+                .mutate_task(&task.task_id, task.revision, &now_rfc3339(), mutation)?
         {
             events.push(event);
         }
@@ -2112,11 +2289,16 @@ fn handle_cancellation(
     // validation must not cancel anything as a side effect.
     if matches!(cancellation, IdempotentCancellation::Applied { .. }) {
         if let Some(warehouse) = &state.warehouse {
-            let _ = warehouse.library_downloads.cancel_child(task_id, |event| publish_task_event(state, Some(event)));
+            let _ = warehouse
+                .library_downloads
+                .cancel_child(task_id, |event| publish_task_event(state, Some(event)));
         }
         if let Some(services) = &state.production {
-            if let Some(token) =
-                services.running.lock().expect("running poisoned").get(task_id)
+            if let Some(token) = services
+                .running
+                .lock()
+                .expect("running poisoned")
+                .get(task_id)
             {
                 token.cancel();
             }
@@ -2442,13 +2624,11 @@ fn warehouse_entry_detail_query(
     correlation_id: &str,
 ) -> FrameOutcome {
     let warehouse_item_id = match request.get("params") {
-        Some(Value::Object(params)) if params.keys().all(|key| key == "warehouseItemId") => {
-            params
-                .get("warehouseItemId")
-                .and_then(Value::as_str)
-                .map(str::to_owned)
-                .filter(|id| !id.is_empty())
-        }
+        Some(Value::Object(params)) if params.keys().all(|key| key == "warehouseItemId") => params
+            .get("warehouseItemId")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .filter(|id| !id.is_empty()),
         _ => None,
     };
     let Some(warehouse_item_id) = warehouse_item_id else {
@@ -2463,9 +2643,11 @@ fn warehouse_entry_detail_query(
         .warehouse_entry_detail(&warehouse_item_id, global_default)
     {
         Ok(Some(detail)) => match serde_json::to_value(&detail) {
-            Ok(entry) => {
-                bdl_query_success(request_id, "warehouse.entryDetail", json!({ "entry": entry }))
-            }
+            Ok(entry) => bdl_query_success(
+                request_id,
+                "warehouse.entryDetail",
+                json!({ "entry": entry }),
+            ),
             Err(_) => warehouse_store_failed(request_id, correlation_id),
         },
         Ok(None) => FrameOutcome::Response(application_error(
@@ -2641,11 +2823,10 @@ fn warehouse_submit_task(
     // The composed global default at submission time (persisted ?? env
     // initial): the guards fire inside the tasks and resolve overrides
     // against this value.
-    let global_default =
-        match composed_global_default(&warehouse.bdl, warehouse.global_default) {
-            Ok(global_default) => global_default,
-            Err(_) => return warehouse_store_failed(request_id, correlation_id),
-        };
+    let global_default = match composed_global_default(&warehouse.bdl, warehouse.global_default) {
+        Ok(global_default) => global_default,
+        Err(_) => return warehouse_store_failed(request_id, correlation_id),
+    };
     let accepted = match method {
         "warehouse.generateVpm" => {
             let Some(executor) = warehouse.executor.clone() else {
@@ -2744,7 +2925,10 @@ fn plan_document_hash(document: &Value) -> String {
     let digest = sha2::Sha256::digest(serialized.as_bytes());
     format!(
         "sha256:{}",
-        digest.iter().map(|byte| format!("{byte:02x}")).collect::<String>()
+        digest
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
     )
 }
 
@@ -2759,7 +2943,10 @@ fn bdl_store_failed(correlation_id: &str, error: impl std::fmt::Display) -> AppE
         "errors.warehouse.storeFailed",
         correlation_id,
     )
-    .with_param("detail", vua_orchestrator::ParamValue::Text(error.to_string()))
+    .with_param(
+        "detail",
+        vua_orchestrator::ParamValue::Text(error.to_string()),
+    )
 }
 
 /// Local Resolution over a Recipe v0.3 document (011 section 5, minimal
@@ -2790,7 +2977,10 @@ fn run_local_resolution(
                 "errors.recipe.storeFailed",
                 correlation_id,
             )
-            .with_param("detail", vua_orchestrator::ParamValue::Text(error.to_string()))
+            .with_param(
+                "detail",
+                vua_orchestrator::ParamValue::Text(error.to_string()),
+            )
         })?
         .ok_or_else(|| {
             AppErrorV1::new(
@@ -2836,11 +3026,11 @@ fn run_local_resolution(
             Some(source_ref) => source_ref,
             None => return Ok(None),
         };
-        if let Some(warehouse_item_id) =
-            source_ref.get("warehouseItemId").and_then(Value::as_str)
-        {
-            let requested_role =
-                source_ref.get("role").and_then(Value::as_str).unwrap_or("original");
+        if let Some(warehouse_item_id) = source_ref.get("warehouseItemId").and_then(Value::as_str) {
+            let requested_role = source_ref
+                .get("role")
+                .and_then(Value::as_str)
+                .unwrap_or("original");
             let detail = match store.warehouse_entry_detail(warehouse_item_id, composed) {
                 Ok(detail) => detail,
                 Err(error) => return Err(bdl_store_failed(correlation_id, &error)),
@@ -2851,14 +3041,20 @@ fn run_local_resolution(
                 // prefers a CLEAN generated_vpm copy, anything else falls
                 // back to the original copy - the fallback is honest
                 // (fallbackUsed on the plan), never invented.
-                let original = detail.artifacts.iter().find(|fact| fact.role.name() == "original");
+                let original = detail
+                    .artifacts
+                    .iter()
+                    .find(|fact| fact.role.name() == "original");
                 let mut clean_vpm = None;
                 for fact in &detail.artifacts {
                     if fact.role.name() == "generated_vpm"
                         && matches!(fact.state, ArtifactInspectionVerdict::Clean)
-                        && !store.generated_copy_is_superseded(warehouse_item_id,&fact.artifact_sha256)
-                            .map_err(|error|bdl_store_failed(correlation_id,&error))? {
-                        clean_vpm = Some(fact); break;
+                        && !store
+                            .generated_copy_is_superseded(warehouse_item_id, &fact.artifact_sha256)
+                            .map_err(|error| bdl_store_failed(correlation_id, &error))?
+                    {
+                        clean_vpm = Some(fact);
+                        break;
                     }
                 }
                 let chosen = match detail.effective_artifact_mode {
@@ -2903,10 +3099,14 @@ fn run_local_resolution(
         } else {
             // Provider-sourced asset: no import record exists on this
             // machine - honest missing evidence (never invented paths).
-            let provider =
-                source_ref.get("provider").and_then(Value::as_str).unwrap_or("unknown");
-            let product =
-                source_ref.get("productId").and_then(Value::as_str).unwrap_or("unknown");
+            let provider = source_ref
+                .get("provider")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown");
+            let product = source_ref
+                .get("productId")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown");
             let evidence_id = uuid_v7_identity();
             let document = vua_orchestrator::ProductionEvidenceV01::new_unresolved(
                 evidence_id.clone(),
@@ -2938,9 +3138,12 @@ fn run_local_resolution(
     if let Some(assets) = recipe.get("assets").and_then(Value::as_array) {
         for asset in assets {
             let asset_id = asset.get("id").and_then(Value::as_str).unwrap_or_default();
-            if let Some(resolved_source) =
-                resolve_one_asset(asset, &mut evidence_ids, &mut missing_count, &local_resolution_id)?
-            {
+            if let Some(resolved_source) = resolve_one_asset(
+                asset,
+                &mut evidence_ids,
+                &mut missing_count,
+                &local_resolution_id,
+            )? {
                 resolved_assets.insert(asset_id.to_owned(), resolved_source);
             }
         }
@@ -2950,22 +3153,27 @@ fn run_local_resolution(
     let mut jobs: Vec<Value> = Vec::new();
     if let Some(relations) = recipe.get("relations").and_then(Value::as_array) {
         for relation in relations {
-            let kind = relation.get("kind").and_then(Value::as_str).unwrap_or_default();
-            let relation_id =
-                relation.get("id").and_then(Value::as_str).unwrap_or_default();
+            let kind = relation
+                .get("kind")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let relation_id = relation
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
             let asset_instance_id = relation
                 .get("assetInstanceId")
                 .and_then(Value::as_str)
                 .unwrap_or_default();
-            let instance = recipe
-                .get("instances")
-                .and_then(Value::as_array)
-                .and_then(|instances| {
-                    instances.iter().find(|instance| {
-                        instance.get("id").and_then(Value::as_str)
-                            == Some(asset_instance_id)
-                    })
-                });
+            let instance =
+                recipe
+                    .get("instances")
+                    .and_then(Value::as_array)
+                    .and_then(|instances| {
+                        instances.iter().find(|instance| {
+                            instance.get("id").and_then(Value::as_str) == Some(asset_instance_id)
+                        })
+                    });
             let asset_id = instance
                 .and_then(|instance| instance.get("assetId"))
                 .and_then(Value::as_str)
@@ -3024,8 +3232,7 @@ fn run_local_resolution(
                 .and_then(Value::as_array)
                 .and_then(|instances| {
                     instances.iter().find(|instance| {
-                        instance.get("id").and_then(Value::as_str)
-                            == Some(avatar_instance_id)
+                        instance.get("id").and_then(Value::as_str) == Some(avatar_instance_id)
                     })
                 })
         })
@@ -3071,7 +3278,10 @@ fn run_local_resolution(
             "errors.plan.storeFailed",
             correlation_id,
         )
-        .with_param("detail", vua_orchestrator::ParamValue::Text(error.to_string()))
+        .with_param(
+            "detail",
+            vua_orchestrator::ParamValue::Text(error.to_string()),
+        )
     })?;
 
     Ok(serde_json::json!({
@@ -3290,7 +3500,10 @@ fn document_sha256(document: &Value) -> String {
     let digest = sha2::Sha256::digest(serialized.as_bytes());
     format!(
         "sha256:{}",
-        digest.iter().map(|byte| format!("{byte:02x}")).collect::<String>()
+        digest
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
     )
 }
 
@@ -3370,7 +3583,10 @@ fn run_approved_plan_job(
                 "errors.plan.storeFailed",
                 correlation_id,
             )
-            .with_param("detail", vua_orchestrator::ParamValue::Text(error.to_string()))
+            .with_param(
+                "detail",
+                vua_orchestrator::ParamValue::Text(error.to_string()),
+            )
         })?
         .ok_or_else(|| {
             AppErrorV1::new(
@@ -3390,7 +3606,10 @@ fn run_approved_plan_job(
         .with_param(
             "status",
             vua_orchestrator::ParamValue::Text(
-                plan.get("status").and_then(Value::as_str).unwrap_or("unknown").to_owned(),
+                plan.get("status")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown")
+                    .to_owned(),
             ),
         ));
     }
@@ -3428,7 +3647,10 @@ fn run_approved_plan_job(
                 "errors.recipe.storeFailed",
                 correlation_id,
             )
-            .with_param("detail", vua_orchestrator::ParamValue::Text(error.to_string()))
+            .with_param(
+                "detail",
+                vua_orchestrator::ParamValue::Text(error.to_string()),
+            )
         })?
         .ok_or_else(|| {
             AppErrorV1::new(
@@ -3446,8 +3668,14 @@ fn run_approved_plan_job(
             "errors.recipe.revisionConflict",
             correlation_id,
         )
-        .with_param("currentRevision", vua_orchestrator::ParamValue::Number(current_revision as f64))
-        .with_param("expectedRevision", vua_orchestrator::ParamValue::Number(planned_revision as f64)));
+        .with_param(
+            "currentRevision",
+            vua_orchestrator::ParamValue::Number(current_revision as f64),
+        )
+        .with_param(
+            "expectedRevision",
+            vua_orchestrator::ParamValue::Number(planned_revision as f64),
+        ));
     }
     // Environment precheck (009 stance 4 ②, second in the precheck order):
     // when the recipe declares a machine-parseable Unity version constraint,
@@ -3549,10 +3777,7 @@ fn run_approved_plan_job(
                             correlation_id,
                         )
                         .with_recoverable(true)
-                        .with_param(
-                            "detail",
-                            vua_orchestrator::ParamValue::Text(reason.clone()),
-                        ));
+                        .with_param("detail", vua_orchestrator::ParamValue::Text(reason.clone())));
                     }
                 },
             }
@@ -3580,7 +3805,10 @@ fn run_approved_plan_job(
             "errors.plan.storeFailed",
             correlation_id,
         )
-        .with_param("detail", vua_orchestrator::ParamValue::Text(error.to_string()))
+        .with_param(
+            "detail",
+            vua_orchestrator::ParamValue::Text(error.to_string()),
+        )
     })?;
     let plan_file = vua_unity_bridge::write_plan_file(
         project_root,
@@ -3639,7 +3867,10 @@ fn run_approved_plan_job(
             "errors.job.bridgeFailed",
             correlation_id,
         )
-        .with_param("detail", vua_orchestrator::ParamValue::Text(error.to_string()))
+        .with_param(
+            "detail",
+            vua_orchestrator::ParamValue::Text(error.to_string()),
+        )
     })?;
 
     // Top-level record status: succeeded (with/without warnings) or failed.
@@ -3663,8 +3894,8 @@ fn run_approved_plan_job(
     // The receipt diagnostics travel at the result level (v2 shape); the
     // record transposes them verbatim instead of inventing per-step
     // attribution.
-    let result_diagnostics = serde_json::to_value(&result.diagnostics)
-        .unwrap_or_else(|_| json!([]));
+    let result_diagnostics =
+        serde_json::to_value(&result.diagnostics).unwrap_or_else(|_| json!([]));
     let first_error_code = result
         .diagnostics
         .iter()
@@ -3758,8 +3989,7 @@ fn run_approved_plan_job(
         resolved_source_used
             .as_object_mut()
             .map(|source| source.remove("fallbackUsed"));
-        if let Some(receipt_source) = step.get("resolvedSource").filter(|value| !value.is_null())
-        {
+        if let Some(receipt_source) = step.get("resolvedSource").filter(|value| !value.is_null()) {
             let differs = match (&planned_source, receipt_source) {
                 (Some(planned), receipt) => {
                     planned.get("sourceKind") != receipt.get("sourceKind")
@@ -3805,9 +4035,9 @@ fn run_approved_plan_job(
             },
         });
         if receipt_status == "failed" {
-            job["rejectReason"] = json!(
-                first_error_code.clone().unwrap_or_else(|| "unknown".to_owned())
-            );
+            job["rejectReason"] = json!(first_error_code
+                .clone()
+                .unwrap_or_else(|| "unknown".to_owned()));
         }
         record_jobs.push(job);
     }
@@ -3857,9 +4087,10 @@ fn run_approved_plan_job(
                 "errors.record.storeFailed",
                 correlation_id,
             )
-            .with_param("detail", vua_orchestrator::ParamValue::Text(
-                format!("evidence listing failed: {error}"),
-            ))
+            .with_param(
+                "detail",
+                vua_orchestrator::ParamValue::Text(format!("evidence listing failed: {error}")),
+            )
         })?;
 
     let finished_at = now_rfc3339();
@@ -3886,17 +4117,18 @@ fn run_approved_plan_job(
         "recoveryPoints": recovery_points,
         "evidenceSummary": { "evidenceIds": evidence_ids },
     });
-    records
-        .publish(&build_id, &record)
-        .map_err(|error| {
-            AppErrorV1::new(
-                "vua.record.store_failed",
-                ErrorCategory::Internal,
-                "errors.record.storeFailed",
-                correlation_id,
-            )
-            .with_param("detail", vua_orchestrator::ParamValue::Text(error.to_string()))
-        })?;
+    records.publish(&build_id, &record).map_err(|error| {
+        AppErrorV1::new(
+            "vua.record.store_failed",
+            ErrorCategory::Internal,
+            "errors.record.storeFailed",
+            correlation_id,
+        )
+        .with_param(
+            "detail",
+            vua_orchestrator::ParamValue::Text(error.to_string()),
+        )
+    })?;
 
     Ok(json!({
         "buildId": build_id,
@@ -4077,7 +4309,11 @@ fn record_request(
                 }
             };
             documents.sort_by_key(|document| {
-                document.get("buildId").and_then(Value::as_str).unwrap_or("").to_owned()
+                document
+                    .get("buildId")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_owned()
             });
             let filtered: Vec<&Value> = documents
                 .iter()
@@ -4254,13 +4490,25 @@ fn inspection_request(
             // lexicographic order IS chronological order (same declared
             // face as the production_card newest-first semantics).
             documents.sort_by(|left, right| {
-                let left_key = left.get("performedAt").and_then(Value::as_str).unwrap_or("");
-                let right_key = right.get("performedAt").and_then(Value::as_str).unwrap_or("");
+                let left_key = left
+                    .get("performedAt")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                let right_key = right
+                    .get("performedAt")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
                 right_key.cmp(left_key).then_with(|| {
                     // Stable tie-break on identity so equal timestamps stay
                     // deterministically ordered.
-                    let left_id = left.get("inspectionId").and_then(Value::as_str).unwrap_or("");
-                    let right_id = right.get("inspectionId").and_then(Value::as_str).unwrap_or("");
+                    let left_id = left
+                        .get("inspectionId")
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
+                    let right_id = right
+                        .get("inspectionId")
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
                     right_id.cmp(left_id)
                 })
             });
@@ -4268,10 +4516,7 @@ fn inspection_request(
                 .iter()
                 .filter(|document| {
                     let avatar_match = avatar_filter.is_none_or(|filter| {
-                        document
-                            .pointer("/avatarRef/ref")
-                            .and_then(Value::as_str)
-                            == Some(filter)
+                        document.pointer("/avatarRef/ref").and_then(Value::as_str) == Some(filter)
                     });
                     let status_match = status_filter.is_none_or(|filter| {
                         document.get("overallStatus").and_then(Value::as_str) == Some(filter)
@@ -4302,12 +4547,9 @@ fn inspection_request(
                 }),
             ))
         }
-        "inspection.requestRun" => inspection_request_run(
-            use_cases,
-            request,
-            request_id,
-            correlation_id,
-        ),
+        "inspection.requestRun" => {
+            inspection_request_run(use_cases, request, request_id, correlation_id)
+        }
         _ => FrameOutcome::Response(application_error(
             request_id,
             correlation_id,
@@ -4480,9 +4722,7 @@ fn run_inspection_job(
                 // operation contributes no evidence-operations entry.
                 unavailable.push(dimension.kind());
                 dimensions.push(vua_orchestrator::transcribe_dimension(
-                    *dimension,
-                    basis,
-                    None,
+                    *dimension, basis, None,
                 ));
             }
         }
@@ -4496,7 +4736,8 @@ fn run_inspection_job(
         ));
     }
     let overall_status = vua_orchestrator::aggregate_overall_status(&dimensions);
-    let mut notes = "性能维 basis=bridge_local_estimate 为本地结构估算，不是 VRChat 官方性能等级。".to_owned();
+    let mut notes =
+        "性能维 basis=bridge_local_estimate 为本地结构估算，不是 VRChat 官方性能等级。".to_owned();
     if !unavailable.is_empty() {
         notes.push_str(&format!(
             "本次未观测维度（{}）以 unavailable 如实缺席。",
@@ -4526,7 +4767,10 @@ fn run_inspection_job(
                 "errors.inspection.storeFailed",
                 correlation_id,
             )
-            .with_param("detail", vua_orchestrator::ParamValue::Text(error.to_string()))
+            .with_param(
+                "detail",
+                vua_orchestrator::ParamValue::Text(error.to_string()),
+            )
         })?;
     Ok(json!({
         "kind": "inspection.requestRun",
@@ -4587,7 +4831,11 @@ fn plan_list(
         }
     };
     documents.sort_by_key(|document| {
-        document.get("planId").and_then(Value::as_str).unwrap_or("").to_owned()
+        document
+            .get("planId")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_owned()
     });
     let filtered: Vec<&Value> = documents
         .iter()
@@ -4800,7 +5048,9 @@ fn recipe_resolve(
     let recipes = use_cases.recipes.clone();
     let plans = use_cases.plans.clone();
     let evidence = use_cases.evidence.clone();
-    let env_initial = use_cases.env_initial.unwrap_or(ArtifactMode::UseOriginalUnitypackage);
+    let env_initial = use_cases
+        .env_initial
+        .unwrap_or(ArtifactMode::UseOriginalUnitypackage);
     let job_correlation = correlation_id.to_owned();
     let accepted = runtime.submit(vua_orchestrator::SubmitRequest {
         correlation_id: Some(correlation_id.to_owned()),
@@ -4879,22 +5129,33 @@ fn recipe_save(
         Some(params) => params,
         None => return recipe_invalid_params(request_id, correlation_id),
     };
-    if params.keys().any(|key| key != "recipeDocument" && key != "baseRevision") {
+    if params
+        .keys()
+        .any(|key| key != "recipeDocument" && key != "baseRevision")
+    {
         return recipe_invalid_params(request_id, correlation_id);
     }
-    let Some(recipe_document) = params.get("recipeDocument").filter(|value| value.is_object()) else {
+    let Some(recipe_document) = params
+        .get("recipeDocument")
+        .filter(|value| value.is_object())
+    else {
         return recipe_invalid_params(request_id, correlation_id);
     };
     let Some(base_revision) = params.get("baseRevision").and_then(Value::as_u64) else {
         return recipe_invalid_params(request_id, correlation_id);
     };
     // The document identity must come from the body (single source of identity).
-    let Some(recipe_id) =
-        recipe_document.get("recipeId").and_then(Value::as_str).map(str::to_owned)
+    let Some(recipe_id) = recipe_document
+        .get("recipeId")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
     else {
         return recipe_invalid_params(request_id, correlation_id);
     };
-    match use_cases.recipes.save(&recipe_id, recipe_document, base_revision) {
+    match use_cases
+        .recipes
+        .save(&recipe_id, recipe_document, base_revision)
+    {
         Ok(stored) => FrameOutcome::Response(application_success(
             request_id,
             json!({
@@ -4927,7 +5188,12 @@ fn recipe_get(
     correlation_id: &str,
 ) -> FrameOutcome {
     let params = request.get("params").cloned().unwrap_or(json!({}));
-    if !params.as_object().map(|object| object.len()).map(|len| len == 1).unwrap_or(false) {
+    if !params
+        .as_object()
+        .map(|object| object.len())
+        .map(|len| len == 1)
+        .unwrap_or(false)
+    {
         return recipe_invalid_params(request_id, correlation_id);
     }
     let Some(recipe_id) = params.get("recipeId").and_then(Value::as_str) else {
@@ -4988,9 +5254,7 @@ fn recipe_list(
         .unwrap_or(0) as usize;
     let filtered: Vec<_> = all
         .into_iter()
-        .filter(|entry| {
-            text_filter.is_empty() || entry.title.to_lowercase().contains(&text_filter)
-        })
+        .filter(|entry| text_filter.is_empty() || entry.title.to_lowercase().contains(&text_filter))
         .collect();
     let total = filtered.len();
     let page: Vec<Value> = filtered
@@ -5027,7 +5291,10 @@ fn recipe_list(
 /// detection face is not wired: an empty items list is the honest empty
 /// (frozen by the B6 spike — an empty list is never a ready verdict),
 /// not a fabricated probe result.
-fn environment_get_snapshot(state: &mut HostState, request_id: &str) -> Result<FrameOutcome, SqliteStoreError> {
+fn environment_get_snapshot(
+    state: &mut HostState,
+    request_id: &str,
+) -> Result<FrameOutcome, SqliteStoreError> {
     let revision = state.store.application_revision()?;
     let snapshot = match state.environment.as_ref() {
         Some(services) => services.engine.inspect_all(),
@@ -5119,7 +5386,9 @@ fn environment_verify_editor(
             "schemaVersion": EDITOR_VERIFY_SCHEMA_VERSION,
         }),
     };
-    Ok(FrameOutcome::Response(application_success(request_id, result)))
+    Ok(FrameOutcome::Response(application_success(
+        request_id, result,
+    )))
 }
 
 /// The overlay read face (proposal 017 batch 1, `overlay.getSnapshot`):
@@ -5415,17 +5684,16 @@ fn admit_editor_open(
         // the wire param; unknown refuses a record it cannot confirm.
         match vua_orchestrator::classify_handoff_record_state(&record) {
             vua_orchestrator::HandoffRecordAdmission::Allowed => {}
-            vua_orchestrator::HandoffRecordAdmission::Blocked { state: record_state } => {
+            vua_orchestrator::HandoffRecordAdmission::Blocked {
+                state: record_state,
+            } => {
                 return Err(application_error_with_params(
                     request_id,
                     correlation_id,
                     RELEASE_HANDOFF_RECORD_STATE_BLOCKED,
                     "errors.releaseHandoff.stateBlocked",
                     "permission",
-                    &[(
-                        "state",
-                        vua_orchestrator::ParamValue::Text(record_state),
-                    )],
+                    &[("state", vua_orchestrator::ParamValue::Text(record_state))],
                 ));
             }
             vua_orchestrator::HandoffRecordAdmission::Unknown => {
@@ -5559,10 +5827,7 @@ fn submit_editor_open_task(
                     &run_correlation,
                 )
                 .with_recoverable(true)
-                .with_param(
-                    "detail",
-                    vua_orchestrator::ParamValue::Text(error.detail),
-                )),
+                .with_param("detail", vua_orchestrator::ParamValue::Text(error.detail))),
             }
         }),
     });
@@ -5602,18 +5867,16 @@ fn handoff_editor_candidates(
         return Ok(Vec::new());
     };
     match &use_cases.editor_selection {
-        vua_orchestrator::EditorSelection::Explicit { path } => {
-            match (state.editor_verify)(path) {
-                EditorPathVerdict::Verified(identity) => {
-                    Ok(vec![vua_orchestrator::HandoffEditorCandidate {
-                        source: vua_orchestrator::HandoffEditorSource::ExplicitInjection,
-                        exe_path: PathBuf::from(&identity.exe_path),
-                        version: identity.version.clone(),
-                    }])
-                }
-                EditorPathVerdict::Refused(refusal) => Err(refusal),
+        vua_orchestrator::EditorSelection::Explicit { path } => match (state.editor_verify)(path) {
+            EditorPathVerdict::Verified(identity) => {
+                Ok(vec![vua_orchestrator::HandoffEditorCandidate {
+                    source: vua_orchestrator::HandoffEditorSource::ExplicitInjection,
+                    exe_path: PathBuf::from(&identity.exe_path),
+                    version: identity.version.clone(),
+                }])
             }
-        }
+            EditorPathVerdict::Refused(refusal) => Err(refusal),
+        },
         vua_orchestrator::EditorSelection::AutoSelected { editor } => {
             Ok(vec![vua_orchestrator::HandoffEditorCandidate {
                 source: vua_orchestrator::HandoffEditorSource::ProductionTarget,
@@ -5625,112 +5888,358 @@ fn handoff_editor_candidates(
     }
 }
 
-fn recipe_selection_draft_request(state: &HostState, method: &str, request: &Value, request_id: &str, correlation_id: &str) -> FrameOutcome {
-    let Some(warehouse)=&state.warehouse else { return FrameOutcome::Response(application_error(request_id,correlation_id,"vua.recipe_draft.unavailable","errors.recipe.draftFailed","unavailable")); };
-    let expected_kind=if matches!(method,"recipeDraft.list"|"recipeDraft.get"|"recipeDraft.selectionStatus"|"recipeDraft.materialsForLine"|"recipeDraft.legacyCensus") { "query" } else { "command" };
-    if request["kind"]!=expected_kind { return FrameOutcome::Response(application_error(request_id,correlation_id,"vua.recipe_draft.invalid_params","errors.recipe.draftFailed","validation")); }
+fn recipe_selection_draft_request(
+    state: &HostState,
+    method: &str,
+    request: &Value,
+    request_id: &str,
+    correlation_id: &str,
+) -> FrameOutcome {
+    let Some(warehouse) = &state.warehouse else {
+        return FrameOutcome::Response(application_error(
+            request_id,
+            correlation_id,
+            "vua.recipe_draft.unavailable",
+            "errors.recipe.draftFailed",
+            "unavailable",
+        ));
+    };
+    let expected_kind = if matches!(
+        method,
+        "recipeDraft.list"
+            | "recipeDraft.get"
+            | "recipeDraft.selectionStatus"
+            | "recipeDraft.materialsForLine"
+            | "recipeDraft.legacyCensus"
+    ) {
+        "query"
+    } else {
+        "command"
+    };
+    if request["kind"] != expected_kind {
+        return FrameOutcome::Response(application_error(
+            request_id,
+            correlation_id,
+            "vua.recipe_draft.invalid_params",
+            "errors.recipe.draftFailed",
+            "validation",
+        ));
+    }
     let params = request.get("params").cloned().unwrap_or(Value::Null);
-    let legacy_recipes = state.use_cases.as_ref().map(|services| services.recipes.as_ref());
+    let legacy_recipes = state
+        .use_cases
+        .as_ref()
+        .map(|services| services.recipes.as_ref());
     let result = match method {
-        "recipeDraft.selectionStatus" => vua_acquisition::library_maintenance::draft_selection_status(&warehouse.bdl,&warehouse.warehouse_root,&warehouse.selection_drafts,params).map_err(|error|vua_acquisition::recipe_selection_drafts::DraftError(error.0)),
-        "recipeDraft.materialsForLine" => vua_acquisition::library_maintenance::draft_materials_for_line(&warehouse.bdl,&warehouse.warehouse_root,&warehouse.selection_drafts,params),
-        "recipeDraft.legacyCensus" => vua_acquisition::library_maintenance::legacy_recipe_census(&warehouse.bdl,&warehouse.warehouse_root,&warehouse.selection_drafts,legacy_recipes,params),
-        "recipeDraft.migrateLegacy" => vua_acquisition::library_maintenance::migrate_legacy_recipes(&warehouse.bdl,&warehouse.warehouse_root,&warehouse.selection_drafts,legacy_recipes,params),
-        _ => warehouse.selection_drafts.apply(method,params),
+        "recipeDraft.selectionStatus" => {
+            vua_acquisition::library_maintenance::draft_selection_status(
+                &warehouse.bdl,
+                &warehouse.warehouse_root,
+                &warehouse.selection_drafts,
+                params,
+            )
+            .map_err(|error| vua_acquisition::recipe_selection_drafts::DraftError(error.0))
+        }
+        "recipeDraft.materialsForLine" => {
+            vua_acquisition::library_maintenance::draft_materials_for_line(
+                &warehouse.bdl,
+                &warehouse.warehouse_root,
+                &warehouse.selection_drafts,
+                params,
+            )
+        }
+        "recipeDraft.legacyCensus" => vua_acquisition::library_maintenance::legacy_recipe_census(
+            &warehouse.bdl,
+            &warehouse.warehouse_root,
+            &warehouse.selection_drafts,
+            legacy_recipes,
+            params,
+        ),
+        "recipeDraft.migrateLegacy" => {
+            vua_acquisition::library_maintenance::migrate_legacy_recipes(
+                &warehouse.bdl,
+                &warehouse.warehouse_root,
+                &warehouse.selection_drafts,
+                legacy_recipes,
+                params,
+            )
+        }
+        _ => warehouse.selection_drafts.apply(method, params),
     };
     match result {
-        Ok(value)=>FrameOutcome::Response(application_success(request_id,value)),
-        Err(error)=>FrameOutcome::Response(application_error(request_id,correlation_id,&format!("vua.recipe_draft.{}",error.0),"errors.recipe.draftFailed",match error.0 { "store_failed"=>"internal", "unavailable"=>"unavailable", _=>"validation" })),
+        Ok(value) => FrameOutcome::Response(application_success(request_id, value)),
+        Err(error) => FrameOutcome::Response(application_error(
+            request_id,
+            correlation_id,
+            &format!("vua.recipe_draft.{}", error.0),
+            "errors.recipe.draftFailed",
+            match error.0 {
+                "store_failed" => "internal",
+                "unavailable" => "unavailable",
+                _ => "validation",
+            },
+        )),
     }
 }
 
-fn library_download_request(state: &HostState, method: &str, request: &Value, request_id: &str, correlation_id: &str) -> FrameOutcome {
+fn library_download_request(
+    state: &HostState,
+    method: &str,
+    request: &Value,
+    request_id: &str,
+    correlation_id: &str,
+) -> FrameOutcome {
     let Some(warehouse) = &state.warehouse else {
-        return FrameOutcome::Response(application_error(request_id, correlation_id, "vua.library.unavailable", "errors.library.downloadFailed", "unavailable"));
+        return FrameOutcome::Response(application_error(
+            request_id,
+            correlation_id,
+            "vua.library.unavailable",
+            "errors.library.downloadFailed",
+            "unavailable",
+        ));
     };
-    if matches!(method, "library.entryMetadata" | "library.updateEntryMetadata" | "library.removeLocalEntries") {
-        return library_entry_metadata_request(warehouse, method, request, request_id, correlation_id);
+    if matches!(
+        method,
+        "library.entryMetadata" | "library.updateEntryMetadata" | "library.removeLocalEntries"
+    ) {
+        return library_entry_metadata_request(
+            warehouse,
+            method,
+            request,
+            request_id,
+            correlation_id,
+        );
     }
     if method == "library.removeCards" {
-        let invalid = || FrameOutcome::Response(application_error(request_id, correlation_id, "vua.library.invalid_params", "errors.library.recordRemovalFailed", "validation"));
-        if request["kind"] != "command" { return invalid(); }
-        let Ok(remove) = serde_json::from_value::<vua_bdl_store::RemoveLibraryCards>(request["params"].clone()) else { return invalid(); };
-        let Some(command) = request.get("commandId").and_then(Value::as_str).filter(|id| !id.is_empty()) else { return invalid(); };
-        return FrameOutcome::Response(match warehouse.bdl.remove_library_cards(&remove, command, &vua_orchestrator::Clock::now_rfc3339(&SystemClock)) {
-            Ok(value) => match serde_json::to_value(value) { Ok(value) => application_success(request_id, value), Err(_) => application_error(request_id, correlation_id, "vua.library.store_failed", "errors.library.recordRemovalFailed", "internal") },
-            Err(error) => {
-                let (code, category) = match error {
-                    vua_bdl_store::BdlStoreError::InvalidEvent("record_conflict") => ("record_conflict", "conflict"),
-                    vua_bdl_store::BdlStoreError::InvalidEvent("card_not_found") => ("card_not_found", "validation"),
-                    vua_bdl_store::BdlStoreError::InvalidEvent(_) => ("invalid_params", "validation"),
-                    _ => ("store_failed", "internal"),
-                };
-                application_error(request_id, correlation_id, &format!("vua.library.{code}"), "errors.library.recordRemovalFailed", category)
-            }
-        });
+        let invalid = || {
+            FrameOutcome::Response(application_error(
+                request_id,
+                correlation_id,
+                "vua.library.invalid_params",
+                "errors.library.recordRemovalFailed",
+                "validation",
+            ))
+        };
+        if request["kind"] != "command" {
+            return invalid();
+        }
+        let Ok(remove) =
+            serde_json::from_value::<vua_bdl_store::RemoveLibraryCards>(request["params"].clone())
+        else {
+            return invalid();
+        };
+        let Some(command) = request
+            .get("commandId")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+        else {
+            return invalid();
+        };
+        return FrameOutcome::Response(
+            match warehouse.bdl.remove_library_cards(
+                &remove,
+                command,
+                &vua_orchestrator::Clock::now_rfc3339(&SystemClock),
+            ) {
+                Ok(value) => match serde_json::to_value(value) {
+                    Ok(value) => application_success(request_id, value),
+                    Err(_) => application_error(
+                        request_id,
+                        correlation_id,
+                        "vua.library.store_failed",
+                        "errors.library.recordRemovalFailed",
+                        "internal",
+                    ),
+                },
+                Err(error) => {
+                    let (code, category) = match error {
+                        vua_bdl_store::BdlStoreError::InvalidEvent("record_conflict") => {
+                            ("record_conflict", "conflict")
+                        }
+                        vua_bdl_store::BdlStoreError::InvalidEvent("card_not_found") => {
+                            ("card_not_found", "validation")
+                        }
+                        vua_bdl_store::BdlStoreError::InvalidEvent(_) => {
+                            ("invalid_params", "validation")
+                        }
+                        _ => ("store_failed", "internal"),
+                    };
+                    application_error(
+                        request_id,
+                        correlation_id,
+                        &format!("vua.library.{code}"),
+                        "errors.library.recordRemovalFailed",
+                        category,
+                    )
+                }
+            },
+        );
     }
-    if matches!(method, "library.importFolders" | "library.importPaths" | "library.importGroups") {
-        if request["kind"] != "command" { return warehouse_invalid_params(request_id, correlation_id); }
-        let Some(params) = request.get("params").and_then(Value::as_object) else { return warehouse_invalid_params(request_id, correlation_id); };
+    if matches!(
+        method,
+        "library.importFolders" | "library.importPaths" | "library.importGroups"
+    ) {
+        if request["kind"] != "command" {
+            return warehouse_invalid_params(request_id, correlation_id);
+        }
+        let Some(params) = request.get("params").and_then(Value::as_object) else {
+            return warehouse_invalid_params(request_id, correlation_id);
+        };
         if method == "library.importGroups" {
             if params.get("schemaVersion").and_then(Value::as_str) != Some("0.1")
-                || !params.keys().all(|key| matches!(key.as_str(), "schemaVersion" | "groups" | "autoGenerate")) {
+                || !params
+                    .keys()
+                    .all(|key| matches!(key.as_str(), "schemaVersion" | "groups" | "autoGenerate"))
+            {
                 return warehouse_invalid_params(request_id, correlation_id);
             }
-            return library_import_groups_submit(warehouse.clone(), request, request_id, correlation_id);
+            return library_import_groups_submit(
+                warehouse.clone(),
+                request,
+                request_id,
+                correlation_id,
+            );
         }
-        let (version, source_key) = if method == "library.importPaths" { ("0.2", "sourcePaths") } else { ("0.1", "sourceFolders") };
+        let (version, source_key) = if method == "library.importPaths" {
+            ("0.2", "sourcePaths")
+        } else {
+            ("0.1", "sourceFolders")
+        };
         if params.get("schemaVersion").and_then(Value::as_str) != Some(version)
-            || !params.keys().all(|key| key == "schemaVersion" || key == "autoGenerate" || key == source_key) {
+            || !params
+                .keys()
+                .all(|key| key == "schemaVersion" || key == "autoGenerate" || key == source_key)
+        {
             return warehouse_invalid_params(request_id, correlation_id);
         }
         return library_import_submit(warehouse.clone(), request, request_id, correlation_id);
     }
-    if matches!(method,"library.removalPreview"|"library.removeFiles"|"library.removalStatus"|"library.pendingRemovals"|"library.resolveRemoval") {
-        if request["kind"] != if method == "library.removeFiles" || method == "library.resolveRemoval" {"command"} else {"query"} {
-            return FrameOutcome::Response(application_error(request_id,correlation_id,"vua.library.invalid_params","errors.library.removalFailed","validation"));
+    if matches!(
+        method,
+        "library.removalPreview"
+            | "library.removeFiles"
+            | "library.removalStatus"
+            | "library.pendingRemovals"
+            | "library.resolveRemoval"
+    ) {
+        if request["kind"]
+            != if method == "library.removeFiles" || method == "library.resolveRemoval" {
+                "command"
+            } else {
+                "query"
+            }
+        {
+            return FrameOutcome::Response(application_error(
+                request_id,
+                correlation_id,
+                "vua.library.invalid_params",
+                "errors.library.removalFailed",
+                "validation",
+            ));
         }
         let production_recipes = state
             .amf_production
             .as_ref()
             .map(|services| services.engine.recipe_store());
-        let result = warehouse
-            .library_maintenance
-            .apply_with_production_recipes(
-                method,
-                request.get("params").cloned().unwrap_or(Value::Null),
-                &warehouse.selection_drafts,
-                state
-                    .use_cases
-                    .as_ref()
-                    .map(|services| services.recipes.as_ref()),
-                production_recipes.as_ref(),
-            );
+        let result = warehouse.library_maintenance.apply_with_production_recipes(
+            method,
+            request.get("params").cloned().unwrap_or(Value::Null),
+            &warehouse.selection_drafts,
+            state
+                .use_cases
+                .as_ref()
+                .map(|services| services.recipes.as_ref()),
+            production_recipes.as_ref(),
+        );
         return FrameOutcome::Response(match result {
-            Ok(value) => application_success(request_id,value),
-            Err(error) => application_error(request_id,correlation_id,&format!("vua.library.{}",error.0),"errors.library.removalFailed",match error.0 { "store_failed"|"reference_read_failed"=>"internal", "preview_changed"|"file_busy"|"removal_conflict"=>"conflict", _=>"validation" }),
+            Ok(value) => application_success(request_id, value),
+            Err(error) => application_error(
+                request_id,
+                correlation_id,
+                &format!("vua.library.{}", error.0),
+                "errors.library.removalFailed",
+                match error.0 {
+                    "store_failed" | "reference_read_failed" => "internal",
+                    "preview_changed" | "file_busy" | "removal_conflict" => "conflict",
+                    _ => "validation",
+                },
+            ),
         });
     }
     if method == "library.list" || method == "library.productFiles" {
         if request["kind"] != "query" {
-            return FrameOutcome::Response(application_error(request_id, correlation_id, "vua.library.invalid_params", "errors.library.downloadFailed", "validation"));
+            return FrameOutcome::Response(application_error(
+                request_id,
+                correlation_id,
+                "vua.library.invalid_params",
+                "errors.library.downloadFailed",
+                "validation",
+            ));
         }
         let params = request.get("params").cloned().unwrap_or(Value::Null);
         let result = if method == "library.list" {
-            vua_acquisition::library_view::list(&warehouse.bdl, &warehouse.warehouse_root, warehouse.global_default, &warehouse.library_downloads, params)
-        } else { vua_acquisition::library_view::product_files(&warehouse.bdl, &warehouse.warehouse_root, params) };
+            vua_acquisition::library_view::list(
+                &warehouse.bdl,
+                &warehouse.warehouse_root,
+                warehouse.global_default,
+                &warehouse.library_downloads,
+                params,
+            )
+        } else {
+            vua_acquisition::library_view::product_files(
+                &warehouse.bdl,
+                &warehouse.warehouse_root,
+                params,
+            )
+        };
         return FrameOutcome::Response(match result {
             Ok(value) => application_success(request_id, value),
-            Err(error) => application_error(request_id, correlation_id, &format!("vua.library.{}",error.0), "errors.library.downloadFailed", if error.0 == "store_failed" { "internal" } else { "validation" }),
+            Err(error) => application_error(
+                request_id,
+                correlation_id,
+                &format!("vua.library.{}", error.0),
+                "errors.library.downloadFailed",
+                if error.0 == "store_failed" {
+                    "internal"
+                } else {
+                    "validation"
+                },
+            ),
         });
     }
-    let expected_kind = if method == "library.downloadStatus" { "query" } else { "command" };
-    if request["kind"] != expected_kind || (method != "library.downloadStatus" && state.downloads.is_none()) {
-        return FrameOutcome::Response(application_error(request_id, correlation_id, "vua.library.invalid_params", "errors.library.downloadFailed", "validation"));
+    let expected_kind = if method == "library.downloadStatus" {
+        "query"
+    } else {
+        "command"
+    };
+    if request["kind"] != expected_kind
+        || (method != "library.downloadStatus" && state.downloads.is_none())
+    {
+        return FrameOutcome::Response(application_error(
+            request_id,
+            correlation_id,
+            "vua.library.invalid_params",
+            "errors.library.downloadFailed",
+            "validation",
+        ));
     }
-    match warehouse.library_downloads.apply(method, request.get("params").cloned().unwrap_or(Value::Null), |event| publish_task_event(state, Some(event))) {
+    match warehouse.library_downloads.apply(
+        method,
+        request.get("params").cloned().unwrap_or(Value::Null),
+        |event| publish_task_event(state, Some(event)),
+    ) {
         Ok(value) => FrameOutcome::Response(application_success(request_id, value)),
-        Err(error) => FrameOutcome::Response(application_error(request_id, correlation_id, &format!("vua.library.{}", error.0), "errors.library.downloadFailed", if error.0 == "store_failed" { "internal" } else { "validation" })),
+        Err(error) => FrameOutcome::Response(application_error(
+            request_id,
+            correlation_id,
+            &format!("vua.library.{}", error.0),
+            "errors.library.downloadFailed",
+            if error.0 == "store_failed" {
+                "internal"
+            } else {
+                "validation"
+            },
+        )),
     }
 }
 
@@ -5755,19 +6264,40 @@ fn catalog_request(
             catalog_enrichment::request(&warehouse, method, request, request_id, correlation_id)
         }
         "catalog.beginLibrarySync" | "catalog.finishLibrarySync" | "catalog.librarySyncStatus" => {
-            catalog_sync_run_request(state, warehouse, method, request, request_id, correlation_id)
+            catalog_sync_run_request(
+                state,
+                warehouse,
+                method,
+                request,
+                request_id,
+                correlation_id,
+            )
         }
         "catalog.ingestLibraryPage" => {
             catalog_ingest_library_page(state, warehouse, request, request_id, correlation_id)
         }
-        "catalog.ingestOrdersPage" => catalog_ingest_orders_page(warehouse, request, request_id, correlation_id),
+        "catalog.ingestOrdersPage" => {
+            catalog_ingest_orders_page(warehouse, request, request_id, correlation_id)
+        }
         "catalog.list" => catalog_list(warehouse, request, request_id, correlation_id),
         "catalog.searchProducts" => FrameOutcome::Response(if request["kind"] != "query" {
-            application_error(request_id, correlation_id, "vua.catalog.invalid_params", "errors.catalog.invalidParams", "validation")
+            application_error(
+                request_id,
+                correlation_id,
+                "vua.catalog.invalid_params",
+                "errors.catalog.invalidParams",
+                "validation",
+            )
         } else {
             match vua_acquisition::booth_search::search(request["params"].clone()) {
                 Ok(value) => application_success(request_id, value),
-                Err(error) => application_error(request_id, correlation_id, &format!("vua.catalog.{}", error.0), "errors.catalog.unavailable", "validation"),
+                Err(error) => application_error(
+                    request_id,
+                    correlation_id,
+                    &format!("vua.catalog.{}", error.0),
+                    "errors.catalog.unavailable",
+                    "validation",
+                ),
             }
         }),
         "catalog.detail" => catalog_detail(warehouse, request, request_id, correlation_id),
@@ -5787,50 +6317,159 @@ fn catalog_request(
     }
 }
 
-fn library_entry_metadata_request(warehouse: &WarehouseServices, method: &str, request: &Value, request_id: &str, correlation_id: &str) -> FrameOutcome {
+fn library_entry_metadata_request(
+    warehouse: &WarehouseServices,
+    method: &str,
+    request: &Value,
+    request_id: &str,
+    correlation_id: &str,
+) -> FrameOutcome {
     let query = method == "library.entryMetadata";
-    let invalid = || FrameOutcome::Response(application_error(request_id, correlation_id, "vua.library.invalid_params", "errors.library.metadataFailed", "validation"));
-    let Some(params) = request.get("params").and_then(Value::as_object) else { return invalid(); };
-    if request["kind"] != if query { "query" } else { "command" } || params.get("schemaVersion").and_then(Value::as_str) != Some("0.1") { return invalid(); }
+    let invalid = || {
+        FrameOutcome::Response(application_error(
+            request_id,
+            correlation_id,
+            "vua.library.invalid_params",
+            "errors.library.metadataFailed",
+            "validation",
+        ))
+    };
+    let Some(params) = request.get("params").and_then(Value::as_object) else {
+        return invalid();
+    };
+    if request["kind"] != if query { "query" } else { "command" }
+        || params.get("schemaVersion").and_then(Value::as_str) != Some("0.1")
+    {
+        return invalid();
+    }
     if method == "library.removeLocalEntries" {
-        let Ok(remove) = serde_json::from_value::<vua_bdl_store::RemoveLocalEntries>(request["params"].clone()) else { return invalid(); };
-        let Some(command) = request.get("commandId").and_then(Value::as_str).filter(|id| !id.is_empty()) else { return invalid(); };
-        return FrameOutcome::Response(match warehouse.bdl.remove_local_entries(&remove, command, &vua_orchestrator::Clock::now_rfc3339(&SystemClock)) {
-            Ok(value) => match serde_json::to_value(value) { Ok(value) => application_success(request_id, value), Err(_) => application_error(request_id, correlation_id, "vua.library.store_failed", "errors.library.recordRemovalFailed", "internal") },
-            Err(error) => {
-                let (code, category) = match error {
-                    vua_bdl_store::BdlStoreError::UnknownWarehouseItem(_) => ("entry_not_found", "validation"),
-                    vua_bdl_store::BdlStoreError::InvalidEvent("record_conflict") => ("record_conflict", "conflict"),
-                    vua_bdl_store::BdlStoreError::InvalidEvent("entry_not_local") => ("entry_not_local", "validation"),
-                    vua_bdl_store::BdlStoreError::InvalidEvent(_) => ("invalid_params", "validation"),
-                    _ => ("store_failed", "internal"),
-                };
-                application_error(request_id, correlation_id, &format!("vua.library.{code}"), "errors.library.recordRemovalFailed", category)
-            }
-        });
+        let Ok(remove) =
+            serde_json::from_value::<vua_bdl_store::RemoveLocalEntries>(request["params"].clone())
+        else {
+            return invalid();
+        };
+        let Some(command) = request
+            .get("commandId")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+        else {
+            return invalid();
+        };
+        return FrameOutcome::Response(
+            match warehouse.bdl.remove_local_entries(
+                &remove,
+                command,
+                &vua_orchestrator::Clock::now_rfc3339(&SystemClock),
+            ) {
+                Ok(value) => match serde_json::to_value(value) {
+                    Ok(value) => application_success(request_id, value),
+                    Err(_) => application_error(
+                        request_id,
+                        correlation_id,
+                        "vua.library.store_failed",
+                        "errors.library.recordRemovalFailed",
+                        "internal",
+                    ),
+                },
+                Err(error) => {
+                    let (code, category) = match error {
+                        vua_bdl_store::BdlStoreError::UnknownWarehouseItem(_) => {
+                            ("entry_not_found", "validation")
+                        }
+                        vua_bdl_store::BdlStoreError::InvalidEvent("record_conflict") => {
+                            ("record_conflict", "conflict")
+                        }
+                        vua_bdl_store::BdlStoreError::InvalidEvent("entry_not_local") => {
+                            ("entry_not_local", "validation")
+                        }
+                        vua_bdl_store::BdlStoreError::InvalidEvent(_) => {
+                            ("invalid_params", "validation")
+                        }
+                        _ => ("store_failed", "internal"),
+                    };
+                    application_error(
+                        request_id,
+                        correlation_id,
+                        &format!("vua.library.{code}"),
+                        "errors.library.recordRemovalFailed",
+                        category,
+                    )
+                }
+            },
+        );
     }
     let result = if query {
-        if params.len() != 2 { return invalid(); }
-        let Some(id) = params.get("entryId").and_then(Value::as_str).filter(|id| !id.is_empty()) else { return invalid(); };
+        if params.len() != 2 {
+            return invalid();
+        }
+        let Some(id) = params
+            .get("entryId")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+        else {
+            return invalid();
+        };
         warehouse.bdl.library_entry_metadata(id)
     } else {
-        if params.len() != 6 || !params.contains_key("productId") || !params.contains_key("thumbnailRef") { return invalid(); }
-        let Ok(update) = serde_json::from_value::<vua_bdl_store::LibraryEntryMetadataUpdate>(request["params"].clone()) else { return invalid(); };
-        let Some(command) = request.get("commandId").and_then(Value::as_str).filter(|id| !id.is_empty()) else { return invalid(); };
-        warehouse.bdl.update_library_entry_metadata(&update, command, &vua_orchestrator::Clock::now_rfc3339(&SystemClock))
+        if params.len() != 6
+            || !params.contains_key("productId")
+            || !params.contains_key("thumbnailRef")
+        {
+            return invalid();
+        }
+        let Ok(update) = serde_json::from_value::<vua_bdl_store::LibraryEntryMetadataUpdate>(
+            request["params"].clone(),
+        ) else {
+            return invalid();
+        };
+        let Some(command) = request
+            .get("commandId")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+        else {
+            return invalid();
+        };
+        warehouse.bdl.update_library_entry_metadata(
+            &update,
+            command,
+            &vua_orchestrator::Clock::now_rfc3339(&SystemClock),
+        )
     };
     FrameOutcome::Response(match result {
-        Ok(value) => match serde_json::to_value(value) { Ok(value) => application_success(request_id, value), Err(_) => application_error(request_id, correlation_id, "vua.library.store_failed", "errors.library.metadataFailed", "internal") },
+        Ok(value) => match serde_json::to_value(value) {
+            Ok(value) => application_success(request_id, value),
+            Err(_) => application_error(
+                request_id,
+                correlation_id,
+                "vua.library.store_failed",
+                "errors.library.metadataFailed",
+                "internal",
+            ),
+        },
         Err(error) => {
             let (code, category) = match error {
-                vua_bdl_store::BdlStoreError::UnknownWarehouseItem(_) => ("entry_not_found", "validation"),
-                vua_bdl_store::BdlStoreError::UnknownProduct(_) => ("source_not_found", "validation"),
-                vua_bdl_store::BdlStoreError::InvalidEvent("metadata_conflict") => ("metadata_conflict", "conflict"),
-                vua_bdl_store::BdlStoreError::InvalidEvent("entry_not_local") => ("entry_not_local", "validation"),
+                vua_bdl_store::BdlStoreError::UnknownWarehouseItem(_) => {
+                    ("entry_not_found", "validation")
+                }
+                vua_bdl_store::BdlStoreError::UnknownProduct(_) => {
+                    ("source_not_found", "validation")
+                }
+                vua_bdl_store::BdlStoreError::InvalidEvent("metadata_conflict") => {
+                    ("metadata_conflict", "conflict")
+                }
+                vua_bdl_store::BdlStoreError::InvalidEvent("entry_not_local") => {
+                    ("entry_not_local", "validation")
+                }
                 vua_bdl_store::BdlStoreError::InvalidEvent(_) => ("invalid_params", "validation"),
                 _ => ("store_failed", "internal"),
             };
-            application_error(request_id, correlation_id, &format!("vua.library.{code}"), "errors.library.metadataFailed", category)
+            application_error(
+                request_id,
+                correlation_id,
+                &format!("vua.library.{code}"),
+                "errors.library.metadataFailed",
+                category,
+            )
         }
     })
 }
@@ -5964,7 +6603,10 @@ fn downloads_list_completed(
     correlation_id: &str,
 ) -> FrameOutcome {
     if let Some(params) = request.get("params") {
-        let empty = params.as_object().map(|object| object.is_empty()).unwrap_or(false);
+        let empty = params
+            .as_object()
+            .map(|object| object.is_empty())
+            .unwrap_or(false);
         if !empty {
             return FrameOutcome::Response(application_error(
                 request_id,
@@ -6148,11 +6790,7 @@ fn project_single_path_param(request: &Value) -> Option<std::collections::HashMa
     Some(map)
 }
 
-fn project_single_query_result(
-    request_id: &str,
-    operation: &str,
-    result: Value,
-) -> FrameOutcome {
+fn project_single_query_result(request_id: &str, operation: &str, result: Value) -> FrameOutcome {
     FrameOutcome::Response(application_success(
         request_id,
         json!({
@@ -6173,7 +6811,10 @@ fn project_list_projects(
     correlation_id: &str,
 ) -> FrameOutcome {
     if let Some(params) = request.get("params") {
-        let empty = params.as_object().map(|object| object.is_empty()).unwrap_or(false);
+        let empty = params
+            .as_object()
+            .map(|object| object.is_empty())
+            .unwrap_or(false);
         if !empty {
             return project_invalid_params(request_id, correlation_id);
         }
@@ -6183,9 +6824,11 @@ fn project_list_projects(
         &project_ops.manager_roots,
         &SystemClock,
     );
-    let result = serde_json::to_value(&snapshot).unwrap_or_else(|_| json!({
-        "schemaVersion": PROJECT_INSPECTION_FAMILY_VERSION,
-    }));
+    let result = serde_json::to_value(&snapshot).unwrap_or_else(|_| {
+        json!({
+            "schemaVersion": PROJECT_INSPECTION_FAMILY_VERSION,
+        })
+    });
     project_single_query_result(request_id, "project.listProjects", result)
 }
 
@@ -6292,15 +6935,28 @@ fn catalog_ingest_library_page(
     request_id: &str,
     correlation_id: &str,
 ) -> FrameOutcome {
-    if request.pointer("/params/schemaVersion").and_then(Value::as_str) == Some("0.3") {
-        return catalog_sync_run_request(state, warehouse, "catalog.ingestLibraryPage", request, request_id, correlation_id);
+    if request
+        .pointer("/params/schemaVersion")
+        .and_then(Value::as_str)
+        == Some("0.3")
+    {
+        return catalog_sync_run_request(
+            state,
+            warehouse,
+            "catalog.ingestLibraryPage",
+            request,
+            request_id,
+            correlation_id,
+        );
     }
     // v0.2 增补可选 libraryType;v0.1 请求(无该字段)继续接受
     const CATALOG_SYNC_SCHEMA_VERSIONS: [&str; 2] = ["0.1", "0.2"];
-    let request_schema_version = request.pointer("/params/schemaVersion").and_then(Value::as_str);
-    if !request_schema_version.is_some_and(|version| {
-        CATALOG_SYNC_SCHEMA_VERSIONS.contains(&version)
-    }) {
+    let request_schema_version = request
+        .pointer("/params/schemaVersion")
+        .and_then(Value::as_str);
+    if !request_schema_version
+        .is_some_and(|version| CATALOG_SYNC_SCHEMA_VERSIONS.contains(&version))
+    {
         return FrameOutcome::Response(application_error(
             request_id,
             correlation_id,
@@ -6324,7 +6980,10 @@ fn catalog_ingest_library_page(
     };
     let run_id = non_empty("/params/runId");
     // BDL v0.3: 库类型闭集(bought|gifts|free_downloads);缺省 None(如 v0.1 请求)
-    let library_type = match request.pointer("/params/libraryType").and_then(Value::as_str) {
+    let library_type = match request
+        .pointer("/params/libraryType")
+        .and_then(Value::as_str)
+    {
         None => None,
         Some("") => None,
         Some(raw) if matches!(raw, "bought" | "gifts" | "free_downloads") => Some(raw),
@@ -6350,7 +7009,11 @@ fn catalog_ingest_library_page(
                 ));
             }
         };
-        if warehouse.bdl.record_product_observation(&observation).is_err() {
+        if warehouse
+            .bdl
+            .record_product_observation(&observation)
+            .is_err()
+        {
             return FrameOutcome::Response(application_error(
                 request_id,
                 correlation_id,
@@ -6362,8 +7025,14 @@ fn catalog_ingest_library_page(
         // Record the source first to satisfy the dependency-observation FK.
         // A captured link remains unconfirmed; storage failures are not discarded.
         if vua_acquisition::description_dependencies::record_description_dependencies(
-            &warehouse.bdl, html, &observation.product_id, &observation.content_hash, fetched_at,
-        ).is_err() {
+            &warehouse.bdl,
+            html,
+            &observation.product_id,
+            &observation.content_hash,
+            fetched_at,
+        )
+        .is_err()
+        {
             return catalog_store_failed(request_id, correlation_id);
         }
         return FrameOutcome::Response(application_success(
@@ -6488,16 +7157,32 @@ fn catalog_ingest_library_page(
 
 /// The acquisition use case owns run decisions; the host only dispatches and publishes.
 /// catalog-orders v0.1: one purchase history page. Outside the run's task, so it needs no recovery state.
-fn catalog_ingest_orders_page(warehouse: Arc<WarehouseServices>, request: &Value, request_id: &str, correlation_id: &str) -> FrameOutcome {
-    if request["kind"] != "command" { return catalog_invalid_params(request_id, correlation_id); }
+fn catalog_ingest_orders_page(
+    warehouse: Arc<WarehouseServices>,
+    request: &Value,
+    request_id: &str,
+    correlation_id: &str,
+) -> FrameOutcome {
+    if request["kind"] != "command" {
+        return catalog_invalid_params(request_id, correlation_id);
+    }
     let params = request.get("params").cloned().unwrap_or(Value::Null);
-    FrameOutcome::Response(match vua_acquisition::catalog_sync::ingest_orders_page(&warehouse.bdl, params) {
-        Ok(value) => application_success(request_id, value),
-        Err(error) => application_error(
-            request_id, correlation_id, &format!("vua.catalog.{}", error.0),
-            "errors.catalog.syncFailed", if error.0 == "store_failed" { "internal" } else { "validation" },
-        ),
-    })
+    FrameOutcome::Response(
+        match vua_acquisition::catalog_sync::ingest_orders_page(&warehouse.bdl, params) {
+            Ok(value) => application_success(request_id, value),
+            Err(error) => application_error(
+                request_id,
+                correlation_id,
+                &format!("vua.catalog.{}", error.0),
+                "errors.catalog.syncFailed",
+                if error.0 == "store_failed" {
+                    "internal"
+                } else {
+                    "validation"
+                },
+            ),
+        },
+    )
 }
 
 fn catalog_sync_run_request(
@@ -6508,27 +7193,54 @@ fn catalog_sync_run_request(
     request_id: &str,
     correlation_id: &str,
 ) -> FrameOutcome {
-    let expected_kind = if method == "catalog.librarySyncStatus" { "query" } else { "command" };
-    if request["kind"] != expected_kind { return catalog_invalid_params(request_id, correlation_id); }
+    let expected_kind = if method == "catalog.librarySyncStatus" {
+        "query"
+    } else {
+        "command"
+    };
+    if request["kind"] != expected_kind {
+        return catalog_invalid_params(request_id, correlation_id);
+    }
     let params = request.get("params").cloned().unwrap_or(Value::Null);
-    let recovered = params.get("runId").and_then(Value::as_str)
+    let recovered = params
+        .get("runId")
+        .and_then(Value::as_str)
         .is_some_and(|id| state.recovered_nonterminal_tasks.contains(id));
     match vua_acquisition::catalog_sync::apply_catalog_sync(
-        &state.store, &warehouse.bdl, method, params, &now_rfc3339(), recovered,
+        &state.store,
+        &warehouse.bdl,
+        method,
+        params,
+        &now_rfc3339(),
+        recovered,
         |event| publish_task_event(state, Some(event)),
     ) {
         Ok(value) => {
-            if method == "catalog.finishLibrarySync" && ["succeeded", "succeeded_with_warnings"].contains(&value["state"].as_str().unwrap_or("")) {
+            if method == "catalog.finishLibrarySync"
+                && ["succeeded", "succeeded_with_warnings"]
+                    .contains(&value["state"].as_str().unwrap_or(""))
+            {
                 let trigger = format!("sync:{}", value["runId"].as_str().unwrap_or(correlation_id));
-                if warehouse.library_downloads.reconcile_library_sources(&trigger).is_err() {
+                if warehouse
+                    .library_downloads
+                    .reconcile_library_sources(&trigger)
+                    .is_err()
+                {
                     return catalog_store_failed(request_id, correlation_id);
                 }
             }
             FrameOutcome::Response(application_success(request_id, value))
         }
         Err(error) => FrameOutcome::Response(application_error(
-            request_id, correlation_id, &format!("vua.catalog.{}", error.0),
-            "errors.catalog.syncFailed", if error.0 == "store_failed" { "internal" } else { "validation" },
+            request_id,
+            correlation_id,
+            &format!("vua.catalog.{}", error.0),
+            "errors.catalog.syncFailed",
+            if error.0 == "store_failed" {
+                "internal"
+            } else {
+                "validation"
+            },
         )),
     }
 }
@@ -6548,7 +7260,11 @@ fn product_page_observation(
         Some(raw) => Some(raw.to_owned()),
         None => warehouse.bdl.library_type_of(&native_product_id),
     };
-    Ok(catalog_enrichment::product_observation(extracted, html, library_type))
+    Ok(catalog_enrichment::product_observation(
+        extracted,
+        html,
+        library_type,
+    ))
 }
 
 fn chrono_now_rfc3339() -> String {
@@ -6560,8 +7276,12 @@ fn chrono_now_rfc3339() -> String {
             // 简易 RFC3339(UTC):观察时间只需可比较的稳定格式
             let days = secs / 86400;
             let (y, mo, da) = civil_from_days(days as i64);
-            format!("{y:04}-{mo:02}-{da:02}T{:02}:{:02}:{:02}.{millis:03}Z",
-                (secs % 86400) / 3600, (secs % 3600) / 60, secs % 60)
+            format!(
+                "{y:04}-{mo:02}-{da:02}T{:02}:{:02}:{:02}.{millis:03}Z",
+                (secs % 86400) / 3600,
+                (secs % 3600) / 60,
+                secs % 60
+            )
         })
         .unwrap_or_else(|_| "1970-01-01T00:00:00.000Z".to_owned())
 }
@@ -6695,9 +7415,7 @@ fn fold_catalog_sync_task(
             &task_id,
             task.revision,
             fold.fetched_at,
-            TaskMutation::Progress {
-                payload: summary(),
-            },
+            TaskMutation::Progress { payload: summary() },
         )?;
         publish_task_event(state, event);
     }
@@ -6762,13 +7480,11 @@ fn catalog_detail(
     // The detail closed set is { productId }: a non-empty string. Any other
     // key, an explicit null, or an empty string is a contract error.
     let product_id = match request.get("params") {
-        Some(Value::Object(params)) if params.keys().all(|key| key == "productId") => {
-            params
-                .get("productId")
-                .and_then(Value::as_str)
-                .map(str::to_owned)
-                .filter(|id| !id.is_empty())
-        }
+        Some(Value::Object(params)) if params.keys().all(|key| key == "productId") => params
+            .get("productId")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .filter(|id| !id.is_empty()),
         _ => None,
     };
     let Some(product_id) = product_id else {
@@ -6829,7 +7545,12 @@ fn warehouse_import_submit(
     import_submit(warehouse, request, request_id, correlation_id, false)
 }
 
-fn library_import_submit(warehouse: Arc<WarehouseServices>, request: &Value, request_id: &str, correlation_id: &str) -> FrameOutcome {
+fn library_import_submit(
+    warehouse: Arc<WarehouseServices>,
+    request: &Value,
+    request_id: &str,
+    correlation_id: &str,
+) -> FrameOutcome {
     import_submit(warehouse, request, request_id, correlation_id, true)
 }
 
@@ -6838,98 +7559,216 @@ fn library_import_submit(warehouse: Arc<WarehouseServices>, request: &Value, req
 /// the disk before anything is copied — a move, removal, type change, size or modification-time
 /// change invalidates the review — refuses a root inside the library storage, and refuses the
 /// same file in two groups instead of dropping one silently.
-fn library_import_groups_submit(warehouse: Arc<WarehouseServices>, request: &Value, request_id: &str, correlation_id: &str) -> FrameOutcome {
-    use vua_acquisition::warehouse_import::{migration_group_name_valid, migration_group_relative_valid,
-        MIGRATION_FILES_LIMIT, MIGRATION_GROUPS_LIMIT};
-    let invalid = || FrameOutcome::Response(application_error(request_id, correlation_id,
-        "vua.migration.invalidParams", "errors.migration.invalidParams", "validation"));
-    let Some(groups) = request.pointer("/params/groups").and_then(Value::as_array) else { return invalid(); };
-    if groups.is_empty() || groups.len() > MIGRATION_GROUPS_LIMIT { return invalid(); }
+fn library_import_groups_submit(
+    warehouse: Arc<WarehouseServices>,
+    request: &Value,
+    request_id: &str,
+    correlation_id: &str,
+) -> FrameOutcome {
+    use vua_acquisition::warehouse_import::{
+        migration_group_name_valid, migration_group_relative_valid, MIGRATION_FILES_LIMIT,
+        MIGRATION_GROUPS_LIMIT,
+    };
+    let invalid = || {
+        FrameOutcome::Response(application_error(
+            request_id,
+            correlation_id,
+            "vua.migration.invalidParams",
+            "errors.migration.invalidParams",
+            "validation",
+        ))
+    };
+    let Some(groups) = request.pointer("/params/groups").and_then(Value::as_array) else {
+        return invalid();
+    };
+    if groups.is_empty() || groups.len() > MIGRATION_GROUPS_LIMIT {
+        return invalid();
+    }
     // The warehouse root may not exist yet; compare the reviewed roots with its own path, and
     // let each group's copy check the canonical files again before it writes anything.
-    let normalized = |path: &std::path::Path| path.to_string_lossy().replace('\\', "/").trim_end_matches('/').to_lowercase();
-    let warehouse_path = normalized(&std::fs::canonicalize(&warehouse.warehouse_root)
-        .unwrap_or_else(|_| warehouse.warehouse_root.clone()));
-    let within = |parent: &str, child: &str| child == parent || child.starts_with(&format!("{parent}/"));
+    let normalized = |path: &std::path::Path| {
+        path.to_string_lossy()
+            .replace('\\', "/")
+            .trim_end_matches('/')
+            .to_lowercase()
+    };
+    let warehouse_path = normalized(
+        &std::fs::canonicalize(&warehouse.warehouse_root)
+            .unwrap_or_else(|_| warehouse.warehouse_root.clone()),
+    );
+    let within =
+        |parent: &str, child: &str| child == parent || child.starts_with(&format!("{parent}/"));
     let mut sources = Vec::with_capacity(groups.len());
     let mut names = std::collections::HashSet::new();
     let mut seen_files = std::collections::HashSet::new();
     let mut files_total = 0usize;
     for group in groups {
-        let Some(object) = group.as_object().filter(|object| object.len() == 3) else { return invalid(); };
-        let (Some(name), Some(root), Some(files)) = (object.get("name").and_then(Value::as_str),
-            object.get("root").and_then(Value::as_str), object.get("files").and_then(Value::as_array)) else { return invalid(); };
-        if !migration_group_name_valid(name) || !names.insert(name.to_lowercase())
-            || root.contains('\0') || !std::path::Path::new(root).is_absolute() || files.is_empty() {
+        let Some(object) = group.as_object().filter(|object| object.len() == 3) else {
+            return invalid();
+        };
+        let (Some(name), Some(root), Some(files)) = (
+            object.get("name").and_then(Value::as_str),
+            object.get("root").and_then(Value::as_str),
+            object.get("files").and_then(Value::as_array),
+        ) else {
+            return invalid();
+        };
+        if !migration_group_name_valid(name)
+            || !names.insert(name.to_lowercase())
+            || root.contains('\0')
+            || !std::path::Path::new(root).is_absolute()
+            || files.is_empty()
+        {
             return invalid();
         }
-        let Ok(canonical_root) = std::fs::canonicalize(root) else { return invalid(); };
+        let Ok(canonical_root) = std::fs::canonicalize(root) else {
+            return invalid();
+        };
         // The reviewed folder and the library storage must not contain one another.
         let root_path = normalized(&canonical_root);
-        if within(&root_path, &warehouse_path) || within(&warehouse_path, &root_path) { return invalid(); }
+        if within(&root_path, &warehouse_path) || within(&warehouse_path, &root_path) {
+            return invalid();
+        }
         let mut entries = Vec::with_capacity(files.len());
         for file in files {
-            let Some(file) = file.as_object().filter(|file| file.len() == 3) else { return invalid(); };
-            let (Some(path), Some(bytes), Some(modified_ms)) = (file.get("path").and_then(Value::as_str),
-                file.get("bytes").and_then(Value::as_u64), file.get("modifiedMs").and_then(Value::as_u64)) else { return invalid(); };
-            if !migration_group_relative_valid(path) || bytes > 1 << 40 { return invalid(); }
-            let key = format!("{}\u{0}{}", canonical_root.to_string_lossy().to_lowercase(), path.to_lowercase());
+            let Some(file) = file.as_object().filter(|file| file.len() == 3) else {
+                return invalid();
+            };
+            let (Some(path), Some(bytes), Some(modified_ms)) = (
+                file.get("path").and_then(Value::as_str),
+                file.get("bytes").and_then(Value::as_u64),
+                file.get("modifiedMs").and_then(Value::as_u64),
+            ) else {
+                return invalid();
+            };
+            if !migration_group_relative_valid(path) || bytes > 1 << 40 {
+                return invalid();
+            }
+            let key = format!(
+                "{}\u{0}{}",
+                canonical_root.to_string_lossy().to_lowercase(),
+                path.to_lowercase()
+            );
             if !seen_files.insert(key) {
-                return FrameOutcome::Response(application_error(request_id, correlation_id,
-                    "vua.migration.overlap", "errors.migration.overlap", "validation"));
+                return FrameOutcome::Response(application_error(
+                    request_id,
+                    correlation_id,
+                    "vua.migration.overlap",
+                    "errors.migration.overlap",
+                    "validation",
+                ));
             }
             let source = canonical_root.join(path.replace('/', std::path::MAIN_SEPARATOR_STR));
-            let stale = || FrameOutcome::Response(application_error(request_id, correlation_id,
-                "vua.migration.stale", "errors.migration.stale", "validation"));
-            let Ok(metadata) = std::fs::symlink_metadata(&source) else { return stale(); };
-            let modified = metadata.modified().ok()
+            let stale = || {
+                FrameOutcome::Response(application_error(
+                    request_id,
+                    correlation_id,
+                    "vua.migration.stale",
+                    "errors.migration.stale",
+                    "validation",
+                ))
+            };
+            let Ok(metadata) = std::fs::symlink_metadata(&source) else {
+                return stale();
+            };
+            let modified = metadata
+                .modified()
+                .ok()
                 .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|elapsed| elapsed.as_millis() as u64);
-            if metadata.is_symlink() || !metadata.is_file() || metadata.len() != bytes || modified != Some(modified_ms) {
+            if metadata.is_symlink()
+                || !metadata.is_file()
+                || metadata.len() != bytes
+                || modified != Some(modified_ms)
+            {
                 return stale();
             }
             entries.push((path.to_owned(), source));
         }
         files_total += entries.len();
-        if files_total > MIGRATION_FILES_LIMIT { return invalid(); }
-        sources.push(vua_acquisition::warehouse_import::MigrationGroupSource { name: name.to_owned(), root: canonical_root, files: entries });
+        if files_total > MIGRATION_FILES_LIMIT {
+            return invalid();
+        }
+        sources.push(vua_acquisition::warehouse_import::MigrationGroupSource {
+            name: name.to_owned(),
+            root: canonical_root,
+            files: entries,
+        });
     }
-    if request.pointer("/params/autoGenerate") == Some(&Value::Bool(true)) && warehouse.executor.is_none() {
-        return FrameOutcome::Response(application_error(request_id, correlation_id,
-            "vua.warehouse.unavailable", "errors.warehouse.unavailable", "unavailable"));
+    if request.pointer("/params/autoGenerate") == Some(&Value::Bool(true))
+        && warehouse.executor.is_none()
+    {
+        return FrameOutcome::Response(application_error(
+            request_id,
+            correlation_id,
+            "vua.warehouse.unavailable",
+            "errors.warehouse.unavailable",
+            "unavailable",
+        ));
     }
-    let auto_generate = match (request.pointer("/params/autoGenerate"), warehouse.executor.clone()) {
-        (Some(Value::Bool(true)), Some(executor)) => Some(vua_acquisition::AutoGenerateSpec { env_initial: warehouse.global_default, executor }),
+    let auto_generate = match (
+        request.pointer("/params/autoGenerate"),
+        warehouse.executor.clone(),
+    ) {
+        (Some(Value::Bool(true)), Some(executor)) => Some(vua_acquisition::AutoGenerateSpec {
+            env_initial: warehouse.global_default,
+            executor,
+        }),
         (Some(Value::Bool(true)), None) => return invalid(),
         (None | Some(Value::Bool(false)), _) => None,
         _ => return invalid(),
     };
-    let Some(command_id) = request.get("commandId").and_then(Value::as_str).filter(|id| !id.is_empty()) else { return invalid(); };
+    let Some(command_id) = request
+        .get("commandId")
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+    else {
+        return invalid();
+    };
     let spec = vua_acquisition::warehouse_import::MigrationImportTaskSpec {
-        correlation_id: correlation_id.to_owned(), groups: sources,
-        warehouse_root: warehouse.warehouse_root.clone(), auto_generate,
+        correlation_id: correlation_id.to_owned(),
+        groups: sources,
+        warehouse_root: warehouse.warehouse_root.clone(),
+        auto_generate,
     };
     match vua_acquisition::warehouse_import::submit_library_import_groups(
-        warehouse.runtime.clone(), warehouse.bdl.clone(), Arc::new(SystemClock), spec, command_id)
-    {
-        Ok(accepted) => FrameOutcome::Response(application_success(request_id, json!({
-            "schemaVersion": "0.1",
-            "operation": "library.importGroups",
-            "taskId": accepted.task_id,
-            "correlationId": correlation_id,
-        }))),
+        warehouse.runtime.clone(),
+        warehouse.bdl.clone(),
+        Arc::new(SystemClock),
+        spec,
+        command_id,
+    ) {
+        Ok(accepted) => FrameOutcome::Response(application_success(
+            request_id,
+            json!({
+                "schemaVersion": "0.1",
+                "operation": "library.importGroups",
+                "taskId": accepted.task_id,
+                "correlationId": correlation_id,
+            }),
+        )),
         Err(_) => warehouse_store_failed(request_id, correlation_id),
     }
 }
 
-fn import_submit(warehouse: Arc<WarehouseServices>, request: &Value, request_id: &str, correlation_id: &str, retain_all: bool) -> FrameOutcome {
+fn import_submit(
+    warehouse: Arc<WarehouseServices>,
+    request: &Value,
+    request_id: &str,
+    correlation_id: &str,
+    retain_all: bool,
+) -> FrameOutcome {
     let allow_files = retain_all && request["method"] == "library.importPaths";
-    let source_key = if allow_files { "sourcePaths" } else { "sourceFolders" };
+    let source_key = if allow_files {
+        "sourcePaths"
+    } else {
+        "sourceFolders"
+    };
     let source_folders = match request.get("params") {
         Some(Value::Object(params))
-            if params
-                .keys()
-                .all(|key| key == source_key || key == "autoGenerate" || (retain_all && key == "schemaVersion")) =>
+            if params.keys().all(|key| {
+                key == source_key || key == "autoGenerate" || (retain_all && key == "schemaVersion")
+            }) =>
         {
             match params.get(source_key) {
                 Some(Value::Array(folders)) if !folders.is_empty() => folders
@@ -6949,8 +7788,16 @@ fn import_submit(warehouse: Arc<WarehouseServices>, request: &Value, request_id:
     let Some(source_folders) = source_folders else {
         return warehouse_invalid_params(request_id, correlation_id);
     };
-    if retain_all && (source_folders.len() > 200 || source_folders.iter().any(|path| !path.is_absolute())
-        || source_folders.iter().map(|path| path.to_string_lossy().replace('\\', "/").to_lowercase()).collect::<std::collections::HashSet<_>>().len() != source_folders.len()) {
+    if retain_all
+        && (source_folders.len() > 200
+            || source_folders.iter().any(|path| !path.is_absolute())
+            || source_folders
+                .iter()
+                .map(|path| path.to_string_lossy().replace('\\', "/").to_lowercase())
+                .collect::<std::collections::HashSet<_>>()
+                .len()
+                != source_folders.len())
+    {
         return warehouse_invalid_params(request_id, correlation_id);
     }
     // N5 实验选项(用户方向 2026-10-02):autoGenerate=true 时导入完成每个
@@ -6980,24 +7827,48 @@ fn import_submit(warehouse: Arc<WarehouseServices>, request: &Value, request_id:
         Some(_) => return warehouse_invalid_params(request_id, correlation_id),
     };
     let spec = vua_acquisition::WarehouseImportTaskSpec {
-        correlation_id: correlation_id.to_owned(), source_folders,
-        warehouse_root: warehouse.warehouse_root.clone(), auto_generate: auto_generate.clone(),
+        correlation_id: correlation_id.to_owned(),
+        source_folders,
+        warehouse_root: warehouse.warehouse_root.clone(),
+        auto_generate: auto_generate.clone(),
     };
     let accepted = if retain_all {
-        let Some(command_id) = request.get("commandId").and_then(Value::as_str).filter(|id| !id.is_empty()) else { return warehouse_invalid_params(request_id, correlation_id); };
+        let Some(command_id) = request
+            .get("commandId")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+        else {
+            return warehouse_invalid_params(request_id, correlation_id);
+        };
         if allow_files {
-            vua_acquisition::warehouse_import::submit_library_import_paths(warehouse.runtime.clone(), warehouse.bdl.clone(), Arc::new(SystemClock), spec, auto_generate, command_id)
+            vua_acquisition::warehouse_import::submit_library_import_paths(
+                warehouse.runtime.clone(),
+                warehouse.bdl.clone(),
+                Arc::new(SystemClock),
+                spec,
+                auto_generate,
+                command_id,
+            )
         } else {
-            vua_acquisition::warehouse_import::submit_library_import(warehouse.runtime.clone(), warehouse.bdl.clone(), Arc::new(SystemClock), spec, auto_generate, command_id)
+            vua_acquisition::warehouse_import::submit_library_import(
+                warehouse.runtime.clone(),
+                warehouse.bdl.clone(),
+                Arc::new(SystemClock),
+                spec,
+                auto_generate,
+                command_id,
+            )
         }
-    } else { vua_acquisition::submit_warehouse_import_auto(
-        warehouse.runtime.clone(),
-        warehouse.bdl.clone(),
-        Arc::new(SystemClock),
-        spec,
-        auto_generate,
-        None,
-    ) };
+    } else {
+        vua_acquisition::submit_warehouse_import_auto(
+            warehouse.runtime.clone(),
+            warehouse.bdl.clone(),
+            Arc::new(SystemClock),
+            spec,
+            auto_generate,
+            None,
+        )
+    };
     match accepted {
         Ok(accepted) => FrameOutcome::Response(application_success(
             request_id,
@@ -7257,7 +8128,10 @@ fn packages_list_installed(
         match vpm.list_packages(&project) {
             Ok(packages) => {
                 let rows = serde_json::to_value(&packages).unwrap_or_else(|_| json!([]));
-                (json!({ "projectPath": project_path, "packages": rows }), PACKAGES_INSTALLED_SCHEMA_VERSION_V01)
+                (
+                    json!({ "projectPath": project_path, "packages": rows }),
+                    PACKAGES_INSTALLED_SCHEMA_VERSION_V01,
+                )
             }
             Err(error) => {
                 return FrameOutcome::Response(application_error(
@@ -7506,7 +8380,9 @@ fn packages_repo_catalog(
             // An empty array is a shape violation, not a third state next
             // to null; so is a duplicate id (the frozen schema's
             // uniqueItems law).
-            if ids.is_empty() || ids.iter().collect::<std::collections::HashSet<_>>().len() != ids.len() {
+            if ids.is_empty()
+                || ids.iter().collect::<std::collections::HashSet<_>>().len() != ids.len()
+            {
                 return packages_invalid_params(request_id, correlation_id);
             }
             Some(ids)
@@ -7636,7 +8512,10 @@ fn packages_package_catalog(
             package_id,
         );
         match catalog {
-            Ok(catalog) => (serde_json::to_value(&catalog).unwrap_or_else(|_| json!({})), PACKAGES_CATALOG_SCHEMA_VERSION_V02),
+            Ok(catalog) => (
+                serde_json::to_value(&catalog).unwrap_or_else(|_| json!({})),
+                PACKAGES_CATALOG_SCHEMA_VERSION_V02,
+            ),
             Err(error) => {
                 return FrameOutcome::Response(application_error(
                     request_id,
@@ -7656,7 +8535,10 @@ fn packages_package_catalog(
             package_id,
         );
         match catalog {
-            Ok(catalog) => (serde_json::to_value(&catalog).unwrap_or_else(|_| json!({})), PACKAGES_CATALOG_SCHEMA_VERSION),
+            Ok(catalog) => (
+                serde_json::to_value(&catalog).unwrap_or_else(|_| json!({})),
+                PACKAGES_CATALOG_SCHEMA_VERSION,
+            ),
             Err(error) => {
                 return FrameOutcome::Response(application_error(
                     request_id,
@@ -7739,9 +8621,7 @@ fn packages_ops_rejected(
 fn packages_ops_port_rejection(error: &AppErrorV1) -> Value {
     let (guard, code) = match error.code.as_str() {
         "vua.vpm.preview_drift" => ("preview_drift", "vua.packages.preview_drift"),
-        "vua.vpm.package_not_installed" => {
-            ("package_not_found", "vua.packages.package_not_found")
-        }
+        "vua.vpm.package_not_installed" => ("package_not_found", "vua.packages.package_not_found"),
         _ => ("execution_failed", "vua.packages.execution_failed"),
     };
     packages_ops_rejected(
@@ -7886,7 +8766,8 @@ fn packages_preview_remove(
     };
     // Invariant: ChangePreviewV1 is a plain serde struct — serialization
     // cannot fail; a silent fallback would fabricate a plan.
-    let mut plan = serde_json::to_value(&preview).expect("ChangePreviewV1 serialization cannot fail");
+    let mut plan =
+        serde_json::to_value(&preview).expect("ChangePreviewV1 serialization cannot fail");
     plan["schemaVersion"] = json!(PACKAGES_OPS_SCHEMA_VERSION);
     plan["kind"] = json!("plan");
     plan["projectPath"] = json!(project_path);
@@ -8093,7 +8974,10 @@ fn packages_ops_install_params(
         });
     }
     let mut seen = std::collections::HashSet::new();
-    if !requests.iter().all(|request| seen.insert(&request.package_id)) {
+    if !requests
+        .iter()
+        .all(|request| seen.insert(&request.package_id))
+    {
         return None;
     }
     let confirmed_digest = if require_digest {
@@ -8149,9 +9033,7 @@ fn packages_ops_install_envelope_error(
 fn packages_ops_install_port_rejection(error: &AppErrorV1) -> Value {
     let (guard, code) = match error.code.as_str() {
         "vua.vpm.preview_drift" => ("preview_drift", "vua.packages.preview_drift"),
-        "vua.vpm.no_matching_package" => {
-            ("package_not_found", "vua.packages.package_not_found")
-        }
+        "vua.vpm.no_matching_package" => ("package_not_found", "vua.packages.package_not_found"),
         "vua.vpm.apply_failed" => ("execution_failed", "vua.packages.execution_failed"),
         _ => ("execution_failed", "vua.packages.execution_failed"),
     };
@@ -8345,11 +9227,14 @@ fn packages_preview_install(
     );
     let preview = match preview {
         Ok(preview) => preview,
-        Err(error) => return packages_ops_install_envelope_error(request_id, correlation_id, &error),
+        Err(error) => {
+            return packages_ops_install_envelope_error(request_id, correlation_id, &error)
+        }
     };
     // Invariant: ChangePreviewV1 is a plain serde struct — serialization
     // cannot fail; a silent fallback would fabricate a plan.
-    let mut plan = serde_json::to_value(&preview).expect("ChangePreviewV1 serialization cannot fail");
+    let mut plan =
+        serde_json::to_value(&preview).expect("ChangePreviewV1 serialization cannot fail");
     plan["schemaVersion"] = json!(PACKAGES_OPS_SCHEMA_VERSION_V02);
     plan["kind"] = json!("plan");
     plan["projectPath"] = json!(project_path);
@@ -8672,7 +9557,9 @@ fn packages_add_remote_repo(
                     "url": url,
                     "name": name,
                 }),
-                Err(error) => packages_ops_repo_port_rejection(PACKAGES_OPS_SCHEMA_VERSION_V04, &error),
+                Err(error) => {
+                    packages_ops_repo_port_rejection(PACKAGES_OPS_SCHEMA_VERSION_V04, &error)
+                }
             };
             Ok(vua_orchestrator::TaskExit::Done(json!({
                 "schemaVersion": PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V04,
@@ -8736,7 +9623,9 @@ fn packages_add_local_repo(
                     "path": path,
                     "name": name,
                 }),
-                Err(error) => packages_ops_repo_port_rejection(PACKAGES_OPS_SCHEMA_VERSION_V04, &error),
+                Err(error) => {
+                    packages_ops_repo_port_rejection(PACKAGES_OPS_SCHEMA_VERSION_V04, &error)
+                }
             };
             Ok(vua_orchestrator::TaskExit::Done(json!({
                 "schemaVersion": PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V04,
@@ -8801,7 +9690,9 @@ fn packages_remove_repo(
                     "kind": "removed",
                     "repoId": repo_id,
                 }),
-                Err(error) => packages_ops_repo_port_rejection(PACKAGES_OPS_SCHEMA_VERSION_V04, &error),
+                Err(error) => {
+                    packages_ops_repo_port_rejection(PACKAGES_OPS_SCHEMA_VERSION_V04, &error)
+                }
             };
             Ok(vua_orchestrator::TaskExit::Done(json!({
                 "schemaVersion": PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V04,
@@ -9197,19 +10088,17 @@ fn packages_create_project(
         correlation_id: Some(correlation_id.to_owned()),
         timeout: None,
         job: Box::new(move |_| {
-            let result: Value = match vpm.create_project(
-                std::path::Path::new(&parent),
-                &name,
-                template.as_deref(),
-            ) {
-                Ok(project_ref) => json!({
-                    "schemaVersion": PACKAGES_OPS_SCHEMA_VERSION_V05,
-                    "kind": "created",
-                    "projectId": project_ref.id,
-                    "projectPath": project_ref.root.to_string_lossy(),
-                }),
-                Err(error) => packages_ops_create_port_rejection(&error),
-            };
+            let result: Value =
+                match vpm.create_project(std::path::Path::new(&parent), &name, template.as_deref())
+                {
+                    Ok(project_ref) => json!({
+                        "schemaVersion": PACKAGES_OPS_SCHEMA_VERSION_V05,
+                        "kind": "created",
+                        "projectId": project_ref.id,
+                        "projectPath": project_ref.root.to_string_lossy(),
+                    }),
+                    Err(error) => packages_ops_create_port_rejection(&error),
+                };
             Ok(vua_orchestrator::TaskExit::Done(json!({
                 "schemaVersion": PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V05,
                 "operation": "packages.createProject",
@@ -9265,7 +10154,10 @@ fn project_environment_managers(
     correlation_id: &str,
 ) -> FrameOutcome {
     if let Some(params) = request.get("params") {
-        let empty = params.as_object().map(|object| object.is_empty()).unwrap_or(false);
+        let empty = params
+            .as_object()
+            .map(|object| object.is_empty())
+            .unwrap_or(false);
         if !empty {
             return project_invalid_params(request_id, correlation_id);
         }
@@ -9314,7 +10206,13 @@ fn project_import_copy(
     let Some(params) = request.get("params").and_then(Value::as_object) else {
         return project_invalid_params(request_id, correlation_id);
     };
-    let allowed = ["phase", "sourcePath", "targetParentDirectory", "targetProjectName", "confirmedPlanDigest"];
+    let allowed = [
+        "phase",
+        "sourcePath",
+        "targetParentDirectory",
+        "targetProjectName",
+        "confirmedPlanDigest",
+    ];
     if params.keys().any(|key| !allowed.contains(&key.as_str())) {
         return project_invalid_params(request_id, correlation_id);
     }
@@ -9381,8 +10279,9 @@ fn project_import_copy(
                 match plan_import_copy(&import_request) {
                     // Invariant: ImportPlanV01 is a plain serde struct —
                     // serialization cannot fail.
-                    Ok(plan) => serde_json::to_value(plan)
-                        .expect("ImportPlanV01 serialization cannot fail"),
+                    Ok(plan) => {
+                        serde_json::to_value(plan).expect("ImportPlanV01 serialization cannot fail")
+                    }
                     Err(rejected) => serde_json::to_value(rejected)
                         .expect("ImportRejected serialization cannot fail"),
                 }
@@ -9640,12 +10539,8 @@ fn download_request(
         ));
     };
     match method {
-        "download.ingest" => {
-            download_ingest(state, downloads, request, request_id, correlation_id)
-        }
-        "download.retry" => {
-            download_retry(state, downloads, request, request_id, correlation_id)
-        }
+        "download.ingest" => download_ingest(state, downloads, request, request_id, correlation_id),
+        "download.retry" => download_retry(state, downloads, request, request_id, correlation_id),
         _ => FrameOutcome::Response(application_error(
             request_id,
             correlation_id,
@@ -9663,7 +10558,9 @@ fn download_ingest(
     request_id: &str,
     correlation_id: &str,
 ) -> FrameOutcome {
-    if request.pointer("/params/schemaVersion").and_then(Value::as_str)
+    if request
+        .pointer("/params/schemaVersion")
+        .and_then(Value::as_str)
         != Some(vua_bdl_store::download_events::DOWNLOAD_EVENT_SCHEMA_VERSION)
     {
         return FrameOutcome::Response(application_error(
@@ -9710,24 +10607,46 @@ fn download_ingest(
                 duplicates += 1;
                 // BDL and the task journal are separate stores. A previous
                 // journal failure must remain repairable after BDL deduplication.
-                let repaired = downloads.bdl.download_events(&event.download_id)
+                let repaired = downloads
+                    .bdl
+                    .download_events(&event.download_id)
                     .map_err(|_| "delivery_history_unavailable".to_owned())
                     .and_then(|history| {
-                        let attempt: Vec<_> = history.into_iter()
-                            .filter(|stored| stored.attempt == event.attempt).collect();
-                        let latest_progress = attempt.iter().rposition(|stored| stored.kind == vua_bdl_store::download_events::DownloadEventKind::Progress);
+                        let attempt: Vec<_> = history
+                            .into_iter()
+                            .filter(|stored| stored.attempt == event.attempt)
+                            .collect();
+                        let latest_progress = attempt.iter().rposition(|stored| {
+                            stored.kind
+                                == vua_bdl_store::download_events::DownloadEventKind::Progress
+                        });
                         for (position, stored) in attempt.into_iter().enumerate() {
-                            if stored.kind == vua_bdl_store::download_events::DownloadEventKind::Progress && latest_progress != Some(position) { continue; }
+                            if stored.kind
+                                == vua_bdl_store::download_events::DownloadEventKind::Progress
+                                && latest_progress != Some(position)
+                            {
+                                continue;
+                            }
                             let normalized = DownloadEventV01 {
-                                schema_version: vua_bdl_store::download_events::DOWNLOAD_EVENT_SCHEMA_VERSION.into(),
-                                kind: stored.kind, download_id: stored.download_id, attempt: stored.attempt,
-                                source_url: stored.source_url, initiated_from_page_url: stored.initiated_from_page_url,
-                                url_chain: stored.url_chain, suggested_file_name: stored.suggested_file_name,
-                                stored_path: stored.stored_path, expected_bytes: stored.expected_bytes,
-                                received_bytes: stored.received_bytes, resumable: stored.resumable,
-                                failure_kind: stored.failure_kind, occurred_at: stored.occurred_at,
+                                schema_version:
+                                    vua_bdl_store::download_events::DOWNLOAD_EVENT_SCHEMA_VERSION
+                                        .into(),
+                                kind: stored.kind,
+                                download_id: stored.download_id,
+                                attempt: stored.attempt,
+                                source_url: stored.source_url,
+                                initiated_from_page_url: stored.initiated_from_page_url,
+                                url_chain: stored.url_chain,
+                                suggested_file_name: stored.suggested_file_name,
+                                stored_path: stored.stored_path,
+                                expected_bytes: stored.expected_bytes,
+                                received_bytes: stored.received_bytes,
+                                resumable: stored.resumable,
+                                failure_kind: stored.failure_kind,
+                                occurred_at: stored.occurred_at,
                             };
-                            fold_download_task(state, &normalized).map_err(|_| "task_journal_unavailable".to_owned())?;
+                            fold_download_task(state, &normalized)
+                                .map_err(|_| "task_journal_unavailable".to_owned())?;
                         }
                         Ok(())
                     });
@@ -9756,11 +10675,19 @@ fn download_ingest(
 /// Public transfer facts in the frozen task-progress envelope; no paths or URLs.
 fn download_task_progress(event: &DownloadEventV01) -> Value {
     let mut params = json!({ "operation": "download.transfer", "downloadId": event.download_id, "attempt": event.attempt });
-    if let Some(bytes) = event.received_bytes { params["receivedBytes"] = json!(bytes); }
-    if let Some(total) = event.expected_bytes.filter(|bytes| *bytes > 0) { params["expectedBytes"] = json!(total); }
-    if let Some(name) = &event.suggested_file_name { params["fileName"] = json!(name); }
+    if let Some(bytes) = event.received_bytes {
+        params["receivedBytes"] = json!(bytes);
+    }
+    if let Some(total) = event.expected_bytes.filter(|bytes| *bytes > 0) {
+        params["expectedBytes"] = json!(total);
+    }
+    if let Some(name) = &event.suggested_file_name {
+        params["fileName"] = json!(name);
+    }
     let mut payload = json!({"completed": event.received_bytes.unwrap_or(0), "messageKey": "tasks.download.transfer", "params": params});
-    if let Some(total) = event.expected_bytes.filter(|bytes| *bytes > 0) { payload["total"] = json!(total); }
+    if let Some(total) = event.expected_bytes.filter(|bytes| *bytes > 0) {
+        payload["total"] = json!(total);
+    }
     payload
 }
 
@@ -9768,25 +10695,35 @@ fn download_task_progress(event: &DownloadEventV01) -> Value {
 /// nine-state task records one run, and a fresh retry attempt is a new
 /// record — the B3 attempt discipline. Folding is idempotent: a redelivered
 /// event never advances a task twice.
-fn fold_download_task(
-    state: &HostState,
-    event: &DownloadEventV01,
-) -> Result<(), SqliteStoreError> {
+fn fold_download_task(state: &HostState, event: &DownloadEventV01) -> Result<(), SqliteStoreError> {
     let task_id = format!("dl-{}-a{}", event.download_id, event.attempt);
     let occurred_at = event.occurred_at.as_str();
     use vua_bdl_store::download_events::DownloadEventKind;
-    if matches!(event.kind, DownloadEventKind::Started | DownloadEventKind::Completed | DownloadEventKind::Failed | DownloadEventKind::Cancelled)
-        && state.store.task(&task_id)?.is_none()
+    if matches!(
+        event.kind,
+        DownloadEventKind::Started
+            | DownloadEventKind::Completed
+            | DownloadEventKind::Failed
+            | DownloadEventKind::Cancelled
+    ) && state.store.task(&task_id)?.is_none()
     {
         let (_, accepted) = state.store.accept_task(&NewTask {
-            task_id: task_id.clone(), correlation_id: event.download_id.clone(), occurred_at: occurred_at.to_owned(),
+            task_id: task_id.clone(),
+            correlation_id: event.download_id.clone(),
+            occurred_at: occurred_at.to_owned(),
         })?;
         publish_task_event(state, Some(accepted));
     }
     // A policy denial can terminate before the port emits Started. The task
     // still records execution through the frozen nine-state transition table.
-    if matches!(event.kind, DownloadEventKind::Started | DownloadEventKind::Completed | DownloadEventKind::Failed) {
-        for (from, to) in [(TaskState::Queued, TaskState::Preparing), (TaskState::Preparing, TaskState::Running)] {
+    if matches!(
+        event.kind,
+        DownloadEventKind::Started | DownloadEventKind::Completed | DownloadEventKind::Failed
+    ) {
+        for (from, to) in [
+            (TaskState::Queued, TaskState::Preparing),
+            (TaskState::Preparing, TaskState::Running),
+        ] {
             if let Some(task) = state.store.task(&task_id)? {
                 if task.state == from {
                     let changed = state.store.mutate_task(&task_id, task.revision, occurred_at, TaskMutation::Transition {
@@ -9797,12 +10734,17 @@ fn fold_download_task(
             }
         }
     }
-    if matches!(event.kind, DownloadEventKind::Started | DownloadEventKind::Progress | DownloadEventKind::Completed) {
+    if matches!(
+        event.kind,
+        DownloadEventKind::Started | DownloadEventKind::Progress | DownloadEventKind::Completed
+    ) {
         if let Some(task) = state.store.task(&task_id)? {
             if task.state == TaskState::Running {
                 let payload = download_task_progress(event);
                 let latest = state.store.events_after(&task_id, 0)?.into_iter().last();
-                if !latest.is_some_and(|stored| stored.kind == TaskEventKind::Progress && stored.payload == payload) {
+                if !latest.is_some_and(|stored| {
+                    stored.kind == TaskEventKind::Progress && stored.payload == payload
+                }) {
                     let changed = state.store.mutate_task(
                         &task_id,
                         task.revision,
@@ -9820,22 +10762,10 @@ fn fold_download_task(
         // same-attempt progress proves the resume).
         vua_bdl_store::download_events::DownloadEventKind::Interrupted => {}
         vua_bdl_store::download_events::DownloadEventKind::Completed => {
-            complete_download_task(
-                state,
-                &task_id,
-                occurred_at,
-                TaskState::Succeeded,
-                None,
-            )?;
+            complete_download_task(state, &task_id, occurred_at, TaskState::Succeeded, None)?;
         }
         vua_bdl_store::download_events::DownloadEventKind::Cancelled => {
-            complete_download_task(
-                state,
-                &task_id,
-                occurred_at,
-                TaskState::Cancelled,
-                None,
-            )?;
+            complete_download_task(state, &task_id, occurred_at, TaskState::Cancelled, None)?;
         }
         vua_bdl_store::download_events::DownloadEventKind::Failed => {
             let failure_kind = event
@@ -9852,13 +10782,7 @@ fn fold_download_task(
                 &event.download_id,
             )
             .with_param("failureKind", ParamValue::Text(failure_kind.to_owned()));
-            complete_download_task(
-                state,
-                &task_id,
-                occurred_at,
-                TaskState::Failed,
-                Some(error),
-            )?;
+            complete_download_task(state, &task_id, occurred_at, TaskState::Failed, Some(error))?;
         }
     }
     Ok(())
@@ -9994,14 +10918,7 @@ pub(crate) fn application_error(
     message_key: &str,
     category: &str,
 ) -> Value {
-    application_error_with_params(
-        request_id,
-        correlation_id,
-        code,
-        message_key,
-        category,
-        &[],
-    )
+    application_error_with_params(request_id, correlation_id, code, message_key, category, &[])
 }
 
 /// The error envelope with localized params (ORC-ERR-001 shape: user-facing
@@ -10035,8 +10952,10 @@ pub(crate) fn application_error_with_params(
             "params".to_owned(),
             json!(params
                 .iter()
-                .map(|(key, value)| (key.to_string(), serde_json::to_value(value)
-                    .expect("ParamValue always serializes")))
+                .map(|(key, value)| (
+                    key.to_string(),
+                    serde_json::to_value(value).expect("ParamValue always serializes")
+                ))
                 .collect::<serde_json::Map<String, Value>>()),
         );
     }
@@ -10136,7 +11055,10 @@ pub fn production_config_from_env() -> Option<ProductionConfig> {
         );
         return None;
     }
-    let vpm = match vua_project_manager::VrcGetLibBackend::with_environment_root(data.join("vpm-env"), false) {
+    let vpm = match vua_project_manager::VrcGetLibBackend::with_environment_root(
+        data.join("vpm-env"),
+        false,
+    ) {
         Ok(vpm) => Arc::new(vpm) as Arc<dyn vua_orchestrator::VpmBackend>,
         Err(_) => {
             eprintln!("VUA provider: vrc-get backend init failed; production stays unavailable");
@@ -10207,34 +11129,49 @@ fn production_request(
             "unavailable",
         ));
     };
-    let command_id = request.get("commandId").and_then(Value::as_str).unwrap_or("");
+    let command_id = request
+        .get("commandId")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     let outcome: Result<FrameOutcome, ProductionError> = match method {
-        "production.startInspection" => {
-            start_inspection(state, &services, request, request_id, correlation_id, command_id)
-        }
-        "production.getInspection" => get_domain_document(
+        "production.startInspection" => start_inspection(
             state,
+            &services,
             request,
             request_id,
-            "inspection",
-            "inspectionId",
+            correlation_id,
+            command_id,
         ),
-        "production.requestPlan" => {
-            request_plan(state, &services, request, request_id, correlation_id, command_id)
+        "production.getInspection" => {
+            get_domain_document(state, request, request_id, "inspection", "inspectionId")
         }
-        "production.getPlan" => get_domain_document(
+        "production.requestPlan" => request_plan(
             state,
+            &services,
             request,
             request_id,
-            "plan",
-            "planId",
+            correlation_id,
+            command_id,
         ),
-        "production.confirmPlan" => {
-            confirm_plan(state, &services, request, request_id, correlation_id, command_id, false)
-        }
-        "production.recover" => {
-            confirm_plan(state, &services, request, request_id, correlation_id, command_id, true)
-        }
+        "production.getPlan" => get_domain_document(state, request, request_id, "plan", "planId"),
+        "production.confirmPlan" => confirm_plan(
+            state,
+            &services,
+            request,
+            request_id,
+            correlation_id,
+            command_id,
+            false,
+        ),
+        "production.recover" => confirm_plan(
+            state,
+            &services,
+            request,
+            request_id,
+            correlation_id,
+            command_id,
+            true,
+        ),
         "production.getBuildRecord" => get_build_record(state, request, request_id),
         _ => Ok(FrameOutcome::Response(application_error(
             request_id,
@@ -10280,7 +11217,11 @@ fn not_recoverable_error() -> ProductionError {
 }
 
 fn validation_error(code: &'static str, message_key: &'static str) -> ProductionError {
-    ProductionError { code, message_key, category: "validation" }
+    ProductionError {
+        code,
+        message_key,
+        category: "validation",
+    }
 }
 
 /// Accepts a production task idempotently and drives the staged
@@ -10335,12 +11276,18 @@ fn accept_production_task(
             advance_production_task(
                 &state.store,
                 &task_id,
-                TaskMutation::Transition { state: TaskState::Preparing, payload: json!({}) },
+                TaskMutation::Transition {
+                    state: TaskState::Preparing,
+                    payload: json!({}),
+                },
             )?;
             advance_production_task(
                 &state.store,
                 &task_id,
-                TaskMutation::Transition { state: TaskState::Running, payload: json!({}) },
+                TaskMutation::Transition {
+                    state: TaskState::Running,
+                    payload: json!({}),
+                },
             )?;
             Ok((task_id, None))
         }
@@ -10391,8 +11338,10 @@ fn start_inspection(
         .engine
         .inspect_folder(Path::new(&source_folder), correlation_id)
         .map_err(|error| persist_task_error(&state.store, &task_id, error))?;
-    let result = serde_json::to_value(&inspection)
-        .map_err(|_| SqliteStoreError::CorruptValue { field: "inspection", value: "json".into() })?;
+    let result = serde_json::to_value(&inspection).map_err(|_| SqliteStoreError::CorruptValue {
+        field: "inspection",
+        value: "json".into(),
+    })?;
 
     // Issue the stable domain identity and bind the one-time Kernel handover.
     let inspection_id = issue_domain_id("insp");
@@ -10449,8 +11398,8 @@ fn request_plan(
             "errors.production.invalidParams",
         ));
     }
-    let mode: MaterialEntryMode = serde_json::from_value(Value::String(mode_raw.clone()))
-        .map_err(|_| {
+    let mode: MaterialEntryMode =
+        serde_json::from_value(Value::String(mode_raw.clone())).map_err(|_| {
             validation_error(
                 "vua.production.invalid_params",
                 "errors.production.invalidParams",
@@ -10474,8 +11423,9 @@ fn request_plan(
         Path::new(&project_root),
         &["Assets", "Packages", "ProjectSettings"],
     )
-    .map_err(|error| {
-        SqliteStoreError::CorruptValue { field: "project fingerprint", value: error.to_string() }
+    .map_err(|error| SqliteStoreError::CorruptValue {
+        field: "project fingerprint",
+        value: error.to_string(),
     })?
     .unwrap_or_default();
 
@@ -10518,18 +11468,28 @@ fn request_plan(
             correlation_id,
         )
         .map_err(|error| persist_task_error(&state.store, &task_id, error))?;
-    let result = serde_json::to_value(&plan)
-        .map_err(|_| SqliteStoreError::CorruptValue { field: "plan", value: "json".into() })?;
+    let result = serde_json::to_value(&plan).map_err(|_| SqliteStoreError::CorruptValue {
+        field: "plan",
+        value: "json".into(),
+    })?;
     advance_production_task(
         &state.store,
         &task_id,
-        TaskMutation::Complete { state: TaskState::Succeeded, error: None, result: Some(result.clone()) },
+        TaskMutation::Complete {
+            state: TaskState::Succeeded,
+            error: None,
+            result: Some(result.clone()),
+        },
     )?;
 
     // Issue the plan domain identity, bound to the inspection and the plan
     // task's post-completion revision (the value confirmPlan validates).
     let plan_id = issue_domain_id("plan");
-    let plan_revision = state.store.task(&task_id)?.expect("plan task exists").revision;
+    let plan_revision = state
+        .store
+        .task(&task_id)?
+        .expect("plan task exists")
+        .revision;
     let binding = json!({
         "inspectionId": inspection_id,
         "revision": plan_revision,
@@ -10680,24 +11640,27 @@ fn confirm_plan(
                 .pointer("/params/rememberForSession")
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
-            (plan_id, String::new(), String::new(), risk_choice, remember_for_session)
+            (
+                plan_id,
+                String::new(),
+                String::new(),
+                risk_choice,
+                remember_for_session,
+            )
         };
 
     // Registry chain: plan record -> its plan task and its inspection
     // binding (paths + project identity were handed over once at
     // startInspection).
-    let (plan_task_id, plan_binding) =
-        match state.store.domain_record(&plan_id)? {
-            Some((kind, task_id, _document, binding)) if kind == "plan" => {
-                (task_id, binding)
-            }
-            _ => {
-                return Err(validation_error(
-                    "vua.production.record_not_found",
-                    "errors.production.recordNotFound",
-                ))
-            }
-        };
+    let (plan_task_id, plan_binding) = match state.store.domain_record(&plan_id)? {
+        Some((kind, task_id, _document, binding)) if kind == "plan" => (task_id, binding),
+        _ => {
+            return Err(validation_error(
+                "vua.production.record_not_found",
+                "errors.production.recordNotFound",
+            ))
+        }
+    };
     let inspection_id = string_field(&plan_binding, "inspectionId");
     if recovery {
         // The plan revision binds the confirmation: a recovery started from
@@ -10772,8 +11735,8 @@ fn confirm_plan(
         // snapshot manifest — is enforced inside restore). Records written
         // before identity binding existed carry none and are not
         // recoverable through this path.
-        let request_identity = ProjectIdentity::from_existing_path(&project_root)
-            .map_err(|_| {
+        let request_identity =
+            ProjectIdentity::from_existing_path(&project_root).map_err(|_| {
                 validation_error(
                     "vua.project.identity_invalid",
                     "errors.project.identityInvalid",
@@ -10807,21 +11770,24 @@ fn confirm_plan(
         {
             return Err(not_recoverable_error());
         }
-        Run::Rollback { snapshot_id, original_record: Box::new(record) }
+        Run::Rollback {
+            snapshot_id,
+            original_record: Box::new(record),
+        }
     } else {
         let plan_task = state
             .store
             .task(&plan_task_id)?
             .ok_or_else(|| validation_error("vua.task.not_found", "errors.task.notFound"))?;
-        let plan: MaterialIntakePlanV01 =
-            serde_json::from_value(plan_task.result.clone().unwrap_or(Value::Null)).map_err(
-                |_| {
-                    validation_error(
-                        "vua.production.plan_mismatch",
-                        "errors.production.planMismatch",
-                    )
-                },
-            )?;
+        let plan: MaterialIntakePlanV01 = serde_json::from_value(
+            plan_task.result.clone().unwrap_or(Value::Null),
+        )
+        .map_err(|_| {
+            validation_error(
+                "vua.production.plan_mismatch",
+                "errors.production.planMismatch",
+            )
+        })?;
         let choice: RiskDecisionChoice = serde_json::from_value(Value::String(risk_choice.clone()))
             .map_err(|_| {
                 validation_error(
@@ -10837,7 +11803,11 @@ fn confirm_plan(
                 risk_fingerprint: plan.source.risk_fingerprint.clone(),
                 remember_for_session,
             },
-            confirmed_at: if confirmed_at.is_empty() { now_rfc3339() } else { confirmed_at.clone() },
+            confirmed_at: if confirmed_at.is_empty() {
+                now_rfc3339()
+            } else {
+                confirmed_at.clone()
+            },
             correlation_id: correlation_id.to_owned(),
         }))
     };
@@ -10892,7 +11862,11 @@ fn confirm_plan(
     });
     let (task_id, replayed) = accept_production_task(
         state,
-        if recovery { "production.recover" } else { "production.confirmPlan" },
+        if recovery {
+            "production.recover"
+        } else {
+            "production.confirmPlan"
+        },
         command_id,
         &fingerprint_input,
         request_id,
@@ -10931,10 +11905,14 @@ fn confirm_plan(
     std::thread::spawn(move || {
         let project_id = match &run {
             Run::Execute(confirmation) => confirmation.plan.project_id.clone(),
-            Run::Rollback { original_record, .. } => original_record.project_id.clone(),
+            Run::Rollback {
+                original_record, ..
+            } => original_record.project_id.clone(),
         };
-        let project =
-            ProjectRef { id: project_id, root: PathBuf::from(&project_root) };
+        let project = ProjectRef {
+            id: project_id,
+            root: PathBuf::from(&project_root),
+        };
 
         // The mutation gate: SQLite lease → cross-profile project lock →
         // pending-mutation marker, held for the whole mutating run. A crash
@@ -11035,7 +12013,10 @@ fn confirm_plan(
                     ),
                 }
             }
-            Run::Rollback { snapshot_id, original_record } => {
+            Run::Rollback {
+                snapshot_id,
+                original_record,
+            } => {
                 let reference = vua_orchestrator::SnapshotRef {
                     id: snapshot_id.clone(),
                     path: project.root.join(".vua/snapshots").join(snapshot_id),
@@ -11049,8 +12030,7 @@ fn confirm_plan(
                     .duration_since(std::time::UNIX_EPOCH)
                     .map(|elapsed| elapsed.as_millis())
                     .unwrap_or(0);
-                let stale_quarantine =
-                    project.root.join(".vua/recovery").join(snapshot_id);
+                let stale_quarantine = project.root.join(".vua/recovery").join(snapshot_id);
                 if stale_quarantine.exists() {
                     let archived = project
                         .root
@@ -11058,16 +12038,15 @@ fn confirm_plan(
                         .join(format!("{snapshot_id}.superseded-{stamp}"));
                     let _ = std::fs::rename(&stale_quarantine, &archived);
                 }
-                match vua_orchestrator::FileSystemSnapshotStore.restore_verified(&project, &reference) {
+                match vua_orchestrator::FileSystemSnapshotStore
+                    .restore_verified(&project, &reference)
+                {
                     Ok(()) => {
                         // The recovery itself gets an immutable receipt
                         // with status `recovered`, bound to THIS recovery
                         // task and decision, referencing the failed run's
                         // record it supersedes.
-                        let recovered_id = format!(
-                            "{}-recover-{stamp}",
-                            original_record.record_id
-                        );
+                        let recovered_id = format!("{}-recover-{stamp}", original_record.record_id);
                         let mut recovered = original_record.clone();
                         recovered.record_id = recovered_id.clone();
                         recovered.status = vua_orchestrator::BuildRecordStatus::Recovered;
@@ -11077,8 +12056,7 @@ fn confirm_plan(
                         recovered.completed_at = now_rfc3339();
                         recovered.recovered_from_record_id =
                             Some(original_record.record_id.clone());
-                        recovered.recovery_decision_id =
-                            Some(recovery_decision_id.clone());
+                        recovered.recovery_decision_id = Some(recovery_decision_id.clone());
                         recovered.snapshot = Some(vua_orchestrator::BuildSnapshotEvidenceV01 {
                             snapshot_id: snapshot_id.clone(),
                             verified: true,
@@ -11167,7 +12145,11 @@ fn confirm_plan(
         if let Ok(Some(event)) = advance_production_task(
             &store,
             &worker_task_id,
-            TaskMutation::Complete { state: state_final, error, result: result_value },
+            TaskMutation::Complete {
+                state: state_final,
+                error,
+                result: result_value,
+            },
         ) {
             services_for_worker
                 .completed_events
@@ -11246,7 +12228,10 @@ fn run_project_inspection(
             correlation_id,
         )
         .with_recoverable(true)
-        .with_param("detail", vua_orchestrator::ParamValue::Text(format!("{error:?}")))
+        .with_param(
+            "detail",
+            vua_orchestrator::ParamValue::Text(format!("{error:?}")),
+        )
     })?;
     let observed_at = now_rfc3339();
     let mut hasher = Sha256::new();
@@ -11298,18 +12283,20 @@ impl MutationGate {
                 correlation_id,
             )
             .with_recoverable(false)
-            .with_param("detail", vua_orchestrator::ParamValue::Text(error.to_string()))
+            .with_param(
+                "detail",
+                vua_orchestrator::ParamValue::Text(error.to_string()),
+            )
         })?;
 
         let mut inspection_evidence: Option<ProjectInspectionEvidence> = None;
-        let lease =
-            match store.acquire_project_lease(
-                &identity,
-                owner_instance_id,
-                task_id,
-                &now_rfc3339(),
-            ) {
-                Ok(lease) => {
+        let lease = match store.acquire_project_lease(
+            &identity,
+            owner_instance_id,
+            task_id,
+            &now_rfc3339(),
+        ) {
+            Ok(lease) => {
                 if require_project_inspection {
                     let inspection = run_project_inspection(
                         inspect,
@@ -11322,34 +12309,11 @@ impl MutationGate {
                 }
                 lease
             }
-                Err(SqliteStoreError::LeaseHeld { .. }) => {
-                    let existing = store
-                        .project_lease(&identity)
-                        .map_err(|error| {
-                            AppErrorV1::new(
-                                "vua.project.lease_unavailable",
-                                ErrorCategory::Unavailable,
-                                "errors.project.leaseUnavailable",
-                                correlation_id,
-                            )
-                            .with_recoverable(true)
-                            .with_param(
-                                "detail",
-                                vua_orchestrator::ParamValue::Text(error.to_string()),
-                            )
-                        })?
-                        .ok_or_else(|| {
-                            AppErrorV1::new(
-                                "vua.project.lease_unavailable",
-                                ErrorCategory::Unavailable,
-                                "errors.project.leaseUnavailable",
-                                correlation_id,
-                            )
-                            .with_recoverable(true)
-                        })?;
-                    if !existing.recovery_required {
-                        // A live owner holds the lease: refuse, never steal.
-                        return Err(AppErrorV1::new(
+            Err(SqliteStoreError::LeaseHeld { .. }) => {
+                let existing = store
+                    .project_lease(&identity)
+                    .map_err(|error| {
+                        AppErrorV1::new(
                             "vua.project.lease_unavailable",
                             ErrorCategory::Unavailable,
                             "errors.project.leaseUnavailable",
@@ -11357,50 +12321,21 @@ impl MutationGate {
                         )
                         .with_recoverable(true)
                         .with_param(
-                            "holder",
-                            vua_orchestrator::ParamValue::Text(
-                                existing.owner_instance_id.clone(),
-                            ),
-                        ));
-                    }
-                    // A stale lease from an interrupted owner recovers ONLY
-                    // through a PROJECT INSPECTION: the read-only Bridge
-                    // inspection produces the credential (identity +
-                    // fingerprint + lease generation) that the takeover
-                    // binds. A user decision alone never supersedes it.
-                    let inspection = run_project_inspection(
-                        inspect,
-                        &identity,
-                        &rootless_project_ref(project_root, task_id),
-                        existing.generation,
-                        correlation_id,
-                    )?;
-                    let inspection_id = inspection.inspection_id.clone();
-                    inspection_evidence = Some(inspection);
-                    store
-                        .takeover_project_lease_after_inspect(
-                            &identity,
-                            existing.generation,
-                            owner_instance_id,
-                            task_id,
-                            inspection_id.as_str(),
-                            &now_rfc3339(),
+                            "detail",
+                            vua_orchestrator::ParamValue::Text(error.to_string()),
                         )
-                        .map_err(|error| {
-                            AppErrorV1::new(
-                                "vua.project.lease_unavailable",
-                                ErrorCategory::Unavailable,
-                                "errors.project.leaseUnavailable",
-                                correlation_id,
-                            )
-                            .with_recoverable(true)
-                            .with_param(
-                                "detail",
-                                vua_orchestrator::ParamValue::Text(error.to_string()),
-                            )
-                        })?
-                }
-                Err(error) => {
+                    })?
+                    .ok_or_else(|| {
+                        AppErrorV1::new(
+                            "vua.project.lease_unavailable",
+                            ErrorCategory::Unavailable,
+                            "errors.project.leaseUnavailable",
+                            correlation_id,
+                        )
+                        .with_recoverable(true)
+                    })?;
+                if !existing.recovery_required {
+                    // A live owner holds the lease: refuse, never steal.
                     return Err(AppErrorV1::new(
                         "vua.project.lease_unavailable",
                         ErrorCategory::Unavailable,
@@ -11409,11 +12344,61 @@ impl MutationGate {
                     )
                     .with_recoverable(true)
                     .with_param(
-                        "detail",
-                        vua_orchestrator::ParamValue::Text(error.to_string()),
-                    ))
+                        "holder",
+                        vua_orchestrator::ParamValue::Text(existing.owner_instance_id.clone()),
+                    ));
                 }
-            };
+                // A stale lease from an interrupted owner recovers ONLY
+                // through a PROJECT INSPECTION: the read-only Bridge
+                // inspection produces the credential (identity +
+                // fingerprint + lease generation) that the takeover
+                // binds. A user decision alone never supersedes it.
+                let inspection = run_project_inspection(
+                    inspect,
+                    &identity,
+                    &rootless_project_ref(project_root, task_id),
+                    existing.generation,
+                    correlation_id,
+                )?;
+                let inspection_id = inspection.inspection_id.clone();
+                inspection_evidence = Some(inspection);
+                store
+                    .takeover_project_lease_after_inspect(
+                        &identity,
+                        existing.generation,
+                        owner_instance_id,
+                        task_id,
+                        inspection_id.as_str(),
+                        &now_rfc3339(),
+                    )
+                    .map_err(|error| {
+                        AppErrorV1::new(
+                            "vua.project.lease_unavailable",
+                            ErrorCategory::Unavailable,
+                            "errors.project.leaseUnavailable",
+                            correlation_id,
+                        )
+                        .with_recoverable(true)
+                        .with_param(
+                            "detail",
+                            vua_orchestrator::ParamValue::Text(error.to_string()),
+                        )
+                    })?
+            }
+            Err(error) => {
+                return Err(AppErrorV1::new(
+                    "vua.project.lease_unavailable",
+                    ErrorCategory::Unavailable,
+                    "errors.project.leaseUnavailable",
+                    correlation_id,
+                )
+                .with_recoverable(true)
+                .with_param(
+                    "detail",
+                    vua_orchestrator::ParamValue::Text(error.to_string()),
+                ))
+            }
+        };
 
         let holder = LockHolder {
             channel: "provider".to_owned(),
@@ -11426,11 +12411,7 @@ impl MutationGate {
         let lock = match acquire_project_lock(&root, holder.clone()) {
             Ok(lock) => Some(lock),
             Err(ProjectLockError::Held { previous }) => {
-                let _ = store.release_project_lease(
-                    &identity,
-                    owner_instance_id,
-                    lease.generation,
-                );
+                let _ = store.release_project_lease(&identity, owner_instance_id, lease.generation);
                 return Err(AppErrorV1::new(
                     "vua.project.lock_held",
                     ErrorCategory::Conflict,
@@ -11448,11 +12429,7 @@ impl MutationGate {
                 ));
             }
             Err(ProjectLockError::Io(lock_error)) => {
-                let _ = store.release_project_lease(
-                    &identity,
-                    owner_instance_id,
-                    lease.generation,
-                );
+                let _ = store.release_project_lease(&identity, owner_instance_id, lease.generation);
                 return Err(AppErrorV1::new(
                     "vua.project.lock_failed",
                     ErrorCategory::ExternalFailure,
@@ -11478,11 +12455,8 @@ impl MutationGate {
                 // user decision alone never archives crash evidence.
                 if inspection_evidence.is_none() {
                     drop(lock);
-                    let _ = store.release_project_lease(
-                        &identity,
-                        owner_instance_id,
-                        lease.generation,
-                    );
+                    let _ =
+                        store.release_project_lease(&identity, owner_instance_id, lease.generation);
                     return Err(AppErrorV1::new(
                         "vua.project.inspect_required",
                         ErrorCategory::Conflict,
@@ -11504,7 +12478,8 @@ impl MutationGate {
                     .unwrap_or(0);
                 let _ = std::fs::rename(
                     root.join(".vua").join(MARKER_FILE_NAME),
-                    root.join(".vua").join(format!("{MARKER_FILE_NAME}.superseded-{stamp}")),
+                    root.join(".vua")
+                        .join(format!("{MARKER_FILE_NAME}.superseded-{stamp}")),
                 );
             }
         }
@@ -11513,11 +12488,7 @@ impl MutationGate {
             Ok(marker) => Some(marker),
             Err(marker_error) => {
                 drop(lock);
-                let _ = store.release_project_lease(
-                    &identity,
-                    owner_instance_id,
-                    lease.generation,
-                );
+                let _ = store.release_project_lease(&identity, owner_instance_id, lease.generation);
                 return Err(AppErrorV1::new(
                     "vua.project.marker_failed",
                     ErrorCategory::ExternalFailure,
@@ -11575,13 +12546,12 @@ fn get_domain_document(
             "errors.production.invalidParams",
         ));
     }
-    let (record_kind, task_id, document, binding) =
-        domain_record_checked(state, &domain_id, kind)?;
+    let (record_kind, task_id, document, binding) = domain_record_checked(state, &domain_id, kind)?;
     let _ = record_kind;
     let task = state.store.task(&task_id)?;
     let document_value = if kind == "inspection" {
-        let inspection: SourceFolderInspectionV01 = serde_json::from_value(document)
-            .map_err(|_| {
+        let inspection: SourceFolderInspectionV01 =
+            serde_json::from_value(document).map_err(|_| {
                 validation_error(
                     "vua.production.record_invalid",
                     "errors.production.recordInvalid",
@@ -11614,8 +12584,7 @@ fn get_domain_document(
         // id); the engine's internal plan id stays at the diagnostics
         // boundary.
         plan_document.plan_id = domain_id.clone();
-        serde_json::to_value(&plan_document)
-        .map_err(|_| {
+        serde_json::to_value(&plan_document).map_err(|_| {
             validation_error(
                 "vua.production.record_invalid",
                 "errors.production.recordInvalid",
@@ -11634,8 +12603,7 @@ fn get_domain_document(
         .expect("payload object")
         .insert(kind.to_owned(), document_value);
     Ok(FrameOutcome::Response(application_success(
-        request_id,
-        payload,
+        request_id, payload,
     )))
 }
 
@@ -11679,7 +12647,10 @@ fn get_build_record(
     request: &Value,
     request_id: &str,
 ) -> Result<FrameOutcome, ProductionError> {
-    let services = state.production.as_ref().expect("checked by production_request");
+    let services = state
+        .production
+        .as_ref()
+        .expect("checked by production_request");
     // v0.2: {buildRecordId} — the wire shape is the presentation-safe
     // projection (status, stages, evidenceSummary, restore fields); the raw
     // evidence sections stay in the stored record at the diagnostics
@@ -11691,12 +12662,17 @@ fn get_build_record(
             "errors.production.invalidParams",
         ));
     }
-    let record = services
-        .records
-        .read(&record_id)
-        .map_err(|_| validation_error("vua.production.record_not_found", "errors.production.recordNotFound"))?;
+    let record = services.records.read(&record_id).map_err(|_| {
+        validation_error(
+            "vua.production.record_not_found",
+            "errors.production.recordNotFound",
+        )
+    })?;
     let build_record = serde_json::to_value(vua_orchestrator::wire_v02(&record)).map_err(|_| {
-        validation_error("vua.production.record_invalid", "errors.production.recordInvalid")
+        validation_error(
+            "vua.production.record_invalid",
+            "errors.production.recordInvalid",
+        )
     })?;
     Ok(FrameOutcome::Response(application_success(
         request_id,
@@ -11729,8 +12705,6 @@ fn persist_task_error(
         category: "external_failure",
     }
 }
-
-
 
 /// Emits every finished production task's terminal event — including when
 /// the host is otherwise idle waiting for input.
@@ -11789,8 +12763,8 @@ fn write_frame(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vua_orchestrator::{NewTask, ProjectIdentity};
     use std::io::Cursor;
+    use vua_orchestrator::{NewTask, ProjectIdentity};
 
     fn database_path(label: &str) -> std::path::PathBuf {
         let nanos = std::time::SystemTime::now()
@@ -12065,8 +13039,10 @@ mod tests {
             "task.startDemo",
             json!({"commandId": "command-demo-1", "kind": "command"}),
         );
-        let input = [frame("frame-1", "request", start)].join("
-") + "
+        let input = [frame("frame-1", "request", start)].join(
+            "
+",
+        ) + "
 ";
         let mut output = Vec::new();
         run_provider_host(Cursor::new(input), &mut output, &path).unwrap();
@@ -12092,24 +13068,24 @@ mod tests {
             "task.startDemo",
             json!({"commandId": "command-demo-1", "kind": "command"}),
         );
-        let snapshot = request(
-            "request-snap",
-            "application.getSnapshot",
-            json!({}),
-        );
+        let snapshot = request("request-snap", "application.getSnapshot", json!({}));
         let input = [
             frame("frame-2", "request", replay),
             frame("frame-3", "request", snapshot),
         ]
-        .join("
-")
-            + "
+        .join(
+            "
+",
+        ) + "
 ";
         let mut output = Vec::new();
         run_provider_host(Cursor::new(input), &mut output, &path).unwrap();
         let frames = parse_frames(output);
         let replayed_state = &frames[0]["payload"]["value"]["task"]["state"];
-        assert_eq!(replayed_state, "cancelled", "BOARD #20: the queued demo task is swept to cancelled on restart");
+        assert_eq!(
+            replayed_state, "cancelled",
+            "BOARD #20: the queued demo task is swept to cancelled on restart"
+        );
         // The sweep produces no event frame for a queued task (cancelled
         // quietly, no error) — the responses are replay + snapshot.
         assert_eq!(frames.len(), 2, "{frames:?}");
@@ -12128,8 +13104,10 @@ mod tests {
             "task.startDemo",
             json!({"commandId": "command-demo-2", "kind": "command"}),
         );
-        let input = [frame("frame-4", "request", start_again)].join("
-") + "
+        let input = [frame("frame-4", "request", start_again)].join(
+            "
+",
+        ) + "
 ";
         let mut output = Vec::new();
         run_provider_host(Cursor::new(input), &mut output, &path).unwrap();
@@ -12138,7 +13116,10 @@ mod tests {
         let new_task_id = frames[0]["payload"]["value"]["task"]["taskId"]
             .as_str()
             .expect("new demo task id");
-        assert_ne!(new_task_id, task_id, "a fresh command id accepts a new task");
+        assert_ne!(
+            new_task_id, task_id,
+            "a fresh command id accepts a new task"
+        );
     }
 
     #[test]
@@ -12195,7 +13176,9 @@ mod tests {
                 .is_empty(),
             "drain must take the queue"
         );
-        assert!(!runtime_poisoned(&state, "task-x"), "no runtime holds task-x");
+        assert!(
+            !runtime_poisoned(&state, "task-x"),
+            "no runtime holds task-x"
+        );
     }
 }
-

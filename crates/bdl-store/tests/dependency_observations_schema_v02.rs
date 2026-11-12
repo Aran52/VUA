@@ -34,7 +34,8 @@ use std::fs;
 use std::path::Path;
 
 const MIGRATION_001: &str = include_str!("../../../schemas/bdl/v0.1/001_initial.sql");
-const MIGRATION_002: &str = include_str!("../../../schemas/bdl/v0.2/002_dependency_observations.sql");
+const MIGRATION_002: &str =
+    include_str!("../../../schemas/bdl/v0.2/002_dependency_observations.sql");
 const AUTHORITY_V02: &str = include_str!("../../../schemas/bdl/v0.2/schema.sql");
 
 const PRODUCT_A: &str = "booth:6584744";
@@ -48,8 +49,12 @@ fn open_v01_with_product() -> Connection {
             "INSERT INTO products (product_id, native_product_id, source_url, status,
                  content_hash, observed_at, processor_version)
              VALUES (?1, ?2, ?3, 'complete', 'sha256:' || hex(zeroblob(32)), ?4, 'obs-0.1')",
-            rusqlite::params![product_id, native_id,
-                format!("https://booth.pm/ja/items/{native_id}"), "2026-09-21T00:00:00.000Z"],
+            rusqlite::params![
+                product_id,
+                native_id,
+                format!("https://booth.pm/ja/items/{native_id}"),
+                "2026-09-21T00:00:00.000Z"
+            ],
         )
         .unwrap();
     }
@@ -63,9 +68,11 @@ fn migrate_to_v02() -> Connection {
 }
 
 fn fmt_version(conn: &Connection) -> String {
-    conn.query_row("SELECT value FROM bdl_meta WHERE key = 'format_version'", [], |row| {
-        row.get::<_, String>(0)
-    })
+    conn.query_row(
+        "SELECT value FROM bdl_meta WHERE key = 'format_version'",
+        [],
+        |row| row.get::<_, String>(0),
+    )
     .unwrap()
 }
 
@@ -90,7 +97,9 @@ struct VectorCase {
 }
 
 fn vectors_dir() -> &'static Path {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/bdl/v0.2/vectors").leak()
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../schemas/bdl/v0.2/vectors")
+        .leak()
 }
 
 fn load_vectors() -> Vec<(String, VectorFile)> {
@@ -124,8 +133,9 @@ fn insert_case(conn: &Connection, case: &VectorCase) -> rusqlite::Result<usize> 
         .iter()
         .map(|c| match &case.values[c] {
             Value::String(s) => Box::new(s.clone()) as Box<dyn rusqlite::ToSql>,
-            Value::Number(n) => Box::new(n.as_i64().expect("vector integers are i64"))
-                as Box<dyn rusqlite::ToSql>,
+            Value::Number(n) => {
+                Box::new(n.as_i64().expect("vector integers are i64")) as Box<dyn rusqlite::ToSql>
+            }
             Value::Null => Box::new(rusqlite::types::Null) as Box<dyn rusqlite::ToSql>,
             other => panic!("vector values are string/int/null only, got: {other}"),
         })
@@ -190,7 +200,11 @@ fn vector_files_match_the_registered_freeze_direction() {
     assert_eq!(rejects.len(), 8, "N1–N8");
     for (name, v) in &vectors {
         // The frozen naming convention: the file name is the vector's name.
-        assert_eq!(name, &format!("{}.json", v.name), "file name matches the frozen vector name");
+        assert_eq!(
+            name,
+            &format!("{}.json", v.name),
+            "file name matches the frozen vector name"
+        );
         assert!(!v.cases.is_empty(), "{name} carries cases");
         if v.expect == "reject" {
             assert!(v.reject_law.is_some(), "{name} names its law");
@@ -320,11 +334,15 @@ fn logical_shape(conn: &Connection) -> std::collections::BTreeMap<String, Shape>
         let mut stmt = conn
             .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
             .unwrap();
-        stmt.query_map([], |row| row.get::<_, String>(0)).unwrap()
-            .map(|r| r.unwrap()).collect()
+        stmt.query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect()
     };
     for table in tables {
-        let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})")).unwrap();
+        let mut stmt = conn
+            .prepare(&format!("PRAGMA table_info({table})"))
+            .unwrap();
         // Normalization note: STRICT tables (the executable discipline — 001/
         // 002) make every PRIMARY KEY column implicitly NOT NULL, while the
         // readable authority (schema.sql, the v0.1 two-form contract) omits
@@ -346,7 +364,9 @@ fn logical_shape(conn: &Connection) -> std::collections::BTreeMap<String, Shape>
             .unwrap()
             .map(|r| r.unwrap())
             .collect();
-        let mut stmt = conn.prepare(&format!("PRAGMA index_list({table})")).unwrap();
+        let mut stmt = conn
+            .prepare(&format!("PRAGMA index_list({table})"))
+            .unwrap();
         let mut indexes: Vec<String> = stmt
             .query_map([], |row| row.get::<_, String>(1))
             .unwrap()
@@ -377,6 +397,13 @@ fn fresh_authority_equals_the_migrated_chain() {
 
     let fresh_shape = logical_shape(&fresh);
     let migrated_shape = logical_shape(&migrated);
-    assert_eq!(fresh_shape, migrated_shape, "fresh authority and 001+002 chain must agree");
-    assert_eq!(fresh_shape.len(), 10, "bdl_meta + nine v0.1 tables + dependency_observations");
+    assert_eq!(
+        fresh_shape, migrated_shape,
+        "fresh authority and 001+002 chain must agree"
+    );
+    assert_eq!(
+        fresh_shape.len(),
+        10,
+        "bdl_meta + nine v0.1 tables + dependency_observations"
+    );
 }

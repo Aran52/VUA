@@ -130,9 +130,10 @@ pub fn verify_candidate(
     let mut checks = Vec::new();
 
     // Check 1: the candidate is still in the table under the entry's name.
-    let snapshot_entry = source.snapshot().ok().and_then(|entries| {
-        entries.into_iter().find(|candidate| candidate.pid == pid)
-    });
+    let snapshot_entry = source
+        .snapshot()
+        .ok()
+        .and_then(|entries| entries.into_iter().find(|candidate| candidate.pid == pid));
     let name_matched = match &snapshot_entry {
         Some(candidate) if candidate.image_name.to_ascii_lowercase() == entry.process_name => {
             checks.push(VerificationCheck {
@@ -170,8 +171,7 @@ pub fn verify_candidate(
         .or_else(|| read_process_image_path(pid));
     let path_matched = match &image_path {
         Some(path) => {
-            let matches =
-                path_pattern_matches(&entry.expected_path_pattern, path).is_some();
+            let matches = path_pattern_matches(&entry.expected_path_pattern, path).is_some();
             checks.push(VerificationCheck {
                 code: codes::PATH_MISMATCH,
                 passed: matches,
@@ -241,8 +241,9 @@ pub fn eac_verify_windows_signature_for_test(image_path: &str) -> (SignatureStat
 #[cfg(windows)]
 fn verify_signature_windows(image_path: &str) -> (SignatureState, String) {
     use std::mem::size_of;
-    use windows_sys::Win32::Foundation::{CRYPT_E_SECURITY_SETTINGS,
-        TRUST_E_NOSIGNATURE, TRUST_E_PROVIDER_UNKNOWN};
+    use windows_sys::Win32::Foundation::{
+        CRYPT_E_SECURITY_SETTINGS, TRUST_E_NOSIGNATURE, TRUST_E_PROVIDER_UNKNOWN,
+    };
     use windows_sys::Win32::Security::WinTrust::{
         WinVerifyTrust, WINTRUST_ACTION_GENERIC_VERIFY_V2, WINTRUST_DATA, WINTRUST_DATA_0,
         WINTRUST_FILE_INFO, WTD_CHOICE_FILE, WTD_REVOKE_NONE, WTD_STATEACTION_CLOSE,

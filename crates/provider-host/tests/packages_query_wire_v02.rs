@@ -36,6 +36,7 @@ use vua_orchestrator::{
     AppErrorV1, ErrorCategory, InstalledListingV02, InstalledPackageV02, InstalledPackageV1,
     PackageRequestV1, ProjectRef, VpmBackend, VpmCapabilities,
 };
+use vua_project_manager::ManagerRoots;
 use vua_provider_host::{
     provider_host::{
         PACKAGES_INSTALLED_SCHEMA_VERSION_V01, PACKAGES_INSTALLED_SCHEMA_VERSION_V02,
@@ -43,7 +44,6 @@ use vua_provider_host::{
     },
     run_provider_host_full, ProjectOpsConfig,
 };
-use vua_project_manager::ManagerRoots;
 
 fn read_query_schema(version: &str, name: &str) -> Value {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -113,7 +113,9 @@ fn seed_registered_project(root: &Path) -> (PathBuf, PathBuf) {
 fn project_ops_config(vcc_settings: &Path) -> ProjectOpsConfig {
     ProjectOpsConfig {
         vcc_settings_candidates: vec![vcc_settings.to_path_buf()],
-        manager_roots: ManagerRoots { alcom_settings_candidates: Vec::new() },
+        manager_roots: ManagerRoots {
+            alcom_settings_candidates: Vec::new(),
+        },
         editor_roots: Vec::new(),
     }
 }
@@ -149,7 +151,10 @@ impl QueryV02Vpm {
                     dependencies: vec![],
                 },
             ],
-            listing_v02: InstalledListingV02 { packages: vec![], cache_sourced: false },
+            listing_v02: InstalledListingV02 {
+                packages: vec![],
+                cache_sourced: false,
+            },
             failure: None,
         }
     }
@@ -231,7 +236,7 @@ impl VpmBackend for QueryV02Vpm {
             list_packages: self.list_packages_cap,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -274,10 +279,7 @@ impl VpmBackend for QueryV02Vpm {
         }
         Ok(self.listing_v01.clone())
     }
-    fn list_packages_v02(
-        &self,
-        _project: &ProjectRef,
-    ) -> Result<InstalledListingV02, AppErrorV1> {
+    fn list_packages_v02(&self, _project: &ProjectRef) -> Result<InstalledListingV02, AppErrorV1> {
         assert!(
             self.declare_v02,
             "the v0.2 arm must never serve a backend that did not declare query_v02"
@@ -364,10 +366,16 @@ fn a_v02_declaring_backend_is_answered_at_the_v02_family_inside_the_frozen_envel
         schema_violations(&validator, value)
     );
     let result = &value["result"];
-    assert_eq!(result["schemaVersion"], PACKAGES_INSTALLED_SCHEMA_VERSION_V02);
+    assert_eq!(
+        result["schemaVersion"],
+        PACKAGES_INSTALLED_SCHEMA_VERSION_V02
+    );
     // projectPath is the ROUTE's envelope-assembly fact, stamped over the
     // backend's verbatim facts (the P1 discipline).
-    assert_eq!(result["projectPath"], project.to_string_lossy().into_owned());
+    assert_eq!(
+        result["projectPath"],
+        project.to_string_lossy().into_owned()
+    );
     assert_eq!(result["cacheSourced"], Value::Bool(true));
     let rows = result["packages"].as_array().expect("package rows");
     assert_eq!(rows.len(), 4);
@@ -385,9 +393,21 @@ fn a_v02_declaring_backend_is_answered_at_the_v02_family_inside_the_frozen_envel
     assert_eq!(rows[2]["updateAvailable"], Value::Bool(false));
     // The no-invented-fields pin: only the frozen five keys per row.
     for row in rows {
-        let keys: Vec<&str> = row.as_object().unwrap().keys().map(String::as_str).collect();
+        let keys: Vec<&str> = row
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
         assert_eq!(
-            keys, ["packageId", "version", "dependencies", "latestVersion", "updateAvailable"],
+            keys,
+            [
+                "packageId",
+                "version",
+                "dependencies",
+                "latestVersion",
+                "updateAvailable"
+            ],
             "no invented fields at the v0.2 word face"
         );
     }
@@ -414,7 +434,10 @@ fn a_trait_default_backend_keeps_answering_the_frozen_v01_family() {
     let value = &payload["value"];
     assert_eq!(value["schemaVersion"], PACKAGES_QUERY_SCHEMA_VERSION);
     let result = &value["result"];
-    assert_eq!(result["schemaVersion"], PACKAGES_INSTALLED_SCHEMA_VERSION_V01);
+    assert_eq!(
+        result["schemaVersion"],
+        PACKAGES_INSTALLED_SCHEMA_VERSION_V01
+    );
     assert!(
         validator.is_valid(value),
         "the frozen v0.1 result schema must still admit the response: {:?} {value}",
@@ -465,12 +488,20 @@ fn port_refusals_travel_verbatim_on_both_negotiation_arms() {
     let payload = run_query_frame(
         &database,
         Some(&config),
-        Some(Arc::new(QueryV02Vpm::failing("vua.vpm.project_load_failed"))),
+        Some(Arc::new(QueryV02Vpm::failing(
+            "vua.vpm.project_load_failed",
+        ))),
         params.clone(),
     );
-    assert_eq!(payload["ok"], false, "the refusal travels as a typed failure");
+    assert_eq!(
+        payload["ok"], false,
+        "the refusal travels as a typed failure"
+    );
     assert_eq!(payload["error"]["code"], "vua.vpm.project_load_failed");
-    assert_eq!(payload["error"]["messageKey"], "errors.vpm.projectLoadFailed");
+    assert_eq!(
+        payload["error"]["messageKey"],
+        "errors.vpm.projectLoadFailed"
+    );
     assert_eq!(payload["error"]["category"], "external_failure");
     assert!(
         payload.get("result").is_none(),
@@ -524,13 +555,11 @@ fn the_shared_p1_preconditions_precede_the_negotiation_under_a_v02_backend() {
         json!({ "projectPath": "" }),
         json!({ "projectPath": project.to_string_lossy(), "includePrerelease": true }),
     ] {
-        let payload = run_query_frame(
-            &database,
-            Some(&config),
-            Some(vpm.clone()),
-            params.clone(),
+        let payload = run_query_frame(&database, Some(&config), Some(vpm.clone()), params.clone());
+        assert_eq!(
+            payload["error"]["code"], "vua.packages.invalid_params",
+            "{params}"
         );
-        assert_eq!(payload["error"]["code"], "vua.packages.invalid_params", "{params}");
         assert_eq!(payload["error"]["category"], "validation");
     }
     fs::remove_dir_all(&root).ok();
@@ -550,13 +579,19 @@ fn family_consts_are_detectable_and_match_the_frozen_schema_consts() {
         json!(PACKAGES_INSTALLED_SCHEMA_VERSION_V01),
         "the v0.1 family const equals the frozen v0.1 result def's const"
     );
-    assert_eq!(PACKAGES_INSTALLED_SCHEMA_VERSION_V01, "vua.packages-installed/v0.1");
+    assert_eq!(
+        PACKAGES_INSTALLED_SCHEMA_VERSION_V01,
+        "vua.packages-installed/v0.1"
+    );
     assert_eq!(
         result_v02["$defs"]["listInstalledResult"]["properties"]["schemaVersion"]["const"],
         json!(PACKAGES_INSTALLED_SCHEMA_VERSION_V02),
         "the v0.2 family const equals the frozen v0.2 result def's const"
     );
-    assert_eq!(PACKAGES_INSTALLED_SCHEMA_VERSION_V02, "vua.packages-installed/v0.2");
+    assert_eq!(
+        PACKAGES_INSTALLED_SCHEMA_VERSION_V02,
+        "vua.packages-installed/v0.2"
+    );
     // The envelope generation is SHARED: the frozen v0.2 command schema
     // locks the same "0.1" const the v0.1 face serves (the catalog v0.2
     // precedent — only the result family moved).
@@ -580,7 +615,10 @@ fn family_consts_are_detectable_and_match_the_frozen_schema_consts() {
         Some(Arc::new(QueryV02Vpm::declaring_v02())),
         params.clone(),
     );
-    assert_eq!(payload["value"]["schemaVersion"], PACKAGES_QUERY_SCHEMA_VERSION);
+    assert_eq!(
+        payload["value"]["schemaVersion"],
+        PACKAGES_QUERY_SCHEMA_VERSION
+    );
     assert_eq!(
         payload["value"]["result"]["schemaVersion"],
         PACKAGES_INSTALLED_SCHEMA_VERSION_V02
@@ -592,7 +630,10 @@ fn family_consts_are_detectable_and_match_the_frozen_schema_consts() {
         Some(Arc::new(QueryV02Vpm::v01_only())),
         params,
     );
-    assert_eq!(payload["value"]["schemaVersion"], PACKAGES_QUERY_SCHEMA_VERSION);
+    assert_eq!(
+        payload["value"]["schemaVersion"],
+        PACKAGES_QUERY_SCHEMA_VERSION
+    );
     assert_eq!(
         payload["value"]["result"]["schemaVersion"],
         PACKAGES_INSTALLED_SCHEMA_VERSION_V01

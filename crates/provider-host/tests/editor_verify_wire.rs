@@ -56,7 +56,10 @@ fn sub_schema_validator(def_suffix: &str) -> Validator {
         &schemas_dir().join("methods"),
         "environment-verify-editor.schema.json",
     );
-    let defs = schema.get("$defs").expect("method schema has $defs").clone();
+    let defs = schema
+        .get("$defs")
+        .expect("method schema has $defs")
+        .clone();
     let sub = defs
         .get(format!("environment-verifyEditor{def_suffix}").as_str())
         .expect("sub schema exists")
@@ -84,11 +87,7 @@ fn unique_root(label: &str) -> PathBuf {
 
 /// Sends one `environment.verifyEditor` query frame through the real host
 /// loop and returns the response payload.
-fn run_verify_frame(
-    database: &Path,
-    verifier: Option<EditorPathVerifier>,
-    params: Value,
-) -> Value {
+fn run_verify_frame(database: &Path, verifier: Option<EditorPathVerifier>, params: Value) -> Value {
     let frame = json!({
         "frameVersion": "0.1",
         "frameId": "frame-editor-verify",
@@ -131,7 +130,10 @@ fn verifier_of(verdict: EditorPathVerdict) -> EditorPathVerifier {
 
 /// Captures the path the route hands to the primitive (verbatim-carry
 /// assertion) and answers with the given verdict.
-fn capturing_verifier(verdict: EditorPathVerdict, captured: Arc<Mutex<String>>) -> EditorPathVerifier {
+fn capturing_verifier(
+    verdict: EditorPathVerdict,
+    captured: Arc<Mutex<String>>,
+) -> EditorPathVerifier {
     Arc::new(move |input: &Path| {
         *captured.lock().expect("capture lock") = input.to_string_lossy().into_owned();
         verdict.clone()
@@ -167,7 +169,10 @@ fn verified_verdict_maps_to_the_frozen_result_shape() {
         .iter_errors(result)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "result violates the frozen schema: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "result violates the frozen schema: {errors:?}"
+    );
 
     // Field-by-field: the six identity fields travel camelCase, the
     // classification stays the core snake_case closed set, and the envelope
@@ -177,7 +182,10 @@ fn verified_verdict_maps_to_the_frozen_result_shape() {
     assert_eq!(result["exePath"], "C:\\Hub\\2022.3.22f1\\Editor\\Unity.exe");
     assert_eq!(result["version"], "2022.3.22f1");
     assert_eq!(result["classification"], "production_target");
-    assert_eq!(result["guidanceCode"], "vua.env_managers.editor_production_target");
+    assert_eq!(
+        result["guidanceCode"],
+        "vua.env_managers.editor_production_target"
+    );
     assert_eq!(result["chinaDistribution"], false);
     // Nail 3 keyed on the core-owned constant (never a private literal).
     assert_eq!(result["schemaVersion"], EDITOR_VERIFY_SCHEMA_VERSION);
@@ -196,14 +204,23 @@ fn refusal_is_a_result_state_never_an_error_envelope() {
     let missing = root.join("nowhere").display().to_string();
     let payload = run_verify_frame(&database, None, json!({ "path": missing }));
 
-    assert_eq!(payload["ok"], true, "a refusal is a finding, not a failure: {payload}");
-    assert!(payload.get("error").is_none(), "no error envelope on a refusal: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "a refusal is a finding, not a failure: {payload}"
+    );
+    assert!(
+        payload.get("error").is_none(),
+        "no error envelope on a refusal: {payload}"
+    );
     let result = &payload["value"];
     let errors: Vec<String> = result_validator()
         .iter_errors(result)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "refused result violates the frozen schema: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "refused result violates the frozen schema: {errors:?}"
+    );
     assert_eq!(result["verdict"], "refused");
     #[cfg(windows)]
     assert_eq!(result["code"], "vua.editor_verify.target_missing");
@@ -282,12 +299,12 @@ fn params_closed_set_violations_answer_validation_errors() {
     let root = unique_root("params");
     let database = root.join("tasks.sqlite");
     let violations = vec![
-        json!({}),                                   // missing path
-        json!({ "Path": "C:\\x" }),                  // wrong key casing
-        json!({ "path": "" }),                       // minLength 1
-        json!({ "path": "C:\\x", "follow": true }),  // speculative extra key
-        json!({ "path": 42 }),                       // wrong type
-        json!("C:\\x"),                              // params not an object
+        json!({}),                                  // missing path
+        json!({ "Path": "C:\\x" }),                 // wrong key casing
+        json!({ "path": "" }),                      // minLength 1
+        json!({ "path": "C:\\x", "follow": true }), // speculative extra key
+        json!({ "path": 42 }),                      // wrong type
+        json!("C:\\x"),                             // params not an object
     ];
     for params in violations {
         let payload = run_verify_frame(&database, None, params.clone());
@@ -295,8 +312,14 @@ fn params_closed_set_violations_answer_validation_errors() {
             payload["ok"], false,
             "params {params} must be a validation error"
         );
-        assert_eq!(payload["error"]["code"], "vua.environment.invalid_params", "params: {params}");
-        assert_eq!(payload["error"]["category"], "validation", "params: {params}");
+        assert_eq!(
+            payload["error"]["code"], "vua.environment.invalid_params",
+            "params: {params}"
+        );
+        assert_eq!(
+            payload["error"]["category"], "validation",
+            "params: {params}"
+        );
     }
     let _ = fs::remove_dir_all(&root);
 }

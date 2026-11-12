@@ -330,19 +330,17 @@ fn orc_typ_005_bdl_query_examples_validate_against_the_frozen_schemas() {
         assert!(errors.is_empty(), "examples/{name}.json: {errors:?}");
     }
 
-    let invalid_kind: serde_json::Value = serde_json::from_slice(
-        &fs::read(dir.join("examples/invalid-entry-kind.json")).unwrap(),
-    )
-    .unwrap();
+    let invalid_kind: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.join("examples/invalid-entry-kind.json")).unwrap())
+            .unwrap();
     assert!(
         !result_validator.is_valid(&invalid_kind),
         "the entry-kind vocabulary is closed in v0.3"
     );
 
-    let invalid: serde_json::Value = serde_json::from_slice(
-        &fs::read(dir.join("examples/invalid-entity-filter.json")).unwrap(),
-    )
-    .unwrap();
+    let invalid: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.join("examples/invalid-entity-filter.json")).unwrap())
+            .unwrap();
     assert!(
         !query_validator.is_valid(&invalid),
         "entityType filtering has no v0.2 backing; it is a contract error"

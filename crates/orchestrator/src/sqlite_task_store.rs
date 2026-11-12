@@ -22,9 +22,8 @@ const SQLITE_MIGRATION_VERSION: i64 = 2;
 
 const MIGRATION_001: &str =
     include_str!("../../../schemas/orchestrator-task-store/v0.1/001_initial.sql");
-const MIGRATION_002: &str = include_str!(
-    "../../../schemas/orchestrator-task-store/v0.1/002_production_domain_records.sql"
-);
+const MIGRATION_002: &str =
+    include_str!("../../../schemas/orchestrator-task-store/v0.1/002_production_domain_records.sql");
 
 #[derive(Debug)]
 pub enum SqliteStoreError {
@@ -274,30 +273,54 @@ impl SqliteTaskStore {
     /// One-time, transactional import from the former all-in-one authority.
     /// This only copies frozen task-store rows; it never opens BDL or moves
     /// material files. Unknown legacy command families stay with AMF.
-    pub fn import_legacy_tasks(&self, source: &Path, owner: LegacyTaskOwner) -> Result<(), SqliteStoreError> {
+    pub fn import_legacy_tasks(
+        &self,
+        source: &Path,
+        owner: LegacyTaskOwner,
+    ) -> Result<(), SqliteStoreError> {
         if !source.is_file() || self.path.as_deref() == Some(source) {
             return Ok(());
         }
         let mut connection = self.connection.lock().expect("SQLite connection poisoned");
         let imported: bool = connection.query_row(
-            "SELECT EXISTS(SELECT 1 FROM vua_metadata WHERE key = 'module_split_import_v1')", [], |row| row.get(0),
+            "SELECT EXISTS(SELECT 1 FROM vua_metadata WHERE key = 'module_split_import_v1')",
+            [],
+            |row| row.get(0),
         )?;
-        if imported { return Ok(()); }
+        if imported {
+            return Ok(());
+        }
         // SQLite URI mode=ro applies to the attached database as well as its
         // WAL. Encode path delimiters, including literal %/?/# in folder names.
         let raw = source.to_string_lossy().replace('\\', "/");
         let raw = raw.strip_prefix("//?/").unwrap_or(&raw);
-        let uri = format!("file:{}?mode=ro", raw.replace('%', "%25").replace('?', "%3F").replace('#', "%23"));
+        let uri = format!(
+            "file:{}?mode=ro",
+            raw.replace('%', "%25")
+                .replace('?', "%3F")
+                .replace('#', "%23")
+        );
         connection.execute("ATTACH DATABASE ?1 AS legacy", [&uri])?;
         let result = (|| {
             let format: String = connection.query_row(
-                "SELECT value FROM legacy.vua_metadata WHERE key = 'format_version'", [], |row| row.get(0),
+                "SELECT value FROM legacy.vua_metadata WHERE key = 'format_version'",
+                [],
+                |row| row.get(0),
             )?;
-            if format != SQLITE_TASK_FORMAT_VERSION { return Err(SqliteStoreError::UnsupportedFormat(format)); }
-            let version: i64 = connection.pragma_query_value(Some("legacy"), "user_version", |row| row.get(0))?;
-            if version != SQLITE_MIGRATION_VERSION { return Err(SqliteStoreError::UnsupportedFormat(format!("legacy-migration-{version}"))); }
-            let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-            transaction.execute_batch("CREATE TEMP TABLE split_owned_tasks(task_id TEXT PRIMARY KEY);")?;
+            if format != SQLITE_TASK_FORMAT_VERSION {
+                return Err(SqliteStoreError::UnsupportedFormat(format));
+            }
+            let version: i64 =
+                connection.pragma_query_value(Some("legacy"), "user_version", |row| row.get(0))?;
+            if version != SQLITE_MIGRATION_VERSION {
+                return Err(SqliteStoreError::UnsupportedFormat(format!(
+                    "legacy-migration-{version}"
+                )));
+            }
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            transaction
+                .execute_batch("CREATE TEMP TABLE split_owned_tasks(task_id TEXT PRIMARY KEY);")?;
             let host_selection = "SELECT DISTINCT task_id FROM legacy.command_idempotency WHERE command_kind LIKE 'environment.%' OR command_kind = 'task.startDemo'";
             let selection = if owner == LegacyTaskOwner::Host {
                 host_selection.to_owned()
@@ -305,15 +328,35 @@ impl SqliteTaskStore {
                 format!("SELECT task_id FROM legacy.tasks WHERE task_id NOT IN ({host_selection})")
             };
             transaction.execute(&format!("INSERT INTO split_owned_tasks {selection}"), [])?;
-            for table in ["tasks", "task_events", "command_idempotency", "production_domain_records", "project_mutation_leases"] {
+            for table in [
+                "tasks",
+                "task_events",
+                "command_idempotency",
+                "production_domain_records",
+                "project_mutation_leases",
+            ] {
                 if table == "project_mutation_leases" && owner == LegacyTaskOwner::Amf {
                     transaction.execute("INSERT INTO main.project_lease_generations SELECT * FROM legacy.project_lease_generations", [])?;
                 }
                 // Host tasks have no AMF project leases or production bindings.
-                if owner == LegacyTaskOwner::Host && matches!(table, "production_domain_records" | "project_mutation_leases") { continue; }
+                if owner == LegacyTaskOwner::Host
+                    && matches!(
+                        table,
+                        "production_domain_records" | "project_mutation_leases"
+                    )
+                {
+                    continue;
+                }
                 transaction.execute(&format!("INSERT INTO main.{table} SELECT * FROM legacy.{table} WHERE task_id IN (SELECT task_id FROM split_owned_tasks)"), [])?;
             }
-            transaction.execute("INSERT INTO vua_metadata(key, value) VALUES ('module_split_import_v1', ?1)", [if owner == LegacyTaskOwner::Host { "host" } else { "amf" }])?;
+            transaction.execute(
+                "INSERT INTO vua_metadata(key, value) VALUES ('module_split_import_v1', ?1)",
+                [if owner == LegacyTaskOwner::Host {
+                    "host"
+                } else {
+                    "amf"
+                }],
+            )?;
             transaction.execute_batch("DROP TABLE split_owned_tasks;")?;
             transaction.commit()?;
             Ok(())
@@ -457,10 +500,19 @@ impl SqliteTaskStore {
         })
     }
 
-    pub fn idempotent_tasks(&self, command_kind: &str) -> Result<Vec<IdempotentTaskRecord>, SqliteStoreError> {
+    pub fn idempotent_tasks(
+        &self,
+        command_kind: &str,
+    ) -> Result<Vec<IdempotentTaskRecord>, SqliteStoreError> {
         let connection = self.connection.lock().expect("SQLite connection poisoned");
         let mut statement = connection.prepare("SELECT idempotency_key,request_fingerprint,task_id FROM command_idempotency WHERE command_kind=?1 ORDER BY idempotency_key")?;
-        let rows = statement.query_map([command_kind], |row| Ok(IdempotentTaskRecord { idempotency_key: row.get(0)?, request_fingerprint: row.get(1)?, task_id: row.get(2)? }))?;
+        let rows = statement.query_map([command_kind], |row| {
+            Ok(IdempotentTaskRecord {
+                idempotency_key: row.get(0)?,
+                request_fingerprint: row.get(1)?,
+                task_id: row.get(2)?,
+            })
+        })?;
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
@@ -1037,7 +1089,14 @@ impl SqliteTaskStore {
                 domain_id, kind, task_id, document_json, binding_json, created_at
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
              ON CONFLICT(domain_id) DO NOTHING",
-            params![domain_id, kind, task_id, document_json, binding_json, created_at],
+            params![
+                domain_id,
+                kind,
+                task_id,
+                document_json,
+                binding_json,
+                created_at
+            ],
         )?;
         Ok(())
     }
@@ -1406,12 +1465,21 @@ mod tests {
     #[test]
     fn split_import_preserves_owner_rows_idempotency_leases_and_original_wal() {
         static SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let directory = std::env::temp_dir().join(format!("vua-split-%-{}-{}", std::process::id(), SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        let directory = std::env::temp_dir().join(format!(
+            "vua-split-%-{}-{}",
+            std::process::id(),
+            SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
         std::fs::create_dir_all(&directory).unwrap();
         let original_path = directory.join("legacy.db");
         let original = SqliteTaskStore::open(&original_path).unwrap();
-        for (id, kind) in [("play", "environment.executeDeployment"), ("amf", "production.startInspection")] {
-            original.accept_idempotent_task(kind, id, id, &task(id), &serde_json::json!({"taskId":id})).unwrap();
+        for (id, kind) in [
+            ("play", "environment.executeDeployment"),
+            ("amf", "production.startInspection"),
+        ] {
+            original
+                .accept_idempotent_task(kind, id, id, &task(id), &serde_json::json!({"taskId":id}))
+                .unwrap();
         }
         original.connection.lock().unwrap().execute_batch(
             "INSERT INTO production_domain_records VALUES ('inspection-one','inspection','amf','{}','{}','2026-10-09T00:00:00Z');
@@ -1421,33 +1489,95 @@ mod tests {
         let before = original.tasks().unwrap();
         let host = SqliteTaskStore::open(directory.join("host.db")).unwrap();
         let amf = SqliteTaskStore::open(directory.join("amf.db")).unwrap();
-        host.import_legacy_tasks(&original_path, LegacyTaskOwner::Host).unwrap();
-        amf.import_legacy_tasks(&original_path, LegacyTaskOwner::Amf).unwrap();
-        assert_eq!(host.tasks().unwrap().iter().map(|row| row.task_id.as_str()).collect::<Vec<_>>(), vec!["play"]);
-        assert_eq!(amf.tasks().unwrap().iter().map(|row| row.task_id.as_str()).collect::<Vec<_>>(), vec!["amf"]);
-        for table in ["command_idempotency", "production_domain_records", "project_mutation_leases", "project_lease_generations"] {
-            assert_eq!(amf.connection.lock().unwrap().query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row.get::<_,i64>(0)).unwrap(), 1);
+        host.import_legacy_tasks(&original_path, LegacyTaskOwner::Host)
+            .unwrap();
+        amf.import_legacy_tasks(&original_path, LegacyTaskOwner::Amf)
+            .unwrap();
+        assert_eq!(
+            host.tasks()
+                .unwrap()
+                .iter()
+                .map(|row| row.task_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["play"]
+        );
+        assert_eq!(
+            amf.tasks()
+                .unwrap()
+                .iter()
+                .map(|row| row.task_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["amf"]
+        );
+        for table in [
+            "command_idempotency",
+            "production_domain_records",
+            "project_mutation_leases",
+            "project_lease_generations",
+        ] {
+            assert_eq!(
+                amf.connection
+                    .lock()
+                    .unwrap()
+                    .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row
+                        .get::<_, i64>(0))
+                    .unwrap(),
+                1
+            );
         }
-        assert_eq!(host.connection.lock().unwrap().query_row("SELECT count(*) FROM production_domain_records", [], |row| row.get::<_,i64>(0)).unwrap(), 0);
-        amf.import_legacy_tasks(&original_path, LegacyTaskOwner::Amf).unwrap();
+        assert_eq!(
+            host.connection
+                .lock()
+                .unwrap()
+                .query_row(
+                    "SELECT count(*) FROM production_domain_records",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
+        );
+        amf.import_legacy_tasks(&original_path, LegacyTaskOwner::Amf)
+            .unwrap();
         assert_eq!(amf.tasks().unwrap().len(), 1);
         assert_eq!(original.tasks().unwrap(), before);
-        let replay = amf.accept_idempotent_task("production.startInspection", "amf", "amf", &task("amf"), &serde_json::json!({"taskId":"amf"})).unwrap();
+        let replay = amf
+            .accept_idempotent_task(
+                "production.startInspection",
+                "amf",
+                "amf",
+                &task("amf"),
+                &serde_json::json!({"taskId":"amf"}),
+            )
+            .unwrap();
         assert!(matches!(replay, IdempotentTaskAcceptance::Replayed { .. }));
-        drop(host); drop(amf); drop(original);
+        drop(host);
+        drop(amf);
+        drop(original);
         std::fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]
     fn split_import_rolls_back_partial_rows_and_retains_the_source() {
-        let source_path = std::env::temp_dir().join(format!("vua-split-conflict-{}.db", std::process::id()));
+        let source_path =
+            std::env::temp_dir().join(format!("vua-split-conflict-{}.db", std::process::id()));
         let original = SqliteTaskStore::open(&source_path).unwrap();
-        original.accept_idempotent_task("production.startInspection", "amf", "amf", &task("amf"), &Value::Null).unwrap();
+        original
+            .accept_idempotent_task(
+                "production.startInspection",
+                "amf",
+                "amf",
+                &task("amf"),
+                &Value::Null,
+            )
+            .unwrap();
         let target = SqliteTaskStore::open_in_memory().unwrap();
         // Both authorities have event id 1. Import must reject the collision,
         // not overwrite an existing task or leave a partially imported task.
         target.accept_task(&task("existing")).unwrap();
-        assert!(target.import_legacy_tasks(&source_path, LegacyTaskOwner::Amf).is_err());
+        assert!(target
+            .import_legacy_tasks(&source_path, LegacyTaskOwner::Amf)
+            .is_err());
         assert!(target.task("amf").unwrap().is_none());
         assert!(target.task("existing").unwrap().is_some());
         assert!(original.task("amf").unwrap().is_some());
@@ -1869,7 +1999,14 @@ mod tests {
             )
             .unwrap();
         store
-            .put_domain_record("plan-1", "plan", "one", "{}", "{}", "2026-09-02T00:00:04.000Z")
+            .put_domain_record(
+                "plan-1",
+                "plan",
+                "one",
+                "{}",
+                "{}",
+                "2026-09-02T00:00:04.000Z",
+            )
             .unwrap();
         let error = store
             .put_domain_record(

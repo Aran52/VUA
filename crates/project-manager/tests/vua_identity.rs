@@ -52,7 +52,10 @@ fn marking_then_reading_round_trips_and_preserves_the_note_on_remark() {
     // A note is set, then a re-mark (e.g. a second import pass) keeps it.
     let updated = set_note(&project, Some("用户的迁移项目")).unwrap();
     assert_eq!(updated.note.as_deref(), Some("用户的迁移项目"));
-    assert_eq!(updated.marked_at, "2026-09-09T15:04:05Z", "set_note keeps the marking time");
+    assert_eq!(
+        updated.marked_at, "2026-09-09T15:04:05Z",
+        "set_note keeps the marking time"
+    );
 
     let marked_again = mark_vua_native(&project, "2026-09-10T00:00:00Z").unwrap();
     assert_eq!(
@@ -124,7 +127,10 @@ fn notes_attach_to_vua_native_projects_only() {
         other => panic!("expected Unreadable, got {other:?}"),
     }
     // The unreadable file is not silently overwritten by the refused note.
-    assert_eq!(fs::read_to_string(vua_dir.join("project.json")).unwrap(), "garbage");
+    assert_eq!(
+        fs::read_to_string(vua_dir.join("project.json")).unwrap(),
+        "garbage"
+    );
 
     cleanup(&base);
 }

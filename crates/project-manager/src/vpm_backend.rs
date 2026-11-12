@@ -11,11 +11,16 @@
 //! APIs, so every call is confined to this one adapter and the version is
 //! pinned exactly (`=0.0.16`).
 
+use serde_json::json;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use vua_orchestrator::vpm_backend_error_codes as error_codes;
 use vua_orchestrator::{
     AppErrorV1, CatalogCapabilities, CatalogVersionV01, ChangeItemV1, ChangeKindV1,
     ChangePreviewV1, ErrorCategory, FileSystemProjectStore, InstalledListingV02,
-    InstalledPackageV1, InstalledPackageV02, PackageCatalogV01, PackageCatalogV02,
+    InstalledPackageV02, InstalledPackageV1, PackageCatalogV01, PackageCatalogV02,
     PackageRequestV1, PackageSourceV01, ParamValue, ProjectRef, RegisterCapabilities,
     RegisteredProjectV1, RepoCatalogCapabilities, RepoCatalogPackageV01, RepoCatalogRepoV01,
     RepoCatalogV01, RepoInfoV01, RepoInfoV02, RepoLifecycleCapabilities, RepoRefreshOutcomeV01,
@@ -23,11 +28,6 @@ use vua_orchestrator::{
     TemplateCapabilities, TemplateEntryV01, VpmBackend, VpmCapabilities,
 };
 use vua_orchestrator::{Clock, ProcessRunner, ProcessSpec};
-use serde_json::json;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 fn unsupported(capability: &str) -> AppErrorV1 {
     AppErrorV1::new(
@@ -73,10 +73,15 @@ impl VrcGetLibBackend {
         let catalog_http = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(2))
             .build()
-            .map_err(|error| AppErrorV1::new(
-                error_codes::BACKEND_UNAVAILABLE, ErrorCategory::Unavailable,
-                "errors.vpm.backendUnavailable", "corr-vpm-lib-init",
-            ).with_param("reason", ParamValue::Text(error.to_string())))?;
+            .map_err(|error| {
+                AppErrorV1::new(
+                    error_codes::BACKEND_UNAVAILABLE,
+                    ErrorCategory::Unavailable,
+                    "errors.vpm.backendUnavailable",
+                    "corr-vpm-lib-init",
+                )
+                .with_param("reason", ParamValue::Text(error.to_string()))
+            })?;
         Ok(Self {
             runtime,
             http: reqwest::Client::new(),
@@ -104,20 +109,39 @@ impl VrcGetLibBackend {
     pub fn ensure_official_sdk_cache(&self) -> Result<(), AppErrorV1> {
         let target = self.environment_root.join("Repos/vrc-official.json");
         if let Ok(bytes) = fs::read(&target) {
-            if let Ok(cached) = serde_json::from_slice::<vrc_get_vpm::repository::LocalCachedRepository>(&bytes) {
-                if cached.id() == Some("com.vrchat.repos.official") && cached.get_versions_of("com.vrchat.avatars").next().is_some() { return Ok(()); }
+            if let Ok(cached) =
+                serde_json::from_slice::<vrc_get_vpm::repository::LocalCachedRepository>(&bytes)
+            {
+                if cached.id() == Some("com.vrchat.repos.official")
+                    && cached
+                        .get_versions_of("com.vrchat.avatars")
+                        .next()
+                        .is_some()
+                {
+                    return Ok(());
+                }
             }
         }
         const SOURCE: &str = "https://vrchat.github.io/packages/index.json";
         let bytes = self.download_repository_metadata(SOURCE)?;
-        let repo: vrc_get_vpm::repository::RemoteRepository = serde_json::from_slice(&bytes).map_err(|e| repo_fetch_failed(e.to_string()))?;
-        if repo.id() != Some("com.vrchat.repos.official") || repo.get_versions_of("com.vrchat.avatars").next().is_none() {
-            return Err(repo_fetch_failed("official SDK feed identity/package set does not match".into()));
+        let repo: vrc_get_vpm::repository::RemoteRepository =
+            serde_json::from_slice(&bytes).map_err(|e| repo_fetch_failed(e.to_string()))?;
+        if repo.id() != Some("com.vrchat.repos.official")
+            || repo.get_versions_of("com.vrchat.avatars").next().is_none()
+        {
+            return Err(repo_fetch_failed(
+                "official SDK feed identity/package set does not match".into(),
+            ));
         }
         let cached = vrc_get_vpm::repository::LocalCachedRepository::new(repo, Default::default());
-        fs::create_dir_all(target.parent().expect("repository cache parent")).map_err(|e| repo_fetch_failed(e.to_string()))?;
+        fs::create_dir_all(target.parent().expect("repository cache parent"))
+            .map_err(|e| repo_fetch_failed(e.to_string()))?;
         let pending = target.with_extension("pending");
-        fs::write(&pending, serde_json::to_vec_pretty(&cached).map_err(|e| repo_fetch_failed(e.to_string()))?).map_err(|e| repo_fetch_failed(e.to_string()))?;
+        fs::write(
+            &pending,
+            serde_json::to_vec_pretty(&cached).map_err(|e| repo_fetch_failed(e.to_string()))?,
+        )
+        .map_err(|e| repo_fetch_failed(e.to_string()))?;
         fs::rename(pending, target).map_err(|e| repo_fetch_failed(e.to_string()))?;
         fs::write(self.environment_root.join("vua-sdk-source.json"), serde_json::to_vec(&json!({"schemaVersion":"0.1","fetchedFrom":SOURCE,"repositoryId":"com.vrchat.repos.official"})).expect("SDK source serialization"))
             .map_err(|e| repo_fetch_failed(e.to_string()))?;
@@ -129,15 +153,26 @@ impl VrcGetLibBackend {
         // request inside the runtime too. Calling block_on(send()) evaluates
         // send outside that runtime and panics on a synchronous worker.
         self.runtime.block_on(async {
-            let mut response = self.http.get(url)
-                .timeout(std::time::Duration::from_secs(30)).send().await
+            let mut response = self
+                .http
+                .get(url)
+                .timeout(std::time::Duration::from_secs(30))
+                .send()
+                .await
                 .map_err(|e| repo_fetch_failed(format!("loading SDK metadata: {e}")))?
-                .error_for_status().map_err(|e| repo_fetch_failed(e.to_string()))?;
+                .error_for_status()
+                .map_err(|e| repo_fetch_failed(e.to_string()))?;
             const LIMIT: usize = 2 * 1024 * 1024;
             let mut bytes = Vec::new();
-            while let Some(chunk) = response.chunk().await.map_err(|e| repo_fetch_failed(e.to_string()))? {
+            while let Some(chunk) = response
+                .chunk()
+                .await
+                .map_err(|e| repo_fetch_failed(e.to_string()))?
+            {
                 if bytes.len() + chunk.len() > LIMIT {
-                    return Err(repo_fetch_failed("official SDK feed exceeds the metadata budget".into()));
+                    return Err(repo_fetch_failed(
+                        "official SDK feed exceeds the metadata budget".into(),
+                    ));
                 }
                 bytes.extend_from_slice(&chunk);
             }
@@ -149,8 +184,11 @@ impl VrcGetLibBackend {
     /// metadata. Package bodies still download online; offline mode is separate.
     pub fn with_cached_metadata(mut self) -> Result<Self, AppErrorV1> {
         self.cached_metadata = true;
-        self.http = reqwest::Client::builder().connect_timeout(std::time::Duration::from_secs(20))
-            .timeout(std::time::Duration::from_secs(600)).build().map_err(|e| repo_fetch_failed(e.to_string()))?;
+        self.http = reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(20))
+            .timeout(std::time::Duration::from_secs(600))
+            .build()
+            .map_err(|e| repo_fetch_failed(e.to_string()))?;
         Ok(self)
     }
 
@@ -307,8 +345,9 @@ impl VrcGetLibBackend {
     /// standard manifest name inside the directory) — declared here, and a
     /// directory without one is the honest malformed-shape refusal.
     pub fn add_local_repo(&self, path: &Path, name: &str) -> Result<(), AppErrorV1> {
-        let dir = std::fs::canonicalize(path)
-            .map_err(|error| repo_invalid(format!("local repository path does not resolve: {error}")))?;
+        let dir = std::fs::canonicalize(path).map_err(|error| {
+            repo_invalid(format!("local repository path does not resolve: {error}"))
+        })?;
         if !dir.is_dir() {
             return Err(repo_invalid("local repository path is not a directory"));
         }
@@ -322,9 +361,7 @@ impl VrcGetLibBackend {
         let name = name.to_owned();
         self.runtime.block_on(async move {
             let state_root = environment_root.clone();
-            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(
-                environment_root.into_boxed_path(),
-            );
+            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(environment_root.into_boxed_path());
             let mut settings = vrc_get_vpm::environment::Settings::load(&io)
                 .await
                 .map_err(map_repo_write("loading isolated VPM settings"))?;
@@ -368,14 +405,11 @@ impl VrcGetLibBackend {
         let repo_id = repo_id.to_owned();
         self.runtime.block_on(async move {
             let state_root = environment_root.clone();
-            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(
-                environment_root.into_boxed_path(),
-            );
+            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(environment_root.into_boxed_path());
             let mut settings = vrc_get_vpm::environment::Settings::load(&io)
                 .await
                 .map_err(map_repo_write("loading isolated VPM settings"))?;
-            let removed =
-                settings.remove_repo(|repo| repo.id() == Some(repo_id.as_str()));
+            let removed = settings.remove_repo(|repo| repo.id() == Some(repo_id.as_str()));
             if removed.is_empty() {
                 return Err(repo_not_found(&repo_id));
             }
@@ -426,9 +460,7 @@ impl VrcGetLibBackend {
         let repo_id = repo_id.to_owned();
         self.runtime.block_on(async move {
             let state_path = repo_state_path(&environment_root);
-            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(
-                environment_root.into_boxed_path(),
-            );
+            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(environment_root.into_boxed_path());
             // settings.json read-only: the id-existence check rides the
             // library's own settings load (the shared file carries shared
             // facts; the toggle state stays in VUA's own file below).
@@ -442,8 +474,9 @@ impl VrcGetLibBackend {
             {
                 return Err(repo_not_found(&repo_id));
             }
-            let mut disabled = load_disabled_set(&state_path)
-                .map_err(|reason| repo_write_failed_text("reading the VUA repository state file", reason))?;
+            let mut disabled = load_disabled_set(&state_path).map_err(|reason| {
+                repo_write_failed_text("reading the VUA repository state file", reason)
+            })?;
             let changed = if enabled {
                 disabled.remove(&repo_id)
             } else {
@@ -488,9 +521,7 @@ impl VrcGetLibBackend {
         let repo_id = repo_id.to_owned();
         let http = self.http.clone();
         self.runtime.block_on(async move {
-            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(
-                environment_root.into_boxed_path(),
-            );
+            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(environment_root.into_boxed_path());
             let settings = vrc_get_vpm::environment::Settings::load(&io)
                 .await
                 .map_err(map_repo_write("loading isolated VPM settings"))?;
@@ -511,10 +542,8 @@ impl VrcGetLibBackend {
             // 从原始 JSON 同源读取；空串按库 serde skip 语义视同无 etag）。
             let bytes = std::fs::read(&cache_path).ok();
             let loaded = bytes.as_deref().and_then(|doc_bytes| {
-                serde_json::from_slice::<vrc_get_vpm::repository::LocalCachedRepository>(
-                    doc_bytes,
-                )
-                .ok()
+                serde_json::from_slice::<vrc_get_vpm::repository::LocalCachedRepository>(doc_bytes)
+                    .ok()
             });
             let current_etag: Option<String> = bytes
                 .as_deref()
@@ -560,10 +589,8 @@ impl VrcGetLibBackend {
                     // 效果差），再于序列化产物上注入 vrc-get.etag——写回字节
                     // 与库自身 save 同形（缓存文档自嵌 repo 对象＋vrc-get 元
                     // 数据，实机缓存文件形态逐字段同构）。
-                    let new_doc = vrc_get_vpm::repository::LocalCachedRepository::new(
-                        remote_repo,
-                        headers,
-                    );
+                    let new_doc =
+                        vrc_get_vpm::repository::LocalCachedRepository::new(remote_repo, headers);
                     let mut value = serde_json::to_value(&new_doc).map_err(|error| {
                         repo_write_failed_text("serializing the refreshed cache", error)
                     })?;
@@ -580,10 +607,7 @@ impl VrcGetLibBackend {
                     // never-loaded environment still receives its first cache.
                     if let Some(parent) = cache_path.parent() {
                         std::fs::create_dir_all(parent).map_err(|error| {
-                            repo_write_failed_text(
-                                "creating the repository cache directory",
-                                error,
-                            )
+                            repo_write_failed_text("creating the repository cache directory", error)
                         })?;
                     }
                     std::fs::write(&cache_path, doc_bytes).map_err(|error| {
@@ -852,8 +876,9 @@ fn prune_disabled_entry(environment_root: &Path, repo_id: &str) -> Result<(), Ap
         repo_write_failed_text("reading the VUA repository state file", &reason)
     })?;
     if disabled.remove(repo_id) {
-        write_disabled_set(&state_path, &disabled)
-            .map_err(|error| repo_write_failed_text("writing the VUA repository state file", error))?;
+        write_disabled_set(&state_path, &disabled).map_err(|error| {
+            repo_write_failed_text("writing the VUA repository state file", error)
+        })?;
     }
     Ok(())
 }
@@ -887,8 +912,7 @@ fn collection_world(
     let disabled = load_disabled_set(&repo_state_path(environment_root))?;
     let mut world = settings.clone();
     if !disabled.is_empty() {
-        world
-            .remove_repo(|repo| repo.id().is_some_and(|id| disabled.contains(id)));
+        world.remove_repo(|repo| repo.id().is_some_and(|id| disabled.contains(id)));
     }
     Ok((world, disabled))
 }
@@ -1110,9 +1134,7 @@ impl VpmBackend for VrcGetLibBackend {
         // declared-none 如实维持不可用）。`VccCliBackend` 不覆写——CLI 无仓
         // 库级包列表能力（考证 §1 CLI 臂），如实维持 declared-none，缺席臂
         // 零改动。
-        RepoCatalogCapabilities {
-            repo_catalog: true,
-        }
+        RepoCatalogCapabilities { repo_catalog: true }
     }
 
     fn repo_lifecycle_capabilities(&self) -> RepoLifecycleCapabilities {
@@ -1175,9 +1197,7 @@ impl VpmBackend for VrcGetLibBackend {
     fn list_packages(&self, project: &ProjectRef) -> Result<Vec<InstalledPackageV1>, AppErrorV1> {
         let project_root = project.root.clone();
         self.runtime.block_on(async move {
-            let project_io = vrc_get_vpm::io::DefaultProjectIo::new(
-                project_root.into_boxed_path(),
-            );
+            let project_io = vrc_get_vpm::io::DefaultProjectIo::new(project_root.into_boxed_path());
             let unity_project = vrc_get_vpm::UnityProject::load(project_io)
                 .await
                 .map_err(map_project_load("loading project"))?;
@@ -1211,10 +1231,7 @@ impl VpmBackend for VrcGetLibBackend {
         true
     }
 
-    fn list_packages_v02(
-        &self,
-        project: &ProjectRef,
-    ) -> Result<InstalledListingV02, AppErrorV1> {
+    fn list_packages_v02(&self, project: &ProjectRef) -> Result<InstalledListingV02, AppErrorV1> {
         let environment_root = self.environment_root.clone();
         let offline = self.offline;
         let project_root = project.root.clone();
@@ -1229,8 +1246,8 @@ impl VpmBackend for VrcGetLibBackend {
             // F4 补切片：装载层一次过滤（禁用行离开包集合世界——latest 判
             // 定的数据源根即本集合，禁用行的包不入判定链）。失败＝状态文件
             // 不可读，复用码如实拒绝（绝不以全启用猜测）。
-            let (world, _disabled) =
-                collection_world(&environment_root, &settings).map_err(backend_unavailable_state)?;
+            let (world, _disabled) = collection_world(&environment_root, &settings)
+                .map_err(backend_unavailable_state)?;
             // 三臂降级与 F2 repo_catalog / package_catalog_impl 同构
             // （ORC-ADP-006）：offline → load_cache（cacheSourced=true）；
             // 在线 load 失败降级 load_cache（true）；在线成功 load（含 etag
@@ -1244,12 +1261,8 @@ impl VpmBackend for VrcGetLibBackend {
                     true,
                 )
             } else {
-                match vrc_get_vpm::environment::PackageCollection::load(
-                    &world,
-                    &io,
-                    Some(&http),
-                )
-                .await
+                match vrc_get_vpm::environment::PackageCollection::load(&world, &io, Some(&http))
+                    .await
                 {
                     Ok(collection) => (collection, false),
                     Err(_) => (
@@ -1267,8 +1280,7 @@ impl VpmBackend for VrcGetLibBackend {
             // 合面（上列一次集合加载；prerelease 开关读同一 settings.json，
             // 冻结词面零 wire 开关）。
             let show_prerelease = settings.show_prerelease_packages();
-            let project_io =
-                vrc_get_vpm::io::DefaultProjectIo::new(project_root.into_boxed_path());
+            let project_io = vrc_get_vpm::io::DefaultProjectIo::new(project_root.into_boxed_path());
             let unity_project = vrc_get_vpm::UnityProject::load(project_io)
                 .await
                 .map_err(map_project_load("loading project"))?;
@@ -1333,9 +1345,7 @@ impl VpmBackend for VrcGetLibBackend {
         let project_root = project.root.clone();
         let package_ids = package_ids.to_vec();
         self.runtime.block_on(async move {
-            let project_io = vrc_get_vpm::io::DefaultProjectIo::new(
-                project_root.into_boxed_path(),
-            );
+            let project_io = vrc_get_vpm::io::DefaultProjectIo::new(project_root.into_boxed_path());
             let unity_project = vrc_get_vpm::UnityProject::load(project_io)
                 .await
                 .map_err(map_project_load("loading project"))?;
@@ -1347,12 +1357,8 @@ impl VpmBackend for VrcGetLibBackend {
             let (items, conflicts, legacy_files, legacy_folders) = summarize_changes(&changes);
             let destructive =
                 !conflicts.is_empty() || !legacy_files.is_empty() || !legacy_folders.is_empty();
-            let digest = VrcGetLibBackend::digest_of(
-                &items,
-                &conflicts,
-                &legacy_files,
-                &legacy_folders,
-            );
+            let digest =
+                VrcGetLibBackend::digest_of(&items, &conflicts, &legacy_files, &legacy_folders);
             Ok(ChangePreviewV1 {
                 items,
                 conflicts,
@@ -1389,9 +1395,8 @@ impl VpmBackend for VrcGetLibBackend {
             let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(
                 environment_root.clone().into_boxed_path(),
             );
-            let project_io = vrc_get_vpm::io::DefaultProjectIo::new(
-                project_root.clone().into_boxed_path(),
-            );
+            let project_io =
+                vrc_get_vpm::io::DefaultProjectIo::new(project_root.clone().into_boxed_path());
             let mut unity_project = vrc_get_vpm::UnityProject::load(project_io)
                 .await
                 .map_err(map_project_load("loading project"))?;
@@ -1401,12 +1406,8 @@ impl VpmBackend for VrcGetLibBackend {
                 .await
                 .map_err(map_remove_request("re-checking removal"))?;
             let (items, conflicts, legacy_files, legacy_folders) = summarize_changes(&changes);
-            let digest = VrcGetLibBackend::digest_of(
-                &items,
-                &conflicts,
-                &legacy_files,
-                &legacy_folders,
-            );
+            let digest =
+                VrcGetLibBackend::digest_of(&items, &conflicts, &legacy_files, &legacy_folders);
             if digest != confirmed_digest {
                 return Err(AppErrorV1::new(
                     error_codes::PREVIEW_DRIFT,
@@ -1438,9 +1439,7 @@ impl VpmBackend for VrcGetLibBackend {
     fn project_registry(&self) -> Result<Vec<RegisteredProjectV1>, AppErrorV1> {
         let environment_root = self.environment_root.clone();
         self.runtime.block_on(async move {
-            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(
-                environment_root.into_boxed_path(),
-            );
+            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(environment_root.into_boxed_path());
             let connection = vrc_get_vpm::environment::VccDatabaseConnection::connect(&io)
                 .await
                 .map_err(map_project_load("opening the manager project registry"))?;
@@ -1459,16 +1458,18 @@ impl VpmBackend for VrcGetLibBackend {
     fn list_repos(&self) -> Result<Vec<RepoInfoV01>, AppErrorV1> {
         let environment_root = self.environment_root.clone();
         self.runtime.block_on(async move {
-            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(
-                environment_root.into_boxed_path(),
-            );
+            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(environment_root.into_boxed_path());
             let settings = vrc_get_vpm::environment::Settings::load(&io)
                 .await
                 .map_err(map_environment_io("loading VPM settings"))?;
             // 订阅面为世界（025 冻结批裁决 1）：settings userRepos 数组逐行
             // 逐字投影，行序＝配置顺序（不发明排序键）；逐行携带 cached 缓存
             // 命中事实。本面只读缓存、零网络（缓存命中判定），无在线刷新分支。
-            Ok(settings.get_user_repos().iter().map(repo_info_row).collect())
+            Ok(settings
+                .get_user_repos()
+                .iter()
+                .map(repo_info_row)
+                .collect())
         })
     }
 
@@ -1485,9 +1486,7 @@ impl VpmBackend for VrcGetLibBackend {
         let environment_root = self.environment_root.clone();
         self.runtime.block_on(async move {
             let state_path = repo_state_path(&environment_root);
-            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(
-                environment_root.into_boxed_path(),
-            );
+            let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(environment_root.into_boxed_path());
             let settings = vrc_get_vpm::environment::Settings::load(&io)
                 .await
                 .map_err(map_environment_io("loading VPM settings"))?;
@@ -1575,8 +1574,8 @@ impl VpmBackend for VrcGetLibBackend {
             // 列表只见启用行的包）。disabled 集返回给第 2 层投影：禁用行必须
             // 按「未装载」呈行（订阅面继续列出行，零隐藏）——行投影事实，
             // 非二次过滤。
-            let (world, disabled) =
-                collection_world(&environment_root, &settings).map_err(backend_unavailable_state)?;
+            let (world, disabled) = collection_world(&environment_root, &settings)
+                .map_err(backend_unavailable_state)?;
             // 与 package_catalog_impl 同构的降级路径（ORC-ADP-006）：offline →
             // load_cache（cacheSourced=true）；在线 load 失败降级 load_cache
             // （true）；在线成功 load（含 etag 条件刷新共享缓存文件——027 协议
@@ -1590,12 +1589,8 @@ impl VpmBackend for VrcGetLibBackend {
                     true,
                 )
             } else {
-                match vrc_get_vpm::environment::PackageCollection::load(
-                    &world,
-                    &io,
-                    Some(&http),
-                )
-                .await
+                match vrc_get_vpm::environment::PackageCollection::load(&world, &io, Some(&http))
+                    .await
                 {
                     Ok(collection) => (collection, false),
                     Err(_) => (
@@ -1641,9 +1636,7 @@ impl VpmBackend for VrcGetLibBackend {
             // 目录仓）＝库自身反序列化器接受该缓存文件（与库 load_repo_from_cache
             // 无 url 臂同构的布尔判定——只判定、绝不二次投影其内容，包事实
             // 仍唯一出自第 1 层库集合）。
-            if !settings.ignore_official_repository()
-                && !loaded_urls.contains(OFFICIAL_REPO_URL)
-            {
+            if !settings.ignore_official_repository() && !loaded_urls.contains(OFFICIAL_REPO_URL) {
                 repos.push(RepoCatalogRepoV01 {
                     // 预定义仓无订阅行身份：未装载时无任何身份事实，如实双双
                     // null（诚实缺席）。
@@ -1673,9 +1666,9 @@ impl VpmBackend for VrcGetLibBackend {
                         None => std::fs::read(repo.local_path())
                             .ok()
                             .and_then(|bytes| {
-                                serde_json::from_slice::<vrc_get_vpm::repository::LocalCachedRepository>(
-                                    &bytes,
-                                )
+                                serde_json::from_slice::<
+                                    vrc_get_vpm::repository::LocalCachedRepository,
+                                >(&bytes)
                                 .ok()
                             })
                             .is_some(),
@@ -1746,8 +1739,8 @@ impl VpmBackend for VrcGetLibBackend {
             // F4 补切片：装载层一次过滤（禁用行离开包集合世界——A2 解析器
             // 不再从禁用行解析包）。状态文件不可读＝复用码如实拒绝（与投影
             // 面同事实同码，绝不以全启用猜测）。
-            let (world, _disabled) =
-                collection_world(&environment_root, &settings).map_err(backend_unavailable_state)?;
+            let (world, _disabled) = collection_world(&environment_root, &settings)
+                .map_err(backend_unavailable_state)?;
             // 在线刷新仓库清单失败时降级到缓存（ORC-ADP-006）。
             let collection = if offline || cached_metadata {
                 vrc_get_vpm::environment::PackageCollection::load_cache(&world, &io)
@@ -1758,11 +1751,9 @@ impl VpmBackend for VrcGetLibBackend {
                     .await
                 {
                     Ok(collection) => collection,
-                    Err(_) => {
-                        vrc_get_vpm::environment::PackageCollection::load_cache(&world, &io)
-                            .await
-                            .map_err(map_io("loading package cache"))?
-                    }
+                    Err(_) => vrc_get_vpm::environment::PackageCollection::load_cache(&world, &io)
+                        .await
+                        .map_err(map_io("loading package cache"))?,
                 }
             };
             let project_io =
@@ -1991,8 +1982,8 @@ impl VpmBackend for VrcGetLibBackend {
                 .map_err(map_io("loading VPM settings"))?;
             // F4 补切片：装载层一次过滤（禁用行离开包集合世界——apply 解析
             // 与 preview 同一装载入口，双摘要重算见不得未过滤世界）。
-            let (world, _disabled) =
-                collection_world(&environment_root, &settings).map_err(backend_unavailable_state)?;
+            let (world, _disabled) = collection_world(&environment_root, &settings)
+                .map_err(backend_unavailable_state)?;
             let collection = if self.offline || self.cached_metadata {
                 vrc_get_vpm::environment::PackageCollection::load_cache(&world, &io)
                     .await
@@ -2141,21 +2132,21 @@ impl VpmBackend for VrcGetLibBackend {
             // 第 146 批：禁用集语义与 F4 collection_world 同律——禁用订阅行
             // 离开包集合世界，解析绝不从禁用行取包。状态文件不可读＝复用
             // 共享构造器如实拒绝（与 preview/apply 同一装载入口纪律）。
-            let (world, _disabled) =
-                collection_world(&environment_root, &settings).map_err(backend_unavailable_state)?;
-            let project_io =
-                vrc_get_vpm::io::DefaultProjectIo::new(project_root.into_boxed_path());
-            let mut unity_project = vrc_get_vpm::UnityProject::load(project_io)
-                .await
-                .map_err(|error| {
-                    AppErrorV1::new(
-                        error_codes::PROJECT_LOAD_FAILED,
-                        ErrorCategory::ExternalFailure,
-                        "errors.vpm.projectLoadFailed",
-                        "corr-vpm-resolve",
-                    )
-                    .with_param("reason", ParamValue::Text(error.to_string()))
-                })?;
+            let (world, _disabled) = collection_world(&environment_root, &settings)
+                .map_err(backend_unavailable_state)?;
+            let project_io = vrc_get_vpm::io::DefaultProjectIo::new(project_root.into_boxed_path());
+            let mut unity_project =
+                vrc_get_vpm::UnityProject::load(project_io)
+                    .await
+                    .map_err(|error| {
+                        AppErrorV1::new(
+                            error_codes::PROJECT_LOAD_FAILED,
+                            ErrorCategory::ExternalFailure,
+                            "errors.vpm.projectLoadFailed",
+                            "corr-vpm-resolve",
+                        )
+                        .with_param("reason", ParamValue::Text(error.to_string()))
+                    })?;
 
             // 幂等臂（环境实现批对齐钉）：locked 与 dependencies 全部已在盘
             // 上满足→如实列报，且**必须在集合装载之前短路**——端口面文档
@@ -2193,19 +2184,17 @@ impl VpmBackend for VrcGetLibBackend {
                     .await
                 {
                     Ok(collection) => collection,
-                    Err(_) => {
-                        vrc_get_vpm::environment::PackageCollection::load_cache(&world, &io)
-                            .await
-                            .map_err(|error| {
-                                AppErrorV1::new(
-                                    error_codes::BACKEND_UNAVAILABLE,
-                                    ErrorCategory::Unavailable,
-                                    "errors.vpm.backendUnavailable",
-                                    "corr-vpm-resolve",
-                                )
-                                .with_param("reason", ParamValue::Text(error.to_string()))
-                            })?
-                    }
+                    Err(_) => vrc_get_vpm::environment::PackageCollection::load_cache(&world, &io)
+                        .await
+                        .map_err(|error| {
+                            AppErrorV1::new(
+                                error_codes::BACKEND_UNAVAILABLE,
+                                ErrorCategory::Unavailable,
+                                "errors.vpm.backendUnavailable",
+                                "corr-vpm-resolve",
+                            )
+                            .with_param("reason", ParamValue::Text(error.to_string()))
+                        })?,
                 }
             };
             // 缺失依赖臂：依赖无法从启用仓库解析（DependenciesNotFound 是
@@ -2264,9 +2253,7 @@ impl VpmBackend for VrcGetLibBackend {
                         let source_repo = package
                             .repo()
                             .and_then(|repo| {
-                                repo.id()
-                                    .or(repo.name())
-                                    .map(|value| value.to_owned())
+                                repo.id().or(repo.name()).map(|value| value.to_owned())
                             })
                             .unwrap_or_else(|| "local".to_owned());
                         resolved.push(ResolvedPackageV01 {
@@ -2386,8 +2373,8 @@ impl VrcGetLibBackend {
             // F4 补切片：装载层一次过滤（禁用行离开包集合世界——单包目录的
             // 版本枚举与 updateAvailable 判定只见启用行的包）。状态文件不可
             // 读＝复用码如实拒绝（绝不以全启用猜测）。
-            let (world, _disabled) =
-                collection_world(&environment_root, &settings).map_err(backend_unavailable_state)?;
+            let (world, _disabled) = collection_world(&environment_root, &settings)
+                .map_err(backend_unavailable_state)?;
             // 在线刷新仓库清单失败时降级到缓存（ORC-ADP-006；preview_install
             // 同构先例）。降级事实如实上贡 v0.2 cacheSourced（信息性标注、非
             // 失败态）；v0.1 冻结词面无此字段、不发明。
@@ -2399,12 +2386,8 @@ impl VrcGetLibBackend {
                     true,
                 )
             } else {
-                match vrc_get_vpm::environment::PackageCollection::load(
-                    &world,
-                    &io,
-                    Some(&http),
-                )
-                .await
+                match vrc_get_vpm::environment::PackageCollection::load(&world, &io, Some(&http))
+                    .await
                 {
                     Ok(collection) => (collection, false),
                     Err(_) => (
@@ -2416,8 +2399,7 @@ impl VrcGetLibBackend {
                 }
             };
             let project_path = project_root.to_string_lossy().into_owned();
-            let project_io =
-                vrc_get_vpm::io::DefaultProjectIo::new(project_root.into_boxed_path());
+            let project_io = vrc_get_vpm::io::DefaultProjectIo::new(project_root.into_boxed_path());
             let unity_project = vrc_get_vpm::UnityProject::load(project_io)
                 .await
                 .map_err(map_project_load("loading project"))?;
@@ -2892,18 +2874,14 @@ fn map_remove_request(
 ) -> impl Fn(vrc_get_vpm::unity_project::RemovePackageErr) -> AppErrorV1 {
     move |error: vrc_get_vpm::unity_project::RemovePackageErr| {
         let (code, category) = match &error {
-            vrc_get_vpm::unity_project::RemovePackageErr::NotInstalled(_) => {
-                (error_codes::PACKAGE_NOT_INSTALLED, ErrorCategory::Validation)
-            }
+            vrc_get_vpm::unity_project::RemovePackageErr::NotInstalled(_) => (
+                error_codes::PACKAGE_NOT_INSTALLED,
+                ErrorCategory::Validation,
+            ),
             _ => (error_codes::PREVIEW_FAILED, ErrorCategory::ExternalFailure),
         };
-        let mut app = AppErrorV1::new(
-            code,
-            category,
-            "errors.vpm.removeFailed",
-            "corr-vpm-remove",
-        )
-        .with_param("reason", ParamValue::Text(format!("{context}: {error}")));
+        let mut app = AppErrorV1::new(code, category, "errors.vpm.removeFailed", "corr-vpm-remove")
+            .with_param("reason", ParamValue::Text(format!("{context}: {error}")));
         if let vrc_get_vpm::unity_project::RemovePackageErr::NotInstalled(names) = &error {
             app = app.with_param(
                 "packages",
@@ -2950,17 +2928,31 @@ mod sdk_bootstrap_tests {
         let url = format!("http://{}/sdk.json", listener.local_addr().unwrap());
         let thread = std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
-            stream.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                .unwrap();
             let mut request = [0u8; 4096];
             let mut received = 0;
             while received < request.len() {
                 let read = stream.read(&mut request[received..]).unwrap();
-                if read == 0 { break; }
+                if read == 0 {
+                    break;
+                }
                 received += read;
-                if request[..received].windows(4).any(|part| part == b"\r\n\r\n") { break; }
+                if request[..received]
+                    .windows(4)
+                    .any(|part| part == b"\r\n\r\n")
+                {
+                    break;
+                }
             }
             assert!(received > 0);
-            write!(stream, "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).unwrap();
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            )
+            .unwrap();
             let _ = stream.write_all(&body); // Bounded consumer may close early.
         });
         (url, thread)
@@ -2970,7 +2962,10 @@ mod sdk_bootstrap_tests {
     fn sdk_request_can_start_on_a_synchronous_worker_with_timeouts() {
         let backend = VrcGetLibBackend::new(false).unwrap();
         let (url, server) = serve(b"{\"repository\":\"test\"}".to_vec());
-        assert_eq!(backend.download_repository_metadata(&url).unwrap(), b"{\"repository\":\"test\"}");
+        assert_eq!(
+            backend.download_repository_metadata(&url).unwrap(),
+            b"{\"repository\":\"test\"}"
+        );
         server.join().unwrap();
     }
 

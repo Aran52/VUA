@@ -9,13 +9,13 @@
 
 use crate::material_exec::{MaterialCancelToken, MaterialExecutor};
 use crate::material_intake::MaterialIntakeConfirmationV01;
-use vua_orchestrator::ProjectRef;
-use vua_orchestrator::{SubmitRequest, TaskExit, TaskJob, TaskRuntime};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use vua_orchestrator::ProjectRef;
+use vua_orchestrator::{SubmitRequest, TaskExit, TaskJob, TaskRuntime};
 
 /// 一个素材入口执行任务的全部绑定（确认 + 路径 + 产物输出根 + 本次执行
 /// 私有的取消令牌）。令牌由提交层创建：一次提交一个，执行器不持有任何
@@ -97,18 +97,19 @@ pub fn material_intake_job(
         match report.status {
             crate::MaterialExecutionStatus::Succeeded => Ok(TaskExit::Done(payload)),
             crate::MaterialExecutionStatus::Cancelled => Ok(TaskExit::Cancelled),
-            crate::MaterialExecutionStatus::Failed => Err(
-                vua_orchestrator::AppErrorV1::new(
-                    report.error_code.clone().unwrap_or_else(|| "vua.material.failed".to_owned()),
-                    vua_orchestrator::ErrorCategory::ExternalFailure,
-                    // 第 150 批：失败词面按类别分流——供给段失败命中桌面
-                    // 预留的 provisionFailed，其余维持 executionFailed。
-                    crate::material_exec::failure_message_key(report.error_code.as_deref()),
-                    &spec.confirmation.correlation_id,
-                )
-                .with_param("planId", vua_orchestrator::ParamValue::Text(plan_id))
-                .with_recoverable(true),
-            ),
+            crate::MaterialExecutionStatus::Failed => Err(vua_orchestrator::AppErrorV1::new(
+                report
+                    .error_code
+                    .clone()
+                    .unwrap_or_else(|| "vua.material.failed".to_owned()),
+                vua_orchestrator::ErrorCategory::ExternalFailure,
+                // 第 150 批：失败词面按类别分流——供给段失败命中桌面
+                // 预留的 provisionFailed，其余维持 executionFailed。
+                crate::material_exec::failure_message_key(report.error_code.as_deref()),
+                &spec.confirmation.correlation_id,
+            )
+            .with_param("planId", vua_orchestrator::ParamValue::Text(plan_id))
+            .with_recoverable(true)),
         }
     })
 }

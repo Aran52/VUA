@@ -20,8 +20,8 @@
 //!    identical declarations.
 
 use vua_bdl_store::{
-    extract_dependency_leads, lead_to_new_observation, BdlStore, DependencyLead,
-    EXTRACTOR_ID, METHOD_BULLET, METHOD_EXPLICIT_HEADING, METHOD_ONE_LINE, SPAN_BODY,
+    extract_dependency_leads, lead_to_new_observation, BdlStore, DependencyLead, EXTRACTOR_ID,
+    METHOD_BULLET, METHOD_EXPLICIT_HEADING, METHOD_ONE_LINE, SPAN_BODY,
 };
 
 /// Prototype shape: an author-made prerequisite-environment heading section
@@ -40,7 +40,11 @@ const HEADING_SECTION_FIXTURE: &str = "\
 #[test]
 fn explicit_heading_section_extracts_pinned_bullet_lines() {
     let leads = extract_dependency_leads(HEADING_SECTION_FIXTURE);
-    assert_eq!(leads.len(), 2, "exactly the two pinned lines under the heading; all prose skipped: {leads:?}");
+    assert_eq!(
+        leads.len(),
+        2,
+        "exactly the two pinned lines under the heading; all prose skipped: {leads:?}"
+    );
 
     let shader = &leads[0];
     assert_eq!(shader.dep_kind, "shader");
@@ -105,11 +109,17 @@ com.example.toolkit v0.9以上";
     assert_eq!(leads[0].dep_name, "com.example.coolglow");
     assert_eq!(leads[0].version_hint.as_deref(), Some("1.2.0"));
     assert_eq!(leads[0].extraction_method, METHOD_ONE_LINE);
-    assert_eq!(leads[0].dep_kind, "other", "unrecognized package: other, never guessed");
+    assert_eq!(
+        leads[0].dep_kind, "other",
+        "unrecognized package: other, never guessed"
+    );
 
     assert_eq!(leads[1].dep_name, "com.example.coolglow.addon");
     assert_eq!(leads[1].version_hint, None);
-    assert_eq!(leads[1].extraction_method, METHOD_BULLET, "bulleted com line keeps the bullet method");
+    assert_eq!(
+        leads[1].extraction_method, METHOD_BULLET,
+        "bulleted com line keeps the bullet method"
+    );
 
     assert_eq!(leads[2].dep_name, "com.example.toolkit");
     assert_eq!(leads[2].version_hint.as_deref(), Some("0.9"));
@@ -255,11 +265,22 @@ fn leads_land_through_the_existing_store_write_face_as_unconfirmed_clues() {
     let rows = store
         .dependency_observations("booth:2000001")
         .expect("read face");
-    assert_eq!(rows.len(), leads.len(), "verbatim round-trip, one row per lead");
+    assert_eq!(
+        rows.len(),
+        leads.len(),
+        "verbatim round-trip, one row per lead"
+    );
 
     // The landing goes through the real schema: an unknown product is
     // refused by the foreign key, never silently written.
-    let orphan = lead_to_new_observation(&leads[0], "booth:9999999", "2026-09-23T02:40:00.000Z", "dep-extract-test", None, None);
+    let orphan = lead_to_new_observation(
+        &leads[0],
+        "booth:9999999",
+        "2026-09-23T02:40:00.000Z",
+        "dep-extract-test",
+        None,
+        None,
+    );
     assert!(
         store.record_dependency_observation(&orphan).is_err(),
         "a lead for an unobserved product must not land"

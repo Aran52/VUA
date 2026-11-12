@@ -10,12 +10,12 @@
 //! application contract; these vectors freeze the operation closed set,
 //! params and acceptance payloads.
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use vua_acquisition::warehouse_maintenance::{
-    DeleteOriginalsResult, DeleteOriginalsTaskSpec, GenerateVpmResult, submit_delete_originals,
+    submit_delete_originals, DeleteOriginalsResult, DeleteOriginalsTaskSpec, GenerateVpmResult,
 };
 use vua_bdl_store::bdl_store::{ArtifactMode, BdlStore};
 use vua_orchestrator::{FixedIdGenerator, MemoryJournal, SystemClock, TaskRuntime};
@@ -103,9 +103,11 @@ fn bdl_cmd_004_mode_vocabulary_stays_in_lockstep_with_the_schema() {
         .as_array()
         .unwrap()
         .iter()
-        .find(|branch| branch["if"]["properties"]["operation"]["const"] == "warehouse.setArtifactMode")
-        .expect("the setArtifactMode branch pins the mode vocabulary")["then"]["properties"]["params"]
-        ["properties"]["mode"]["enum"]
+        .find(|branch| {
+            branch["if"]["properties"]["operation"]["const"] == "warehouse.setArtifactMode"
+        })
+        .expect("the setArtifactMode branch pins the mode vocabulary")["then"]["properties"]
+        ["params"]["properties"]["mode"]["enum"]
         .as_array()
         .unwrap()
         .iter()
@@ -132,10 +134,13 @@ fn bdl_cmd_004_mode_vocabulary_stays_in_lockstep_with_the_schema() {
         .map(|value| value.as_str().unwrap().to_owned())
         .collect();
 
-    let mut rust_modes: Vec<String> = [ArtifactMode::UseOriginalUnitypackage, ArtifactMode::GenerateVpm]
-        .iter()
-        .map(|mode| mode.name().to_owned())
-        .collect();
+    let mut rust_modes: Vec<String> = [
+        ArtifactMode::UseOriginalUnitypackage,
+        ArtifactMode::GenerateVpm,
+    ]
+    .iter()
+    .map(|mode| mode.name().to_owned())
+    .collect();
     rust_modes.sort();
     schema_modes.sort();
     schema_effective.sort();
@@ -144,8 +149,14 @@ fn bdl_cmd_004_mode_vocabulary_stays_in_lockstep_with_the_schema() {
     // enum has no such variant — clearing passes None.
     assert!(schema_modes.contains(&"<null>".to_owned()));
     schema_modes.retain(|mode| mode != "<null>");
-    assert_eq!(rust_modes, schema_modes, "mode enum drifted from the schema");
-    assert_eq!(rust_modes, schema_effective, "effective enum drifted from the schema");
+    assert_eq!(
+        rust_modes, schema_modes,
+        "mode enum drifted from the schema"
+    );
+    assert_eq!(
+        rust_modes, schema_effective,
+        "effective enum drifted from the schema"
+    );
 }
 
 /// The positive vector drives the real store: resolving the request params
@@ -167,7 +178,11 @@ fn bdl_cmd_005_set_artifact_mode_vector_drives_the_real_store() {
 
         let store = BdlStore::open_in_memory().unwrap();
         let entry_id = store
-            .create_warehouse_item("Example Pack", "imported_material", "2026-09-07T02:00:00.000Z")
+            .create_warehouse_item(
+                "Example Pack",
+                "imported_material",
+                "2026-09-07T02:00:00.000Z",
+            )
             .unwrap()
             .warehouse_item_id;
 
@@ -196,7 +211,10 @@ fn bdl_cmd_005_set_artifact_mode_vector_drives_the_real_store() {
         let effective = detail.effective_artifact_mode.name();
 
         assert_eq!(expected["operation"], "warehouse.setArtifactMode");
-        assert_eq!(effective, expected["effectiveMode"], "the vector promised this mode");
+        assert_eq!(
+            effective, expected["effectiveMode"],
+            "the vector promised this mode"
+        );
     }
 }
 
@@ -232,7 +250,9 @@ fn bdl_cmd_006_tasked_acceptance_output_validates_against_the_result_schema() {
 
     // The correlation binding lives on the task row (the acceptance envelope
     // carries task identity; the snapshot carries the audit binding).
-    let bound = runtime.snapshot(&accepted.task_id).expect("task must exist");
+    let bound = runtime
+        .snapshot(&accepted.task_id)
+        .expect("task must exist");
     assert_eq!(bound.correlation_id, correlation_id);
 
     let acceptance = json!({
@@ -242,7 +262,10 @@ fn bdl_cmd_006_tasked_acceptance_output_validates_against_the_result_schema() {
         "correlationId": bound.correlation_id,
     });
     let errors = violations(&result_validator(), &acceptance);
-    assert!(errors.is_empty(), "the real acceptance must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "the real acceptance must validate: {errors:?}"
+    );
     assert_eq!(acceptance["correlationId"], expected["correlationId"]);
 
     // The guard fires inside the task, not at acceptance: an unknown entry is
@@ -251,7 +274,9 @@ fn bdl_cmd_006_tasked_acceptance_output_validates_against_the_result_schema() {
     let snapshot = {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         loop {
-            let snapshot = runtime.snapshot(&accepted.task_id).expect("task must exist");
+            let snapshot = runtime
+                .snapshot(&accepted.task_id)
+                .expect("task must exist");
             if snapshot.state.is_terminal() {
                 break snapshot;
             }
@@ -271,8 +296,12 @@ fn bdl_cmd_006_tasked_acceptance_output_validates_against_the_result_schema() {
 #[test]
 fn bdl_cmd_007_completion_payload_shapes_stay_camel_case() {
     fn sorted_keys(value: &Value) -> Vec<String> {
-        let mut keys: Vec<String> =
-            value.as_object().expect("a completion payload object").keys().cloned().collect();
+        let mut keys: Vec<String> = value
+            .as_object()
+            .expect("a completion payload object")
+            .keys()
+            .cloned()
+            .collect();
         keys.sort();
         keys
     }

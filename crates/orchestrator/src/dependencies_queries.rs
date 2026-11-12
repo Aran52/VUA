@@ -225,12 +225,12 @@ pub enum DependenciesParamsError {
 impl DependenciesLookupParams {
     pub fn from_value(value: &Value) -> Result<Self, DependenciesParamsError> {
         const KEYS: [&str; 4] = ["name", "depKind", "limit", "offset"];
-        let object = value.as_object().ok_or_else(|| {
-            DependenciesParamsError::InvalidValue {
+        let object = value
+            .as_object()
+            .ok_or_else(|| DependenciesParamsError::InvalidValue {
                 key: "params".into(),
                 reason: "expected an object".into(),
-            }
-        })?;
+            })?;
         for key in object.keys() {
             if !KEYS.contains(&key.as_str()) {
                 return Err(DependenciesParamsError::UnknownKey(key.clone()));
@@ -260,12 +260,11 @@ impl DependenciesLookupParams {
         let dep_kind = match object.get("depKind") {
             None | Some(Value::Null) => None,
             Some(Value::String(raw)) => {
-                let parsed =
-                    serde_json::from_value::<DependencyKind>(Value::String(raw.clone()))
-                        .map_err(|_| DependenciesParamsError::InvalidValue {
-                            key: "depKind".into(),
-                            reason: format!("{raw} is outside the frozen BDL v0.2 closed set"),
-                        })?;
+                let parsed = serde_json::from_value::<DependencyKind>(Value::String(raw.clone()))
+                    .map_err(|_| DependenciesParamsError::InvalidValue {
+                    key: "depKind".into(),
+                    reason: format!("{raw} is outside the frozen BDL v0.2 closed set"),
+                })?;
                 Some(parsed)
             }
             Some(_) => {
@@ -321,7 +320,12 @@ impl DependenciesLookupParams {
                 });
             }
         };
-        Ok(Self { name, dep_kind, limit, offset })
+        Ok(Self {
+            name,
+            dep_kind,
+            limit,
+            offset,
+        })
     }
 }
 
@@ -336,12 +340,12 @@ pub struct DependenciesListByProductParams {
 
 impl DependenciesListByProductParams {
     pub fn from_value(value: &Value) -> Result<Self, DependenciesParamsError> {
-        let object = value.as_object().ok_or_else(|| {
-            DependenciesParamsError::InvalidValue {
+        let object = value
+            .as_object()
+            .ok_or_else(|| DependenciesParamsError::InvalidValue {
                 key: "params".into(),
                 reason: "expected an object".into(),
-            }
-        })?;
+            })?;
         for key in object.keys() {
             if key != "productId" {
                 return Err(DependenciesParamsError::UnknownKey(key.clone()));
@@ -402,7 +406,9 @@ pub struct DependenciesQueriesCapabilities {
 }
 
 impl DependenciesQueriesCapabilities {
-    pub const NONE: Self = Self { dependencies_queries: false };
+    pub const NONE: Self = Self {
+        dependencies_queries: false,
+    };
 }
 
 impl Default for DependenciesQueriesCapabilities {

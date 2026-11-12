@@ -99,7 +99,11 @@ fn vcc_reader(
 }
 
 fn engine_with(roots: EnvironmentRoots, runner: Arc<FakeProcessRunner>) -> EnvironmentEngine {
-    engine_with_vcc(roots, runner, vcc_reader(ManagerPresence::NotFound, None, Vec::new()))
+    engine_with_vcc(
+        roots,
+        runner,
+        vcc_reader(ManagerPresence::NotFound, None, Vec::new()),
+    )
 }
 
 fn engine_with_vcc(
@@ -138,13 +142,11 @@ fn orc_wf_001_vrchat_detection_is_deterministic_for_present_and_missing() {
     let items = engine.inspect_zone(Zone::Play);
     let vrchat = find(&items, "vrchat");
     assert_eq!(vrchat.presence, EnvironmentPresence::NotDetected);
-    assert_eq!(vrchat.error_code, None, "missing is a finding, not a failure");
-    assert!(
-        !vrchat.facts["searchedRoots"]
-            .as_array()
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        vrchat.error_code, None,
+        "missing is a finding, not a failure"
     );
+    assert!(!vrchat.facts["searchedRoots"].as_array().unwrap().is_empty());
 
     // Present: targeted path observation. Steam itself is discoverable
     // here, so the game check walks the *discovered* library root.
@@ -172,7 +174,10 @@ fn orc_wf_001_steam_missing_is_its_own_finding_before_vrchat() {
     let steam = find(&items, "steam");
     assert_eq!(steam.presence, EnvironmentPresence::NotDetected);
     assert_eq!(steam.error_code, None);
-    assert!(steam.facts["registryKey"].as_str().unwrap().contains("Valve"));
+    assert!(steam.facts["registryKey"]
+        .as_str()
+        .unwrap()
+        .contains("Valve"));
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
     }
@@ -188,7 +193,11 @@ fn orc_wf_001_steam_library_vdf_discovers_secondary_drive_installs() {
     let second_library = base.join("library-two");
     fs::create_dir_all(steam_root.join("steamapps")).unwrap();
     fs::create_dir_all(second_library.join("steamapps/common/VRChat")).unwrap();
-    fs::write(second_library.join("steamapps/common/VRChat/VRChat.exe"), "binary").unwrap();
+    fs::write(
+        second_library.join("steamapps/common/VRChat/VRChat.exe"),
+        "binary",
+    )
+    .unwrap();
     // VDF escapes backslashes: `C:\\Dir` in the file means `C:\Dir`.
     let vdf_value = format!(
         "\"path\"\t\t\"{}\"",
@@ -205,7 +214,10 @@ fn orc_wf_001_steam_library_vdf_discovers_secondary_drive_installs() {
 
     let steam = find(&items, "steam");
     assert_eq!(steam.presence, EnvironmentPresence::Detected);
-    assert_eq!(steam.facts["path"], steam_root.to_string_lossy().to_string());
+    assert_eq!(
+        steam.facts["path"],
+        steam_root.to_string_lossy().to_string()
+    );
     let roots: Vec<&str> = steam.facts["libraryRoots"]
         .as_array()
         .unwrap()
@@ -214,8 +226,11 @@ fn orc_wf_001_steam_library_vdf_discovers_secondary_drive_installs() {
         .collect();
     assert_eq!(roots.len(), 2, "install root + vdf library");
     let vrchat = find(&items, "vrchat");
-    assert_eq!(vrchat.presence, EnvironmentPresence::Detected,
-        "the secondary-drive install must be observed, not missed");
+    assert_eq!(
+        vrchat.presence,
+        EnvironmentPresence::Detected,
+        "the secondary-drive install must be observed, not missed"
+    );
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
     }
@@ -239,7 +254,10 @@ fn orc_wf_001_steam_install_path_resolves_through_the_registry() {
     let items = engine.inspect_zone(Zone::Play);
     let steam = find(&items, "steam");
     assert_eq!(steam.presence, EnvironmentPresence::Detected);
-    assert_eq!(steam.facts["path"], registry_root.to_string_lossy().to_string());
+    assert_eq!(
+        steam.facts["path"],
+        registry_root.to_string_lossy().to_string()
+    );
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
     }
@@ -256,7 +274,10 @@ fn orc_wf_001_steamvr_missing_is_not_detected_severity_belongs_to_the_frontend()
 
     fs::create_dir_all(base.join("steam/steamapps/common/SteamVR")).unwrap();
     let items = engine.inspect_zone(Zone::Play);
-    assert_eq!(find(&items, "steamvr").presence, EnvironmentPresence::Detected);
+    assert_eq!(
+        find(&items, "steamvr").presence,
+        EnvironmentPresence::Detected
+    );
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
     }
@@ -343,7 +364,10 @@ fn orc_env_headset_runtime_presence_checks_are_independent_findings() {
     fs::create_dir_all(base.join("vr/Oculus")).unwrap();
     let engine = engine_with(synthetic_roots(&base), default_runner());
     let items = engine.inspect_zone(Zone::Play);
-    assert_eq!(find(&items, "oculus_runtime").presence, EnvironmentPresence::Detected);
+    assert_eq!(
+        find(&items, "oculus_runtime").presence,
+        EnvironmentPresence::Detected
+    );
     assert_eq!(
         find(&items, "oculus_runtime").facts["root"],
         base.join("vr/Oculus").to_string_lossy().to_string()
@@ -514,8 +538,14 @@ fn orc_env_windows_and_gpu_report_registry_identity_facts() {
     // Empty registry → deterministic not_detected on both.
     let engine = engine_with(synthetic_roots(&base), default_runner());
     let items = engine.inspect_zone(Zone::Play);
-    assert_eq!(find(&items, "windows").presence, EnvironmentPresence::NotDetected);
-    assert_eq!(find(&items, "gpu").presence, EnvironmentPresence::NotDetected);
+    assert_eq!(
+        find(&items, "windows").presence,
+        EnvironmentPresence::NotDetected
+    );
+    assert_eq!(
+        find(&items, "gpu").presence,
+        EnvironmentPresence::NotDetected
+    );
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
     }
@@ -542,10 +572,12 @@ fn orc_wf_001_unity_editors_enumerate_classify_and_ignore_junk() {
         "the support matrix classification rides in facts"
     );
     assert_eq!(
-        editors.facts["editors"][1]["classification"], "migration_source"
+        editors.facts["editors"][1]["classification"],
+        "migration_source"
     );
     assert_eq!(
-        editors.facts["productionTarget"], vua_orchestrator::PRODUCTION_TARGET
+        editors.facts["productionTarget"],
+        vua_orchestrator::PRODUCTION_TARGET
     );
 
     // "999.9" has an Editor dir but no patch component → ignored.
@@ -592,7 +624,10 @@ fn orc_env_unity_hub_candidates_cover_machine_wide_installs() {
     let items = engine.inspect_zone(Zone::Create);
     let hub = find(&items, "unity_hub");
     assert_eq!(hub.presence, EnvironmentPresence::Detected);
-    assert_eq!(hub.facts["exe"].as_str(), Some(per_user.to_string_lossy().as_ref()));
+    assert_eq!(
+        hub.facts["exe"].as_str(),
+        Some(per_user.to_string_lossy().as_ref())
+    );
     assert_eq!(hub.facts["via"], "path");
     fs::remove_file(&per_user).unwrap();
 
@@ -665,20 +700,41 @@ fn orc_env_unity_hub_packaged_install_is_detected() {
     fs::create_dir_all(exe.parent().unwrap()).unwrap();
     fs::write(&exe, "hub").unwrap();
     let registry = FakeRegistrySource::new()
-        .with_subkey(RegistryHive::CurrentUser, REPOSITORY, "Microsoft.WindowsCalculator_11.0.0.0_x64__8wekyb3d8bbwe")
+        .with_subkey(
+            RegistryHive::CurrentUser,
+            REPOSITORY,
+            "Microsoft.WindowsCalculator_11.0.0.0_x64__8wekyb3d8bbwe",
+        )
         .with_subkey(RegistryHive::CurrentUser, REPOSITORY, stale)
         .with_subkey(RegistryHive::CurrentUser, REPOSITORY, current)
-        .with(RegistryHive::CurrentUser, &format!("{REPOSITORY}\\{stale}"), "PackageRootFolder", &base.join("absent").to_string_lossy())
-        .with(RegistryHive::CurrentUser, &format!("{REPOSITORY}\\{current}"), "PackageRootFolder", &package_root.to_string_lossy());
+        .with(
+            RegistryHive::CurrentUser,
+            &format!("{REPOSITORY}\\{stale}"),
+            "PackageRootFolder",
+            &base.join("absent").to_string_lossy(),
+        )
+        .with(
+            RegistryHive::CurrentUser,
+            &format!("{REPOSITORY}\\{current}"),
+            "PackageRootFolder",
+            &package_root.to_string_lossy(),
+        );
     let roots = EnvironmentRoots {
         unity_hub_exe_candidates: vec![base.join("absent/Unity Hub.exe")],
         unity_hub_registry_display_icon_keys: vec![],
         registry: Arc::new(registry),
         ..synthetic_roots(&base)
     };
-    let hub = find(&engine_with(roots, default_runner()).inspect_zone(Zone::Create), "unity_hub").clone();
+    let hub = find(
+        &engine_with(roots, default_runner()).inspect_zone(Zone::Create),
+        "unity_hub",
+    )
+    .clone();
     assert_eq!(hub.presence, EnvironmentPresence::Detected);
-    assert_eq!(hub.facts["exe"].as_str(), Some(exe.to_string_lossy().as_ref()));
+    assert_eq!(
+        hub.facts["exe"].as_str(),
+        Some(exe.to_string_lossy().as_ref())
+    );
     assert_eq!(hub.facts["via"], "package");
     assert_eq!(hub.facts["package"], current);
     fs::remove_dir_all(&base).unwrap();
@@ -717,7 +773,10 @@ fn orc_env_unity_hub_registry_display_icon_fallback() {
     let hub = find(&items, "unity_hub");
     assert_eq!(hub.presence, EnvironmentPresence::Detected);
     assert_eq!(hub.facts["via"], "registry");
-    assert_eq!(hub.facts["exe"].as_str(), Some(exe.to_string_lossy().as_ref()));
+    assert_eq!(
+        hub.facts["exe"].as_str(),
+        Some(exe.to_string_lossy().as_ref())
+    );
     assert_eq!(
         hub.facts["registryKey"],
         serde_json::json!(format!("HKLM\\{SYNTHETIC_HUB_UNINSTALL_SUBKEY}"))

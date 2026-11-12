@@ -25,11 +25,11 @@ use std::fs;
 use std::path::Path;
 
 use serde_json::{json, Value};
-use vua_orchestrator::{
-    CatalogCapabilities, CatalogVersionV01, PackageCatalogV01, PackageCatalogV02,
-    PackageRequestV1, PackageSourceV01, ProjectRef, RepoInfoV01, VpmBackend,
-};
 use vua_orchestrator::AppErrorV1;
+use vua_orchestrator::{
+    CatalogCapabilities, CatalogVersionV01, PackageCatalogV01, PackageCatalogV02, PackageRequestV1,
+    PackageSourceV01, ProjectRef, RepoInfoV01, VpmBackend,
+};
 
 fn read_repo_json(relative: &str) -> Value {
     // Tests run from the crate directory; the schemas live at the repo root.
@@ -89,7 +89,7 @@ impl VpmBackend for MinimalBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -133,7 +133,7 @@ impl VpmBackend for FakeCatalogBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -200,9 +200,21 @@ impl VpmBackend for FakeCatalogBackend {
             installed: true,
             update_available: Some(true),
             versions: vec![
-                CatalogVersionV01 { version: "1.6.2".into(), yanked: true, compatible: Some(true) },
-                CatalogVersionV01 { version: "1.7.0".into(), yanked: false, compatible: Some(true) },
-                CatalogVersionV01 { version: "1.9.0-beta.1".into(), yanked: false, compatible: None },
+                CatalogVersionV01 {
+                    version: "1.6.2".into(),
+                    yanked: true,
+                    compatible: Some(true),
+                },
+                CatalogVersionV01 {
+                    version: "1.7.0".into(),
+                    yanked: false,
+                    compatible: Some(true),
+                },
+                CatalogVersionV01 {
+                    version: "1.9.0-beta.1".into(),
+                    yanked: false,
+                    compatible: None,
+                },
             ],
         })
     }
@@ -213,17 +225,31 @@ fn repos_schema_admits_positive_vectors_and_rejects_negative_ones() {
     let command = repos_command_validator();
     let result = repos_result_validator();
 
-    let request = read_repo_json("schemas/packages-repos/v0.1/examples/packages-list-repos.request.json");
-    assert!(command.is_valid(&request), "{:?}", violations(&command, &request));
+    let request =
+        read_repo_json("schemas/packages-repos/v0.1/examples/packages-list-repos.request.json");
+    assert!(
+        command.is_valid(&request),
+        "{:?}",
+        violations(&command, &request)
+    );
 
-    let listing = read_repo_json("schemas/packages-repos/v0.1/examples/packages-list-repos.result.json");
-    assert!(result.is_valid(&listing), "{:?}", violations(&result, &listing));
+    let listing =
+        read_repo_json("schemas/packages-repos/v0.1/examples/packages-list-repos.result.json");
+    assert!(
+        result.is_valid(&listing),
+        "{:?}",
+        violations(&result, &listing)
+    );
 
-    let empty = read_repo_json("schemas/packages-repos/v0.1/examples/packages-list-repos-empty.result.json");
+    let empty = read_repo_json(
+        "schemas/packages-repos/v0.1/examples/packages-list-repos-empty.result.json",
+    );
     assert!(result.is_valid(&empty), "{:?}", violations(&result, &empty));
 
     // A global configuration face accepts NO parameter key.
-    let extra_param = read_repo_json("schemas/packages-repos/v0.1/examples/invalid-repos-params-extra-key.request.json");
+    let extra_param = read_repo_json(
+        "schemas/packages-repos/v0.1/examples/invalid-repos-params-extra-key.request.json",
+    );
     assert!(
         !command.is_valid(&extra_param),
         "an extra params key must be a shape violation"
@@ -231,13 +257,23 @@ fn repos_schema_admits_positive_vectors_and_rejects_negative_ones() {
 
     // The false-assertion guard: the health face is a P2 non-goal, an
     // invented health field invalidates the row.
-    let health_row = read_repo_json("schemas/packages-repos/v0.1/examples/invalid-repo-row-health-field.result.json");
-    assert!(!result.is_valid(&health_row), "invented health field must be invalid");
+    let health_row = read_repo_json(
+        "schemas/packages-repos/v0.1/examples/invalid-repo-row-health-field.result.json",
+    );
+    assert!(
+        !result.is_valid(&health_row),
+        "invented health field must be invalid"
+    );
 
     // cached is the REQUIRED per-repo cache-hit fact: a row without it is
     // invalid, never silently tolerated.
-    let missing_cached = read_repo_json("schemas/packages-repos/v0.1/examples/invalid-repo-row-missing-cached.result.json");
-    assert!(!result.is_valid(&missing_cached), "missing cached fact must be invalid");
+    let missing_cached = read_repo_json(
+        "schemas/packages-repos/v0.1/examples/invalid-repo-row-missing-cached.result.json",
+    );
+    assert!(
+        !result.is_valid(&missing_cached),
+        "missing cached fact must be invalid"
+    );
 }
 
 #[test]
@@ -245,8 +281,14 @@ fn catalog_schema_admits_positive_vectors_and_rejects_negative_ones() {
     let command = catalog_command_validator();
     let result = catalog_result_validator();
 
-    let request = read_repo_json("schemas/packages-catalog/v0.1/examples/packages-package-catalog.request.json");
-    assert!(command.is_valid(&request), "{:?}", violations(&command, &request));
+    let request = read_repo_json(
+        "schemas/packages-catalog/v0.1/examples/packages-package-catalog.request.json",
+    );
+    assert!(
+        command.is_valid(&request),
+        "{:?}",
+        violations(&command, &request)
+    );
 
     for positive in [
         "schemas/packages-catalog/v0.1/examples/packages-package-catalog.result.json",
@@ -254,25 +296,49 @@ fn catalog_schema_admits_positive_vectors_and_rejects_negative_ones() {
         "schemas/packages-catalog/v0.1/examples/packages-package-catalog-not-installed.result.json",
     ] {
         let doc = read_repo_json(positive);
-        assert!(result.is_valid(&doc), "{positive}: {:?}", violations(&result, &doc));
+        assert!(
+            result.is_valid(&doc),
+            "{positive}: {:?}",
+            violations(&result, &doc)
+        );
     }
 
-    let missing_id = read_repo_json("schemas/packages-catalog/v0.1/examples/invalid-catalog-missing-package-id.request.json");
-    assert!(!command.is_valid(&missing_id), "missing packageId must be invalid");
+    let missing_id = read_repo_json(
+        "schemas/packages-catalog/v0.1/examples/invalid-catalog-missing-package-id.request.json",
+    );
+    assert!(
+        !command.is_valid(&missing_id),
+        "missing packageId must be invalid"
+    );
 
     // On-demand granularity: no pagination / preference switches exist —
     // an invented params key is a shape violation.
-    let extra_param = read_repo_json("schemas/packages-catalog/v0.1/examples/invalid-catalog-extra-param.request.json");
-    assert!(!command.is_valid(&extra_param), "an extra params key must be a shape violation");
+    let extra_param = read_repo_json(
+        "schemas/packages-catalog/v0.1/examples/invalid-catalog-extra-param.request.json",
+    );
+    assert!(
+        !command.is_valid(&extra_param),
+        "an extra params key must be a shape violation"
+    );
 
-    let invented_field = read_repo_json("schemas/packages-catalog/v0.1/examples/invalid-catalog-version-extra-field.result.json");
-    assert!(!result.is_valid(&invented_field), "invented changelogUrl must be invalid");
+    let invented_field = read_repo_json(
+        "schemas/packages-catalog/v0.1/examples/invalid-catalog-version-extra-field.result.json",
+    );
+    assert!(
+        !result.is_valid(&invented_field),
+        "invented changelogUrl must be invalid"
+    );
 
     // source is a two-state word; the desktop third state composes with
     // `installed` and "installed" as a source VALUE is outside the word
     // list.
-    let word_outside = read_repo_json("schemas/packages-catalog/v0.1/examples/invalid-catalog-source-word-outside.result.json");
-    assert!(!result.is_valid(&word_outside), "source=installed is outside the two-state word");
+    let word_outside = read_repo_json(
+        "schemas/packages-catalog/v0.1/examples/invalid-catalog-source-word-outside.result.json",
+    );
+    assert!(
+        !result.is_valid(&word_outside),
+        "source=installed is outside the two-state word"
+    );
 }
 
 #[test]
@@ -285,7 +351,10 @@ fn trait_default_answers_capability_missing_and_declares_none() {
 
     let err = backend
         .package_catalog(
-            &ProjectRef { id: "demo".into(), root: std::path::PathBuf::from("C:/proj") },
+            &ProjectRef {
+                id: "demo".into(),
+                root: std::path::PathBuf::from("C:/proj"),
+            },
             "com.example.pkg",
         )
         .unwrap_err();
@@ -308,8 +377,15 @@ fn fake_backend_port_facts_project_onto_the_frozen_wire_shapes() {
         },
     });
     let validator = repos_result_validator();
-    assert!(validator.is_valid(&envelope), "{:?}", violations(&validator, &envelope));
-    assert_eq!(envelope["result"]["schemaVersion"], "vua.packages-repos/v0.1");
+    assert!(
+        validator.is_valid(&envelope),
+        "{:?}",
+        violations(&validator, &envelope)
+    );
+    assert_eq!(
+        envelope["result"]["schemaVersion"],
+        "vua.packages-repos/v0.1"
+    );
     let rows = envelope["result"]["repos"].as_array().unwrap();
     assert_eq!(rows.len(), 3);
     // Nullable identifier/location facts project verbatim (null = honest
@@ -321,7 +397,10 @@ fn fake_backend_port_facts_project_onto_the_frozen_wire_shapes() {
     // const is an envelope-assembly fact (P1 discipline), stamped here.
     let catalog = backend
         .package_catalog(
-            &ProjectRef { id: "demo".into(), root: std::path::PathBuf::from("C:/proj") },
+            &ProjectRef {
+                id: "demo".into(),
+                root: std::path::PathBuf::from("C:/proj"),
+            },
             "com.anatawa12.avatar-optimizer",
         )
         .unwrap();
@@ -333,8 +412,15 @@ fn fake_backend_port_facts_project_onto_the_frozen_wire_shapes() {
         "result": result,
     });
     let validator = catalog_result_validator();
-    assert!(validator.is_valid(&envelope), "{:?}", violations(&validator, &envelope));
-    assert_eq!(envelope["result"]["schemaVersion"], "vua.packages-catalog/v0.1");
+    assert!(
+        validator.is_valid(&envelope),
+        "{:?}",
+        violations(&validator, &envelope)
+    );
+    assert_eq!(
+        envelope["result"]["schemaVersion"],
+        "vua.packages-catalog/v0.1"
+    );
     // Enum projection: the port snake_case source lands as the frozen
     // two-state word.
     assert_eq!(envelope["result"]["source"], "repo");
@@ -376,7 +462,7 @@ impl VpmBackend for FakeCatalogV02Backend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -428,8 +514,16 @@ impl VpmBackend for FakeCatalogV02Backend {
             installed: true,
             update_available: Some(true),
             versions: vec![
-                CatalogVersionV01 { version: "1.6.2".into(), yanked: true, compatible: Some(true) },
-                CatalogVersionV01 { version: "1.7.0".into(), yanked: false, compatible: Some(true) },
+                CatalogVersionV01 {
+                    version: "1.6.2".into(),
+                    yanked: true,
+                    compatible: Some(true),
+                },
+                CatalogVersionV01 {
+                    version: "1.7.0".into(),
+                    yanked: false,
+                    compatible: Some(true),
+                },
             ],
             // The v0.2 REQUIRED disclosure fact: true = served through the
             // cache-degradation path (offline -> load_cache, or online load
@@ -444,8 +538,14 @@ fn catalog_v02_schema_admits_positive_vectors_and_rejects_negative_ones() {
     let command = catalog_v02_command_validator();
     let result = catalog_v02_result_validator();
 
-    let request = read_repo_json("schemas/packages-catalog/v0.2/examples/packages-package-catalog.request.json");
-    assert!(command.is_valid(&request), "{:?}", violations(&command, &request));
+    let request = read_repo_json(
+        "schemas/packages-catalog/v0.2/examples/packages-package-catalog.request.json",
+    );
+    assert!(
+        command.is_valid(&request),
+        "{:?}",
+        violations(&command, &request)
+    );
 
     for positive in [
         "schemas/packages-catalog/v0.2/examples/packages-package-catalog.result.json",
@@ -456,7 +556,11 @@ fn catalog_v02_schema_admits_positive_vectors_and_rejects_negative_ones() {
         "schemas/packages-catalog/v0.2/examples/packages-package-catalog-cache-sourced.result.json",
     ] {
         let doc = read_repo_json(positive);
-        assert!(result.is_valid(&doc), "{positive}: {:?}", violations(&result, &doc));
+        assert!(
+            result.is_valid(&doc),
+            "{positive}: {:?}",
+            violations(&result, &doc)
+        );
     }
 
     for negative in [
@@ -466,20 +570,31 @@ fn catalog_v02_schema_admits_positive_vectors_and_rejects_negative_ones() {
         "schemas/packages-catalog/v0.2/examples/invalid-catalog-version-extra-field.result.json",
     ] {
         let doc = read_repo_json(negative);
-        let validator = if negative.ends_with("request.json") { &command } else { &result };
+        let validator = if negative.ends_with("request.json") {
+            &command
+        } else {
+            &result
+        };
         assert!(!validator.is_valid(&doc), "{negative} must be invalid");
     }
 
     // The REQUIRED cacheSourced fact: a wrong-typed value is a shape
     // violation, never a tolerated default.
-    let wrong_type = read_repo_json("schemas/packages-catalog/v0.2/examples/invalid-catalog-cachesourced-type.result.json");
-    assert!(!result.is_valid(&wrong_type), "a non-boolean cacheSourced must be invalid");
+    let wrong_type = read_repo_json(
+        "schemas/packages-catalog/v0.2/examples/invalid-catalog-cachesourced-type.result.json",
+    );
+    assert!(
+        !result.is_valid(&wrong_type),
+        "a non-boolean cacheSourced must be invalid"
+    );
 
     // The version bump is DETECTABLE: the frozen v0.1 result shape (no
     // cacheSourced) is INVALID against the v0.2 schema — consumers can
     // never confuse the two word faces, which is exactly why the increment
     // versions the family instead of revising v0.1 in place.
-    let v01_shaped = read_repo_json("schemas/packages-catalog/v0.1/examples/packages-package-catalog.result.json");
+    let v01_shaped = read_repo_json(
+        "schemas/packages-catalog/v0.1/examples/packages-package-catalog.result.json",
+    );
     assert!(
         !result.is_valid(&v01_shaped),
         "a v0.1-shaped result must be invalid against the v0.2 schema"
@@ -496,7 +611,10 @@ fn catalog_v02_default_answers_capability_missing_and_declares_false() {
 
     let err = backend
         .package_catalog_v02(
-            &ProjectRef { id: "demo".into(), root: std::path::PathBuf::from("C:/proj") },
+            &ProjectRef {
+                id: "demo".into(),
+                root: std::path::PathBuf::from("C:/proj"),
+            },
             "com.example.pkg",
         )
         .unwrap_err();
@@ -515,7 +633,10 @@ fn v02_backend_port_facts_project_onto_the_v02_wire_shape() {
     // the route stamps it.
     let catalog = backend
         .package_catalog_v02(
-            &ProjectRef { id: "demo".into(), root: std::path::PathBuf::from("C:/proj") },
+            &ProjectRef {
+                id: "demo".into(),
+                root: std::path::PathBuf::from("C:/proj"),
+            },
             "com.anatawa12.avatar-optimizer",
         )
         .unwrap();
@@ -527,8 +648,18 @@ fn v02_backend_port_facts_project_onto_the_v02_wire_shape() {
         "result": result,
     });
     let validator = catalog_v02_result_validator();
-    assert!(validator.is_valid(&envelope), "{:?}", violations(&validator, &envelope));
-    assert_eq!(envelope["result"]["schemaVersion"], "vua.packages-catalog/v0.2");
+    assert!(
+        validator.is_valid(&envelope),
+        "{:?}",
+        violations(&validator, &envelope)
+    );
+    assert_eq!(
+        envelope["result"]["schemaVersion"],
+        "vua.packages-catalog/v0.2"
+    );
     // The REQUIRED disclosure fact rides the result verbatim.
-    assert_eq!(envelope["result"]["cacheSourced"], serde_json::Value::Bool(true));
+    assert_eq!(
+        envelope["result"]["cacheSourced"],
+        serde_json::Value::Bool(true)
+    );
 }

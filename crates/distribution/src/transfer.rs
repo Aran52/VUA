@@ -402,7 +402,11 @@ impl Transfer {
                         if full_compressed.is_none() {
                             self.full_pack = true;
                             self.progress("full-pack", completed, total);
-                            if self.archive(&compressed.pack, compressed_cache).await.is_ok() {
+                            if self
+                                .archive(&compressed.pack, compressed_cache)
+                                .await
+                                .is_ok()
+                            {
                                 full_compressed = Some(compressed_cache.to_path_buf());
                             }
                         }

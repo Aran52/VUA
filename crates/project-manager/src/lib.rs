@@ -13,15 +13,15 @@ pub mod eac_verify;
 pub mod editor_verify;
 pub mod environment_managers;
 pub mod game_window;
-pub mod system_resources;
-pub mod steam_tools;
-pub mod tool_install;
-pub mod play_session;
+pub mod import_copy;
 pub mod manager_apps;
 pub mod network_probe;
-pub mod import_copy;
+pub mod play_session;
 pub mod project_inspection;
 pub mod project_lock;
+pub mod steam_tools;
+pub mod system_resources;
+pub mod tool_install;
 pub mod vpm_backend;
 pub mod vua_identity;
 
@@ -29,29 +29,29 @@ pub use eac_allowlist::{
     find_entry, load_allowlist, path_pattern_matches, AllowlistEntryV01, AllowlistLoadError,
     AllowlistV01, EAC_ALLOWLIST_SCHEMA_VERSION,
 };
-pub use eac_terminate::{
-    terminate_candidate, PreCheck, PostCheck, TerminationGuard, TerminationReceiptV01,
-    TerminationRequest, EAC_TERMINATE_SCHEMA_VERSION,
-};
-#[cfg(all(windows, any(test, feature = "test-hooks")))]
-pub use eac_terminate::terminate_open_and_wait_for_test;
 pub use eac_probe::{
     probe_eac, EacProbeSnapshotV01, ProcessEntry, ProcessFinding, ProcessKind,
     ProcessSnapshotSource, Readiness, ReadinessConclusion, TerminationCapability,
     EAC_PROBE_SCHEMA_VERSION,
 };
-pub use eac_verify::{
-    read_process_image_path_readonly, verify_candidate, CandidateVerificationV01,
-    SignatureState, VerificationCheck, Verdict, EAC_VERIFY_SCHEMA_VERSION,
+#[cfg(all(windows, any(test, feature = "test-hooks")))]
+pub use eac_terminate::terminate_open_and_wait_for_test;
+pub use eac_terminate::{
+    terminate_candidate, PostCheck, PreCheck, TerminationGuard, TerminationReceiptV01,
+    TerminationRequest, EAC_TERMINATE_SCHEMA_VERSION,
 };
 #[cfg(all(windows, any(test, feature = "test-hooks")))]
 pub use eac_verify::eac_verify_windows_signature_for_test;
+pub use eac_verify::{
+    read_process_image_path_readonly, verify_candidate, CandidateVerificationV01, SignatureState,
+    Verdict, VerificationCheck, EAC_VERIFY_SCHEMA_VERSION,
+};
+#[cfg(windows)]
+pub use editor_verify::WindowsVersionResourceSource;
 pub use editor_verify::{
     verify_editor_path, verify_editor_path_system, EditorPathIdentity, EditorPathRefusal,
     EditorPathVerdict,
 };
-#[cfg(windows)]
-pub use editor_verify::WindowsVersionResourceSource;
 pub use environment_managers::{
     collect_environment_managers_snapshot, AlcomCapability, EditorFinding,
     EnvironmentManagersSnapshotV01, ManagerRoots, ProjectAssociation, ProjectFinding,
@@ -69,8 +69,7 @@ pub use project_inspection::{
 pub use project_lock::{
     acquire_project_lock, begin_mutation, read_pending_mutation, LockEnvelopeV1, LockHolder,
     MutationMarkerGuard, MutationMarkerV1, PendingMutation, ProjectLockError, ProjectLockGuard,
-    MUTATION_MARKER_SCHEMA_VERSION, PROJECT_LOCK_SCHEMA_VERSION, LOCK_FILE_NAME,
-    MARKER_FILE_NAME,
+    LOCK_FILE_NAME, MARKER_FILE_NAME, MUTATION_MARKER_SCHEMA_VERSION, PROJECT_LOCK_SCHEMA_VERSION,
 };
 pub use vpm_backend::{backends_summary, create_from_template, VccCliBackend, VrcGetLibBackend};
 pub use vua_identity::{

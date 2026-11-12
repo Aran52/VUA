@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 use serde_json::{json, Value};
 use vua_bdl_store::{
-    ArtifactMode, BdlStore, BDL_FORMAT_VERSION, BDL_QUERIES_SCHEMA_VERSION, CatalogListParams,
+    ArtifactMode, BdlStore, CatalogListParams, BDL_FORMAT_VERSION, BDL_QUERIES_SCHEMA_VERSION,
 };
 use vua_provider_host::{run_provider_host_with_services, WarehouseConfig};
 
@@ -95,7 +95,11 @@ fn make_world(label: &str) -> World {
     ));
     fs::create_dir_all(base.join("bdl")).expect("temp layout");
     let bdl = Arc::new(BdlStore::open(base.join("bdl").join("bdl.db")).expect("BDL opens"));
-    World { database_path: base.join("tasks.db"), bdl, base }
+    World {
+        database_path: base.join("tasks.db"),
+        bdl,
+        base,
+    }
 }
 
 fn seed(world: &World, product_id: &str) {
@@ -202,7 +206,10 @@ fn empty_table_answers_the_honest_empty_state_over_the_wire() {
     assert!(validator.is_valid(value), "{value}");
     assert_eq!(value["operation"], "catalog.status");
     assert_eq!(value["result"]["health"], "unknown");
-    assert_eq!(value["result"]["revision"]["catalogUpdatedSeq"], Value::Null);
+    assert_eq!(
+        value["result"]["revision"]["catalogUpdatedSeq"],
+        Value::Null
+    );
     assert_eq!(
         value["result"]["revision"]["datasetRevision"],
         BDL_FORMAT_VERSION,
@@ -234,8 +241,16 @@ fn catalog_list_wire_equals_the_store_assembly_and_never_serves_tombstones() {
         .expect("store assembly");
     assert_eq!(value["result"], serde_json::to_value(&assembled).unwrap());
     assert_eq!(assembled.total, 2, "tombstones are never cards");
-    let ids: Vec<&str> = assembled.entries.iter().map(|e| e.product_id.as_str()).collect();
-    assert_eq!(ids, ["booth:1000001", "booth:1000002"], "productId ascending");
+    let ids: Vec<&str> = assembled
+        .entries
+        .iter()
+        .map(|e| e.product_id.as_str())
+        .collect();
+    assert_eq!(
+        ids,
+        ["booth:1000001", "booth:1000002"],
+        "productId ascending"
+    );
 
     // The text filter matches the productId substring and only that entry.
     let mut filtered = request["params"].clone();
@@ -257,7 +272,12 @@ fn catalog_detail_serves_cards_and_answers_not_found_for_misses() {
     // The positive vector, reworded to the seeded id: the assembled detail
     // equals the store assembly and validates against the frozen schema.
     let request = current_request_vector("examples/catalog-detail.request.json");
-    let frames = run_query(&world, "req-detail", "catalog.detail", request["params"].clone());
+    let frames = run_query(
+        &world,
+        "req-detail",
+        "catalog.detail",
+        request["params"].clone(),
+    );
     let value = &frames[0]["payload"]["value"];
     assert!(validator.is_valid(value), "{value}");
     assert_eq!(value["operation"], "catalog.detail");
@@ -276,7 +296,10 @@ fn catalog_detail_serves_cards_and_answers_not_found_for_misses() {
         "catalog.detail",
         json!({ "productId": "booth:9999999" }),
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.catalog.product_not_found");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.catalog.product_not_found"
+    );
 
     // A tombstone is observation-side data: the catalog face does not serve
     // it as a card either.
@@ -286,7 +309,10 @@ fn catalog_detail_serves_cards_and_answers_not_found_for_misses() {
         "catalog.detail",
         json!({ "productId": "booth:1000004" }),
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.catalog.product_not_found");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.catalog.product_not_found"
+    );
     assert!(!result_validator().is_valid(&frames[0]["payload"]["error"]));
 }
 
@@ -301,7 +327,10 @@ fn catalog_status_health_follows_the_pipeline_bookkeeping_counter() {
     let value = &frames[0]["payload"]["value"];
     assert!(result_validator().is_valid(value), "{value}");
     assert_eq!(value["result"]["health"], "unknown");
-    assert_eq!(value["result"]["revision"]["catalogUpdatedSeq"], Value::Null);
+    assert_eq!(
+        value["result"]["revision"]["catalogUpdatedSeq"],
+        Value::Null
+    );
 
     // The pipeline bookkeeping counter (an auxiliary row here — the
     // production write path belongs to the pipeline) turns the health ok,
@@ -333,10 +362,14 @@ fn closed_set_violations_are_contract_errors_not_empty_answers() {
         "examples/invalid-availability-filter.json",
     ] {
         let request = current_request_vector(name);
-        let frames = run_query(&world, "req-invalid", "catalog.list", request["params"].clone());
+        let frames = run_query(
+            &world,
+            "req-invalid",
+            "catalog.list",
+            request["params"].clone(),
+        );
         assert_eq!(
-            frames[0]["payload"]["error"]["code"],
-            "vua.catalog.invalid_params",
+            frames[0]["payload"]["error"]["code"], "vua.catalog.invalid_params",
             "{name}"
         );
     }
@@ -350,12 +383,23 @@ fn closed_set_violations_are_contract_errors_not_empty_answers() {
         json!({}),
     ] {
         let frames = run_query(&world, "req-detail-invalid", "catalog.detail", params);
-        assert_eq!(frames[0]["payload"]["error"]["code"], "vua.catalog.invalid_params");
+        assert_eq!(
+            frames[0]["payload"]["error"]["code"],
+            "vua.catalog.invalid_params"
+        );
     }
 
     // status: the closed set is {} — any key at all is a contract error.
-    let frames = run_query(&world, "req-status-invalid", "catalog.status", json!({ "x": 1 }));
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.catalog.invalid_params");
+    let frames = run_query(
+        &world,
+        "req-status-invalid",
+        "catalog.status",
+        json!({ "x": 1 }),
+    );
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.catalog.invalid_params"
+    );
 
     // Every error path stays an application error: it never validates as a
     // frozen result.
@@ -368,14 +412,23 @@ fn warehouse_read_face_vectors_drive_cards_and_detail_over_the_wire() {
     let validator = result_validator();
     let item = world
         .bdl
-        .create_warehouse_item("Fixture Material Pack", "imported_material", "2026-09-08T00:00:00.000Z")
+        .create_warehouse_item(
+            "Fixture Material Pack",
+            "imported_material",
+            "2026-09-08T00:00:00.000Z",
+        )
         .expect("seed entry");
 
     // listEntries: the frozen closed set {} drives the whole card list; the
     // wire result equals the store assembly (face adds nothing, hides
     // nothing) and resolves effective modes against the composed global.
     let request = current_request_vector("examples/warehouse-list-entries.request.json");
-    let frames = run_query(&world, "req-wh-list", "warehouse.listEntries", request["params"].clone());
+    let frames = run_query(
+        &world,
+        "req-wh-list",
+        "warehouse.listEntries",
+        request["params"].clone(),
+    );
     let value = &frames[0]["payload"]["value"];
     assert!(validator.is_valid(value), "{value}");
     assert_eq!(value["operation"], "warehouse.listEntries");
@@ -387,10 +440,12 @@ fn warehouse_read_face_vectors_drive_cards_and_detail_over_the_wire() {
         value["result"]["entries"],
         serde_json::to_value(&assembled).unwrap()
     );
-    assert_eq!(value["result"]["entries"][0]["warehouseItemId"], item.warehouse_item_id);
     assert_eq!(
-        value["result"]["entries"][0]["effectiveArtifactMode"],
-        "use_original_unitypackage",
+        value["result"]["entries"][0]["warehouseItemId"],
+        item.warehouse_item_id
+    );
+    assert_eq!(
+        value["result"]["entries"][0]["effectiveArtifactMode"], "use_original_unitypackage",
         "no persisted global and no override: the env initial rules"
     );
 
@@ -404,7 +459,10 @@ fn warehouse_read_face_vectors_drive_cards_and_detail_over_the_wire() {
     assert_eq!(value["operation"], "warehouse.entryDetail");
     let assembled = world
         .bdl
-        .warehouse_entry_detail(&item.warehouse_item_id, ArtifactMode::UseOriginalUnitypackage)
+        .warehouse_entry_detail(
+            &item.warehouse_item_id,
+            ArtifactMode::UseOriginalUnitypackage,
+        )
         .expect("store assembly")
         .expect("seeded entry exists");
     assert_eq!(
@@ -420,7 +478,10 @@ fn warehouse_read_face_vectors_drive_cards_and_detail_over_the_wire() {
         "warehouse.entryDetail",
         json!({ "warehouseItemId": "whi-does-not-exist" }),
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.warehouse.entry_not_found");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.warehouse.entry_not_found"
+    );
 }
 
 #[test]
@@ -434,7 +495,10 @@ fn warehouse_read_face_closed_set_violations_are_contract_errors() {
         "warehouse.listEntries",
         json!({ "kind": "imported_material" }),
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.warehouse.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.warehouse.invalid_params"
+    );
 
     // entryDetail's closed set is { warehouseItemId }: unknown keys, an
     // explicit null, and an empty string are contract errors.
@@ -444,8 +508,16 @@ fn warehouse_read_face_closed_set_violations_are_contract_errors() {
         json!({ "warehouseItemId": "" }),
         json!({}),
     ] {
-        let frames = run_query(&world, "req-wh-detail-invalid", "warehouse.entryDetail", params);
-        assert_eq!(frames[0]["payload"]["error"]["code"], "vua.warehouse.invalid_params");
+        let frames = run_query(
+            &world,
+            "req-wh-detail-invalid",
+            "warehouse.entryDetail",
+            params,
+        );
+        assert_eq!(
+            frames[0]["payload"]["error"]["code"],
+            "vua.warehouse.invalid_params"
+        );
     }
 }
 
@@ -455,7 +527,10 @@ fn unknown_catalog_methods_and_unwired_bdl_answer_typed_errors() {
 
     // An unknown catalog.* method is the shared unknown-method validation.
     let frames = run_query(&world, "req-unknown", "catalog.snapshot", json!({}));
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.provider.unknown_method");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.provider.unknown_method"
+    );
 
     // Without the warehouse wiring there is no BDL read face: an honest
     // typed unavailable, never a fabricated empty answer.
@@ -488,14 +563,19 @@ fn unknown_catalog_methods_and_unwired_bdl_answer_typed_errors() {
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.catalog.unavailable");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.catalog.unavailable"
+    );
 }
 
 // --- bdl-queries v0.4 -> v0.5 ride-along: the download-adoption source listing face ---
 
 #[test]
 fn downloads_list_completed_is_the_adoption_guards_mirror() {
-    use vua_bdl_store::download_events::{DownloadEventConsumer, DownloadEventKind, DownloadEventV01};
+    use vua_bdl_store::download_events::{
+        DownloadEventConsumer, DownloadEventKind, DownloadEventV01,
+    };
 
     let world = make_world("downloads-list");
     let validator = result_validator();
@@ -571,29 +651,51 @@ fn downloads_list_completed_is_the_adoption_guards_mirror() {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
         let store = vua_orchestrator::SqliteTaskStore::open(&world.database_path).expect("store");
-        let running = store.tasks().expect("tasks").into_iter().any(|task| !task.state.is_terminal());
+        let running = store
+            .tasks()
+            .expect("tasks")
+            .into_iter()
+            .any(|task| !task.state.is_terminal());
         if !running {
             break;
         }
-        assert!(std::time::Instant::now() < deadline, "the adoption did not finish");
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the adoption did not finish"
+        );
         drop(store);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
 
     // The read face: both deliveries list (staging present, size exact);
     // the adopted one carries its warehouse entry link, the other empty.
-    let frames = run_query(&world, "req-downloads", "downloads.listCompleted", json!({}));
+    let frames = run_query(
+        &world,
+        "req-downloads",
+        "downloads.listCompleted",
+        json!({}),
+    );
     let value = &frames[0]["payload"]["value"];
-    assert!(validator.is_valid(value), "the listing must match the frozen v0.5 schema: {value}");
+    assert!(
+        validator.is_valid(value),
+        "the listing must match the frozen v0.5 schema: {value}"
+    );
     assert_eq!(value["schemaVersion"], "0.6");
     assert_eq!(value["operation"], "downloads.listCompleted");
-    let rows = value["result"]["downloads"].as_array().expect("downloads rows");
+    let rows = value["result"]["downloads"]
+        .as_array()
+        .expect("downloads rows");
     assert_eq!(rows.len(), 2, "both adoptable deliveries list: {value}");
-    let by_id: std::collections::HashMap<&str, &Value> =
-        rows.iter().map(|row| (row["downloadId"].as_str().expect("id"), row)).collect();
+    let by_id: std::collections::HashMap<&str, &Value> = rows
+        .iter()
+        .map(|row| (row["downloadId"].as_str().expect("id"), row))
+        .collect();
     let adopted = by_id.get(ids[1].as_str()).expect("adopted row");
     assert_eq!(
-        adopted["adoptedWarehouseItemIds"].as_array().expect("links").len(),
+        adopted["adoptedWarehouseItemIds"]
+            .as_array()
+            .expect("links")
+            .len(),
         1,
         "the adopted download carries its entry link: {adopted}"
     );
@@ -613,10 +715,26 @@ fn downloads_list_completed_rejects_params_and_answers_absence_honestly() {
 
     // The word-list entry is param-free: any params content is a contract
     // error (the frozen negative vector pins the same).
-    let frames = run_query(&world, "req-downloads-params", "downloads.listCompleted", json!({"unexpected": true}));
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.downloads.invalid_params");
+    let frames = run_query(
+        &world,
+        "req-downloads-params",
+        "downloads.listCompleted",
+        json!({"unexpected": true}),
+    );
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.downloads.invalid_params"
+    );
 
     // An unknown downloads.* method is a contract error.
-    let frames = run_query(&world, "req-downloads-unknown", "downloads.adopt", json!({}));
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.provider.unknown_method");
+    let frames = run_query(
+        &world,
+        "req-downloads-unknown",
+        "downloads.adopt",
+        json!({}),
+    );
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.provider.unknown_method"
+    );
 }

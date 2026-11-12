@@ -10,10 +10,9 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tar::{Builder, Header};
 
 use vua_orchestrator::{
-    BridgeError, BuildRecordStore, BuildRecordStatus, FileSystemSnapshotStore, FixedClock,
+    BridgeError, BuildRecordStatus, BuildRecordStore, FileSystemSnapshotStore, FixedClock,
     MaterialEntryMode, ProjectRef, ResultStatus, RiskDecisionChoice, TaskEventKind, TaskRuntime,
-    TaskState, UnityBridge, UnityCommand, UnityOperation, UnityResult, VpmBackend,
-    VpmCapabilities,
+    TaskState, UnityBridge, UnityCommand, UnityOperation, UnityResult, VpmBackend, VpmCapabilities,
 };
 use vua_unity_bridge::{
     LocalPackageIdentityStore, MaterialCancelToken, MaterialExecutor,
@@ -22,7 +21,10 @@ use vua_unity_bridge::{
 };
 
 fn temp_dir(label: &str) -> PathBuf {
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     std::env::temp_dir().join(format!("vua-mtask-{label}-{nanos}"))
 }
 
@@ -56,12 +58,17 @@ fn make_world(label: &str) -> (PathBuf, ProjectRef, PathBuf) {
     // Already-provisioned target: the standing fixtures plan the UNCHANGED
     // v0.1 step set (zero-change law for provisioned projects).
     fs::write(
-        project_root.join("ProjectSettings").join("ProjectVersion.txt"),
+        project_root
+            .join("ProjectSettings")
+            .join("ProjectVersion.txt"),
         "2022.3.22f1",
     )
     .unwrap();
     fs::write(project_root.join("vpm-manifest.json"), "{}").unwrap();
-    let project = ProjectRef { id: "project".into(), root: project_root };
+    let project = ProjectRef {
+        id: "project".into(),
+        root: project_root,
+    };
     (base, project, source)
 }
 
@@ -85,7 +92,14 @@ impl VpmBackend for NoVpm {
         "none"
     }
     fn capabilities(&self) -> VpmCapabilities {
-        VpmCapabilities { create_project: false, preview_install: false, list_packages: false, remove_packages: false, project_registry: false, resolve_project: false }
+        VpmCapabilities {
+            create_project: false,
+            preview_install: false,
+            list_packages: false,
+            remove_packages: false,
+            project_registry: false,
+            resolve_project: false,
+        }
     }
     fn preview_install(
         &self,
@@ -120,7 +134,9 @@ struct FakeBridge {
 
 impl FakeBridge {
     fn new() -> Self {
-        Self { commands: Mutex::new(Vec::new()) }
+        Self {
+            commands: Mutex::new(Vec::new()),
+        }
     }
 
     fn command_count(&self) -> usize {
@@ -142,8 +158,7 @@ impl UnityBridge for FakeBridge {
         if command.operation == UnityOperation::ValidateAssetPaths {
             let mut loaded = command.payload.expected_asset_paths.clone();
             loaded.sort();
-            data["loadedAssetPaths"] =
-                loaded.into_iter().map(serde_json::Value::String).collect();
+            data["loadedAssetPaths"] = loaded.into_iter().map(serde_json::Value::String).collect();
         }
         Ok(UnityResult {
             schema_version: 1,
@@ -199,7 +214,9 @@ fn wait_for_terminal(rt: &TaskRuntime, task_id: &str) -> vua_orchestrator::TaskS
 #[test]
 fn b3_task_001_happy_path_runs_and_replays() {
     let (base, project, source) = make_world("task-happy");
-    let inspection = MaterialIntakeEngine.inspect_folder(&source, "corr").unwrap();
+    let inspection = MaterialIntakeEngine
+        .inspect_folder(&source, "corr")
+        .unwrap();
     let plan = MaterialIntakeEngine
         .plan(
             MaterialEntryMode::DirectUnityPackage,
@@ -262,7 +279,10 @@ fn make_unprovisioned_world(label: &str) -> (PathBuf, ProjectRef, PathBuf) {
     unitypackage(&source.join("pack.unitypackage"), &["Assets/Asset.prefab"]);
     let project_root = base.join("empty-target");
     fs::create_dir_all(&project_root).unwrap();
-    let project = ProjectRef { id: "project".into(), root: project_root };
+    let project = ProjectRef {
+        id: "project".into(),
+        root: project_root,
+    };
     (base, project, source)
 }
 
@@ -273,7 +293,14 @@ impl VpmBackend for FailingCreateVpm {
         "failing-create"
     }
     fn capabilities(&self) -> VpmCapabilities {
-        VpmCapabilities { create_project: true, preview_install: false, list_packages: false, remove_packages: false, project_registry: false, resolve_project: true }
+        VpmCapabilities {
+            create_project: true,
+            preview_install: false,
+            list_packages: false,
+            remove_packages: false,
+            project_registry: false,
+            resolve_project: true,
+        }
     }
     fn preview_install(
         &self,
@@ -324,7 +351,9 @@ fn completed_payload(
 #[test]
 fn b3_task_003_provision_failure_presents_the_reserved_provision_face() {
     let (base, project, source) = make_unprovisioned_world("task-provision-face");
-    let inspection = MaterialIntakeEngine.inspect_folder(&source, "corr").unwrap();
+    let inspection = MaterialIntakeEngine
+        .inspect_folder(&source, "corr")
+        .unwrap();
     let plan = MaterialIntakeEngine
         .plan(
             MaterialEntryMode::DirectUnityPackage,
@@ -336,7 +365,9 @@ fn b3_task_003_provision_failure_presents_the_reserved_provision_face() {
         )
         .unwrap();
     assert!(
-        plan.steps.iter().any(|step| step.kind == MaterialIntakeStepKind::ProvisionProject),
+        plan.steps
+            .iter()
+            .any(|step| step.kind == MaterialIntakeStepKind::ProvisionProject),
         "the fixture must plan the provision step"
     );
 
@@ -414,7 +445,9 @@ impl UnityBridge for RejectingBridge {
 #[test]
 fn b3_task_004_bridge_failure_keeps_the_standing_execution_face() {
     let (base, project, source) = make_world("task-bridge-face");
-    let inspection = MaterialIntakeEngine.inspect_folder(&source, "corr").unwrap();
+    let inspection = MaterialIntakeEngine
+        .inspect_folder(&source, "corr")
+        .unwrap();
     let plan = MaterialIntakeEngine
         .plan(
             MaterialEntryMode::DirectUnityPackage,
@@ -468,7 +501,9 @@ fn b3_task_004_bridge_failure_keeps_the_standing_execution_face() {
 #[test]
 fn b3_task_002_cancelled_run_exits_cancelled_without_a_receipt() {
     let (base, project, source) = make_world("task-cancel");
-    let inspection = MaterialIntakeEngine.inspect_folder(&source, "corr").unwrap();
+    let inspection = MaterialIntakeEngine
+        .inspect_folder(&source, "corr")
+        .unwrap();
     let plan = MaterialIntakeEngine
         .plan(
             MaterialEntryMode::DirectUnityPackage,
@@ -504,7 +539,11 @@ fn b3_task_002_cancelled_run_exits_cancelled_without_a_receipt() {
 
     let snapshot = wait_for_terminal(&rt, &accepted.task_id);
     assert_eq!(snapshot.state, TaskState::Cancelled);
-    assert_eq!(bridge.command_count(), 0, "cancellation precedes every step");
+    assert_eq!(
+        bridge.command_count(),
+        0,
+        "cancellation precedes every step"
+    );
     assert!(
         BuildRecordStore::new(base.join("records"))
             .read(&format!("material-{}", plan.plan_id))

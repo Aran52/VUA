@@ -15,11 +15,15 @@ pub fn record_description_dependencies(
     observed_at: &str,
 ) -> Result<(), BdlStoreError> {
     let document = Html::parse_document(html);
-    let body_selector = Selector::parse("#items article .js-market-item-detail-description.description").expect("static description selector");
+    let body_selector =
+        Selector::parse("#items article .js-market-item-detail-description.description")
+            .expect("static description selector");
     let links = Selector::parse("a[href]").expect("static link selector");
     let bodies: Vec<_> = document.select(&body_selector).collect();
     // A missing description container is unknown, not an observed empty body.
-    if bodies.is_empty() { return Ok(()); }
+    if bodies.is_empty() {
+        return Ok(());
+    }
     let mut seen = HashSet::new();
     let mut named_links = HashSet::new();
     let mut targets = Vec::new();
@@ -31,12 +35,16 @@ pub fn record_description_dependencies(
         if target_product_id == source_product_id {
             continue;
         }
-        if seen.insert(target_product_id.clone()) { targets.push(target_product_id.clone()); }
+        if seen.insert(target_product_id.clone()) {
+            targets.push(target_product_id.clone());
+        }
         let text = link.text().collect::<Vec<_>>().join(" ");
         let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
         // Image-only links still participate in reverse link filtering.
         // Retain the older named-dependency vocabulary unchanged.
-        if text.is_empty() || !named_links.insert(target_product_id.clone()) { continue; }
+        if text.is_empty() || !named_links.insert(target_product_id.clone()) {
+            continue;
+        }
         let lowered = text.to_lowercase();
         let dep_kind = if lowered.contains("shader")
             || lowered.contains("シェーダー")
@@ -85,20 +93,34 @@ pub fn record_description_dependencies(
 /// Public JSON carries plain description text, not named HTML anchors. Keep
 /// URL relationships and terms links without inventing dependency names/types.
 pub fn record_description_text_dependencies(
-    store: &BdlStore, text: &str, source_product_id: &str, page_hash: &str, observed_at: &str,
+    store: &BdlStore,
+    text: &str,
+    source_product_id: &str,
+    page_hash: &str,
+    observed_at: &str,
 ) -> Result<(), BdlStoreError> {
     let links = crate::terms_links::description_text_links(text);
-    let mut targets: Vec<_> = links.iter().filter_map(|link| booth_product_id(&link.source_url))
-        .filter(|target| target != source_product_id).collect();
-    targets.sort(); targets.dedup();
+    let mut targets: Vec<_> = links
+        .iter()
+        .filter_map(|link| booth_product_id(&link.source_url))
+        .filter(|target| target != source_product_id)
+        .collect();
+    targets.sort();
+    targets.dedup();
     store.record_description_links(source_product_id, &targets, page_hash, observed_at)?;
     store.record_terms_links(source_product_id, &links, observed_at)
 }
 
 pub(crate) fn booth_product_id(href: &str) -> Option<String> {
     let href = href.trim();
-    let (host, path) = if href.starts_with('/') && !href.starts_with("//") { ("booth.pm", href.strip_prefix('/')?) }
-        else { href.strip_prefix("https://").or_else(|| href.strip_prefix("http://")).or_else(|| href.strip_prefix("//"))?.split_once('/')? };
+    let (host, path) = if href.starts_with('/') && !href.starts_with("//") {
+        ("booth.pm", href.strip_prefix('/')?)
+    } else {
+        href.strip_prefix("https://")
+            .or_else(|| href.strip_prefix("http://"))
+            .or_else(|| href.strip_prefix("//"))?
+            .split_once('/')?
+    };
     let host = host.to_ascii_lowercase();
     if host.contains(['@', ':']) || !(host == "booth.pm" || host.ends_with(".booth.pm")) {
         return None;
@@ -106,7 +128,9 @@ pub(crate) fn booth_product_id(href: &str) -> Option<String> {
     let path = path.split(['?', '#']).next()?;
     let mut segments = path.split('/');
     let first = segments.next()?;
-    if first != "items" && (!["ja", "en", "ko", "zh-cn", "zh-tw"].contains(&first) || segments.next()? != "items") {
+    if first != "items"
+        && (!["ja", "en", "ko", "zh-cn", "zh-tw"].contains(&first) || segments.next()? != "items")
+    {
         return None;
     }
     let native_id = segments.next()?;
@@ -123,16 +147,34 @@ pub(crate) fn booth_product_id(href: &str) -> Option<String> {
 /// Older builds recorded description links as immutable dependency evidence.
 /// Use only the latest captured link-page for sources without a new snapshot;
 /// names, manually confirmed dependencies and title links never qualify.
-pub(crate) fn products_linking_to(store: &BdlStore, target: &str) -> Result<HashSet<String>, BdlStoreError> {
+pub(crate) fn products_linking_to(
+    store: &BdlStore,
+    target: &str,
+) -> Result<HashSet<String>, BdlStoreError> {
     let mut snapshots = store.library_description_links()?;
     let mut legacy = std::collections::HashMap::new();
     for row in store.dependency_observations_all()? {
-        if row.source_span == "description_link" && row.extraction_method == "link" && row.extracted_by == "catalog-sync/0.2-description-links-v2" {
-            let entry = legacy.entry(row.product_id.clone()).or_insert_with(|| (row.content_hash.clone(), Vec::new()));
-            if entry.0 != row.content_hash { *entry = (row.content_hash, Vec::new()); }
-            if let Some(id) = booth_product_id(&row.raw_quote) { entry.1.push(id); }
+        if row.source_span == "description_link"
+            && row.extraction_method == "link"
+            && row.extracted_by == "catalog-sync/0.2-description-links-v2"
+        {
+            let entry = legacy
+                .entry(row.product_id.clone())
+                .or_insert_with(|| (row.content_hash.clone(), Vec::new()));
+            if entry.0 != row.content_hash {
+                *entry = (row.content_hash, Vec::new());
+            }
+            if let Some(id) = booth_product_id(&row.raw_quote) {
+                entry.1.push(id);
+            }
         }
     }
-    for (source, (_, ids)) in legacy { snapshots.entry(source).or_insert(ids); }
-    Ok(snapshots.into_iter().filter(|(source, ids)| source != target && ids.iter().any(|id| id == target)).map(|(source, _)| source).collect())
+    for (source, (_, ids)) in legacy {
+        snapshots.entry(source).or_insert(ids);
+    }
+    Ok(snapshots
+        .into_iter()
+        .filter(|(source, ids)| source != target && ids.iter().any(|id| id == target))
+        .map(|(source, _)| source)
+        .collect())
 }

@@ -41,7 +41,7 @@ use vua_orchestrator::{
 use vua_project_manager::ManagerRoots;
 use vua_provider_host::{
     provider_host::{RECIPE_EXPORT_ENVELOPE_SCHEMA_VERSION_V01, RECIPE_EXPORT_SCHEMA_VERSION_V01},
-    ProductionUseCaseConfig, ProjectOpsConfig, run_provider_host_full,
+    run_provider_host_full, ProductionUseCaseConfig, ProjectOpsConfig,
 };
 
 fn read_export_schema(name: &str) -> Value {
@@ -108,7 +108,9 @@ fn seed_registered_project(root: &Path) -> (PathBuf, PathBuf) {
 fn project_ops_config(vcc_settings: &Path) -> ProjectOpsConfig {
     ProjectOpsConfig {
         vcc_settings_candidates: vec![vcc_settings.to_path_buf()],
-        manager_roots: ManagerRoots { alcom_settings_candidates: Vec::new() },
+        manager_roots: ManagerRoots {
+            alcom_settings_candidates: Vec::new(),
+        },
         editor_roots: Vec::new(),
     }
 }
@@ -234,7 +236,9 @@ impl FakeExporter {
 
 impl ProjectDraftExportPort for FakeExporter {
     fn export_capabilities(&self) -> ProjectDraftExportCapabilities {
-        ProjectDraftExportCapabilities { export_project_draft: self.export_cap }
+        ProjectDraftExportCapabilities {
+            export_project_draft: self.export_cap,
+        }
     }
     fn export_project_draft(
         &self,
@@ -253,12 +257,17 @@ impl ProjectDraftExportPort for FakeExporter {
     }
 }
 
-fn use_case_config(root: &Path, exporter: Option<Arc<dyn ProjectDraftExportPort>>) -> ProductionUseCaseConfig {
+fn use_case_config(
+    root: &Path,
+    exporter: Option<Arc<dyn ProjectDraftExportPort>>,
+) -> ProductionUseCaseConfig {
     let production_root = root.join("production");
     ProductionUseCaseConfig {
-        recipes: Arc::new(vua_orchestrator::RecipeDocumentStore::new_with_system_clock(
-            production_root.join("recipes"),
-        )),
+        recipes: Arc::new(
+            vua_orchestrator::RecipeDocumentStore::new_with_system_clock(
+                production_root.join("recipes"),
+            ),
+        ),
         plans: Arc::new(vua_orchestrator::PlanDocumentStore::new(
             production_root.join("plans"),
         )),
@@ -329,10 +338,7 @@ fn run_query_frame(
 
 /// Sends `application.getSnapshot` and extracts the
 /// `recipe.exportProjectDraft` capability row.
-fn export_capability_row(
-    database: &Path,
-    use_cases: Option<ProductionUseCaseConfig>,
-) -> Value {
+fn export_capability_row(database: &Path, use_cases: Option<ProductionUseCaseConfig>) -> Value {
     let payload = run_query_frame(
         database,
         use_cases,
@@ -385,17 +391,23 @@ fn wired_declared_port_projects_the_frozen_word_face_over_the_real_frame_loop() 
         &database,
         Some(use_case_config(
             &root,
-            Some(Arc::new(FakeExporter::declaring().with_project_path(
-                project.to_string_lossy().as_ref(),
-            ))),
+            Some(Arc::new(
+                FakeExporter::declaring().with_project_path(project.to_string_lossy().as_ref()),
+            )),
         )),
         Some(project_ops_config(&vcc_settings)),
         "recipe.exportProjectDraft",
         json!({"projectPath": project.to_string_lossy()}),
     );
-    assert_eq!(payload["ok"], true, "wired + declared must succeed: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "wired + declared must succeed: {payload}"
+    );
     let value = &payload["value"];
-    assert_eq!(value["schemaVersion"], RECIPE_EXPORT_ENVELOPE_SCHEMA_VERSION_V01);
+    assert_eq!(
+        value["schemaVersion"],
+        RECIPE_EXPORT_ENVELOPE_SCHEMA_VERSION_V01
+    );
     assert_eq!(value["operation"], "recipe.exportProjectDraft");
     assert!(
         validator.is_valid(value),
@@ -407,15 +419,31 @@ fn wired_declared_port_projects_the_frozen_word_face_over_the_real_frame_loop() 
     // The frozen seven-key draft closed set — nothing invented, nothing
     // dropped (the route stamps ONLY the family const; the six fact keys
     // are the port's verbatim facts). Key ORDER is not a fact: the set is.
-    let keys: Vec<&str> = result.as_object().unwrap().keys().map(String::as_str).collect();
+    let keys: Vec<&str> = result
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
     let mut sorted_keys = keys.clone();
     sorted_keys.sort_unstable();
     assert_eq!(
         sorted_keys,
-        ["dependencies", "draftId", "environment", "exportedAt", "missing", "origin", "schemaVersion"],
+        [
+            "dependencies",
+            "draftId",
+            "environment",
+            "exportedAt",
+            "missing",
+            "origin",
+            "schemaVersion"
+        ],
         "no invented fields at the v0.1 draft face"
     );
-    assert_ne!(result["draftId"], "", "the draft instance identity is minted");
+    assert_ne!(
+        result["draftId"], "",
+        "the draft instance identity is minted"
+    );
     assert!(
         !result.as_object().unwrap().contains_key("recipeId")
             && !result.as_object().unwrap().contains_key("title"),
@@ -428,7 +456,14 @@ fn wired_declared_port_projects_the_frozen_word_face_over_the_real_frame_loop() 
         .iter()
         .map(|row| row["packageId"].as_str().unwrap())
         .collect();
-    assert_eq!(ids, ["com.vrchat.avatars", "com.vrchat.base", "dev.example.coolshader"]);
+    assert_eq!(
+        ids,
+        [
+            "com.vrchat.avatars",
+            "com.vrchat.base",
+            "dev.example.coolshader"
+        ]
+    );
     // The locked pin rides only where one exists — absence, not null.
     let rows = result["dependencies"].as_array().unwrap();
     assert_eq!(rows[0]["lockedVersion"], "3.7.12");
@@ -445,7 +480,17 @@ fn wired_declared_port_projects_the_frozen_word_face_over_the_real_frame_loop() 
         .collect();
     assert_eq!(
         missing,
-        ["assets", "instances", "relations", "wardrobeGroups", "targetAvatar", "assetRoles", "assetLabels", "sourceRefs", "titleSemantics"],
+        [
+            "assets",
+            "instances",
+            "relations",
+            "wardrobeGroups",
+            "targetAvatar",
+            "assetRoles",
+            "assetLabels",
+            "sourceRefs",
+            "titleSemantics"
+        ],
     );
 
     let row = export_capability_row(
@@ -487,10 +532,7 @@ fn trait_default_declared_none_port_answers_absence_before_the_port_and_row_stay
         "a gated face never carries a fabricated draft"
     );
 
-    let row = export_capability_row(
-        &database,
-        Some(use_case_config(&root, Some(exporter))),
-    );
+    let row = export_capability_row(&database, Some(use_case_config(&root, Some(exporter))));
     assert_eq!(row["availability"], "unavailable");
     fs::remove_dir_all(&root).ok();
 }
@@ -517,9 +559,15 @@ fn unregistered_path_answers_the_reused_not_found_before_the_port() {
         "recipe.exportProjectDraft",
         json!({"projectPath": "C:/elsewhere/not-a-registered-project"}),
     );
-    assert_eq!(payload["ok"], false, "the reuse ruling is a typed validation failure");
+    assert_eq!(
+        payload["ok"], false,
+        "the reuse ruling is a typed validation failure"
+    );
     assert_eq!(payload["error"]["code"], "vua.project.project_not_found");
-    assert_eq!(payload["error"]["messageKey"], "errors.project.projectNotFound");
+    assert_eq!(
+        payload["error"]["messageKey"],
+        "errors.project.projectNotFound"
+    );
     assert_eq!(payload["error"]["category"], "validation");
     assert!(
         payload.get("result").is_none(),
@@ -574,9 +622,15 @@ fn port_refusals_travel_verbatim() {
         "recipe.exportProjectDraft",
         json!({"projectPath": project.to_string_lossy()}),
     );
-    assert_eq!(payload["ok"], false, "the refusal travels as a typed failure");
+    assert_eq!(
+        payload["ok"], false,
+        "the refusal travels as a typed failure"
+    );
     assert_eq!(payload["error"]["code"], "vua.project.project_not_found");
-    assert_eq!(payload["error"]["messageKey"], "errors.project.projectNotFound");
+    assert_eq!(
+        payload["error"]["messageKey"],
+        "errors.project.projectNotFound"
+    );
     assert_eq!(payload["error"]["category"], "validation");
     assert!(
         payload.get("result").is_none(),
@@ -610,7 +664,10 @@ fn honest_empty_dependencies_and_unreadable_unity_ride_as_success_facts() {
         "recipe.exportProjectDraft",
         json!({"projectPath": project.to_string_lossy()}),
     );
-    assert_eq!(payload["ok"], true, "an honest empty state is a real answer: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "an honest empty state is a real answer: {payload}"
+    );
     assert!(
         validator.is_valid(&payload["value"]),
         "{:?}",
@@ -703,15 +760,18 @@ fn envelope_consts_are_detectable_and_match_the_frozen_schema_consts() {
         &database,
         Some(use_case_config(
             &root,
-            Some(Arc::new(FakeExporter::declaring().with_project_path(
-                project.to_string_lossy().as_ref(),
-            ))),
+            Some(Arc::new(
+                FakeExporter::declaring().with_project_path(project.to_string_lossy().as_ref()),
+            )),
         )),
         Some(project_ops_config(&vcc_settings)),
         "recipe.exportProjectDraft",
         json!({"projectPath": project.to_string_lossy()}),
     );
-    assert_eq!(payload["value"]["schemaVersion"], RECIPE_EXPORT_ENVELOPE_SCHEMA_VERSION_V01);
+    assert_eq!(
+        payload["value"]["schemaVersion"],
+        RECIPE_EXPORT_ENVELOPE_SCHEMA_VERSION_V01
+    );
     assert_eq!(
         payload["value"]["result"]["schemaVersion"],
         RECIPE_EXPORT_SCHEMA_VERSION_V01
@@ -817,7 +877,10 @@ fn real_executor_serves_the_frozen_word_face_through_the_real_route() {
         "recipe.exportProjectDraft",
         json!({"projectPath": project.to_string_lossy()}),
     );
-    assert_eq!(payload["ok"], true, "the real executor answers success: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "the real executor answers success: {payload}"
+    );
     assert!(
         validator.is_valid(&payload["value"]),
         "{:?}",
@@ -825,17 +888,36 @@ fn real_executor_serves_the_frozen_word_face_through_the_real_route() {
     );
     let result = &payload["value"]["result"];
     assert_eq!(result["schemaVersion"], RECIPE_EXPORT_SCHEMA_VERSION_V01);
-    assert_eq!(result["origin"]["projectPath"], json!(project.to_string_lossy()));
+    assert_eq!(
+        result["origin"]["projectPath"],
+        json!(project.to_string_lossy())
+    );
     assert_eq!(result["origin"]["projectName"], "rich-export-source");
     assert_eq!(result["origin"]["vuaIdentityStatus"], "present");
-    assert_eq!(result["environment"]["unityVersionConstraint"], "2022.3.22f1");
+    assert_eq!(
+        result["environment"]["unityVersionConstraint"],
+        "2022.3.22f1"
+    );
     // packageId ascending; pins only where one exists (absence, not null);
     // the locked-only transitive entry produces no row.
     let rows = result["dependencies"].as_array().expect("dependency rows");
-    let ids: Vec<&str> = rows.iter().map(|row| row["packageId"].as_str().unwrap()).collect();
-    assert_eq!(ids, ["com.vrchat.avatars", "com.vrchat.base", "dev.example.coolshader"]);
+    let ids: Vec<&str> = rows
+        .iter()
+        .map(|row| row["packageId"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        ids,
+        [
+            "com.vrchat.avatars",
+            "com.vrchat.base",
+            "dev.example.coolshader"
+        ]
+    );
     assert_eq!(rows[0]["lockedVersion"], "3.7.12");
-    assert!(rows[1].get("lockedVersion").is_none(), "unpinned declaration: no key");
+    assert!(
+        rows[1].get("lockedVersion").is_none(),
+        "unpinned declaration: no key"
+    );
     assert_eq!(rows[2]["lockedVersion"], "1.2.7");
     // Nine constant missing dimensions; the version was readable so the
     // conditional tenth stays out.
@@ -847,7 +929,17 @@ fn real_executor_serves_the_frozen_word_face_through_the_real_route() {
         .collect();
     assert_eq!(
         missing,
-        ["assets", "instances", "relations", "wardrobeGroups", "targetAvatar", "assetRoles", "assetLabels", "sourceRefs", "titleSemantics"],
+        [
+            "assets",
+            "instances",
+            "relations",
+            "wardrobeGroups",
+            "targetAvatar",
+            "assetRoles",
+            "assetLabels",
+            "sourceRefs",
+            "titleSemantics"
+        ],
     );
     assert_ne!(result["draftId"], "");
     assert!(!result.as_object().unwrap().contains_key("recipeId"));
@@ -886,15 +978,25 @@ fn real_executor_rides_a_corrupted_manifest_as_a_success_fact_over_the_wire() {
         "recipe.exportProjectDraft",
         json!({"projectPath": project.to_string_lossy()}),
     );
-    assert_eq!(payload["ok"], true, "observation failure is not an error: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "observation failure is not an error: {payload}"
+    );
     assert!(
         validator.is_valid(&payload["value"]),
         "{:?}",
         schema_violations(&validator, &payload["value"])
     );
     let result = &payload["value"]["result"];
-    assert_eq!(result["dependencies"], json!([]), "no rows derivable, none invented");
-    assert_eq!(result["environment"]["unityVersionConstraint"], "2022.3.22f1");
+    assert_eq!(
+        result["dependencies"],
+        json!([]),
+        "no rows derivable, none invented"
+    );
+    assert_eq!(
+        result["environment"]["unityVersionConstraint"],
+        "2022.3.22f1"
+    );
     assert_eq!(result["missing"].as_array().unwrap().len(), 9);
     fs::remove_dir_all(&root).ok();
 }

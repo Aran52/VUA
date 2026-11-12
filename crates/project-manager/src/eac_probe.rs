@@ -30,8 +30,7 @@ pub const EAC_PROBE_SCHEMA_VERSION: &str = "vua.eac-probe/v0.1";
 /// Read-face diagnostics (vua.eac_probe.*).
 pub mod codes {
     pub const GUIDANCE_CLOSE_GAME_FIRST: &str = "vua.eac_probe.guidance_close_game_first";
-    pub const GUIDANCE_ALLOWLIST_UNAVAILABLE: &str =
-        "vua.eac_probe.guidance_allowlist_unavailable";
+    pub const GUIDANCE_ALLOWLIST_UNAVAILABLE: &str = "vua.eac_probe.guidance_allowlist_unavailable";
     pub const GUIDANCE_NO_EAC_FOUND: &str = "vua.eac_probe.guidance_no_eac_found";
     pub const ENUMERATION_FAILED: &str = "vua.eac_probe.enumeration_failed";
 }
@@ -136,10 +135,7 @@ pub trait ProcessSnapshotSource {
 
 /// Assembles the read-only EAC conflict snapshot from a process snapshot.
 /// Deterministic for a given snapshot: findings are sorted by (kind, pid).
-pub fn probe_eac(
-    source: &dyn ProcessSnapshotSource,
-    clock: &dyn Clock,
-) -> EacProbeSnapshotV01 {
+pub fn probe_eac(source: &dyn ProcessSnapshotSource, clock: &dyn Clock) -> EacProbeSnapshotV01 {
     let mut diagnostics = Vec::new();
     let entries = match source.snapshot() {
         Ok(entries) => entries,
@@ -170,9 +166,12 @@ pub fn probe_eac(
     let vrchat_session_active = processes
         .iter()
         .any(|finding| finding.kind == ProcessKind::VrchatGame);
-    let eac_present = processes
-        .iter()
-        .any(|finding| matches!(finding.kind, ProcessKind::EacLoader | ProcessKind::EacService));
+    let eac_present = processes.iter().any(|finding| {
+        matches!(
+            finding.kind,
+            ProcessKind::EacLoader | ProcessKind::EacService
+        )
+    });
 
     let readiness = if !eac_present {
         Readiness {
@@ -254,7 +253,7 @@ pub mod os_source {
         use std::mem::zeroed;
         use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
         use windows_sys::Win32::System::Diagnostics::ToolHelp::{
-            CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
+            CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
             TH32CS_SNAPPROCESS,
         };
 

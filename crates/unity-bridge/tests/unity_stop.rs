@@ -26,7 +26,10 @@ fn main() {
 
 fn argument(name: &str) -> PathBuf {
     let args = std::env::args().collect::<Vec<_>>();
-    let index = args.iter().position(|arg| arg == name).expect("Bridge argument");
+    let index = args
+        .iter()
+        .position(|arg| arg == name)
+        .expect("Bridge argument");
     PathBuf::from(&args[index + 1])
 }
 
@@ -39,7 +42,11 @@ fn fake_editor() {
         .spawn()
         .unwrap();
     std::fs::write(log.with_extension("helper"), helper.id().to_string()).unwrap();
-    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&log).unwrap();
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log)
+        .unwrap();
     for line in [
         "[Licensing::Client] Successfully resolved entitlement details",
         "[Package Manager] Done resolving packages in 3.53 seconds",
@@ -58,7 +65,9 @@ fn fake_editor() {
 #[cfg(windows)]
 fn running(pid: u32) -> bool {
     use windows_sys::Win32::Foundation::CloseHandle;
-    use windows_sys::Win32::System::Threading::{GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
+    use windows_sys::Win32::System::Threading::{
+        GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
     // SAFETY: the handle is checked and closed; the exit code points at writable storage.
     unsafe {
         let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
@@ -79,7 +88,10 @@ fn stopping_ends_the_unity_process_tree_and_keeps_the_project() {
     std::fs::write(root.join("Assets/imported.prefab"), "kept").unwrap();
     // The fake Unity inherits its role; the Bridge strips only credentials from the environment.
     std::env::set_var(ROLE, "editor");
-    let project = ProjectRef { id: "n3-stop".into(), root: root.clone() };
+    let project = ProjectRef {
+        id: "n3-stop".into(),
+        root: root.clone(),
+    };
     let command = UnityCommand {
         schema_version: 5,
         command_id: "n3-stop-cmd".into(),
@@ -98,13 +110,20 @@ fn stopping_ends_the_unity_process_tree_and_keeps_the_project() {
         if seen.last() != Some(&progress.stage) {
             seen.push(progress.stage);
         }
-        assert!(started.elapsed() < Duration::from_secs(60), "the fake Unity never reached its imports");
+        assert!(
+            started.elapsed() < Duration::from_secs(60),
+            "the fake Unity never reached its imports"
+        );
         // The player stops once Unity has imported both assets.
         let stop = progress.stage == UnityStage::Importing && progress.current == Some(2);
         #[cfg(windows)]
         if stop {
-            let helper = std::fs::read_to_string(root.join(".vua/logs/n3-stop-cmd.helper")).unwrap();
-            assert!(running(helper.parse().unwrap()), "the helper runs until the stop");
+            let helper =
+                std::fs::read_to_string(root.join(".vua/logs/n3-stop-cmd.helper")).unwrap();
+            assert!(
+                running(helper.parse().unwrap()),
+                "the helper runs until the stop"
+            );
         }
         stop
     };
@@ -114,16 +133,31 @@ fn stopping_ends_the_unity_process_tree_and_keeps_the_project() {
 
     assert!(matches!(result, Err(BridgeError::Cancelled)), "{result:?}");
     let stages = stages.into_inner().unwrap();
-    assert!(stages.windows(2).all(|pair| pair[0] < pair[1]), "stages only move forward: {stages:?}");
+    assert!(
+        stages.windows(2).all(|pair| pair[0] < pair[1]),
+        "stages only move forward: {stages:?}"
+    );
     assert_eq!(stages.last(), Some(&UnityStage::Importing), "{stages:?}");
     let log = root.join(".vua/logs/n3-stop-cmd.log");
-    let helper: u32 = std::fs::read_to_string(log.with_extension("helper")).unwrap().parse().unwrap();
+    let helper: u32 = std::fs::read_to_string(log.with_extension("helper"))
+        .unwrap()
+        .parse()
+        .unwrap();
     #[cfg(windows)]
-    assert!(!running(helper), "the helper Unity started was ended with it");
+    assert!(
+        !running(helper),
+        "the helper Unity started was ended with it"
+    );
     #[cfg(not(windows))]
     let _ = helper;
     assert!(log.is_file(), "the log stays for diagnosis");
-    assert_eq!(std::fs::read_to_string(root.join("Assets/imported.prefab")).unwrap(), "kept", "imported materials stay");
-    assert!(Path::new(&root).join(".vua/bridge/n3-stop-cmd.request.json").is_file());
+    assert_eq!(
+        std::fs::read_to_string(root.join("Assets/imported.prefab")).unwrap(),
+        "kept",
+        "imported materials stay"
+    );
+    assert!(Path::new(&root)
+        .join(".vua/bridge/n3-stop-cmd.request.json")
+        .is_file());
     std::fs::remove_dir_all(&root).unwrap();
 }

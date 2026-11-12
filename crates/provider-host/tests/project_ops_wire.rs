@@ -95,10 +95,15 @@ fn project_ops_config(vcc_settings: &Path) -> ProjectOpsConfig {
     project_ops_config_with_editors(vcc_settings, &[])
 }
 
-fn project_ops_config_with_editors(vcc_settings: &Path, editor_roots: &[PathBuf]) -> ProjectOpsConfig {
+fn project_ops_config_with_editors(
+    vcc_settings: &Path,
+    editor_roots: &[PathBuf],
+) -> ProjectOpsConfig {
     ProjectOpsConfig {
         vcc_settings_candidates: vec![vcc_settings.to_path_buf()],
-        manager_roots: ManagerRoots { alcom_settings_candidates: Vec::new() },
+        manager_roots: ManagerRoots {
+            alcom_settings_candidates: Vec::new(),
+        },
         editor_roots: editor_roots.to_vec(),
     }
 }
@@ -155,7 +160,10 @@ fn wait_done(database_path: &Path, task_id: &str) -> Value {
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         let store = SqliteTaskStore::open(database_path).expect("store opens");
-        let task = store.task(task_id).expect("store readable").expect("task exists");
+        let task = store
+            .task(task_id)
+            .expect("store readable")
+            .expect("task exists");
         if task.state.is_terminal() {
             assert_eq!(
                 serde_json::to_value(task.state).unwrap(),
@@ -165,7 +173,10 @@ fn wait_done(database_path: &Path, task_id: &str) -> Value {
             );
             return task.result.expect("done payload");
         }
-        assert!(Instant::now() < deadline, "the import-copy task did not finish");
+        assert!(
+            Instant::now() < deadline,
+            "the import-copy task did not finish"
+        );
         drop(store);
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -191,8 +202,10 @@ fn import_copy_plan_and_apply_run_the_full_two_phase_chain() {
             "targetProjectName": "Copied Project",
         }
     });
-    assert!(command_validator.is_valid(&plan_command),
-        "the request must match the frozen command schema: {plan_command}");
+    assert!(
+        command_validator.is_valid(&plan_command),
+        "the request must match the frozen command schema: {plan_command}"
+    );
     let frames = run_frames(
         &database,
         Some(&config),
@@ -210,12 +223,18 @@ fn import_copy_plan_and_apply_run_the_full_two_phase_chain() {
     assert_eq!(payload["schemaVersion"], "0.2");
     // The frozen result schema describes the whole envelope
     // (schemaVersion/operation/result) — exactly the Done payload.
-    assert!(validator.is_valid(&payload), "plan must match the frozen result schema: {payload}");
+    assert!(
+        validator.is_valid(&payload),
+        "plan must match the frozen result schema: {payload}"
+    );
     let plan = &payload["result"];
     assert_eq!(plan["kind"], "plan");
     assert!(plan["estimatedBytes"].as_u64().expect("bytes") > 0);
     let excluded = plan["excludedEntries"].as_array().expect("exclusions");
-    assert!(excluded.contains(&json!("Library")), "Unity regenerables are excluded: {excluded:?}");
+    assert!(
+        excluded.contains(&json!("Library")),
+        "Unity regenerables are excluded: {excluded:?}"
+    );
     let top_levels = plan["sourceTopLevels"].as_array().expect("top levels");
     assert!(top_levels.contains(&json!("Assets")) && top_levels.contains(&json!("Packages")));
     let plan_digest = plan["planDigest"].as_str().expect("planDigest").to_owned();
@@ -235,15 +254,30 @@ fn import_copy_plan_and_apply_run_the_full_two_phase_chain() {
             }
         })],
     );
-    let task_id = frames[0]["payload"]["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = frames[0]["payload"]["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
     let payload = wait_done(&database, &task_id);
-    assert!(validator.is_valid(&payload), "receipt must match the frozen result schema: {payload}");
+    assert!(
+        validator.is_valid(&payload),
+        "receipt must match the frozen result schema: {payload}"
+    );
     let receipt = &payload["result"];
     assert_eq!(receipt["kind"], "receipt");
-    assert!(receipt["copiedTopLevels"].as_array().expect("copied").contains(&json!("Assets")));
-    assert_eq!(receipt["sourceLink"]["sourceAssociations"], json!(["vcc_registered"]));
+    assert!(receipt["copiedTopLevels"]
+        .as_array()
+        .expect("copied")
+        .contains(&json!("Assets")));
+    assert_eq!(
+        receipt["sourceLink"]["sourceAssociations"],
+        json!(["vcc_registered"])
+    );
     assert!(
-        !receipt["sourceLink"]["taskCorrelation"].as_str().unwrap_or_default().is_empty(),
+        !receipt["sourceLink"]["taskCorrelation"]
+            .as_str()
+            .unwrap_or_default()
+            .is_empty(),
         "the audit chain carries the originating correlation: {receipt}"
     );
 
@@ -251,8 +285,14 @@ fn import_copy_plan_and_apply_run_the_full_two_phase_chain() {
     // source link is recorded inside the new project's .vua.
     let target = target_parent.join("Copied Project");
     assert!(target.join("Assets").exists(), "Assets copied");
-    assert!(!target.join("Library").exists(), "regenerables are not copied");
-    assert!(target.join(".vua").join("source.json").exists(), "source link recorded");
+    assert!(
+        !target.join("Library").exists(),
+        "regenerables are not copied"
+    );
+    assert!(
+        target.join(".vua").join("source.json").exists(),
+        "source link recorded"
+    );
 }
 
 #[test]
@@ -277,9 +317,15 @@ fn import_copy_apply_refuses_on_plan_drift() {
             }
         })],
     );
-    let task_id = frames[0]["payload"]["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = frames[0]["payload"]["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
     let payload = wait_done(&database, &task_id);
-    assert!(validator.is_valid(&payload), "rejection must match the frozen schema: {payload}");
+    assert!(
+        validator.is_valid(&payload),
+        "rejection must match the frozen schema: {payload}"
+    );
     let rejected = &payload["result"];
     assert_eq!(rejected["kind"], "rejected");
     assert_eq!(rejected["guard"], "plan_drift");
@@ -312,9 +358,15 @@ fn import_copy_refuses_sources_no_manager_registers() {
             }
         })],
     );
-    let task_id = frames[0]["payload"]["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = frames[0]["payload"]["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
     let payload = wait_done(&database, &task_id);
-    assert!(validator.is_valid(&payload), "rejection must match the frozen schema: {payload}");
+    assert!(
+        validator.is_valid(&payload),
+        "rejection must match the frozen schema: {payload}"
+    );
     let rejected = &payload["result"];
     assert_eq!(rejected["kind"], "rejected");
     assert_eq!(rejected["guard"], "source_not_registered");
@@ -344,7 +396,10 @@ fn import_copy_wire_guards_and_honest_absence() {
             }
         })],
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.project.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.project.invalid_params"
+    );
 
     // apply without the confirmed digest: a params violation.
     let frames = run_frames(
@@ -360,7 +415,10 @@ fn import_copy_wire_guards_and_honest_absence() {
             }
         })],
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.project.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.project.invalid_params"
+    );
 
     // An unknown project.* method is a contract error (the write word list
     // is project.import-copy plus project.setNote — nothing else).
@@ -369,7 +427,10 @@ fn import_copy_wire_guards_and_honest_absence() {
         Some(&config),
         &[json!({"method": "project.delete", "params": {}})],
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.provider.unknown_method");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.provider.unknown_method"
+    );
 
     // Without the project-ops wiring the face is honestly unavailable.
     let frames = run_frames(
@@ -385,15 +446,17 @@ fn import_copy_wire_guards_and_honest_absence() {
             }
         })],
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.project.unavailable");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.project.unavailable"
+    );
 }
 
 // --- proposal 013 read face: the environment-managers snapshot ---
 
 /// Creates a fake Unity Hub editor install (`<root>/<version>/Editor`).
 fn install_fake_editor(editors_root: &Path, version: &str) {
-    fs::create_dir_all(editors_root.join(version).join("Editor"))
-        .expect("fake editor layout");
+    fs::create_dir_all(editors_root.join(version).join("Editor")).expect("fake editor layout");
 }
 
 #[test]
@@ -439,7 +502,9 @@ fn environment_managers_snapshot_serves_over_the_wire() {
     );
     let editors = result["editors"].as_array().expect("editors");
     assert!(
-        editors.iter().any(|editor| editor["version"].as_str() == Some("2022.3.22f1")),
+        editors
+            .iter()
+            .any(|editor| editor["version"].as_str() == Some("2022.3.22f1")),
         "the fake editor install must be observed: {editors:?}"
     );
 }
@@ -460,7 +525,10 @@ fn project_read_face_closed_set_and_absence_are_typed() {
             "params": {"unexpected": true},
         })],
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.project.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.project.invalid_params"
+    );
 
     // An unknown project.* method is a contract error.
     let frames = run_frames(
@@ -468,7 +536,10 @@ fn project_read_face_closed_set_and_absence_are_typed() {
         Some(&config),
         &[json!({"method": "project.frobnicate", "params": {}})],
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.provider.unknown_method");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.provider.unknown_method"
+    );
 }
 
 // --- proposal 013 read face: the three project queries ---
@@ -501,7 +572,10 @@ fn project_list_projects_serves_the_registered_inspection_aggregate() {
     let value = &frames[0]["payload"]["value"];
     assert_eq!(value["schemaVersion"], "0.1");
     assert_eq!(value["operation"], "project.listProjects");
-    assert!(validator.is_valid(value), "aggregate must match the frozen schema: {value}");
+    assert!(
+        validator.is_valid(value),
+        "aggregate must match the frozen schema: {value}"
+    );
     let projects = value["result"]["projects"].as_array().expect("projects");
     assert_eq!(projects.len(), 1, "exactly the registered project lists");
     let project = &projects[0];
@@ -531,7 +605,10 @@ fn project_inspect_project_serves_one_and_refuses_unregistered() {
     );
     let value = &frames[0]["payload"]["value"];
     assert_eq!(value["operation"], "project.inspectProject");
-    assert!(validator.is_valid(value), "single inspection must match the frozen schema: {value}");
+    assert!(
+        validator.is_valid(value),
+        "single inspection must match the frozen schema: {value}"
+    );
     assert_eq!(value["result"]["path"], json!(source.to_string_lossy()));
     assert_eq!(value["result"]["manifestPresent"], true);
 
@@ -547,7 +624,10 @@ fn project_inspect_project_serves_one_and_refuses_unregistered() {
             "params": {"projectPath": stranger.to_string_lossy()},
         })],
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.project.project_not_found");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.project.project_not_found"
+    );
 
     // Missing projectPath is a params violation (the frozen negative vector).
     let frames = run_frames(
@@ -555,7 +635,10 @@ fn project_inspect_project_serves_one_and_refuses_unregistered() {
         Some(&config),
         &[json!({"method": "project.inspectProject", "params": {}})],
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.project.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.project.invalid_params"
+    );
 }
 
 #[test]
@@ -576,7 +659,10 @@ fn project_lock_status_reports_the_marker_observation() {
         })],
     );
     let value = &frames[0]["payload"]["value"];
-    assert!(validator.is_valid(value), "lock status must match the frozen schema: {value}");
+    assert!(
+        validator.is_valid(value),
+        "lock status must match the frozen schema: {value}"
+    );
     assert_eq!(value["result"]["mutationStatus"], "none");
     assert_eq!(
         value["result"]["projectPath"],
@@ -731,7 +817,10 @@ fn set_note_stores_and_clears_over_the_wire() {
             "params": {"projectPath": source.to_string_lossy(), "note": null},
         })],
     );
-    let task_id = frames[0]["payload"]["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = frames[0]["payload"]["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
     let payload = wait_done(&database, &task_id);
     assert!(
         validator.is_valid(&payload),
@@ -754,25 +843,34 @@ fn set_note_guards_refuse_typecally_inside_the_task() {
     let database = root.join("tasks.sqlite");
     let config = project_ops_config(&vcc_settings);
 
-    let submit_note = |database_path: &Path,
-                       config: Option<&ProjectOpsConfig>,
-                       project_path: String| {
-        run_frames(
-            database_path,
-            config,
-            &[json!({
-                "method": "project.setNote",
-                "params": {"projectPath": project_path, "note": "fixture note"},
-            })],
-        )
-    };
+    let submit_note =
+        |database_path: &Path, config: Option<&ProjectOpsConfig>, project_path: String| {
+            run_frames(
+                database_path,
+                config,
+                &[json!({
+                    "method": "project.setNote",
+                    "params": {"projectPath": project_path, "note": "fixture note"},
+                })],
+            )
+        };
 
     // A registered project with no identity file: not_vua_native — the
     // note presupposes the VUA-native declaration.
-    let frames = submit_note(&database, Some(&config), source.to_string_lossy().into_owned());
-    let task_id = frames[0]["payload"]["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let frames = submit_note(
+        &database,
+        Some(&config),
+        source.to_string_lossy().into_owned(),
+    );
+    let task_id = frames[0]["payload"]["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
     let payload = wait_done(&database, &task_id);
-    assert!(validator.is_valid(&payload), "refusal must match the frozen schema: {payload}");
+    assert!(
+        validator.is_valid(&payload),
+        "refusal must match the frozen schema: {payload}"
+    );
     assert_eq!(payload["result"]["kind"], "rejected");
     assert_eq!(payload["result"]["guard"], "not_vua_native");
     assert_eq!(payload["result"]["code"], "vua.project.not_vua_native");
@@ -783,10 +881,20 @@ fn set_note_guards_refuse_typecally_inside_the_task() {
     // face's registry is the writable world).
     let stranger = root.join("stranger-project");
     fs::create_dir_all(&stranger).expect("stranger dir");
-    let frames = submit_note(&database, Some(&config), stranger.to_string_lossy().into_owned());
-    let task_id = frames[0]["payload"]["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let frames = submit_note(
+        &database,
+        Some(&config),
+        stranger.to_string_lossy().into_owned(),
+    );
+    let task_id = frames[0]["payload"]["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
     let payload = wait_done(&database, &task_id);
-    assert!(validator.is_valid(&payload), "refusal must match the frozen schema: {payload}");
+    assert!(
+        validator.is_valid(&payload),
+        "refusal must match the frozen schema: {payload}"
+    );
     assert_eq!(payload["result"]["guard"], "project_not_found");
     assert_eq!(payload["result"]["code"], "vua.project.project_not_found");
 
@@ -794,10 +902,20 @@ fn set_note_guards_refuse_typecally_inside_the_task() {
     // a blind rewrite.
     fs::create_dir_all(source.join(".vua")).expect(".vua dir");
     fs::write(source.join(".vua").join("project.json"), b"{ not json").expect("garbage identity");
-    let frames = submit_note(&database, Some(&config), source.to_string_lossy().into_owned());
-    let task_id = frames[0]["payload"]["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let frames = submit_note(
+        &database,
+        Some(&config),
+        source.to_string_lossy().into_owned(),
+    );
+    let task_id = frames[0]["payload"]["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
     let payload = wait_done(&database, &task_id);
-    assert!(validator.is_valid(&payload), "refusal must match the frozen schema: {payload}");
+    assert!(
+        validator.is_valid(&payload),
+        "refusal must match the frozen schema: {payload}"
+    );
     assert_eq!(payload["result"]["guard"], "identity_unreadable");
     assert_eq!(payload["result"]["code"], "vua.project.identity_unreadable");
     // The unreadable evidence is untouched.
@@ -822,8 +940,7 @@ fn set_note_params_are_a_frozen_closed_set() {
             &[json!({"method": "project.setNote", "params": params})],
         );
         assert_eq!(
-            frames[0]["payload"]["error"]["code"],
-            "vua.project.invalid_params",
+            frames[0]["payload"]["error"]["code"], "vua.project.invalid_params",
             "params must be refused: {params}"
         );
     };
@@ -837,7 +954,9 @@ fn set_note_params_are_a_frozen_closed_set() {
     // Single-line plain text only.
     expect_invalid_params(json!({"projectPath": source.to_string_lossy(), "note": "a\nb"}));
     // Unknown key: a contract error, never ignored.
-    expect_invalid_params(json!({"projectPath": source.to_string_lossy(), "note": "n", "extra": 1}));
+    expect_invalid_params(
+        json!({"projectPath": source.to_string_lossy(), "note": "n", "extra": 1}),
+    );
 
     // Without the project-ops wiring the face is honestly unavailable.
     let frames = run_frames(
@@ -848,6 +967,8 @@ fn set_note_params_are_a_frozen_closed_set() {
             "params": {"projectPath": source.to_string_lossy(), "note": "fixture note"},
         })],
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.project.unavailable");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.project.unavailable"
+    );
 }
-

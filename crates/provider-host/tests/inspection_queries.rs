@@ -14,8 +14,8 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 use vua_orchestrator::{
-    InspectionEvidenceStore, PlanDocumentStore, RecipeDocumentStore, RecipeRecordStore,
-    EvidenceStore, UnityBridge, UnityCommand, UnityResult,
+    EvidenceStore, InspectionEvidenceStore, PlanDocumentStore, RecipeDocumentStore,
+    RecipeRecordStore, UnityBridge, UnityCommand, UnityResult,
 };
 use vua_provider_host::{
     run_provider_host_with_services, ProductionUseCaseConfig, WarehouseConfig,
@@ -129,27 +129,34 @@ impl UnityBridge for CannedInspectionBridge {
         _project: &vua_orchestrator::ProjectRef,
         command: &UnityCommand,
     ) -> Result<UnityResult, vua_orchestrator::BridgeError> {
-        self.executed.lock().expect("executed lock").push(ExecutedCommand {
-            operation: serde_json::to_value(command.operation)
-                .unwrap_or(Value::Null)
-                .as_str()
-                .unwrap_or_default()
-                .to_owned(),
-            schema_version: command.schema_version,
-            dry_run: command.dry_run,
-            avatar_global_object_id: command.payload.avatar_global_object_id.clone(),
-            project_id: command.project_id.clone(),
-        });
+        self.executed
+            .lock()
+            .expect("executed lock")
+            .push(ExecutedCommand {
+                operation: serde_json::to_value(command.operation)
+                    .unwrap_or(Value::Null)
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_owned(),
+                schema_version: command.schema_version,
+                dry_run: command.dry_run,
+                avatar_global_object_id: command.payload.avatar_global_object_id.clone(),
+                project_id: command.project_id.clone(),
+            });
         let receipt = canned_receipt(command);
-        serde_json::from_value(receipt)
-            .map_err(|error| vua_orchestrator::BridgeError::Io(std::io::Error::new(
+        serde_json::from_value(receipt).map_err(|error| {
+            vua_orchestrator::BridgeError::Io(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 error,
-            )))
+            ))
+        })
     }
 }
 
-fn use_case_config(root: &std::path::Path, bridge: std::sync::Arc<dyn UnityBridge>) -> ProductionUseCaseConfig {
+fn use_case_config(
+    root: &std::path::Path,
+    bridge: std::sync::Arc<dyn UnityBridge>,
+) -> ProductionUseCaseConfig {
     let production_root = root.join("production");
     ProductionUseCaseConfig {
         recipes: std::sync::Arc::new(RecipeDocumentStore::new_with_system_clock(
@@ -244,7 +251,13 @@ fn store_for(root: &std::path::Path) -> InspectionEvidenceStore {
 }
 
 /// Seeds one evidence document directly into the store.
-fn seed_evidence(root: &std::path::Path, inspection_id: &str, performed_at: &str, overall: &str, avatar_ref: &str) {
+fn seed_evidence(
+    root: &std::path::Path,
+    inspection_id: &str,
+    performed_at: &str,
+    overall: &str,
+    avatar_ref: &str,
+) {
     let document = json!({
         "schemaVersion": "0.1",
         "inspectionId": inspection_id,
@@ -293,7 +306,10 @@ fn wait_for_documents(root: &std::path::Path, minimum: usize) -> Vec<Value> {
             return documents;
         }
         if Instant::now() > deadline {
-            panic!("the inspection run never published; store holds {}", documents.len());
+            panic!(
+                "the inspection run never published; store holds {}",
+                documents.len()
+            );
         }
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -303,9 +319,20 @@ fn wait_for_documents(root: &std::path::Path, minimum: usize) -> Vec<Value> {
 fn get_answers_typed_unavailable_without_the_use_case_wiring() {
     let root = unique_root("get-unwired");
     let database = root.join("tasks.sqlite");
-    let frames = run_frames(&database, None, None, &[query("inspection.get", json!({"inspectionId": "01982b5a-3f10-7c4e-9d2a-4b8e1f6a7c21"}))]);
+    let frames = run_frames(
+        &database,
+        None,
+        None,
+        &[query(
+            "inspection.get",
+            json!({"inspectionId": "01982b5a-3f10-7c4e-9d2a-4b8e1f6a7c21"}),
+        )],
+    );
     let payload = &frames[0]["payload"];
-    assert_eq!(payload["error"]["code"], "vua.inspection.unavailable", "{payload}");
+    assert_eq!(
+        payload["error"]["code"], "vua.inspection.unavailable",
+        "{payload}"
+    );
     assert_eq!(payload["error"]["category"], "unavailable");
 }
 
@@ -314,31 +341,52 @@ fn get_returns_the_stored_document_and_honest_not_found() {
     let root = unique_root("get-read");
     let database = root.join("tasks.sqlite");
     let inspection_id = "01982b5a-3f10-7c4e-9d2a-4b8e1f6a7c21";
-    seed_evidence(&root, inspection_id, "2026-09-13T00:20:00Z", "warn", "warehouse:booth-item-1001");
+    seed_evidence(
+        &root,
+        inspection_id,
+        "2026-09-13T00:20:00Z",
+        "warn",
+        "warehouse:booth-item-1001",
+    );
 
     let frames = run_frames(
         &database,
         Some(use_case_config(&root, std::sync::Arc::new(NoBridge))),
         None,
-        &[query("inspection.get", json!({"inspectionId": inspection_id}))],
+        &[query(
+            "inspection.get",
+            json!({"inspectionId": inspection_id}),
+        )],
     );
     let payload = &frames[0]["payload"];
     assert!(payload["ok"].as_bool().expect("ok flag"), "{payload}");
     let value = &payload["value"];
     assert_eq!(value["inspectionId"], inspection_id);
     assert_eq!(value["schemaVersion"], "0.1");
-    assert_eq!(value["inspectionDocument"]["performedAt"], "2026-09-13T00:20:00Z");
+    assert_eq!(
+        value["inspectionDocument"]["performedAt"],
+        "2026-09-13T00:20:00Z"
+    );
     assert_eq!(value["inspectionDocument"]["overallStatus"], "warn");
-    assert_eq!(value["inspectionDocument"]["avatarRef"]["ref"], "warehouse:booth-item-1001");
+    assert_eq!(
+        value["inspectionDocument"]["avatarRef"]["ref"],
+        "warehouse:booth-item-1001"
+    );
 
     // An unknown identity is an honest not_found, never a synthesized row.
     let missing = run_frames(
         &database,
         Some(use_case_config(&root, std::sync::Arc::new(NoBridge))),
         None,
-        &[query("inspection.get", json!({"inspectionId": "01982b5a-3f10-7c4e-9d2a-4b8e1f6a7cff"}))],
+        &[query(
+            "inspection.get",
+            json!({"inspectionId": "01982b5a-3f10-7c4e-9d2a-4b8e1f6a7cff"}),
+        )],
     );
-    assert_eq!(missing[0]["payload"]["error"]["code"], "vua.inspection.not_found");
+    assert_eq!(
+        missing[0]["payload"]["error"]["code"],
+        "vua.inspection.not_found"
+    );
 }
 
 #[test]
@@ -349,16 +397,25 @@ fn get_rejects_unknown_and_missing_params() {
         &database,
         Some(use_case_config(&root, std::sync::Arc::new(NoBridge))),
         None,
-        &[query("inspection.get", json!({"inspectionId": "x", "text": "y"}))],
+        &[query(
+            "inspection.get",
+            json!({"inspectionId": "x", "text": "y"}),
+        )],
     );
-    assert_eq!(unknown[0]["payload"]["error"]["code"], "vua.inspection.invalid_params");
+    assert_eq!(
+        unknown[0]["payload"]["error"]["code"],
+        "vua.inspection.invalid_params"
+    );
     let missing = run_frames(
         &database,
         Some(use_case_config(&root, std::sync::Arc::new(NoBridge))),
         None,
         &[query("inspection.get", json!({}))],
     );
-    assert_eq!(missing[0]["payload"]["error"]["code"], "vua.inspection.invalid_params");
+    assert_eq!(
+        missing[0]["payload"]["error"]["code"],
+        "vua.inspection.invalid_params"
+    );
 }
 
 #[test]
@@ -382,9 +439,27 @@ fn list_serves_the_honest_empty_state() {
 fn list_orders_newest_first_and_applies_the_closed_filters() {
     let root = unique_root("list-filters");
     let database = root.join("tasks.sqlite");
-    seed_evidence(&root, "01982b5a-3f10-7c4e-9d2a-4b8e1f6a7c21", "2026-09-13T01:00:00Z", "fail", "warehouse:item-a");
-    seed_evidence(&root, "01982b5a-3f10-7c4e-9d2a-4b8e1f6a7c22", "2026-09-13T03:00:00Z", "warn", "warehouse:item-b");
-    seed_evidence(&root, "01982b5a-3f10-7c4e-9d2a-4b8e1f6a7c23", "2026-09-13T02:00:00Z", "pass", "warehouse:item-a");
+    seed_evidence(
+        &root,
+        "01982b5a-3f10-7c4e-9d2a-4b8e1f6a7c21",
+        "2026-09-13T01:00:00Z",
+        "fail",
+        "warehouse:item-a",
+    );
+    seed_evidence(
+        &root,
+        "01982b5a-3f10-7c4e-9d2a-4b8e1f6a7c22",
+        "2026-09-13T03:00:00Z",
+        "warn",
+        "warehouse:item-b",
+    );
+    seed_evidence(
+        &root,
+        "01982b5a-3f10-7c4e-9d2a-4b8e1f6a7c23",
+        "2026-09-13T02:00:00Z",
+        "pass",
+        "warehouse:item-a",
+    );
 
     let frames = run_frames(
         &database,
@@ -410,7 +485,10 @@ fn list_orders_newest_first_and_applies_the_closed_filters() {
         &database,
         Some(use_case_config(&root, std::sync::Arc::new(NoBridge))),
         None,
-        &[query("inspection.list", json!({"avatarRef": "warehouse:item-a"}))],
+        &[query(
+            "inspection.list",
+            json!({"avatarRef": "warehouse:item-a"}),
+        )],
     );
     let value = &filtered[0]["payload"]["value"];
     assert_eq!(value["total"], 2);
@@ -451,14 +529,23 @@ fn list_rejects_unknown_param_and_out_of_vocabulary_status() {
         None,
         &[query("inspection.list", json!({"text": "fuzzy"}))],
     );
-    assert_eq!(unknown[0]["payload"]["error"]["code"], "vua.inspection.invalid_params");
+    assert_eq!(
+        unknown[0]["payload"]["error"]["code"],
+        "vua.inspection.invalid_params"
+    );
     let bad_status = run_frames(
         &database,
         Some(use_case_config(&root, std::sync::Arc::new(NoBridge))),
         None,
-        &[query("inspection.list", json!({"overallStatus": "unavailable"}))],
+        &[query(
+            "inspection.list",
+            json!({"overallStatus": "unavailable"}),
+        )],
     );
-    assert_eq!(bad_status[0]["payload"]["error"]["code"], "vua.inspection.invalid_params");
+    assert_eq!(
+        bad_status[0]["payload"]["error"]["code"],
+        "vua.inspection.invalid_params"
+    );
 }
 
 #[test]
@@ -466,7 +553,9 @@ fn request_run_drives_the_five_producing_operations_and_publishes_once() {
     let root = unique_root("run-happy");
     let database = root.join("tasks.sqlite");
     let bridge: std::sync::Arc<CannedInspectionBridge> =
-        std::sync::Arc::new(CannedInspectionBridge { executed: Mutex::new(Vec::new()) });
+        std::sync::Arc::new(CannedInspectionBridge {
+            executed: Mutex::new(Vec::new()),
+        });
     let executed_handle = std::sync::Arc::clone(&bridge);
     let config = use_case_config(&root, bridge);
 
@@ -486,12 +575,19 @@ fn request_run_drives_the_five_producing_operations_and_publishes_once() {
     assert!(payload["ok"].as_bool().expect("acceptance ok"), "{payload}");
     let accepted = &payload["value"];
     assert_eq!(accepted["operation"], "inspection.requestRun");
-    assert!(accepted["taskId"].is_string(), "the acceptance carries the task identity");
+    assert!(
+        accepted["taskId"].is_string(),
+        "the acceptance carries the task identity"
+    );
     assert_eq!(accepted["schemaVersion"], "0.1");
 
     // The worker runs detached: poll until the evidence bundle publishes.
     let documents = wait_for_documents(&root, 1);
-    assert_eq!(documents.len(), 1, "publish is exactly-once per run identity");
+    assert_eq!(
+        documents.len(),
+        1,
+        "publish is exactly-once per run identity"
+    );
     let document = &documents[0];
 
     // The evidence body: five dimensions, transcription and aggregation.
@@ -499,12 +595,23 @@ fn request_run_drives_the_five_producing_operations_and_publishes_once() {
     assert_eq!(document["avatarRef"]["ref"], "warehouse:booth-item-1001");
     assert_eq!(document["bridge"]["editorVersion"], "2022.3.22f1");
     assert_eq!(document["bridge"]["bridgeSchemaVersion"], 3);
-    let operations = document["bridge"]["operations"].as_array().expect("operations");
+    let operations = document["bridge"]["operations"]
+        .as_array()
+        .expect("operations");
     assert_eq!(operations.len(), 5);
-    let names: Vec<&str> = operations.iter().map(|o| o["operation"].as_str().expect("name")).collect();
+    let names: Vec<&str> = operations
+        .iter()
+        .map(|o| o["operation"].as_str().expect("name"))
+        .collect();
     assert_eq!(
         names,
-        vec!["validate_avatar", "analyze_performance", "inspect_avatar_references", "inspect_lighting", "inspect_upload_readiness"]
+        vec![
+            "validate_avatar",
+            "analyze_performance",
+            "inspect_avatar_references",
+            "inspect_lighting",
+            "inspect_upload_readiness"
+        ]
     );
     assert!(operations.iter().all(|o| o["status"] == "succeeded"));
 
@@ -523,10 +630,16 @@ fn request_run_drives_the_five_producing_operations_and_publishes_once() {
     // metrics transcribed from the declared data scalars.
     assert_eq!(by_kind("performance")["status"], "warn");
     assert_eq!(by_kind("performance")["basis"], "bridge_local_estimate");
-    assert_eq!(by_kind("performance")["checks"][0]["metrics"]["triangles"], 92410);
+    assert_eq!(
+        by_kind("performance")["checks"][0]["metrics"]["triangles"],
+        92410
+    );
     // dependencies: the missing material error fails the dimension.
     assert_eq!(by_kind("dependencies")["status"], "fail");
-    assert_eq!(by_kind("dependencies")["checks"][0]["code"], "references.missing_material");
+    assert_eq!(
+        by_kind("dependencies")["checks"][0]["code"],
+        "references.missing_material"
+    );
     // lighting: warning → warn.
     assert_eq!(by_kind("lighting")["status"], "warn");
     // upload_readiness: clean info → pass.
@@ -551,10 +664,17 @@ fn request_run_drives_the_five_producing_operations_and_publishes_once() {
     assert_eq!(by_operation("inspect_avatar_references").schema_version, 3);
     assert_eq!(by_operation("inspect_lighting").schema_version, 3);
     assert_eq!(by_operation("inspect_upload_readiness").schema_version, 3);
-    assert!(executed.iter().all(|c| c.dry_run), "every inspection command is dry-run");
-    assert!(executed.iter().all(|c| c.avatar_global_object_id == "scene:0x1"));
+    assert!(
+        executed.iter().all(|c| c.dry_run),
+        "every inspection command is dry-run"
+    );
+    assert!(executed
+        .iter()
+        .all(|c| c.avatar_global_object_id == "scene:0x1"));
     // The command project id is the run-scope correlation identity.
-    assert!(executed.iter().all(|c| c.project_id.starts_with("inspection-")));
+    assert!(executed
+        .iter()
+        .all(|c| c.project_id.starts_with("inspection-")));
 }
 
 #[test]
@@ -582,7 +702,10 @@ fn request_run_without_any_receipt_publishes_nothing() {
     // fabricated document. Poll a bounded window to observe the absence.
     std::thread::sleep(Duration::from_millis(600));
     assert_eq!(
-        store_for(&root).list_documents().expect("store reads").len(),
+        store_for(&root)
+            .list_documents()
+            .expect("store reads")
+            .len(),
         0,
         "no receipts → no evidence document"
     );
@@ -605,7 +728,10 @@ fn request_run_without_the_task_authority_answers_unavailable() {
         )],
     );
     let payload = &frames[0]["payload"];
-    assert_eq!(payload["error"]["code"], "vua.inspection.unavailable", "{payload}");
+    assert_eq!(
+        payload["error"]["code"], "vua.inspection.unavailable",
+        "{payload}"
+    );
     assert_eq!(payload["error"]["category"], "unavailable");
 }
 
@@ -629,7 +755,10 @@ fn request_run_rejects_invalid_params() {
             }),
         )],
     );
-    assert_eq!(unknown[0]["payload"]["error"]["code"], "vua.inspection.invalid_params");
+    assert_eq!(
+        unknown[0]["payload"]["error"]["code"],
+        "vua.inspection.invalid_params"
+    );
 
     // Missing avatarRef.
     let config = use_case_config(&root, std::sync::Arc::new(NoBridge));
@@ -642,7 +771,10 @@ fn request_run_rejects_invalid_params() {
             json!({"avatarGlobalObjectId": "scene:0x1"}),
         )],
     );
-    assert_eq!(missing[0]["payload"]["error"]["code"], "vua.inspection.invalid_params");
+    assert_eq!(
+        missing[0]["payload"]["error"]["code"],
+        "vua.inspection.invalid_params"
+    );
 
     // avatarRef without ref.
     let config = use_case_config(&root, std::sync::Arc::new(NoBridge));
@@ -655,5 +787,8 @@ fn request_run_rejects_invalid_params() {
             json!({"avatarGlobalObjectId": "scene:0x1", "avatarRef": {"label": "no ref"}}),
         )],
     );
-    assert_eq!(empty_ref[0]["payload"]["error"]["code"], "vua.inspection.invalid_params");
+    assert_eq!(
+        empty_ref[0]["payload"]["error"]["code"],
+        "vua.inspection.invalid_params"
+    );
 }

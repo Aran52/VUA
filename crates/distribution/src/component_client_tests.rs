@@ -392,12 +392,10 @@ async fn installation_hardlinks_runtime_alias_and_cleans_runtime_archive_cache()
         &runtime.join("electron.exe"),
         &copy_path,
     ));
-    assert!(
-        !installation
-            .root
-            .join(format!("cache/{}.zip", installed.runtime.archive.sha256))
-            .exists()
-    );
+    assert!(!installation
+        .root
+        .join(format!("cache/{}.zip", installed.runtime.archive.sha256))
+        .exists());
 }
 
 #[tokio::test]
@@ -430,13 +428,7 @@ async fn v03_compressed_staging_reuses_unchanged_files_prevents_downgrade_and_bo
         let content = if file.path == "provider/vua-amf-provider.exe" {
             changed_bytes.clone()
         } else {
-            fs::read(
-                installation
-                    .amf_root(&installed)
-                    .unwrap()
-                    .join(&file.path),
-            )
-            .unwrap()
+            fs::read(installation.amf_root(&installed).unwrap().join(&file.path)).unwrap()
         };
         file.offset = offset;
         file.bytes = content.len() as u64;
@@ -559,10 +551,7 @@ async fn v03_compressed_staging_reuses_unchanged_files_prevents_downgrade_and_bo
             .unwrap();
         server.abort();
         // Only the single changed file should have been fetched over HTTP Range!
-        assert_eq!(
-            range_requests.load(std::sync::atomic::Ordering::Relaxed),
-            1
-        );
+        assert_eq!(range_requests.load(std::sync::atomic::Ordering::Relaxed), 1);
         installation
             .verify_files(&staged_dir, &target_manifest.amf.files)
             .unwrap();

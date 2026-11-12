@@ -83,7 +83,11 @@ fn install_vpm_project(base: &Path, name: &str, editor_version: &str) -> String 
 #[test]
 fn env_managers_001_editor_classification_follows_the_support_matrix() {
     let cases: [(&str, Option<EditorClass>, bool); 7] = [
-        (PRODUCTION_TARGET, Some(EditorClass::ProductionTarget), false),
+        (
+            PRODUCTION_TARGET,
+            Some(EditorClass::ProductionTarget),
+            false,
+        ),
         ("2019.4.31f1", Some(EditorClass::MigrationSource), false),
         ("2022.3.6f1", Some(EditorClass::MigrationSource), false),
         ("2022.3.22f1c1", Some(EditorClass::OtherUnityVersion), true),
@@ -107,13 +111,21 @@ fn env_managers_001_editor_classification_follows_the_support_matrix() {
     // target version earns the distribution diagnosis, not the generic
     // off-target one; the production target never carries a code path
     // that suggests replacement.
-    let (_, target_code) =
-        classify_version_string(PRODUCTION_TARGET).expect("target must parse");
-    assert_eq!(target_code, vua_orchestrator::editor_target_codes::EDITOR_PRODUCTION_TARGET);
+    let (_, target_code) = classify_version_string(PRODUCTION_TARGET).expect("target must parse");
+    assert_eq!(
+        target_code,
+        vua_orchestrator::editor_target_codes::EDITOR_PRODUCTION_TARGET
+    );
     let (_, china_code) = classify_version_string("2022.3.22f1c1").expect("china build must parse");
-    assert_eq!(china_code, vua_orchestrator::editor_target_codes::EDITOR_CHINA_DISTRIBUTION);
+    assert_eq!(
+        china_code,
+        vua_orchestrator::editor_target_codes::EDITOR_CHINA_DISTRIBUTION
+    );
     let (_, off_code) = classify_version_string("6000.0.23f1").expect("off target must parse");
-    assert_eq!(off_code, vua_orchestrator::editor_target_codes::EDITOR_OFF_TARGET);
+    assert_eq!(
+        off_code,
+        vua_orchestrator::editor_target_codes::EDITOR_OFF_TARGET
+    );
     let (_, tuanjie_code) =
         classify_version_string("2022.3.22t1").expect("tuanjie build must parse");
     assert_eq!(
@@ -150,15 +162,33 @@ fn env_managers_002_editor_root_probe_classifies_and_stays_deterministic() {
             .find(|finding| finding.version == version)
             .unwrap_or_else(|| panic!("{version} must be listed"))
     };
-    assert_eq!(find("2022.3.22f1").classification, EditorClass::ProductionTarget);
-    assert_eq!(find("2019.4.31f1").classification, EditorClass::MigrationSource);
-    assert_eq!(find("2022.3.6f1").classification, EditorClass::MigrationSource);
+    assert_eq!(
+        find("2022.3.22f1").classification,
+        EditorClass::ProductionTarget
+    );
+    assert_eq!(
+        find("2019.4.31f1").classification,
+        EditorClass::MigrationSource
+    );
+    assert_eq!(
+        find("2022.3.6f1").classification,
+        EditorClass::MigrationSource
+    );
     let china = find("2022.3.22f1c1");
     assert_eq!(china.classification, EditorClass::OtherUnityVersion);
     assert!(china.china_distribution);
-    assert_eq!(china.guidance_code, vua_orchestrator::editor_target_codes::EDITOR_CHINA_DISTRIBUTION);
-    assert_eq!(find("2022.3.22t1").classification, EditorClass::TuanjieFamily);
-    assert_eq!(find("6000.0.23f1").classification, EditorClass::OtherUnityVersion);
+    assert_eq!(
+        china.guidance_code,
+        vua_orchestrator::editor_target_codes::EDITOR_CHINA_DISTRIBUTION
+    );
+    assert_eq!(
+        find("2022.3.22t1").classification,
+        EditorClass::TuanjieFamily
+    );
+    assert_eq!(
+        find("6000.0.23f1").classification,
+        EditorClass::OtherUnityVersion
+    );
 
     // Deterministic order: production target first, then classes and
     // versions in stable sequence regardless of OS read_dir order.
@@ -200,7 +230,11 @@ fn env_managers_003_vcc_user_projects_are_discovered_and_classified() {
         .iter()
         .map(|finding| (finding.path.as_str(), finding.unity_classification))
         .collect();
-    assert_eq!(projects.len(), 2, "missing and marker-less entries are not projects");
+    assert_eq!(
+        projects.len(),
+        2,
+        "missing and marker-less entries are not projects"
+    );
     // Projects are sorted by path for deterministic snapshots regardless
     // of userProjects order.
     assert_eq!(
@@ -208,7 +242,10 @@ fn env_managers_003_vcc_user_projects_are_discovered_and_classified() {
         Path::new(&migration).to_string_lossy().to_string()
     );
     assert_eq!(projects[0].1, Some(EditorClass::MigrationSource));
-    assert_eq!(projects[1].0, Path::new(&production).to_string_lossy().to_string());
+    assert_eq!(
+        projects[1].0,
+        Path::new(&production).to_string_lossy().to_string()
+    );
     assert_eq!(
         snapshot.projects[1].unity_classification,
         Some(EditorClass::ProductionTarget)
@@ -246,9 +283,15 @@ fn env_managers_004_vcc_legacy_folder_format_scans_registered_folders() {
     let legacy_project = folder.join("legacy-av");
     fs::create_dir_all(legacy_project.join("Packages")).unwrap();
     fs::create_dir_all(legacy_project.join("ProjectSettings")).unwrap();
-    fs::write(legacy_project.join("Packages").join("vpm-manifest.json"), "{}").unwrap();
     fs::write(
-        legacy_project.join("ProjectSettings").join("ProjectVersion.txt"),
+        legacy_project.join("Packages").join("vpm-manifest.json"),
+        "{}",
+    )
+    .unwrap();
+    fs::write(
+        legacy_project
+            .join("ProjectSettings")
+            .join("ProjectVersion.txt"),
         format!("m_EditorVersion: {PRODUCTION_TARGET}\n"),
     )
     .unwrap();
@@ -334,9 +377,13 @@ fn env_managers_007_probe_leaves_the_observed_tree_byte_identical() {
     .unwrap();
 
     let scopes = ["editors", "vcc", "projects"];
-    let before = project_tree_fingerprint(&base, &scopes).unwrap().expect("tree exists");
+    let before = project_tree_fingerprint(&base, &scopes)
+        .unwrap()
+        .expect("tree exists");
     let snapshot = probe(&base);
-    let after = project_tree_fingerprint(&base, &scopes).unwrap().expect("tree exists");
+    let after = project_tree_fingerprint(&base, &scopes)
+        .unwrap()
+        .expect("tree exists");
     assert_eq!(before, after, "the probe must not write a single byte");
     assert_eq!(snapshot.projects.len(), 1);
     cleanup(&base);
@@ -378,7 +425,11 @@ fn env_managers_010_alcom_user_projects_are_discovered_and_associated() {
 fn env_managers_011_a_path_registered_by_both_managers_merges_into_one_finding() {
     let base = unique_dir("dual-managed");
     install_vpm_project(&base, "shared-av", PRODUCTION_TARGET);
-    let project_path = base.join("projects").join("shared-av").to_string_lossy().into_owned();
+    let project_path = base
+        .join("projects")
+        .join("shared-av")
+        .to_string_lossy()
+        .into_owned();
 
     let vcc_settings = base.join("vcc/settings.json");
     fs::create_dir_all(vcc_settings.parent().unwrap()).unwrap();
@@ -412,7 +463,11 @@ fn env_managers_012_unrecognized_alcom_settings_warn_without_blocking_presence()
     let base = unique_dir("alcom-unknown");
     let settings_path = base.join("alcom/setting.json");
     fs::create_dir_all(settings_path.parent().unwrap()).unwrap();
-    fs::write(&settings_path, serde_json::json!({ "unrelated": true }).to_string()).unwrap();
+    fs::write(
+        &settings_path,
+        serde_json::json!({ "unrelated": true }).to_string(),
+    )
+    .unwrap();
 
     let snapshot = probe(&base);
     assert_eq!(snapshot.alcom.presence, ManagerPresence::Found);
@@ -464,10 +519,8 @@ fn env_managers_009_schema_fixtures_conform_to_the_versioned_schema() {
     .unwrap();
     let validator = jsonschema::validator_for(&schema).unwrap();
     let fixture: serde_json::Value = serde_json::from_slice(
-        &fs::read(
-            root.join("schemas/environment-managers/v0.1/fixtures/snapshot.valid.json"),
-        )
-        .unwrap(),
+        &fs::read(root.join("schemas/environment-managers/v0.1/fixtures/snapshot.valid.json"))
+            .unwrap(),
     )
     .unwrap();
     let errors: Vec<_> = validator.iter_errors(&fixture).collect();
@@ -477,7 +530,8 @@ fn env_managers_009_schema_fixtures_conform_to_the_versioned_schema() {
 #[test]
 #[ignore = "manual local evidence paths are supplied through VUA_ENV_MANAGERS_SNAPSHOTS"]
 fn manual_local_snapshot_conforms_to_the_versioned_schema() {
-    let paths = std::env::var_os("VUA_ENV_MANAGERS_SNAPSHOTS").expect("VUA_ENV_MANAGERS_SNAPSHOTS is required");
+    let paths = std::env::var_os("VUA_ENV_MANAGERS_SNAPSHOTS")
+        .expect("VUA_ENV_MANAGERS_SNAPSHOTS is required");
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let schema: serde_json::Value = serde_json::from_slice(
         &fs::read(root.join("schemas/environment-managers/v0.1/snapshot.schema.json")).unwrap(),

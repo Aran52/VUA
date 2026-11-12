@@ -664,7 +664,10 @@ impl DeploymentService {
 
     /// Read software facts only: no plan, installer probing, download-region
     /// request or installation. Runtime/license checks are a separate step.
-    pub fn check_software(&self, intent: &DeploymentIntent) -> Result<Vec<DeploymentObservation>, &'static str> {
+    pub fn check_software(
+        &self,
+        intent: &DeploymentIntent,
+    ) -> Result<Vec<DeploymentObservation>, &'static str> {
         intent.validate()?;
         Ok(self.adapter.observe(intent))
     }

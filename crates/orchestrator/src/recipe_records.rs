@@ -56,7 +56,10 @@ impl RecipeRecordStore {
         let bytes = serde_json::to_vec_pretty(record)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
         {
-            let mut output = OpenOptions::new().create_new(true).write(true).open(&temporary)?;
+            let mut output = OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&temporary)?;
             output.write_all(&bytes)?;
             output.write_all(b"\n")?;
             output.sync_all()?;
@@ -77,9 +80,11 @@ impl RecipeRecordStore {
     pub fn get(&self, build_id: &str) -> io::Result<Option<Value>> {
         let path = self.path_for(build_id)?;
         match fs::read(&path) {
-            Ok(bytes) => Ok(Some(serde_json::from_slice(&bytes).map_err(|error| {
-                io::Error::new(io::ErrorKind::InvalidData, error)
-            })?)),
+            Ok(bytes) => {
+                Ok(Some(serde_json::from_slice(&bytes).map_err(|error| {
+                    io::Error::new(io::ErrorKind::InvalidData, error)
+                })?))
+            }
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(error) => Err(error),
         }
@@ -219,6 +224,9 @@ mod tests {
                 "019e0000-0000-7000-8000-000000000402"
             ]
         );
-        assert_eq!(store.get("019e0000-0000-7000-8000-000000000fff").unwrap(), None);
+        assert_eq!(
+            store.get("019e0000-0000-7000-8000-000000000fff").unwrap(),
+            None
+        );
     }
 }

@@ -276,7 +276,9 @@ pub(crate) fn group(
         }
         assignments.insert(copy.copy.copy_id.clone(), ids.clone());
         if copy.copy.role == CopyRole::Original {
-            if let Some(id) = managed_product.filter(|_| copy.downloadable_id.is_some() || copy.archive_current) {
+            if let Some(id) =
+                managed_product.filter(|_| copy.downloadable_id.is_some() || copy.archive_current)
+            {
                 let id = id.clone();
                 reference_hashes
                     .entry(id.clone())
@@ -296,8 +298,18 @@ pub(crate) fn group(
         let Some(ids) = hash_products.get(copy.copy.artifact_sha256.as_str()) else {
             continue;
         };
-        let ids: HashSet<_> = ids.iter().filter(|id| explicit_sources.get(&copy.copy.warehouse_item_id).is_none_or(|source| source == *id)).cloned().collect();
-        if ids.is_empty() { continue; }
+        let ids: HashSet<_> = ids
+            .iter()
+            .filter(|id| {
+                explicit_sources
+                    .get(&copy.copy.warehouse_item_id)
+                    .is_none_or(|source| source == *id)
+            })
+            .cloned()
+            .collect();
+        if ids.is_empty() {
+            continue;
+        }
         let state = presences[&copy.copy.copy_id];
         // Explicit deletion does not erase a previously verified content identity.
         // Reappearing bytes must pass the metadata/proof check again.
@@ -318,7 +330,10 @@ pub(crate) fn group(
     }
     let mut copies_of_entry: HashMap<&str, Vec<&LibraryCopyEvidence>> = HashMap::new();
     for copy in copies {
-        copies_of_entry.entry(copy.copy.warehouse_item_id.as_str()).or_default().push(copy);
+        copies_of_entry
+            .entry(copy.copy.warehouse_item_id.as_str())
+            .or_default()
+            .push(copy);
     }
     // A derivative is grouped only when every original in its entry has matched
     // the same product. A partial match must not swallow unrelated local files.
@@ -403,7 +418,11 @@ impl<'a> SourceIndex<'a> {
                 None => index.other_ids.push(id),
             }
             if let Some(title) = &product.title {
-                index.by_title.entry(normalized_name(title)).or_default().push(id);
+                index
+                    .by_title
+                    .entry(normalized_name(title))
+                    .or_default()
+                    .push(id);
             }
         }
         index
@@ -423,9 +442,19 @@ impl<'a> SourceIndex<'a> {
                 }
             }
             if name.contains("booth:") {
-                named.extend(self.booth_ids.iter().copied().filter(|id| name.contains(id)));
+                named.extend(
+                    self.booth_ids
+                        .iter()
+                        .copied()
+                        .filter(|id| name.contains(id)),
+                );
             }
-            named.extend(self.other_ids.iter().copied().filter(|id| name.contains(id)));
+            named.extend(
+                self.other_ids
+                    .iter()
+                    .copied()
+                    .filter(|id| name.contains(id)),
+            );
         }
         named
     }
@@ -447,7 +476,8 @@ pub(crate) fn source_hint(
         .filter(|id| products.by_id.contains_key(id.as_str()))
         .cloned()
         .collect();
-    let (basis, id) = if let Some(id) = explicit_source.filter(|id| products.by_id.contains_key(id)) {
+    let (basis, id) = if let Some(id) = explicit_source.filter(|id| products.by_id.contains_key(id))
+    {
         ("mapping", id.to_owned())
     } else if !mapped.is_empty() {
         if mapped.len() != 1 {
@@ -537,7 +567,11 @@ mod source_index_tests {
 
     #[test]
     fn a_name_states_a_product_by_its_whole_id_or_its_whole_number() {
-        let products = [product("booth:123456"), product("booth:1234"), product("other:abc")];
+        let products = [
+            product("booth:123456"),
+            product("booth:1234"),
+            product("other:abc"),
+        ];
         let index = SourceIndex::new(&products);
         let named = |name| {
             let mut ids: Vec<_> = index.named_by(&[name]).into_iter().collect();
@@ -547,9 +581,18 @@ mod source_index_tests {
         assert_eq!(named("pack_123456_v2"), ["booth:123456"]);
         assert_eq!(named("from booth:1234 page"), ["booth:1234"]);
         assert_eq!(named("see other:abc"), ["other:abc"]);
-        assert!(named("1234567").is_empty(), "a longer run of digits is another number");
-        assert!(named("version 1234").is_empty(), "short numbers need the whole id");
-        assert_eq!(index.product("booth:1234").map(|p| p.product_id.as_str()), Some("booth:1234"));
+        assert!(
+            named("1234567").is_empty(),
+            "a longer run of digits is another number"
+        );
+        assert!(
+            named("version 1234").is_empty(),
+            "short numbers need the whole id"
+        );
+        assert_eq!(
+            index.product("booth:1234").map(|p| p.product_id.as_str()),
+            Some("booth:1234")
+        );
         assert!(index.product("booth:9").is_none());
     }
 }

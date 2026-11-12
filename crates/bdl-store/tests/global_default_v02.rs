@@ -90,7 +90,11 @@ fn w14_global_default_vector_drives_the_persisted_two_level_resolution() {
     // initial default rules (represented here by the query argument).
     assert_eq!(store.global_default_mode().unwrap(), None);
     let entry_id = store
-        .create_warehouse_item("Example Pack", "imported_material", "2026-09-07T07:00:00.000Z")
+        .create_warehouse_item(
+            "Example Pack",
+            "imported_material",
+            "2026-09-07T07:00:00.000Z",
+        )
         .unwrap()
         .warehouse_item_id;
     // The provider composes the effective global default: the persisted
@@ -105,7 +109,10 @@ fn w14_global_default_vector_drives_the_persisted_two_level_resolution() {
             .unwrap()
             .effective_artifact_mode
     };
-    assert_eq!(effective(env_initial), ArtifactMode::UseOriginalUnitypackage);
+    assert_eq!(
+        effective(env_initial),
+        ArtifactMode::UseOriginalUnitypackage
+    );
 
     // The frozen positive vector drives the real write; the read-back is the
     // stored fact, and the two-level resolution follows it for entries
@@ -117,7 +124,10 @@ fn w14_global_default_vector_drives_the_persisted_two_level_resolution() {
         )
         .unwrap();
     assert_eq!(written, ArtifactMode::GenerateVpm);
-    assert_eq!(store.global_default_mode().unwrap(), Some(ArtifactMode::GenerateVpm));
+    assert_eq!(
+        store.global_default_mode().unwrap(),
+        Some(ArtifactMode::GenerateVpm)
+    );
     assert_eq!(
         effective(env_initial),
         ArtifactMode::GenerateVpm,
@@ -137,7 +147,10 @@ fn w14_global_default_vector_drives_the_persisted_two_level_resolution() {
     // The persisted default survives a reopened store.
     drop(store);
     let reopened = BdlStore::open(&database_path).unwrap();
-    assert_eq!(reopened.global_default_mode().unwrap(), Some(ArtifactMode::GenerateVpm));
+    assert_eq!(
+        reopened.global_default_mode().unwrap(),
+        Some(ArtifactMode::GenerateVpm)
+    );
     let _ = std::fs::remove_file(&database_path);
 }
 

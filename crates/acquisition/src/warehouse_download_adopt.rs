@@ -25,15 +25,15 @@
 //! import-time hook is undecided and is NOT frozen by v0.4.
 
 use crate::artifact_inspection::{hex_lower, sha256_file};
-use vua_bdl_store::download_events::DownloadEventConsumer;
+use serde::Serialize;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use vua_bdl_store::bdl_store::{
     ArtifactInspectionState, ArtifactMode, ArtifactRecordingOutcome, BdlStore, BdlStoreError,
     CopyRole, NewLocalArtifact, WarehouseEntryDetail,
 };
+use vua_bdl_store::download_events::DownloadEventConsumer;
 use vua_orchestrator::Clock;
-use serde::Serialize;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 /// Entry kind for adopted downloads — the frozen BDL v0.1 vocabulary
 /// (`warehouse_items.kind`) already reserves this value.
@@ -47,10 +47,16 @@ pub enum DownloadAdoptError {
     DownloadNotFound(String),
     /// The BDL event fold is not a completed delivery (still in flight,
     /// interrupted, cancelled or failed).
-    DownloadNotCompleted { download_id: String, phase: String },
+    DownloadNotCompleted {
+        download_id: String,
+        phase: String,
+    },
     /// The completed delivery's staging file is physically absent (already
     /// cleaned up or moved outside AMF).
-    StagingFileMissing { download_id: String, stored_path: String },
+    StagingFileMissing {
+        download_id: String,
+        stored_path: String,
+    },
     /// The staging file's size disagrees with the completed delivery's own
     /// receipt, or the copy disagrees with the staging file.
     CopySizeMismatch {
@@ -198,7 +204,9 @@ impl<'a> DownloadAdopter<'a> {
             None => {
                 return match consumer.lifecycle(download_id)? {
                     // No events at all: the id never existed on this store.
-                    None => Err(DownloadAdoptError::DownloadNotFound(download_id.to_string())),
+                    None => Err(DownloadAdoptError::DownloadNotFound(
+                        download_id.to_string(),
+                    )),
                     Some(lifecycle) => Err(DownloadAdoptError::DownloadNotCompleted {
                         download_id: download_id.to_string(),
                         phase: DownloadAdoptError::phase_name(&lifecycle.phase),
@@ -249,11 +257,9 @@ impl<'a> DownloadAdopter<'a> {
             .unwrap_or_else(|| download_id.to_string());
 
         let now = self.clock.now_rfc3339();
-        let item = self.store.create_warehouse_item(
-            &display_name,
-            DOWNLOADED_ENTRY_KIND,
-            &now,
-        )?;
+        let item = self
+            .store
+            .create_warehouse_item(&display_name, DOWNLOADED_ENTRY_KIND, &now)?;
         let entry_folder = self.warehouse_root.join(&item.folder_name);
         std::fs::create_dir_all(&entry_folder)?;
 
@@ -334,7 +340,10 @@ impl<'a> DownloadAdopter<'a> {
         // corruption, which is a panic-worthy break, never a silent skip.
         let entry = self
             .store
-            .warehouse_entry_detail(&item.warehouse_item_id, ArtifactMode::UseOriginalUnitypackage)?
+            .warehouse_entry_detail(
+                &item.warehouse_item_id,
+                ArtifactMode::UseOriginalUnitypackage,
+            )?
             .expect("the entry was created in this adoption");
         Ok(AdoptedDownload {
             download_id: download_id.to_string(),
@@ -353,9 +362,9 @@ impl<'a> DownloadAdopter<'a> {
 // already adopted stays adopted (entries are durable in BDL), and the job
 // checks the task cancel flag before starting each download.
 
+use std::time::Duration;
 use vua_orchestrator::{ErrorCategory, ParamValue};
 use vua_orchestrator::{SubmitRequest, TaskExit, TaskJob, TaskRuntime};
-use std::time::Duration;
 
 /// One download-adoption task binding. Identities only — every delivery
 /// fact is resolved server-side from BDL's event log.
@@ -373,32 +382,36 @@ fn adopt_error_to_app(
 ) -> vua_orchestrator::AppErrorV1 {
     let (code, category) = match &error {
         DownloadAdoptError::Store(_) => ("vua.warehouse.storeFailed", ErrorCategory::Internal),
-        DownloadAdoptError::Io(_) => {
-            ("vua.warehouse.adoptIoFailed", ErrorCategory::ExternalFailure)
-        }
+        DownloadAdoptError::Io(_) => (
+            "vua.warehouse.adoptIoFailed",
+            ErrorCategory::ExternalFailure,
+        ),
         DownloadAdoptError::DownloadNotFound(_)
-        | DownloadAdoptError::DownloadNotCompleted { .. } => {
-            ("vua.warehouse.downloadNotCompleted", ErrorCategory::Validation)
-        }
-        DownloadAdoptError::StagingFileMissing { .. } => {
-            ("vua.warehouse.stagingFileMissing", ErrorCategory::ExternalFailure)
-        }
-        DownloadAdoptError::CopySizeMismatch { .. } => {
-            ("vua.warehouse.copySizeMismatch", ErrorCategory::ExternalFailure)
-        }
+        | DownloadAdoptError::DownloadNotCompleted { .. } => (
+            "vua.warehouse.downloadNotCompleted",
+            ErrorCategory::Validation,
+        ),
+        DownloadAdoptError::StagingFileMissing { .. } => (
+            "vua.warehouse.stagingFileMissing",
+            ErrorCategory::ExternalFailure,
+        ),
+        DownloadAdoptError::CopySizeMismatch { .. } => (
+            "vua.warehouse.copySizeMismatch",
+            ErrorCategory::ExternalFailure,
+        ),
         // Stored corruption of the ingest-gated event log: a store-surface
         // internal failure, surfaced honestly rather than skipped.
-        DownloadAdoptError::EventFold(_) => {
-            ("vua.warehouse.storeFailed", ErrorCategory::Internal)
-        }
+        DownloadAdoptError::EventFold(_) => ("vua.warehouse.storeFailed", ErrorCategory::Internal),
     };
-    vua_orchestrator::AppErrorV1::new(code, category, "errors.warehouse.adoptFailed", correlation_id)
-        .with_param(
-            "downloadId",
-            ParamValue::Text(download_id.to_string()),
-        )
-        .with_param("reason", ParamValue::Text(error.to_string()))
-        .with_recoverable(true)
+    vua_orchestrator::AppErrorV1::new(
+        code,
+        category,
+        "errors.warehouse.adoptFailed",
+        correlation_id,
+    )
+    .with_param("downloadId", ParamValue::Text(download_id.to_string()))
+    .with_param("reason", ParamValue::Text(error.to_string()))
+    .with_recoverable(true)
 }
 
 /// Assemble the task closure: downloads are adopted in submission order with
@@ -477,7 +490,12 @@ mod tests {
     use vua_bdl_store::download_events::DownloadEventV01;
     use vua_orchestrator::FixedClock;
 
-    fn event(kind: vua_bdl_store::download_events::DownloadEventKind, download_id: &str, stored_path: Option<String>, received: Option<u64>) -> DownloadEventV01 {
+    fn event(
+        kind: vua_bdl_store::download_events::DownloadEventKind,
+        download_id: &str,
+        stored_path: Option<String>,
+        received: Option<u64>,
+    ) -> DownloadEventV01 {
         DownloadEventV01 {
             schema_version: "0.1".into(),
             kind,
@@ -550,7 +568,11 @@ mod tests {
                 None,
             ))
             .unwrap();
-        let adopter = DownloadAdopter::new(&store, &vua_orchestrator::SystemClock, unique_dir("vua-adopt", "wh"));
+        let adopter = DownloadAdopter::new(
+            &store,
+            &vua_orchestrator::SystemClock,
+            unique_dir("vua-adopt", "wh"),
+        );
         match adopter.adopt_download("dl-2") {
             Err(DownloadAdoptError::DownloadNotCompleted { download_id, phase }) => {
                 assert_eq!(download_id, "dl-2");
@@ -576,10 +598,21 @@ mod tests {
         let size = b"PK hostile name fixture".len() as u64;
         let consumer = DownloadEventConsumer::new(&store);
         for (kind, occurred) in [
-            (vua_bdl_store::download_events::DownloadEventKind::Started, "2026-09-09T12:00:00.000Z"),
-            (vua_bdl_store::download_events::DownloadEventKind::Completed, "2026-09-09T12:00:01.000Z"),
+            (
+                vua_bdl_store::download_events::DownloadEventKind::Started,
+                "2026-09-09T12:00:00.000Z",
+            ),
+            (
+                vua_bdl_store::download_events::DownloadEventKind::Completed,
+                "2026-09-09T12:00:01.000Z",
+            ),
         ] {
-            let mut delivery = event(kind, "dl-hostile", Some(staging.to_string_lossy().into_owned()), Some(size));
+            let mut delivery = event(
+                kind,
+                "dl-hostile",
+                Some(staging.to_string_lossy().into_owned()),
+                Some(size),
+            );
             // Server-controlled Content-Disposition content pointing two
             // levels above the entry folder.
             delivery.suggested_file_name = Some("..\\..\\evil.zip".into());
@@ -598,21 +631,18 @@ mod tests {
         let entry_folder = warehouse_root.join(&adopted.entry.folder_name);
         assert!(entry_folder.join("evil.zip").is_file());
         assert!(
-            !warehouse_root
-                .parent()
-                .unwrap()
-                .join("evil.zip")
-                .exists(),
+            !warehouse_root.parent().unwrap().join("evil.zip").exists(),
             "the hostile relative escape target must not exist"
         );
         // The copy rows carry the guarded component as the relative path.
-        let copies = store.entry_copies(&adopted.entry.warehouse_item_id).unwrap();
+        let copies = store
+            .entry_copies(&adopted.entry.warehouse_item_id)
+            .unwrap();
         assert_eq!(copies[0].relative_path, "evil.zip");
         std::fs::remove_dir_all(&warehouse_root).ok();
         std::fs::remove_dir_all(&staging_dir).ok();
     }
 }
-
 
 /// `/items/{digits}` in a booth.pm URL (any locale path) — the only URL
 /// shape eligible for catalog correlation. Non-booth or item-less URLs
@@ -660,7 +690,10 @@ mod correlation_tests {
             Some("99")
         );
         assert_eq!(booth_item_id_from_url("https://booth.pm/library"), None);
-        assert_eq!(booth_item_id_from_url("https://example.com/items/abc"), None);
+        assert_eq!(
+            booth_item_id_from_url("https://example.com/items/abc"),
+            None
+        );
         assert_eq!(booth_item_id_from_url("not a url"), None);
     }
 }

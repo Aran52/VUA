@@ -191,11 +191,13 @@ impl VpmBackend for RepoCatalogVpm {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn repo_catalog_capabilities(&self) -> RepoCatalogCapabilities {
-        RepoCatalogCapabilities { repo_catalog: self.repo_catalog_cap }
+        RepoCatalogCapabilities {
+            repo_catalog: self.repo_catalog_cap,
+        }
     }
     fn preview_install(
         &self,
@@ -236,14 +238,18 @@ impl VpmBackend for RepoCatalogVpm {
                 "verbatim repoId transport (None = the whole collection world)"
             );
             assert_eq!(
-                package_ids, expect_ids.as_slice(),
+                package_ids,
+                expect_ids.as_slice(),
                 "verbatim packageIds transport (empty slice = the null lens)"
             );
         }
         if let Some(error) = &self.failure {
             return Err(error.clone());
         }
-        Ok(self.catalog.clone().expect("declaring fake carries a catalog"))
+        Ok(self
+            .catalog
+            .clone()
+            .expect("declaring fake carries a catalog"))
     }
 }
 
@@ -375,9 +381,15 @@ fn wired_route_projects_the_frozen_envelope_and_transports_null_params_verbatim(
         "packages.repoCatalog",
         browse_params(),
     );
-    assert_eq!(payload["ok"], true, "wired + declared must succeed: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "wired + declared must succeed: {payload}"
+    );
     let value = &payload["value"];
-    assert_eq!(value["schemaVersion"], PACKAGES_REPO_CATALOG_ENVELOPE_SCHEMA_VERSION_V01);
+    assert_eq!(
+        value["schemaVersion"],
+        PACKAGES_REPO_CATALOG_ENVELOPE_SCHEMA_VERSION_V01
+    );
     assert_eq!(value["operation"], "packages.repoCatalog");
     assert!(
         validator.is_valid(value),
@@ -385,7 +397,10 @@ fn wired_route_projects_the_frozen_envelope_and_transports_null_params_verbatim(
         schema_violations(&validator, value)
     );
     let result = &value["result"];
-    assert_eq!(result["schemaVersion"], PACKAGES_REPO_CATALOG_SCHEMA_VERSION_V01);
+    assert_eq!(
+        result["schemaVersion"],
+        PACKAGES_REPO_CATALOG_SCHEMA_VERSION_V01
+    );
     assert_eq!(result["cacheSourced"], Value::Bool(true));
     let repos = result["repos"].as_array().expect("repo rows");
     assert_eq!(repos.len(), 3);
@@ -404,10 +419,7 @@ fn wired_route_projects_the_frozen_envelope_and_transports_null_params_verbatim(
     // The deliberate ceiling: no compatible fact exists on this face.
     assert!(repos[0]["packages"][0].get("compatible").is_none());
 
-    let row = repo_catalog_capability_row(
-        &database,
-        Some(Arc::new(RepoCatalogVpm::declaring())),
-    );
+    let row = repo_catalog_capability_row(&database, Some(Arc::new(RepoCatalogVpm::declaring())));
     assert_eq!(row["availability"], "available");
     fs::remove_dir_all(&root).ok();
 }
@@ -433,7 +445,10 @@ fn scoped_and_filtered_params_cross_verbatim_and_a_filter_miss_stays_honest_empt
             "packageIds": ["com.anatawa12.avatar-optimizer", "com.example.local-tool"],
         }),
     );
-    assert_eq!(payload["ok"], true, "scoped + filtered must succeed: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "scoped + filtered must succeed: {payload}"
+    );
     assert!(
         validator.is_valid(&payload["value"]),
         "{:?}",
@@ -460,7 +475,10 @@ fn scoped_and_filtered_params_cross_verbatim_and_a_filter_miss_stays_honest_empt
         "packages.repoCatalog",
         json!({ "repoId": "official", "packageIds": ["com.example.not-there"] }),
     );
-    assert_eq!(payload["ok"], true, "a filter miss is an honest success: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "a filter miss is an honest success: {payload}"
+    );
     assert!(
         validator.is_valid(&payload["value"]),
         "{:?}",
@@ -469,7 +487,10 @@ fn scoped_and_filtered_params_cross_verbatim_and_a_filter_miss_stays_honest_empt
     let repos = payload["value"]["result"]["repos"].as_array().unwrap();
     assert_eq!(repos.len(), 1);
     assert_eq!(repos[0]["packages"].as_array().unwrap().len(), 0);
-    assert_eq!(payload["value"]["result"]["cacheSourced"], Value::Bool(false));
+    assert_eq!(
+        payload["value"]["result"]["cacheSourced"],
+        Value::Bool(false)
+    );
     fs::remove_dir_all(&root).ok();
 }
 
@@ -479,7 +500,10 @@ fn empty_repos_array_is_an_honest_schema_valid_answer() {
     let root = unique_root("empty");
     let database = root.join("tasks.sqlite");
     let mut fake = RepoCatalogVpm::declaring();
-    fake.catalog = Some(RepoCatalogV01 { repos: vec![], cache_sourced: false });
+    fake.catalog = Some(RepoCatalogV01 {
+        repos: vec![],
+        cache_sourced: false,
+    });
 
     let payload = run_query_frame(
         &database,
@@ -487,7 +511,10 @@ fn empty_repos_array_is_an_honest_schema_valid_answer() {
         "packages.repoCatalog",
         browse_params(),
     );
-    assert_eq!(payload["ok"], true, "zero repository caches is a real backend fact");
+    assert_eq!(
+        payload["ok"], true,
+        "zero repository caches is a real backend fact"
+    );
     assert!(
         validator.is_valid(&payload["value"]),
         "{:?}",
@@ -590,7 +617,10 @@ fn port_refusals_travel_verbatim_and_repo_not_found_carries_the_reused_code() {
         "packages.repoCatalog",
         json!({ "repoId": "not-a-known-repo", "packageIds": null }),
     );
-    assert_eq!(payload["ok"], false, "the refusal travels as a typed failure");
+    assert_eq!(
+        payload["ok"], false,
+        "the refusal travels as a typed failure"
+    );
     assert_eq!(payload["error"]["code"], "vua.vpm.repo_not_found");
     assert_eq!(payload["error"]["messageKey"], "errors.vpm.repoNotFound");
     assert!(
@@ -619,7 +649,10 @@ fn envelope_consts_are_detectable_and_match_the_frozen_schema_consts() {
         json!(PACKAGES_REPO_CATALOG_SCHEMA_VERSION_V01),
         "the family const equals the frozen result def's const"
     );
-    assert_eq!(PACKAGES_REPO_CATALOG_SCHEMA_VERSION_V01, "vua.packages-repo-catalog/v0.1");
+    assert_eq!(
+        PACKAGES_REPO_CATALOG_SCHEMA_VERSION_V01,
+        "vua.packages-repo-catalog/v0.1"
+    );
 
     // The live stamp: the one response carries both consts (pinned against
     // the constants, not against string literals).
@@ -631,7 +664,10 @@ fn envelope_consts_are_detectable_and_match_the_frozen_schema_consts() {
         "packages.repoCatalog",
         browse_params(),
     );
-    assert_eq!(payload["value"]["schemaVersion"], PACKAGES_REPO_CATALOG_ENVELOPE_SCHEMA_VERSION_V01);
+    assert_eq!(
+        payload["value"]["schemaVersion"],
+        PACKAGES_REPO_CATALOG_ENVELOPE_SCHEMA_VERSION_V01
+    );
     assert_eq!(
         payload["value"]["result"]["schemaVersion"],
         PACKAGES_REPO_CATALOG_SCHEMA_VERSION_V01

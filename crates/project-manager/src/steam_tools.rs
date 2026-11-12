@@ -146,7 +146,12 @@ impl ToolPlatform for SteamToolPlatform {
         let common = discovery
             .map(|(_, roots)| roots)
             .unwrap_or_else(|| self.fallback.clone());
-        Ok(inspect_libraries(&common, steam_ready, unreadable, self.spec))
+        Ok(inspect_libraries(
+            &common,
+            steam_ready,
+            unreadable,
+            self.spec,
+        ))
     }
     fn processes(&self) -> Result<Vec<ToolProcess>, &'static str> {
         crate::play_session::os::processes_matching(|name| name == self.spec.process_name)

@@ -14,8 +14,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::{json, Value};
 use vua_orchestrator::{FixedClock, ManagerPresence};
 use vua_project_manager::{
-    collect_project_inspections, mark_vua_native, set_note, MutationStatus, ProjectAssociation,
-    ProjectInspectionSnapshotV01, VuaIdentityFinding, ManagerRoots,
+    collect_project_inspections, mark_vua_native, set_note, ManagerRoots, MutationStatus,
+    ProjectAssociation, ProjectInspectionSnapshotV01, VuaIdentityFinding,
     PROJECT_INSPECTION_SCHEMA_VERSION,
 };
 
@@ -120,9 +120,7 @@ fn snapshot_validator() -> jsonschema::Validator {
 fn read_repo_json(relative: &str) -> Value {
     // Tests run from the crate directory; the schemas live at the repo root.
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let path = Path::new(manifest_dir)
-        .join("../..")
-        .join(relative);
+    let path = Path::new(manifest_dir).join("../..").join(relative);
     serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap()
 }
 
@@ -170,10 +168,7 @@ fn dual_registration_unions_associations_and_reads_the_manifest() {
         ]
     );
     assert!(finding.path_present);
-    assert_eq!(
-        finding.unity_version.as_deref(),
-        Some("2022.3.22f1")
-    );
+    assert_eq!(finding.unity_version.as_deref(), Some("2022.3.22f1"));
     assert!(matches!(
         finding.unity_classification,
         Some(vua_orchestrator::EditorClass::ProductionTarget)
@@ -262,7 +257,10 @@ fn stale_registration_stays_visible_with_a_warning() {
     assert_eq!(snapshot.projects.len(), 1, "stale entries stay visible");
     let finding = &snapshot.projects[0];
     assert!(!finding.path_present);
-    assert_eq!(finding.associations, vec![ProjectAssociation::VccRegistered]);
+    assert_eq!(
+        finding.associations,
+        vec![ProjectAssociation::VccRegistered]
+    );
     assert_eq!(finding.unity_version, None);
     assert!(!finding.manifest_present);
     assert_eq!(finding.mutation_status, MutationStatus::None);
@@ -276,7 +274,10 @@ fn stale_registration_stays_visible_with_a_warning() {
         vua_orchestrator::FindingSeverity::Warning
     ));
 
-    let problems = violations(&snapshot_validator(), &serde_json::to_value(&snapshot).unwrap());
+    let problems = violations(
+        &snapshot_validator(),
+        &serde_json::to_value(&snapshot).unwrap(),
+    );
     assert!(problems.is_empty(), "schema violations: {problems:#?}");
 
     cleanup(&base);
@@ -453,7 +454,10 @@ fn partially_readable_manifest_maps_announce_what_was_skipped() {
         finding.manifest_present && finding.manifest_schema_ok,
         "valid-JSON manifests stay schema-ok; shape findings ride on diagnostics"
     );
-    assert!(finding.dependencies.is_empty(), "wrong shape is never guessed into entries");
+    assert!(
+        finding.dependencies.is_empty(),
+        "wrong shape is never guessed into entries"
+    );
     assert_eq!(finding.locked.len(), 1, "the readable entry survives");
     assert_eq!(finding.locked[0].package_id, "com.vrchat.base");
 
@@ -463,18 +467,21 @@ fn partially_readable_manifest_maps_announce_what_was_skipped() {
         .map(|diagnostic| diagnostic.detail.as_str())
         .collect();
     assert!(
-        details.iter().any(|detail| detail.contains("dependencies") && detail.contains("not an object")),
+        details
+            .iter()
+            .any(|detail| detail.contains("dependencies") && detail.contains("not an object")),
         "the wrong-shape field must be announced: {details:#?}"
     );
     assert!(
-        details.iter().any(|detail| detail.contains("locked") && detail.contains("com.example.broken")),
+        details
+            .iter()
+            .any(|detail| detail.contains("locked") && detail.contains("com.example.broken")),
         "the skipped entry must be announced: {details:#?}"
     );
     assert!(
-        finding
-            .diagnostics
-            .iter()
-            .all(|diagnostic| diagnostic.code == "vua.project_inspection.manifest_schema_unexpected"),
+        finding.diagnostics.iter().all(
+            |diagnostic| diagnostic.code == "vua.project_inspection.manifest_schema_unexpected"
+        ),
         "the inspection family owns these shape findings: {:?}",
         finding.diagnostics
     );
@@ -508,7 +515,9 @@ fn unreadable_project_version_file_announces_itself_instead_of_silence() {
     assert!(
         finding.diagnostics.iter().any(|diagnostic| {
             diagnostic.code == vua_orchestrator::env_managers_codes::PROJECT_MARKERS_INCOMPLETE
-                && diagnostic.detail.contains("ProjectVersion.txt exists but cannot be read")
+                && diagnostic
+                    .detail
+                    .contains("ProjectVersion.txt exists but cannot be read")
         }),
         "the unreadable marker must be announced: {:?}",
         finding.diagnostics

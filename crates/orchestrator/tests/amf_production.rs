@@ -64,10 +64,17 @@ fn unity_until_stopped(watch: &UnityWatch) -> AppErrorV1 {
     let started = std::time::Instant::now();
     let mut current = 0;
     while !watch.stop_requested() {
-        assert!(started.elapsed() < Duration::from_secs(10), "the stop request never reached the Unity step");
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "the stop request never reached the Unity step"
+        );
         current = (current + 1).min(379);
-        watch.report(UnityProgress { stage: UnityStage::Importing, current: Some(current), total: Some(379),
-            last_activity_at: "2026-10-17T08:00:00.000Z".into() });
+        watch.report(UnityProgress {
+            stage: UnityStage::Importing,
+            current: Some(current),
+            total: Some(379),
+            last_activity_at: "2026-10-17T08:00:00.000Z".into(),
+        });
         std::thread::sleep(Duration::from_millis(10));
     }
     watch.stopped()
@@ -84,16 +91,30 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec!["Head".into()],
             preview: Some(".vua/previews/cmd/candidate-000.png".into()),
-            prefab_guid:None, object_paths:None, footprint: None,
+            prefab_guid: None,
+            object_paths: None,
+            footprint: None,
             parameter_budget: Some(ParameterBudget {
                 expression_parameters_observed: true,
                 expression_parameters: vec![
-                    ParameterEntry { name: "VRCEmote".into(), bits: 8, unique: false },
-                    ParameterEntry { name: "VRMode".into(), bits: 1, unique: false },
+                    ParameterEntry {
+                        name: "VRCEmote".into(),
+                        bits: 8,
+                        unique: false,
+                    },
+                    ParameterEntry {
+                        name: "VRMode".into(),
+                        bits: 1,
+                        unique: false,
+                    },
                 ],
                 ma_components: vec![ParameterComponent {
                     path: "Default Clothing".into(),
-                    parameters: vec![ParameterEntry { name: "DefaultDress".into(), bits: 1, unique: false }],
+                    parameters: vec![ParameterEntry {
+                        name: "DefaultDress".into(),
+                        bits: 1,
+                        unique: false,
+                    }],
                 }],
                 unresolved_prefix_configs: 0,
                 truncated: false,
@@ -109,13 +130,19 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec![],
             preview: None,
-            prefab_guid:None, object_paths:None, footprint: None,
+            prefab_guid: None,
+            object_paths: None,
+            footprint: None,
             parameter_budget: Some(ParameterBudget {
                 expression_parameters_observed: true,
                 expression_parameters: vec![],
                 ma_components: vec![ParameterComponent {
                     path: String::new(),
-                    parameters: vec![ParameterEntry { name: "CoatOn".into(), bits: 1, unique: false }],
+                    parameters: vec![ParameterEntry {
+                        name: "CoatOn".into(),
+                        bits: 1,
+                        unique: false,
+                    }],
                 }],
                 unresolved_prefix_configs: 0,
                 truncated: false,
@@ -131,17 +158,34 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec![],
             preview: None,
-            parameter_budget: None, prefab_guid:None, object_paths:None, footprint: None,
+            parameter_budget: None,
+            prefab_guid: None,
+            object_paths: None,
+            footprint: None,
         },
     ]
 }
 impl AmfProductionPlatform for TestPlatform {
-    fn resolve_recipe_materials(&self, materials: &[vua_orchestrator::amf_recipe::RecipeMaterial]) -> Result<std::collections::BTreeMap<String,String>, AppErrorV1> {
-        materials.iter().map(|material| {
-            let source = if material.sha256 == "a".repeat(64) { "avatar" } else if material.sha256 == "b".repeat(64) { "outfit" }
-                else { return Err(production_error("recipe_material_missing", "Synthetic missing original.")); };
-            Ok((material.id.clone(), source.into()))
-        }).collect()
+    fn resolve_recipe_materials(
+        &self,
+        materials: &[vua_orchestrator::amf_recipe::RecipeMaterial],
+    ) -> Result<std::collections::BTreeMap<String, String>, AppErrorV1> {
+        materials
+            .iter()
+            .map(|material| {
+                let source = if material.sha256 == "a".repeat(64) {
+                    "avatar"
+                } else if material.sha256 == "b".repeat(64) {
+                    "outfit"
+                } else {
+                    return Err(production_error(
+                        "recipe_material_missing",
+                        "Synthetic missing original.",
+                    ));
+                };
+                Ok((material.id.clone(), source.into()))
+            })
+            .collect()
     }
     fn sources(&self) -> Result<Vec<ProductionSource>, AppErrorV1> {
         Ok(["avatar", "outfit", "outfit2"]
@@ -185,17 +229,50 @@ impl AmfProductionPlatform for TestPlatform {
                 role: s.role,
                 name: format!("{}.unitypackage", s.source_id),
                 item_name: s.source_id.clone(),
-                sha256: format!("sha256:{}", if s.source_id == "avatar" { if self.alt_avatar_hash.load(Ordering::SeqCst) { "d".repeat(64) } else { "a".repeat(64) } } else if self.change_recipe_input.load(Ordering::SeqCst) { "c".repeat(64) } else { "b".repeat(64) }),
-                asset_paths: vec![format!("Assets/{}.prefab", s.source_id), if s.source_id == "avatar" {"Assets/Avatar/Body.mat".into()} else {"Assets/Outfit/Coat.mat".into()}],
+                sha256: format!(
+                    "sha256:{}",
+                    if s.source_id == "avatar" {
+                        if self.alt_avatar_hash.load(Ordering::SeqCst) {
+                            "d".repeat(64)
+                        } else {
+                            "a".repeat(64)
+                        }
+                    } else if self.change_recipe_input.load(Ordering::SeqCst) {
+                        "c".repeat(64)
+                    } else {
+                        "b".repeat(64)
+                    }
+                ),
+                asset_paths: vec![
+                    format!("Assets/{}.prefab", s.source_id),
+                    if s.source_id == "avatar" {
+                        "Assets/Avatar/Body.mat".into()
+                    } else {
+                        "Assets/Outfit/Coat.mat".into()
+                    },
+                ],
             })
             .collect())
     }
-    fn replace_sources(&self, run: &ProductionRun, _: &[PreparedSource], ctx: &TaskContext) -> Result<Vec<PreparedSource>, AppErrorV1> {
-        let ids = run.choices.iter().map(|choice| choice.source_id.as_str()).collect::<Vec<_>>().join("+");
+    fn replace_sources(
+        &self,
+        run: &ProductionRun,
+        _: &[PreparedSource],
+        ctx: &TaskContext,
+    ) -> Result<Vec<PreparedSource>, AppErrorV1> {
+        let ids = run
+            .choices
+            .iter()
+            .map(|choice| choice.source_id.as_str())
+            .collect::<Vec<_>>()
+            .join("+");
         let state = Path::new(&run.project_root).join("Assets/state");
         if self.fail_replace.swap(false, Ordering::SeqCst) {
             fs::write(&state, "half-changed").unwrap();
-            return Err(production_error("test_replace", "Synthetic failure while changing materials."));
+            return Err(production_error(
+                "test_replace",
+                "Synthetic failure while changing materials.",
+            ));
         }
         fs::write(&state, format!("materials:{ids}")).unwrap();
         self.import_sources(run, ctx)
@@ -203,12 +280,19 @@ impl AmfProductionPlatform for TestPlatform {
     fn editor_open(&self, _: &Path) -> bool {
         self.editor_open.load(Ordering::SeqCst)
     }
-    fn inspect(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+    fn inspect(
+        &self,
+        run: &ProductionRun,
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
         if self.wait_for_stop.swap(false, Ordering::SeqCst) {
             return Err(unity_until_stopped(watch));
         }
         if self.fail_inspect.swap(false, Ordering::SeqCst) {
-            return Err(production_error("test_inspect", "Synthetic inspection failed."));
+            return Err(production_error(
+                "test_inspect",
+                "Synthetic inspection failed.",
+            ));
         }
         let previews = Path::new(&run.project_root).join(".vua/previews/cmd");
         fs::create_dir_all(&previews).unwrap();
@@ -217,34 +301,65 @@ impl AmfProductionPlatform for TestPlatform {
         }
         let mut prefabs = candidates();
         if self.alt_avatar.load(Ordering::SeqCst) {
-            prefabs.push(PrefabCandidate { path: "Assets/AvatarAlt.prefab".into(), name: "Avatar Alt".into(), preview: None, ..candidates().remove(0) });
+            prefabs.push(PrefabCandidate {
+                path: "Assets/AvatarAlt.prefab".into(),
+                name: "Avatar Alt".into(),
+                preview: None,
+                ..candidates().remove(0)
+            });
         }
-        let mut assembled = self.assembled_with.lock().unwrap().last().cloned().unwrap_or_else(selection);
+        let mut assembled = self
+            .assembled_with
+            .lock()
+            .unwrap()
+            .last()
+            .cloned()
+            .unwrap_or_else(selection);
         let state = fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap();
-        if let Some(removed) = state.strip_prefix("removed:") { assembled.outfits.retain(|o| o.source_id != removed); }
-        if state.starts_with("removed:") && self.removal_mode.load(Ordering::SeqCst) == 3 { assembled.outfits[0].active = !assembled.outfits[0].active; }
+        if let Some(removed) = state.strip_prefix("removed:") {
+            assembled.outfits.retain(|o| o.source_id != removed);
+        }
+        if state.starts_with("removed:") && self.removal_mode.load(Ordering::SeqCst) == 3 {
+            assembled.outfits[0].active = !assembled.outfits[0].active;
+        }
         let mut result = serde_json::json!({"synthetic":true,
             "facts":{"avatarName":"Synthetic Avatar", "avatarGlobalObjectId":"synthetic-avatar", "usedSourceIds":["avatar","outfit"],
                 "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(state == "after" || state == "after-opt" || state.starts_with("removed:")).then_some(assembled.clone()),
                 "sdkReview":{"state":"checked","platform":"pc","overall":"Poor","detail":"","stats":[],"issues":[
                     {"level":"error","text":PIPELINE_FIX,"canFix":true},{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]}},
             "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}});
-        if state == "after-opt" || run.package_pins.contains_key("com.anatawa12.avatar-optimizer") {
-            result["packageVersions"]["com.anatawa12.avatar-optimizer"] = serde_json::json!("1.9.21");
+        if state == "after-opt"
+            || run
+                .package_pins
+                .contains_key("com.anatawa12.avatar-optimizer")
+        {
+            result["packageVersions"]["com.anatawa12.avatar-optimizer"] =
+                serde_json::json!("1.9.21");
         }
-        if let Some(textures) = self.texture_facts.lock().unwrap().clone() { result["facts"]["textureMemory"] = textures; }
+        if let Some(textures) = self.texture_facts.lock().unwrap().clone() {
+            result["facts"]["textureMemory"] = textures;
+        }
         if self.removal_mode.load(Ordering::SeqCst) > 0 {
-            let outfits = if result["facts"]["observedSelection"].is_null() { &[][..] } else { assembled.outfits.as_slice() };
+            let outfits = if result["facts"]["observedSelection"].is_null() {
+                &[][..]
+            } else {
+                assembled.outfits.as_slice()
+            };
             result["facts"]["instances"] = serde_json::json!(outfits.iter().map(|o| serde_json::json!({
                 "sourceId":o.source_id,"globalObjectId":format!("id-{}",o.source_id),"bindingVerified":true,"menuVerified":true,"active":o.active})).collect::<Vec<_>>());
-            result["facts"]["outfitRemoval"] = serde_json::json!(outfits.iter().map(|o| synthetic_removal(&o.source_id)).collect::<Vec<_>>());
+            result["facts"]["outfitRemoval"] = serde_json::json!(outfits
+                .iter()
+                .map(|o| synthetic_removal(&o.source_id))
+                .collect::<Vec<_>>());
             result["facts"]["avatars"] = serde_json::json!([
                 {"globalObjectId":"synthetic-avatar","activeTarget":true,"observedSelection":result["facts"]["observedSelection"]},
                 {"globalObjectId":"other-avatar","activeTarget":false,"observedSelection":selection2()}]);
         }
         let material_use = self.material_use.lock().unwrap().clone();
         if let Some(mut facts) = self.ft_facts.lock().unwrap().clone() {
-            let patched = Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists();
+            let patched = Path::new(&run.project_root)
+                .join("ProjectSettings/VUA.FaceTracking.json")
+                .exists();
             facts["manualReplayRequired"] = serde_json::json!(patched);
             result["facts"]["faceTracking"] = facts;
             if patched && self.ft_outcome.load(Ordering::SeqCst) == 5 {
@@ -296,51 +411,128 @@ impl AmfProductionPlatform for TestPlatform {
     fn fingerprint_legacy(&self, project: &Path) -> Result<String, AppErrorV1> {
         Ok(format!("sha256:{}", self.fingerprint(project)?))
     }
-    fn apply_recipe(&self, run: &ProductionRun, selection: &AssemblySelection, target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget, fits: &[OutfitFit], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+    fn apply_recipe(
+        &self,
+        run: &ProductionRun,
+        selection: &AssemblySelection,
+        target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget,
+        fits: &[OutfitFit],
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
         let mut observed = self.assemble(run, selection, fits, watch)?;
         observed.result["facts"]["observedSelection"] = serde_json::to_value(selection).unwrap();
-        observed.result["facts"]["avatarGlobalObjectId"] = serde_json::json!(if target.new_avatar_key.is_some() { "synthetic-new-avatar" } else { &target.avatar_global_object_id });
+        observed.result["facts"]["avatarGlobalObjectId"] =
+            serde_json::json!(if target.new_avatar_key.is_some() {
+                "synthetic-new-avatar"
+            } else {
+                &target.avatar_global_object_id
+            });
         Ok(observed)
     }
-    fn texture_import(&self, run: &ProductionRun, changes: &[TextureImportChange], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+    fn texture_import(
+        &self,
+        run: &ProductionRun,
+        changes: &[TextureImportChange],
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
         assert!(run.snapshot_id.is_some());
-        let saved: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
-        assert_eq!(saved.revisions[0].before, RevisionKind::TextureMemory, "history is durable before writes");
-        let mut reports = validate_texture_memory(self.texture_facts.lock().unwrap().as_ref().unwrap()).unwrap();
+        let saved: ProductionRun = serde_json::from_slice(
+            &fs::read(self.root.join("production/runs/n3-test.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            saved.revisions[0].before,
+            RevisionKind::TextureMemory,
+            "history is durable before writes"
+        );
+        let mut reports =
+            validate_texture_memory(self.texture_facts.lock().unwrap().as_ref().unwrap()).unwrap();
         for change in changes {
-            let report = reports.iter_mut().find(|r| r.platform == change.platform).unwrap();
-            let texture = report.textures.iter_mut().find(|t| t.path == change.path).unwrap();
+            let report = reports
+                .iter_mut()
+                .find(|r| r.platform == change.platform)
+                .unwrap();
+            let texture = report
+                .textures
+                .iter_mut()
+                .find(|t| t.path == change.path)
+                .unwrap();
             let scale = (texture.width.max(texture.height) / change.max_size).max(1);
-            texture.width = (texture.width / scale).max(1); texture.height = (texture.height / scale).max(1);
-            texture.max_size = change.max_size; texture.format = change.format.clone();
-            texture.estimated_bytes = estimate_texture_bytes(texture.width, texture.height, texture.mipmap, &texture.format, 1).unwrap();
-            report.total_bytes = report.textures.iter().map(|t| t.estimated_bytes).sum(); report.rank = texture_rank(report.total_bytes, report.platform);
+            texture.width = (texture.width / scale).max(1);
+            texture.height = (texture.height / scale).max(1);
+            texture.max_size = change.max_size;
+            texture.format = change.format.clone();
+            texture.estimated_bytes = estimate_texture_bytes(
+                texture.width,
+                texture.height,
+                texture.mipmap,
+                &texture.format,
+                1,
+            )
+            .unwrap();
+            report.total_bytes = report.textures.iter().map(|t| t.estimated_bytes).sum();
+            report.rank = texture_rank(report.total_bytes, report.platform);
         }
         if self.texture_outcome.load(Ordering::SeqCst) == 5 {
-            let report = reports.iter_mut().find(|r| r.platform == changes[0].platform).unwrap();
+            let report = reports
+                .iter_mut()
+                .find(|r| r.platform == changes[0].platform)
+                .unwrap();
             let mut unknown = report.textures[0].clone();
-            unknown.id = "generated-unknown".into(); unknown.path.clear(); unknown.known = false;
-            unknown.editable = false; unknown.format = "Unknown".into(); unknown.estimated_bytes = 0;
-            report.textures.push(unknown); report.complete = false; report.rank = TextureRank::Unknown;
+            unknown.id = "generated-unknown".into();
+            unknown.path.clear();
+            unknown.known = false;
+            unknown.editable = false;
+            unknown.format = "Unknown".into();
+            unknown.estimated_bytes = 0;
+            report.textures.push(unknown);
+            report.complete = false;
+            report.rank = TextureRank::Unknown;
         }
         *self.texture_facts.lock().unwrap() = Some(serde_json::json!(reports));
         match self.texture_outcome.load(Ordering::SeqCst) {
-            1 => return Err(production_error("texture_test_failed", "Importer failed after a partial write.")),
-            2 => { *self.texture_facts.lock().unwrap() = self.texture_before.lock().unwrap().clone(); },
+            1 => {
+                return Err(production_error(
+                    "texture_test_failed",
+                    "Importer failed after a partial write.",
+                ))
+            }
+            2 => {
+                *self.texture_facts.lock().unwrap() = self.texture_before.lock().unwrap().clone();
+            }
             3 => return Err(watch.stopped()),
             _ => (),
         }
         let observed = self.inspect(run, watch)?;
-        if self.texture_outcome.load(Ordering::SeqCst) == 4 { self.fail_inspect.store(true, Ordering::SeqCst); }
+        if self.texture_outcome.load(Ordering::SeqCst) == 4 {
+            self.fail_inspect.store(true, Ordering::SeqCst);
+        }
         Ok(observed)
     }
-    fn remove_outfit(&self, run: &ProductionRun, removal: &OutfitRemoval, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+    fn remove_outfit(
+        &self,
+        run: &ProductionRun,
+        removal: &OutfitRemoval,
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
         assert!(run.snapshot_id.is_some());
-        let durable: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
+        let durable: ProductionRun = serde_json::from_slice(
+            &fs::read(self.root.join("production/runs/n3-test.json")).unwrap(),
+        )
+        .unwrap();
         assert_eq!(durable.revisions[0].before, RevisionKind::OutfitRemoval);
-        fs::write(Path::new(&run.project_root).join("Assets/state"), format!("removed:{}", removal.source_id)).unwrap();
+        fs::write(
+            Path::new(&run.project_root).join("Assets/state"),
+            format!("removed:{}", removal.source_id),
+        )
+        .unwrap();
         match self.removal_mode.load(Ordering::SeqCst) {
-            2 => return Err(production_error("test_removal_failed", "Synthetic deletion failed after writing.")),
+            2 => {
+                return Err(production_error(
+                    "test_removal_failed",
+                    "Synthetic deletion failed after writing.",
+                ))
+            }
             4 => return Err(watch.stopped()),
             _ => {}
         }
@@ -348,31 +540,63 @@ impl AmfProductionPlatform for TestPlatform {
         receipt.result["facts"]["outfitRemovalApplied"] = serde_json::json!([{
             "sourceId":removal.source_id,"avatarGlobalObjectId":removal.avatar_global_object_id,
             "deletedObjectIds":removal.objects.iter().map(|o| &o.global_object_id).collect::<Vec<_>>() }]);
-        if self.removal_mode.load(Ordering::SeqCst) == 5 { receipt.result["facts"]["outfitRemovalApplied"] = serde_json::json!([]); }
+        if self.removal_mode.load(Ordering::SeqCst) == 5 {
+            receipt.result["facts"]["outfitRemovalApplied"] = serde_json::json!([]);
+        }
         Ok(receipt)
     }
-    fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+    fn sdk_fix(
+        &self,
+        run: &ProductionRun,
+        fixes: &[String],
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
         if self.fail.load(Ordering::SeqCst) {
-            fs::write(Path::new(&run.project_root).join("Assets/state"), "half-fixed").unwrap();
-            return Err(production_error("test_failure", "Synthetic failure inside the SDK fix."));
+            fs::write(
+                Path::new(&run.project_root).join("Assets/state"),
+                "half-fixed",
+            )
+            .unwrap();
+            return Err(production_error(
+                "test_failure",
+                "Synthetic failure inside the SDK fix.",
+            ));
         }
         let mut observed = self.inspect(run, watch)?;
         observed.result["facts"]["sdkFixesApplied"] = serde_json::json!(fixes);
         Ok(observed)
     }
-    fn set_optimizer(&self, run: &ProductionRun, enabled: bool, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+    fn set_optimizer(
+        &self,
+        run: &ProductionRun,
+        enabled: bool,
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
         assert!(run.snapshot_id.is_some());
         if self.fail.swap(false, Ordering::SeqCst) {
-            fs::write(Path::new(&run.project_root).join("Assets/state"), "half-optimized").unwrap();
-            return Err(production_error("test_optimizer_failure", "Synthetic failure inside Avatar Optimizer."));
+            fs::write(
+                Path::new(&run.project_root).join("Assets/state"),
+                "half-optimized",
+            )
+            .unwrap();
+            return Err(production_error(
+                "test_optimizer_failure",
+                "Synthetic failure inside Avatar Optimizer.",
+            ));
         }
         fs::write(
             Path::new(&run.project_root).join("Assets/state"),
             if enabled { "after-opt" } else { "after" },
-        ).unwrap();
+        )
+        .unwrap();
         let mut observed = self.inspect(run, watch)?;
-        observed.unity_fingerprint = if enabled { "scene-after-opt".into() } else { "scene-after".into() };
-        observed.result["packageVersions"]["com.anatawa12.avatar-optimizer"] = serde_json::json!("1.9.21");
+        observed.unity_fingerprint = if enabled {
+            "scene-after-opt".into()
+        } else {
+            "scene-after".into()
+        };
+        observed.result["packageVersions"]["com.anatawa12.avatar-optimizer"] =
+            serde_json::json!("1.9.21");
         observed.result["facts"]["optimizerReport"] = serde_json::json!({
             "state": "measured",
             "localMeasurementOnly": true,
@@ -419,12 +643,26 @@ impl AmfProductionPlatform for TestPlatform {
         let state = self.fingerprint(Path::new(&run.project_root))?;
         if self.ft_facts.lock().unwrap().is_some() {
             let id = format!("ft-snapshot-{index}");
-            self.ft_snapshots.lock().unwrap().insert(id.clone(), (state,
-                Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists()));
+            self.ft_snapshots.lock().unwrap().insert(
+                id.clone(),
+                (
+                    state,
+                    Path::new(&run.project_root)
+                        .join("ProjectSettings/VUA.FaceTracking.json")
+                        .exists(),
+                ),
+            );
             Ok(id)
-        } else { Ok(state) }
+        } else {
+            Ok(state)
+        }
     }
-    fn face_tracking_patch(&self, run: &ProductionRun, patch: &FaceTrackingPatch, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+    fn face_tracking_patch(
+        &self,
+        run: &ProductionRun,
+        patch: &FaceTrackingPatch,
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
         assert!(patch.confirm_trusted_code);
         assert_eq!(patch.avatar_global_object_id, "synthetic-avatar");
         assert!(run.snapshot_id.is_some());
@@ -432,14 +670,27 @@ impl AmfProductionPlatform for TestPlatform {
         fs::create_dir_all(marker.parent().unwrap()).unwrap();
         fs::write(marker, "{}").unwrap();
         match self.ft_outcome.load(Ordering::SeqCst) {
-            2 => return Err(production_error("test_patch_failed", "Synthetic patch changed a mesh then failed.")),
+            2 => {
+                return Err(production_error(
+                    "test_patch_failed",
+                    "Synthetic patch changed a mesh then failed.",
+                ))
+            }
             6 => return Err(watch.stopped()),
-            7 => return Err(production_error("process_cleanup_unverified", "Synthetic helper is still running.")),
+            7 => {
+                return Err(production_error(
+                    "process_cleanup_unverified",
+                    "Synthetic helper is still running.",
+                ))
+            }
             _ => (),
         }
         let mut observed = self.inspect(run, watch)?;
         match self.ft_outcome.load(Ordering::SeqCst) {
-            3 => observed.result["facts"]["faceTracking"]["manualReplayRequired"] = serde_json::json!(false),
+            3 => {
+                observed.result["facts"]["faceTracking"]["manualReplayRequired"] =
+                    serde_json::json!(false)
+            }
             4 => self.fail_inspect.store(true, Ordering::SeqCst),
             _ => (),
         }
@@ -449,23 +700,57 @@ impl AmfProductionPlatform for TestPlatform {
         if !["avatar", "outfit", "outfit2"].contains(&source_id) {
             return Ok(None);
         }
-        Ok(Some(format!("sha256:{}", if source_id == "avatar" { if self.alt_avatar_hash.load(Ordering::SeqCst) { "d".repeat(64) } else { "a".repeat(64) } }
-            else if self.change_recipe_input.load(Ordering::SeqCst) { "c".repeat(64) } else { "b".repeat(64) })))
+        Ok(Some(format!(
+            "sha256:{}",
+            if source_id == "avatar" {
+                if self.alt_avatar_hash.load(Ordering::SeqCst) {
+                    "d".repeat(64)
+                } else {
+                    "a".repeat(64)
+                }
+            } else if self.change_recipe_input.load(Ordering::SeqCst) {
+                "c".repeat(64)
+            } else {
+                "b".repeat(64)
+            }
+        )))
     }
     fn prune_snapshots(&self, run: &ProductionRun, keep: &[&str]) -> Vec<String> {
-        self.prune_keeps.lock().unwrap().push(keep.iter().map(|id| id.to_string()).collect());
-        vua_orchestrator::FileSystemSnapshotStore.prune_unreferenced(Path::new(&run.project_root), keep)
+        self.prune_keeps
+            .lock()
+            .unwrap()
+            .push(keep.iter().map(|id| id.to_string()).collect());
+        vua_orchestrator::FileSystemSnapshotStore
+            .prune_unreferenced(Path::new(&run.project_root), keep)
     }
     fn restore(&self, run: &ProductionRun, snapshot: &str) -> Result<(), AppErrorV1> {
-        if self.editor_open.load(Ordering::SeqCst) { return Err(production_error("project_open", "Synthetic live Editor lock.")); }
+        if self.editor_open.load(Ordering::SeqCst) {
+            return Err(production_error(
+                "project_open",
+                "Synthetic live Editor lock.",
+            ));
+        }
         if run.phase == "restoring" {
-            let saved: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
+            let saved: ProductionRun = serde_json::from_slice(
+                &fs::read(self.root.join("production/runs/n3-test.json")).unwrap(),
+            )
+            .unwrap();
             assert_eq!(saved.phase, "restoring");
-            assert_eq!(saved.snapshot_id, run.snapshot_id, "Current-state recovery must be durable before any restore writes");
+            assert_eq!(
+                saved.snapshot_id, run.snapshot_id,
+                "Current-state recovery must be durable before any restore writes"
+            );
         }
         if self.fail_restore.swap(false, Ordering::SeqCst) {
-            fs::write(Path::new(&run.project_root).join("Assets/state"), "partial restore").unwrap();
-            return Err(production_error("test_restore", "Synthetic partial restore."));
+            fs::write(
+                Path::new(&run.project_root).join("Assets/state"),
+                "partial restore",
+            )
+            .unwrap();
+            return Err(production_error(
+                "test_restore",
+                "Synthetic partial restore.",
+            ));
         }
         *self.texture_facts.lock().unwrap() = self.texture_before.lock().unwrap().clone();
         for (path, bytes) in self.restore_files.lock().unwrap().drain(..) {
@@ -473,26 +758,61 @@ impl AmfProductionPlatform for TestPlatform {
         }
         if let Some((state, marker_exists)) = self.ft_snapshots.lock().unwrap().get(snapshot) {
             let marker = Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json");
-            if *marker_exists { fs::write(marker, "{}").unwrap(); }
-            else if marker.exists() { fs::remove_file(marker).unwrap(); }
+            if *marker_exists {
+                fs::write(marker, "{}").unwrap();
+            } else if marker.exists() {
+                fs::remove_file(marker).unwrap();
+            }
             fs::write(Path::new(&run.project_root).join("Assets/state"), state).unwrap();
         } else {
             fs::write(Path::new(&run.project_root).join("Assets/state"), snapshot).unwrap();
         }
         Ok(())
     }
-    fn snapshot_open_editor(&self, run: &ProductionRun) -> Result<String, AppErrorV1> { self.snapshot(run) }
-    fn close_editor(&self, run: &ProductionRun, _: &TaskContext) -> Result<EditorCloseResult, AppErrorV1> {
-        let saved: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
+    fn snapshot_open_editor(&self, run: &ProductionRun) -> Result<String, AppErrorV1> {
+        self.snapshot(run)
+    }
+    fn close_editor(
+        &self,
+        run: &ProductionRun,
+        _: &TaskContext,
+    ) -> Result<EditorCloseResult, AppErrorV1> {
+        let saved: ProductionRun = serde_json::from_slice(
+            &fs::read(self.root.join("production/runs/n3-test.json")).unwrap(),
+        )
+        .unwrap();
         assert!(saved.snapshot_id.is_some());
         assert_eq!(saved.revisions[0].before, RevisionKind::EditorSave);
         assert_eq!(saved.steps.last().unwrap().key, "editor_close");
         let mode = self.close_outcome.load(Ordering::SeqCst);
-        if mode != 5 { fs::write(Path::new(&run.project_root).join("Assets/state"), "saved-player-edits").unwrap(); }
-        if mode != 2 && mode != 5 { self.editor_open.store(false, Ordering::SeqCst); }
-        Ok(EditorCloseResult { schema_version:"0.1".into(), run_id:run.run_id.clone(), close_id:"close-1".into(),
-            outcome:if mode == 1 { "saved" } else { "failed" }.into(), scenes_saved:mode == 1, assets_saved:mode == 1,
-            editor_closed:mode != 2 && mode != 5, reason:if mode == 1 { "" } else if mode == 5 { "editor_busy" } else { "scene_save_failed" }.into(), detail:"Synthetic save receipt.".into() })
+        if mode != 5 {
+            fs::write(
+                Path::new(&run.project_root).join("Assets/state"),
+                "saved-player-edits",
+            )
+            .unwrap();
+        }
+        if mode != 2 && mode != 5 {
+            self.editor_open.store(false, Ordering::SeqCst);
+        }
+        Ok(EditorCloseResult {
+            schema_version: "0.1".into(),
+            run_id: run.run_id.clone(),
+            close_id: "close-1".into(),
+            outcome: if mode == 1 { "saved" } else { "failed" }.into(),
+            scenes_saved: mode == 1,
+            assets_saved: mode == 1,
+            editor_closed: mode != 2 && mode != 5,
+            reason: if mode == 1 {
+                ""
+            } else if mode == 5 {
+                "editor_busy"
+            } else {
+                "scene_save_failed"
+            }
+            .into(),
+            detail: "Synthetic save receipt.".into(),
+        })
     }
     fn open(&self, _: &ProductionRun, _: &TaskContext) -> Result<serde_json::Value, AppErrorV1> {
         Ok(serde_json::json!({"synthetic":true}))
@@ -534,7 +854,9 @@ impl Harness {
         ));
         fs::create_dir_all(&root).unwrap();
         let platform = Arc::new(TestPlatform {
-            texture_facts: Mutex::new(None), texture_before: Mutex::new(None), texture_outcome: AtomicUsize::new(0),
+            texture_facts: Mutex::new(None),
+            texture_before: Mutex::new(None),
+            texture_outcome: AtomicUsize::new(0),
             removal_mode: AtomicUsize::new(0),
             ft_facts: Mutex::new(None),
             ft_outcome: AtomicUsize::new(1),
@@ -599,7 +921,13 @@ impl Harness {
                 timeout: None,
                 job: Box::new(move |ctx| {
                     let result = action(&engine, ctx);
-                    tx.send(result.as_ref().map(|_| ()).map_err(|error| error.code.clone())).unwrap();
+                    tx.send(
+                        result
+                            .as_ref()
+                            .map(|_| ())
+                            .map_err(|error| error.code.clone()),
+                    )
+                    .unwrap();
                     result.map(|()| TaskExit::Done(serde_json::json!({"synthetic":true})))
                 }),
             })
@@ -665,15 +993,41 @@ fn confirmation_binds_source_target_editor_and_reinspection_revision() {
 fn only_previews_the_run_reports_are_read() {
     let h = Harness::new();
     h.prepared();
-    let front = h.engine.preview_image("n3-test", ".vua/previews/cmd/front.png").unwrap();
+    let front = h
+        .engine
+        .preview_image("n3-test", ".vua/previews/cmd/front.png")
+        .unwrap();
     assert!(front.starts_with(b"\x89PNG"));
-    assert!(h.engine.preview_image("n3-test", ".vua/previews/cmd/candidate-000.png").is_ok());
-    for unreported in [".vua/previews/cmd/unreported.png", ".vua/previews/cmd/../cmd/front.png", "Assets/state"] {
-        assert_eq!(h.engine.preview_image("n3-test", unreported).unwrap_err().code, "vua.amf_production.preview_unknown");
+    assert!(h
+        .engine
+        .preview_image("n3-test", ".vua/previews/cmd/candidate-000.png")
+        .is_ok());
+    for unreported in [
+        ".vua/previews/cmd/unreported.png",
+        ".vua/previews/cmd/../cmd/front.png",
+        "Assets/state",
+    ] {
+        assert_eq!(
+            h.engine
+                .preview_image("n3-test", unreported)
+                .unwrap_err()
+                .code,
+            "vua.amf_production.preview_unknown"
+        );
     }
     let run = h.engine.get("n3-test").unwrap();
-    fs::write(Path::new(&run.project_root).join(".vua/previews/cmd/front.png"), b"not an image").unwrap();
-    assert_eq!(h.engine.preview_image("n3-test", ".vua/previews/cmd/front.png").unwrap_err().code, "vua.amf_production.preview_invalid");
+    fs::write(
+        Path::new(&run.project_root).join(".vua/previews/cmd/front.png"),
+        b"not an image",
+    )
+    .unwrap();
+    assert_eq!(
+        h.engine
+            .preview_image("n3-test", ".vua/previews/cmd/front.png")
+            .unwrap_err()
+            .code,
+        "vua.amf_production.preview_invalid"
+    );
 }
 #[test]
 fn a_finished_avatars_views_outlive_its_work_project() {
@@ -681,12 +1035,26 @@ fn a_finished_avatars_views_outlive_its_work_project() {
     h.prepared();
     let run = h.engine.get("n3-test").unwrap();
     h.engine.keep_stills(&run);
-    let original = h.engine.preview_image("n3-test", ".vua/previews/cmd/front.png").unwrap();
+    let original = h
+        .engine
+        .preview_image("n3-test", ".vua/previews/cmd/front.png")
+        .unwrap();
     assert!(!AmfProductionEngine::project_gone(&run));
     fs::remove_dir_all(&run.project_root).unwrap();
     assert!(AmfProductionEngine::project_gone(&run));
-    assert_eq!(h.engine.preview_image("n3-test", ".vua/previews/cmd/front.png").unwrap(), original);
-    assert_eq!(h.engine.preview_image("n3-test", ".vua/previews/cmd/candidate-000.png").unwrap_err().code, "vua.amf_production.project_missing");
+    assert_eq!(
+        h.engine
+            .preview_image("n3-test", ".vua/previews/cmd/front.png")
+            .unwrap(),
+        original
+    );
+    assert_eq!(
+        h.engine
+            .preview_image("n3-test", ".vua/previews/cmd/candidate-000.png")
+            .unwrap_err()
+            .code,
+        "vua.amf_production.project_missing"
+    );
 }
 #[test]
 fn project_drift_refuses_before_snapshot_or_mutation() {
@@ -712,34 +1080,69 @@ fn a_reinspected_finished_avatar_stays_finished_until_its_scene_changes() {
     assert_eq!(h.engine.get("n3-test").unwrap().phase, "succeeded");
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
     let checked = h.engine.get("n3-test").unwrap();
-    assert_eq!(checked.phase, "succeeded", "Unity still observes the assembled Avatar");
+    assert_eq!(
+        checked.phase, "succeeded",
+        "Unity still observes the assembled Avatar"
+    );
     assert!(checked.confirmed_digest.is_none());
-    fs::write(Path::new(&run.project_root).join("Assets/state"), "player-change").unwrap();
+    fs::write(
+        Path::new(&run.project_root).join("Assets/state"),
+        "player-change",
+    )
+    .unwrap();
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
-    assert_eq!(h.engine.get("n3-test").unwrap().phase, "ready", "a changed scene goes back to planning");
+    assert_eq!(
+        h.engine.get("n3-test").unwrap().phase,
+        "ready",
+        "a changed scene goes back to planning"
+    );
 }
 #[test]
 fn an_sdk_fix_runs_only_offered_items_behind_a_restore_point_and_keeps_the_phase() {
     let h = Harness::new();
     let run = assembled(&h);
     let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
-    for refused in [vec![], vec!["This avatar is shorter than average.".to_owned()], vec!["Unknown item".to_owned()],
-        vec![PIPELINE_FIX.to_owned(), PIPELINE_FIX.to_owned()], vec![PIPELINE_FIX.to_owned(); 17]] {
+    for refused in [
+        vec![],
+        vec!["This avatar is shorter than average.".to_owned()],
+        vec!["Unknown item".to_owned()],
+        vec![PIPELINE_FIX.to_owned(), PIPELINE_FIX.to_owned()],
+        vec![PIPELINE_FIX.to_owned(); 17],
+    ] {
         assert!(!h.job(move |engine, ctx| engine.sdk_fix("n3-test", refused, ctx)));
     }
-    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots, "a refused request takes no restore point");
+    assert_eq!(
+        h.platform.snapshots.load(Ordering::SeqCst),
+        snapshots,
+        "a refused request takes no restore point"
+    );
     assert!(h.job(|engine, ctx| engine.sdk_fix("n3-test", vec![PIPELINE_FIX.to_owned()], ctx)));
     let fixed = h.engine.get("n3-test").unwrap();
-    assert_eq!(fixed.phase, "succeeded", "the finished Avatar stays finished");
+    assert_eq!(
+        fixed.phase, "succeeded",
+        "the finished Avatar stays finished"
+    );
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots + 1);
-    assert_eq!(fixed.result["facts"]["sdkFixesApplied"], serde_json::json!([PIPELINE_FIX]));
-    let keys: Vec<&str> = fixed.steps.iter().rev().take(2).map(|step| step.key.as_str()).collect();
+    assert_eq!(
+        fixed.result["facts"]["sdkFixesApplied"],
+        serde_json::json!([PIPELINE_FIX])
+    );
+    let keys: Vec<&str> = fixed
+        .steps
+        .iter()
+        .rev()
+        .take(2)
+        .map(|step| step.key.as_str())
+        .collect();
     assert_eq!(keys, ["sdk_fix", "snapshot"]);
     h.platform.fail.store(true, Ordering::SeqCst);
     assert!(!h.job(|engine, ctx| engine.sdk_fix("n3-test", vec![PIPELINE_FIX.to_owned()], ctx)));
     let failed = h.engine.get("n3-test").unwrap();
     assert_eq!(failed.recovery.as_deref(), Some("restored"));
-    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "after");
+    assert_eq!(
+        fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),
+        "after"
+    );
 }
 #[test]
 fn an_assembly_a_forced_end_interrupted_restores_in_one_step() {
@@ -767,24 +1170,49 @@ fn an_assembly_a_forced_end_interrupted_restores_in_one_step() {
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
     assert!(h.job(move |engine, ctx| engine.rollback("n3-test", &digest, None, ctx)));
     let restored = h.engine.get("n3-test").unwrap();
-    assert_eq!(fs::read_to_string(&state).unwrap(), "before", "the restore point taken before the assembly");
+    assert_eq!(
+        fs::read_to_string(&state).unwrap(),
+        "before",
+        "the restore point taken before the assembly"
+    );
     assert_eq!(restored.phase, "ready");
-    let interrupted = restored.steps.iter().rev().find(|step| step.key == "assembly").unwrap();
-    assert_eq!(interrupted.state, "interrupted", "the stopped assembly is not recorded as succeeded");
+    let interrupted = restored
+        .steps
+        .iter()
+        .rev()
+        .find(|step| step.key == "assembly")
+        .unwrap();
+    assert_eq!(
+        interrupted.state, "interrupted",
+        "the stopped assembly is not recorded as succeeded"
+    );
 }
 
 fn face_tracking_ready(h: &Harness) -> String {
     let mut run = assembled(h);
     let fixture: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../schemas/unity-bridge/v5/examples/face-tracking.valid.result.json")).unwrap();
+        "../../../schemas/unity-bridge/v5/examples/face-tracking.valid.result.json"
+    ))
+    .unwrap();
     let mut facts = fixture["data"]["faceTracking"].clone();
     facts["patchMenus"][0]["sourceId"] = serde_json::json!("avatar");
     facts["patchMenus"][0]["scriptPath"] = serde_json::json!("Assets/FtSyntheticMenu.cs");
-    run.sources[0].asset_paths.push("Assets/FtSyntheticMenu.cs".into());
+    run.sources[0]
+        .asset_paths
+        .push("Assets/FtSyntheticMenu.cs".into());
     run.result["facts"]["faceTracking"] = facts.clone();
     *h.platform.ft_facts.lock().unwrap() = Some(facts);
-    fs::write(h.root.join("production/runs/n3-test.json"), serde_json::to_vec(&run).unwrap()).unwrap();
-    h.engine.face_tracking_plan("n3-test", &"a".repeat(64)).unwrap()["planDigest"].as_str().unwrap().into()
+    fs::write(
+        h.root.join("production/runs/n3-test.json"),
+        serde_json::to_vec(&run).unwrap(),
+    )
+    .unwrap();
+    h.engine
+        .face_tracking_plan("n3-test", &"a".repeat(64))
+        .unwrap()["planDigest"]
+        .as_str()
+        .unwrap()
+        .into()
 }
 
 #[test]
@@ -793,13 +1221,42 @@ fn creator_patch_requires_exact_confirmation_and_observed_source_before_snapshot
     let digest = face_tracking_ready(&h);
     let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
     let review = digest.clone();
-    assert_eq!(h.run_job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &review, false, ctx)).unwrap_err(),
-        "vua.amf_production.confirmation_required");
-    assert_eq!(h.run_job(|e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &"b".repeat(64), true, ctx)).unwrap_err(),
-        "vua.amf_production.plan_drift");
-    assert!(h.engine.face_tracking_plan("n3-test", "Tools/Unobserved").is_err());
+    assert_eq!(
+        h.run_job(move |e, ctx| e.face_tracking_patch(
+            "n3-test",
+            &"a".repeat(64),
+            &review,
+            false,
+            ctx
+        ))
+        .unwrap_err(),
+        "vua.amf_production.confirmation_required"
+    );
+    assert_eq!(
+        h.run_job(|e, ctx| e.face_tracking_patch(
+            "n3-test",
+            &"a".repeat(64),
+            &"b".repeat(64),
+            true,
+            ctx
+        ))
+        .unwrap_err(),
+        "vua.amf_production.plan_drift"
+    );
+    assert!(h
+        .engine
+        .face_tracking_plan("n3-test", "Tools/Unobserved")
+        .is_err());
     h.platform.editor_open.store(true, Ordering::SeqCst);
-    assert!(h.run_job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)).is_err());
+    assert!(h
+        .run_job(move |e, ctx| e.face_tracking_patch(
+            "n3-test",
+            &"a".repeat(64),
+            &digest,
+            true,
+            ctx
+        ))
+        .is_err());
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots);
 }
 
@@ -807,55 +1264,134 @@ fn creator_patch_requires_exact_confirmation_and_observed_source_before_snapshot
 fn completed_creator_patch_rechecks_and_blocks_incomplete_replay_but_full_rollback_works() {
     let h = Harness::new();
     let digest = face_tracking_ready(&h);
-    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    assert!(h.job(move |e, ctx| e.face_tracking_patch(
+        "n3-test",
+        &"a".repeat(64),
+        &digest,
+        true,
+        ctx
+    )));
     let patched = h.engine.get("n3-test").unwrap();
     assert_eq!(patched.phase, "succeeded");
-    assert_eq!(patched.result["facts"]["faceTracking"]["manualReplayRequired"], true);
+    assert_eq!(
+        patched.result["facts"]["faceTracking"]["manualReplayRequired"],
+        true
+    );
     assert_eq!(patched.revisions[0].before, RevisionKind::FaceTracking);
-    assert_eq!(h.engine.save_recipe("n3-test", "recipe-ft", "Incomplete").unwrap_err().code, "vua.amf_production.face_tracking_manual_replay");
-    assert_eq!(h.engine.revision_plan("n3-test", &patched.revisions[0].id).unwrap_err().code, "vua.amf_production.face_tracking_manual_replay");
+    assert_eq!(
+        h.engine
+            .save_recipe("n3-test", "recipe-ft", "Incomplete")
+            .unwrap_err()
+            .code,
+        "vua.amf_production.face_tracking_manual_replay"
+    );
+    assert_eq!(
+        h.engine
+            .revision_plan("n3-test", &patched.revisions[0].id)
+            .unwrap_err()
+            .code,
+        "vua.amf_production.face_tracking_manual_replay"
+    );
     assert!(h.engine.plan("n3-test", &selection()).is_err());
-    assert!(h.engine.recipe_apply_plan("n3-test", "missing-recipe").is_err());
+    assert!(h
+        .engine
+        .recipe_apply_plan("n3-test", "missing-recipe")
+        .is_err());
     let plan = h.engine.rollback_plan("n3-test").unwrap();
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
     assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, None, ctx)));
-    assert_eq!(h.engine.get("n3-test").unwrap().result["facts"]["faceTracking"]["manualReplayRequired"], false);
+    assert_eq!(
+        h.engine.get("n3-test").unwrap().result["facts"]["faceTracking"]["manualReplayRequired"],
+        false
+    );
 }
 
 #[test]
 fn pre_patch_copy_survives_later_fixes_and_a_reviewed_restore_returns_to_it() {
     let h = Harness::new();
     let digest = face_tracking_ready(&h);
-    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    assert!(h.job(move |e, ctx| e.face_tracking_patch(
+        "n3-test",
+        &"a".repeat(64),
+        &digest,
+        true,
+        ctx
+    )));
     let patched = h.engine.get("n3-test").unwrap();
-    let pre_patch = patched.ft_pre_patch_snapshot.clone().expect("the patch records its pre-patch copy");
-    assert_eq!(patched.snapshot_id.as_deref(), Some(pre_patch.as_str()),
-        "a fresh patch keeps the pre-patch copy as the restore point");
-    assert!(h.engine.rollback_plan("n3-test").unwrap()["prePatch"].is_null(),
-        "no second target while the restore point already reaches the pre-patch state");
+    let pre_patch = patched
+        .ft_pre_patch_snapshot
+        .clone()
+        .expect("the patch records its pre-patch copy");
+    assert_eq!(
+        patched.snapshot_id.as_deref(),
+        Some(pre_patch.as_str()),
+        "a fresh patch keeps the pre-patch copy as the restore point"
+    );
+    assert!(
+        h.engine.rollback_plan("n3-test").unwrap()["prePatch"].is_null(),
+        "no second target while the restore point already reaches the pre-patch state"
+    );
 
     // A later protected fix takes its own restore point; the pre-patch copy stays reachable.
     assert!(h.job(|e, ctx| e.sdk_fix("n3-test", vec![PIPELINE_FIX.to_owned()], ctx)));
     let fixed = h.engine.get("n3-test").unwrap();
-    let fix_point = fixed.snapshot_id.clone().expect("the fix took its own restore point");
+    let fix_point = fixed
+        .snapshot_id
+        .clone()
+        .expect("the fix took its own restore point");
     assert_ne!(fix_point, pre_patch);
-    assert_eq!(fixed.ft_pre_patch_snapshot.as_deref(), Some(pre_patch.as_str()));
-    let keeps = h.platform.prune_keeps.lock().unwrap().last().cloned().unwrap();
-    assert!(keeps.contains(&fix_point) && keeps.contains(&pre_patch),
-        "pruning keeps both the fix point and the pre-patch copy: {keeps:?}");
+    assert_eq!(
+        fixed.ft_pre_patch_snapshot.as_deref(),
+        Some(pre_patch.as_str())
+    );
+    let keeps = h
+        .platform
+        .prune_keeps
+        .lock()
+        .unwrap()
+        .last()
+        .cloned()
+        .unwrap();
+    assert!(
+        keeps.contains(&fix_point) && keeps.contains(&pre_patch),
+        "pruning keeps both the fix point and the pre-patch copy: {keeps:?}"
+    );
 
     let plan = h.engine.rollback_plan("n3-test").unwrap();
-    assert_eq!(plan["prePatch"]["snapshotId"].as_str(), Some(pre_patch.as_str()));
+    assert_eq!(
+        plan["prePatch"]["snapshotId"].as_str(),
+        Some(pre_patch.as_str())
+    );
     let pre_digest = plan["prePatch"]["planDigest"].as_str().unwrap().to_owned();
     let default_digest = plan["planDigest"].as_str().unwrap().to_owned();
-    assert!(!h.job(move |e, ctx| e.rollback("n3-test", &default_digest, Some(RollbackTarget::PreCreatorPatch), ctx)),
-        "the default review's digest must not authorize the pre-patch target");
-    assert!(h.job(move |e, ctx| e.rollback("n3-test", &pre_digest, Some(RollbackTarget::PreCreatorPatch), ctx)));
+    assert!(
+        !h.job(move |e, ctx| e.rollback(
+            "n3-test",
+            &default_digest,
+            Some(RollbackTarget::PreCreatorPatch),
+            ctx
+        )),
+        "the default review's digest must not authorize the pre-patch target"
+    );
+    assert!(h.job(move |e, ctx| e.rollback(
+        "n3-test",
+        &pre_digest,
+        Some(RollbackTarget::PreCreatorPatch),
+        ctx
+    )));
     let restored = h.engine.get("n3-test").unwrap();
     assert_eq!(restored.phase, "ready");
-    assert!(restored.ft_pre_patch_snapshot.is_none(), "returning to the pre-patch state ends the retention");
-    assert!(!Path::new(&restored.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists());
-    assert_eq!(restored.result["facts"]["faceTracking"]["manualReplayRequired"], false);
+    assert!(
+        restored.ft_pre_patch_snapshot.is_none(),
+        "returning to the pre-patch state ends the retention"
+    );
+    assert!(!Path::new(&restored.project_root)
+        .join("ProjectSettings/VUA.FaceTracking.json")
+        .exists());
+    assert_eq!(
+        restored.result["facts"]["faceTracking"]["manualReplayRequired"],
+        false
+    );
 
     // The patched state the return left behind stays the restore point, so the return is reversible.
     let again = h.engine.rollback_plan("n3-test").unwrap();
@@ -863,44 +1399,107 @@ fn pre_patch_copy_survives_later_fixes_and_a_reviewed_restore_returns_to_it() {
     let digest = again["planDigest"].as_str().unwrap().to_owned();
     assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, None, ctx)));
     let forward = h.engine.get("n3-test").unwrap();
-    assert!(Path::new(&forward.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists(),
-        "the protected patched state returns with its marker");
+    assert!(
+        Path::new(&forward.project_root)
+            .join("ProjectSettings/VUA.FaceTracking.json")
+            .exists(),
+        "the protected patched state returns with its marker"
+    );
 }
 
 #[test]
 fn a_patch_after_the_marker_left_records_its_own_pre_patch_copy() {
     let h = Harness::new();
     let digest = face_tracking_ready(&h);
-    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    assert!(h.job(move |e, ctx| e.face_tracking_patch(
+        "n3-test",
+        &"a".repeat(64),
+        &digest,
+        true,
+        ctx
+    )));
     let mut run = h.engine.get("n3-test").unwrap();
-    let stale = run.ft_pre_patch_snapshot.clone().expect("the first patch records its pre-patch copy");
+    let stale = run
+        .ft_pre_patch_snapshot
+        .clone()
+        .expect("the first patch records its pre-patch copy");
     // A restore took the line back before the patch while the record still names the old copy.
-    fs::remove_file(Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json")).unwrap();
+    fs::remove_file(Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json"))
+        .unwrap();
     run.result["facts"]["faceTracking"]["manualReplayRequired"] = serde_json::json!(false);
-    fs::write(h.root.join("production/runs/n3-test.json"), serde_json::to_vec(&run).unwrap()).unwrap();
+    fs::write(
+        h.root.join("production/runs/n3-test.json"),
+        serde_json::to_vec(&run).unwrap(),
+    )
+    .unwrap();
     assert!(h.engine.rollback_plan("n3-test").unwrap()["prePatch"].is_null());
-    let digest: String = h.engine.face_tracking_plan("n3-test", &"a".repeat(64)).unwrap()["planDigest"].as_str().unwrap().into();
-    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let digest: String = h
+        .engine
+        .face_tracking_plan("n3-test", &"a".repeat(64))
+        .unwrap()["planDigest"]
+        .as_str()
+        .unwrap()
+        .into();
+    assert!(h.job(move |e, ctx| e.face_tracking_patch(
+        "n3-test",
+        &"a".repeat(64),
+        &digest,
+        true,
+        ctx
+    )));
     let patched = h.engine.get("n3-test").unwrap();
-    assert_ne!(patched.ft_pre_patch_snapshot.as_deref(), Some(stale.as_str()), "the stale copy is not reused");
-    assert_eq!(patched.ft_pre_patch_snapshot, patched.snapshot_id, "the new patch keeps the state right before it");
-    let keeps = h.platform.prune_keeps.lock().unwrap().last().cloned().unwrap();
-    assert!(!keeps.contains(&stale), "pruning drops the stale copy: {keeps:?}");
+    assert_ne!(
+        patched.ft_pre_patch_snapshot.as_deref(),
+        Some(stale.as_str()),
+        "the stale copy is not reused"
+    );
+    assert_eq!(
+        patched.ft_pre_patch_snapshot, patched.snapshot_id,
+        "the new patch keeps the state right before it"
+    );
+    let keeps = h
+        .platform
+        .prune_keeps
+        .lock()
+        .unwrap()
+        .last()
+        .cloned()
+        .unwrap();
+    assert!(
+        !keeps.contains(&stale),
+        "pruning drops the stale copy: {keeps:?}"
+    );
 }
 
 #[test]
-fn patch_failure_missing_receipt_recheck_failure_target_drift_and_cancel_restore_marker_and_facts() {
+fn patch_failure_missing_receipt_recheck_failure_target_drift_and_cancel_restore_marker_and_facts()
+{
     for outcome in [2, 3, 4, 5, 6] {
         let h = Harness::new();
         let digest = face_tracking_ready(&h);
         let before = h.engine.get("n3-test").unwrap();
         h.platform.ft_outcome.store(outcome, Ordering::SeqCst);
-        assert!(!h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)), "outcome {outcome}");
+        assert!(
+            !h.job(move |e, ctx| e.face_tracking_patch(
+                "n3-test",
+                &"a".repeat(64),
+                &digest,
+                true,
+                ctx
+            )),
+            "outcome {outcome}"
+        );
         let failed = h.engine.get("n3-test").unwrap();
-        assert_eq!(failed.recovery.as_deref(), Some("restored"), "outcome {outcome}");
+        assert_eq!(
+            failed.recovery.as_deref(),
+            Some("restored"),
+            "outcome {outcome}"
+        );
         assert_eq!(failed.result, before.result);
         assert_eq!(failed.revisions, before.revisions);
-        assert!(!Path::new(&failed.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists());
+        assert!(!Path::new(&failed.project_root)
+            .join("ProjectSettings/VUA.FaceTracking.json")
+            .exists());
     }
 }
 #[test]
@@ -908,33 +1507,66 @@ fn creator_helper_cleanup_must_be_verified_before_automatic_restore() {
     let h = Harness::new();
     let digest = face_tracking_ready(&h);
     h.platform.ft_outcome.store(7, Ordering::SeqCst);
-    assert!(!h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    assert!(!h.job(move |e, ctx| e.face_tracking_patch(
+        "n3-test",
+        &"a".repeat(64),
+        &digest,
+        true,
+        ctx
+    )));
     let failed = h.engine.get("n3-test").unwrap();
-    assert_eq!(failed.recovery.as_deref(), Some("restore_failed: vua.amf_production.process_cleanup_unverified"));
+    assert_eq!(
+        failed.recovery.as_deref(),
+        Some("restore_failed: vua.amf_production.process_cleanup_unverified")
+    );
     assert!(failed.snapshot_id.is_some());
-    assert!(Path::new(&failed.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists(),
-        "automatic restore must not race a creator helper");
+    assert!(
+        Path::new(&failed.project_root)
+            .join("ProjectSettings/VUA.FaceTracking.json")
+            .exists(),
+        "automatic restore must not race a creator helper"
+    );
 }
 #[test]
 fn interruption_during_the_post_patch_check_retains_the_explicit_restore_path() {
     let h = Harness::new();
     let digest = face_tracking_ready(&h);
-    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    assert!(h.job(move |e, ctx| e.face_tracking_patch(
+        "n3-test",
+        &"a".repeat(64),
+        &digest,
+        true,
+        ctx
+    )));
     let mut interrupted = h.engine.get("n3-test").unwrap();
     interrupted.phase = "assembling".into();
     let step = interrupted.steps.last_mut().unwrap();
     assert_eq!(step.key, "inspect");
     step.state = "running".into();
     step.ended_at = None;
-    fs::write(h.root.join("production/runs/n3-test.json"), serde_json::to_vec(&interrupted).unwrap()).unwrap();
-    assert_eq!(h.engine.get("n3-test").unwrap().phase, "assembling",
-        "the stored state is preserved; the provider projects it as interrupted");
-    assert!(Path::new(&interrupted.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists(),
-        "reading an interrupted run must neither rerun the menu nor restore files");
+    fs::write(
+        h.root.join("production/runs/n3-test.json"),
+        serde_json::to_vec(&interrupted).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        h.engine.get("n3-test").unwrap().phase,
+        "assembling",
+        "the stored state is preserved; the provider projects it as interrupted"
+    );
+    assert!(
+        Path::new(&interrupted.project_root)
+            .join("ProjectSettings/VUA.FaceTracking.json")
+            .exists(),
+        "reading an interrupted run must neither rerun the menu nor restore files"
+    );
     let plan = h.engine.rollback_plan("n3-test").unwrap();
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
     assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, None, ctx)));
-    assert_eq!(h.engine.get("n3-test").unwrap().result["facts"]["faceTracking"]["manualReplayRequired"], false);
+    assert_eq!(
+        h.engine.get("n3-test").unwrap().result["facts"]["faceTracking"]["manualReplayRequired"],
+        false
+    );
 }
 #[test]
 fn a_run_that_never_changed_in_unity_keeps_asking_for_a_new_check() {
@@ -944,7 +1576,10 @@ fn a_run_that_never_changed_in_unity_keeps_asking_for_a_new_check() {
     let mut stored: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
     stored["phase"] = serde_json::json!("inspecting");
     fs::write(&file, serde_json::to_vec_pretty(&stored).unwrap()).unwrap();
-    assert_eq!(h.engine.rollback_plan("n3-test").unwrap_err().code, "vua.amf_production.inspect_required");
+    assert_eq!(
+        h.engine.rollback_plan("n3-test").unwrap_err().code,
+        "vua.amf_production.inspect_required"
+    );
 }
 #[test]
 fn failure_restores_and_requires_explicit_reinspection() {
@@ -1033,12 +1668,18 @@ fn user_restore_retains_current_edits_and_can_itself_be_undone() {
     let run = assembled(&h);
     let state = Path::new(&run.project_root).join("Assets/state");
     fs::write(&state, "player-adjustments-after-assembly").unwrap();
-    assert_eq!(h.engine.rollback_plan("n3-test").unwrap()["currentChanged"], true);
+    assert_eq!(
+        h.engine.rollback_plan("n3-test").unwrap()["currentChanged"],
+        true
+    );
     assert!(restore_reviewed(&h));
     let restored = h.engine.get("n3-test").unwrap();
     assert_eq!(fs::read_to_string(&state).unwrap(), "before");
     assert_eq!(restored.phase, "ready");
-    assert_eq!(restored.snapshot_id.as_deref(), Some("player-adjustments-after-assembly"));
+    assert_eq!(
+        restored.snapshot_id.as_deref(),
+        Some("player-adjustments-after-assembly")
+    );
     assert_eq!(restored.selection, None);
     assert_eq!(restored.snapshot_selection, Some(selection()));
     assert!(restored.confirmed_digest.is_none());
@@ -1046,8 +1687,14 @@ fn user_restore_retains_current_edits_and_can_itself_be_undone() {
     // A new reviewed restore returns to the actual edited state, not merely
     // the last VUA-produced result. The original materials remain unrelated.
     assert!(restore_reviewed(&h));
-    assert_eq!(fs::read_to_string(&state).unwrap(), "player-adjustments-after-assembly");
-    assert_eq!(h.engine.get("n3-test").unwrap().selection, Some(selection()));
+    assert_eq!(
+        fs::read_to_string(&state).unwrap(),
+        "player-adjustments-after-assembly"
+    );
+    assert_eq!(
+        h.engine.get("n3-test").unwrap().selection,
+        Some(selection())
+    );
 }
 
 #[test]
@@ -1061,8 +1708,14 @@ fn restore_rejects_drift_and_old_confirmations_before_snapshot_or_mutation() {
     fs::write(&state, "newer-unreviewed-change").unwrap();
     assert!(!h.job(move |engine, ctx| engine.rollback("n3-test", &digest, None, ctx)));
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count);
-    assert_eq!(fs::read_to_string(&state).unwrap(), "newer-unreviewed-change");
-    let digest = h.engine.rollback_plan("n3-test").unwrap()["planDigest"].as_str().unwrap().to_owned();
+    assert_eq!(
+        fs::read_to_string(&state).unwrap(),
+        "newer-unreviewed-change"
+    );
+    let digest = h.engine.rollback_plan("n3-test").unwrap()["planDigest"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
     assert!(!h.job(move |engine, ctx| engine.rollback("n3-test", &digest, None, ctx)));
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count);
@@ -1075,8 +1728,12 @@ fn partial_restore_and_failed_verification_recover_the_protected_current_state()
         let run = assembled(&h);
         let state = Path::new(&run.project_root).join("Assets/state");
         fs::write(&state, "latest-player-work").unwrap();
-        h.platform.fail_inspect.store(fail_inspection, Ordering::SeqCst);
-        h.platform.fail_restore.store(!fail_inspection, Ordering::SeqCst);
+        h.platform
+            .fail_inspect
+            .store(fail_inspection, Ordering::SeqCst);
+        h.platform
+            .fail_restore
+            .store(!fail_inspection, Ordering::SeqCst);
         assert!(!restore_reviewed(&h));
         let failed = h.engine.get("n3-test").unwrap();
         assert_eq!(fs::read_to_string(&state).unwrap(), "latest-player-work");
@@ -1097,32 +1754,70 @@ fn preparation_without_a_snapshot_does_not_offer_a_restore() {
 
 #[test]
 fn recipes_require_current_observations_and_reopen_with_pinned_inputs() {
-    let h = Harness::new(); h.prepared();
-    assert!(h.engine.save_recipe("n3-test", "recipe-test", "My Avatar").is_err());
-    let plan = h.engine.plan("n3-test", &selection()).unwrap(); let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    let h = Harness::new();
+    h.prepared();
+    assert!(h
+        .engine
+        .save_recipe("n3-test", "recipe-test", "My Avatar")
+        .is_err());
+    let plan = h.engine.plan("n3-test", &selection()).unwrap();
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
     // The fixture Avatar carries 8+1 asset bits plus one embedded MA bit; the Coat adds one more,
     // and the switch VUA adds for it one more.
     assert_eq!(plan["parameterBudget"]["state"], "fits");
     assert_eq!(plan["parameterBudget"]["estimateBits"], 12);
     assert_eq!(plan["parameterBudget"]["limitBits"], 256);
     assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx)));
-    let saved = h.engine.save_recipe("n3-test", "recipe-test", "My Avatar").unwrap();
+    let saved = h
+        .engine
+        .save_recipe("n3-test", "recipe-test", "My Avatar")
+        .unwrap();
     assert_eq!(h.engine.get_recipe("recipe-test").unwrap(), saved);
-    assert_eq!(saved.recipe["materials"][0]["sha256"].as_str().unwrap().len(), 64);
-    assert!(!saved.recipe.to_string().contains(&h.root.to_string_lossy().to_string()));
-    h.engine.begin_recipe("n3-recipe", "recipe-test", "synthetic-editor").unwrap();
+    assert_eq!(
+        saved.recipe["materials"][0]["sha256"]
+            .as_str()
+            .unwrap()
+            .len(),
+        64
+    );
+    assert!(!saved
+        .recipe
+        .to_string()
+        .contains(&h.root.to_string_lossy().to_string()));
+    h.engine
+        .begin_recipe("n3-recipe", "recipe-test", "synthetic-editor")
+        .unwrap();
     assert!(h.job(|engine, ctx| engine.prepare("n3-recipe", ctx)));
     let reproduced = h.engine.get("n3-recipe").unwrap();
-    assert_eq!(reproduced.phase, "ready"); assert_eq!(reproduced.selection, Some(selection()));
-    assert_eq!(reproduced.package_pins["nadena.dev.modular-avatar"], "1.18.7");
-    h.engine.begin_recipe("n3-recipe-drift", "recipe-test", "synthetic-editor").unwrap();
+    assert_eq!(reproduced.phase, "ready");
+    assert_eq!(reproduced.selection, Some(selection()));
+    assert_eq!(
+        reproduced.package_pins["nadena.dev.modular-avatar"],
+        "1.18.7"
+    );
+    h.engine
+        .begin_recipe("n3-recipe-drift", "recipe-test", "synthetic-editor")
+        .unwrap();
     h.platform.change_recipe_input.store(true, Ordering::SeqCst);
     assert!(!h.job(|engine, ctx| engine.prepare("n3-recipe-drift", ctx)));
     let drift = h.engine.get("n3-recipe-drift").unwrap();
     assert!(drift.error.unwrap().contains("recipe_material_changed"));
-    assert!(!drift.steps.iter().any(|step| step.key == "inspect"), "Changed Recipe originals must be refused before Unity inspection");
-    fs::write(h.root.join("production/projects/n3-test/Assets/state"), "external edit").unwrap();
-    assert_eq!(h.engine.save_recipe("n3-test", "recipe-stale", "Stale").unwrap_err().code, "vua.amf_production.inspect_required");
+    assert!(
+        !drift.steps.iter().any(|step| step.key == "inspect"),
+        "Changed Recipe originals must be refused before Unity inspection"
+    );
+    fs::write(
+        h.root.join("production/projects/n3-test/Assets/state"),
+        "external edit",
+    )
+    .unwrap();
+    assert_eq!(
+        h.engine
+            .save_recipe("n3-test", "recipe-stale", "Stale")
+            .unwrap_err()
+            .code,
+        "vua.amf_production.inspect_required"
+    );
     let restarted = AmfProductionEngine::new(h.root.join("production"), h.platform.clone());
     assert_eq!(restarted.get_recipe("recipe-test").unwrap(), saved);
 }
@@ -1138,136 +1833,335 @@ fn recipe_v05_capture_and_preparation_retain_nondefault_switch_options() {
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
     let assembling = configured.clone();
     assert!(h.job(move |engine, ctx| engine.assemble("n3-test", assembling, &digest, ctx)));
-    let saved = h.engine.save_recipe("n3-test", "recipe-switches", "Wardrobe").unwrap();
+    let saved = h
+        .engine
+        .save_recipe("n3-test", "recipe-switches", "Wardrobe")
+        .unwrap();
     assert_eq!(saved.recipe["formatVersion"], "0.5");
     assert_eq!(saved.recipe["outfits"][0]["saved"], false);
     assert_eq!(saved.recipe["outfits"][0]["group"], "wardrobe");
-    h.engine.begin_recipe("n3-recipe-switches", "recipe-switches", "synthetic-editor").unwrap();
+    h.engine
+        .begin_recipe("n3-recipe-switches", "recipe-switches", "synthetic-editor")
+        .unwrap();
     assert!(h.job(|engine, ctx| engine.prepare("n3-recipe-switches", ctx)));
-    assert_eq!(h.engine.get("n3-recipe-switches").unwrap().selection, Some(configured));
+    assert_eq!(
+        h.engine.get("n3-recipe-switches").unwrap().selection,
+        Some(configured)
+    );
 }
 
 #[test]
 fn v04_share_still_imports_and_prepares_with_exact_originals() {
     use vua_orchestrator::amf_recipe::ProductionRecipe;
-    use vua_orchestrator::amf_recipe_share::{SharedRecipe,RecipeSourceStatement};
-    let h = Harness::new(); assembled(&h);
-    let saved = h.engine.save_recipe("n3-test","recipe-legacy","Legacy").unwrap();
+    use vua_orchestrator::amf_recipe_share::{RecipeSourceStatement, SharedRecipe};
+    let h = Harness::new();
+    assembled(&h);
+    let saved = h
+        .engine
+        .save_recipe("n3-test", "recipe-legacy", "Legacy")
+        .unwrap();
     let mut recipe: ProductionRecipe = serde_json::from_value(saved.recipe).unwrap();
-    let ids = recipe.materials.iter().map(|m| (m.id.clone(),format!("m-{}",m.sha256))).collect::<std::collections::BTreeMap<_,_>>();
+    let ids = recipe
+        .materials
+        .iter()
+        .map(|m| (m.id.clone(), format!("m-{}", m.sha256)))
+        .collect::<std::collections::BTreeMap<_, _>>();
     recipe.format_version = "0.4".into();
-    for m in &mut recipe.materials { m.id = ids[&m.id].clone(); m.booth_product_id = None; }
-    recipe.avatar.material_id = ids[&recipe.avatar.material_id].clone(); recipe.avatar.prefab_guid = None;
-    for outfit in &mut recipe.outfits { outfit.material_id = ids[&outfit.material_id].clone(); outfit.prefab_guid = None; }
-    let shared = SharedRecipe {format_version:"0.4".into(),sources:recipe.materials.iter().map(|m| (m.id.clone(),RecipeSourceStatement::Legacy("1000001".into()))).collect(),recipe};
+    for m in &mut recipe.materials {
+        m.id = ids[&m.id].clone();
+        m.booth_product_id = None;
+    }
+    recipe.avatar.material_id = ids[&recipe.avatar.material_id].clone();
+    recipe.avatar.prefab_guid = None;
+    for outfit in &mut recipe.outfits {
+        outfit.material_id = ids[&outfit.material_id].clone();
+        outfit.prefab_guid = None;
+    }
+    let shared = SharedRecipe {
+        format_version: "0.4".into(),
+        sources: recipe
+            .materials
+            .iter()
+            .map(|m| {
+                (
+                    m.id.clone(),
+                    RecipeSourceStatement::Legacy("1000001".into()),
+                )
+            })
+            .collect(),
+        recipe,
+    };
     let imported = h.engine.import_recipe(&shared.encode().unwrap()).unwrap();
-    assert_eq!(imported.recipe["formatVersion"],"0.4");
+    assert_eq!(imported.recipe["formatVersion"], "0.4");
     let id = imported.recipe["recipeId"].as_str().unwrap();
-    h.engine.begin_recipe("n3-legacy",id,"synthetic-editor").unwrap();
-    assert!(h.job(|engine,ctx| engine.prepare("n3-legacy",ctx)));
+    h.engine
+        .begin_recipe("n3-legacy", id, "synthetic-editor")
+        .unwrap();
+    assert!(h.job(|engine, ctx| engine.prepare("n3-legacy", ctx)));
     let prepared = h.engine.get("n3-legacy").unwrap();
-    assert_eq!(prepared.selection,Some(selection()));
+    assert_eq!(prepared.selection, Some(selection()));
     assert!(prepared.recipe_differences.is_empty());
 }
 
 #[test]
-fn recipe_difference_confirmation_and_digest_precede_snapshot_and_failed_confirmed_assembly_recovers() {
-    use vua_orchestrator::amf_recipe_materials::{RecipeDifference,RecipeDifferenceKind};
-    let h = Harness::new(); h.prepared();
+fn recipe_difference_confirmation_and_digest_precede_snapshot_and_failed_confirmed_assembly_recovers(
+) {
+    use vua_orchestrator::amf_recipe_materials::{RecipeDifference, RecipeDifferenceKind};
+    let h = Harness::new();
+    h.prepared();
     let mut run = h.engine.get("n3-test").unwrap();
-    run.recipe_differences.push(RecipeDifference {kind:RecipeDifferenceKind::MaterialFileChanged,material_id:"material-2".into(),
-        before:"Old.unitypackage".into(),after:Some("New.unitypackage".into()),rule:None,paths:vec![],count:1});
+    run.recipe_differences.push(RecipeDifference {
+        kind: RecipeDifferenceKind::MaterialFileChanged,
+        material_id: "material-2".into(),
+        before: "Old.unitypackage".into(),
+        after: Some("New.unitypackage".into()),
+        rule: None,
+        paths: vec![],
+        count: 1,
+    });
     let file = h.root.join("production/runs/n3-test.json");
-    fs::write(&file,serde_json::to_vec(&run).unwrap()).unwrap();
-    let digest = h.engine.plan("n3-test",&selection()).unwrap()["planDigest"].as_str().unwrap().to_owned();
+    fs::write(&file, serde_json::to_vec(&run).unwrap()).unwrap();
+    let digest = h.engine.plan("n3-test", &selection()).unwrap()["planDigest"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let first = digest.clone();
-    assert!(!h.job(move |engine,ctx| engine.assemble("n3-test",selection(),&first,ctx)));
-    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst),0);
+    assert!(!h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &first, ctx)));
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), 0);
     run.recipe_differences[0].after = Some("Another.unitypackage".into());
-    fs::write(&file,serde_json::to_vec(&run).unwrap()).unwrap();
-    assert!(!h.job(move |engine,ctx| engine.assemble_with_review("n3-test",selection(),&digest,true,ctx)));
-    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst),0);
-    let digest = h.engine.plan("n3-test",&selection()).unwrap()["planDigest"].as_str().unwrap().to_owned();
-    h.platform.fail.store(true,Ordering::SeqCst);
-    assert!(!h.job(move |engine,ctx| engine.assemble_with_review("n3-test",selection(),&digest,true,ctx)));
+    fs::write(&file, serde_json::to_vec(&run).unwrap()).unwrap();
+    assert!(!h.job(move |engine, ctx| engine.assemble_with_review(
+        "n3-test",
+        selection(),
+        &digest,
+        true,
+        ctx
+    )));
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), 0);
+    let digest = h.engine.plan("n3-test", &selection()).unwrap()["planDigest"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    h.platform.fail.store(true, Ordering::SeqCst);
+    assert!(!h.job(move |engine, ctx| engine.assemble_with_review(
+        "n3-test",
+        selection(),
+        &digest,
+        true,
+        ctx
+    )));
     let failed = h.engine.get("n3-test").unwrap();
-    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst),1);
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), 1);
     assert!(!failed.revisions.is_empty());
-    assert_eq!(fs::read_to_string(Path::new(&failed.project_root).join("Assets/state")).unwrap(),"before");
+    assert_eq!(
+        fs::read_to_string(Path::new(&failed.project_root).join("Assets/state")).unwrap(),
+        "before"
+    );
 }
 
 #[test]
 fn sharing_supplements_only_referenced_inputs_and_remembers_confirmed_choices() {
     use std::collections::BTreeMap;
     use vua_orchestrator::amf_recipe_share::SharedRecipe;
-    let h = Harness::new(); assembled(&h);
-    h.engine.save_recipe("n3-test", "recipe-share", "A shareable Avatar").unwrap();
+    let h = Harness::new();
+    assembled(&h);
+    h.engine
+        .save_recipe("n3-test", "recipe-share", "A shareable Avatar")
+        .unwrap();
     let plan = h.engine.recipe_share_plan("recipe-share").unwrap();
-    assert_eq!(plan.materials.len(), 2); assert!(plan.materials.iter().all(|m| m.selected_product_id.is_none()));
-    assert!(h.engine.export_recipe("recipe-share", &plan.plan_digest, &BTreeMap::new()).is_err());
-    let choices = plan.materials.iter().map(|m| (m.material_id.clone(), "1000001".into())).collect::<BTreeMap<_,_>>();
-    let mut foreign = choices.clone(); foreign.insert(format!("m-{}", "c".repeat(64)), "1000002".into());
-    assert!(h.engine.export_recipe("recipe-share", &plan.plan_digest, &foreign).is_err());
-    assert!(h.engine.recipe_share_plan("recipe-share").unwrap().materials.iter().all(|m| m.selected_product_id.is_none()));
-    let export = h.engine.export_recipe("recipe-share", &plan.plan_digest, &choices).unwrap();
-    assert_eq!(SharedRecipe::decode(&export.share_code).unwrap(), SharedRecipe::decode(&export.file_text).unwrap());
-    assert!(!export.file_text.contains(&h.root.to_string_lossy().to_string()));
-    assert!(!export.file_text.contains("GlobalObjectId")); assert!(!export.file_text.contains("sourceId"));
+    assert_eq!(plan.materials.len(), 2);
+    assert!(plan
+        .materials
+        .iter()
+        .all(|m| m.selected_product_id.is_none()));
+    assert!(h
+        .engine
+        .export_recipe("recipe-share", &plan.plan_digest, &BTreeMap::new())
+        .is_err());
+    let choices = plan
+        .materials
+        .iter()
+        .map(|m| (m.material_id.clone(), "1000001".into()))
+        .collect::<BTreeMap<_, _>>();
+    let mut foreign = choices.clone();
+    foreign.insert(format!("m-{}", "c".repeat(64)), "1000002".into());
+    assert!(h
+        .engine
+        .export_recipe("recipe-share", &plan.plan_digest, &foreign)
+        .is_err());
+    assert!(h
+        .engine
+        .recipe_share_plan("recipe-share")
+        .unwrap()
+        .materials
+        .iter()
+        .all(|m| m.selected_product_id.is_none()));
+    let export = h
+        .engine
+        .export_recipe("recipe-share", &plan.plan_digest, &choices)
+        .unwrap();
+    assert_eq!(
+        SharedRecipe::decode(&export.share_code).unwrap(),
+        SharedRecipe::decode(&export.file_text).unwrap()
+    );
+    assert!(!export
+        .file_text
+        .contains(&h.root.to_string_lossy().to_string()));
+    assert!(!export.file_text.contains("GlobalObjectId"));
+    assert!(!export.file_text.contains("sourceId"));
     let restarted = AmfProductionEngine::new(h.root.join("production"), h.platform.clone());
     let remembered = restarted.recipe_share_plan("recipe-share").unwrap();
-    assert!(remembered.materials.iter().all(|m| m.selected_product_id.as_deref() == Some("1000001")));
-    assert!(restarted.export_recipe("recipe-share", &plan.plan_digest, &BTreeMap::new()).is_err(), "An obsolete source review cannot be replayed");
-    restarted.export_recipe("recipe-share", &remembered.plan_digest, &BTreeMap::new()).unwrap();
-    restarted.save_recipe("n3-test", "recipe-another", "Another combination").unwrap();
-    assert!(restarted.recipe_share_plan("recipe-another").unwrap().materials.iter().all(|m| m.selected_product_id.is_some()));
+    assert!(remembered
+        .materials
+        .iter()
+        .all(|m| m.selected_product_id.as_deref() == Some("1000001")));
+    assert!(
+        restarted
+            .export_recipe("recipe-share", &plan.plan_digest, &BTreeMap::new())
+            .is_err(),
+        "An obsolete source review cannot be replayed"
+    );
+    restarted
+        .export_recipe("recipe-share", &remembered.plan_digest, &BTreeMap::new())
+        .unwrap();
+    restarted
+        .save_recipe("n3-test", "recipe-another", "Another combination")
+        .unwrap();
+    assert!(restarted
+        .recipe_share_plan("recipe-another")
+        .unwrap()
+        .materials
+        .iter()
+        .all(|m| m.selected_product_id.is_some()));
     let recipient = Harness::new();
     let imported = recipient.engine.import_recipe(&export.share_code).unwrap();
-    assert_eq!(recipient.engine.import_recipe(&export.file_text).unwrap(), imported);
-    assert!(recipient.engine.list().unwrap().is_empty(), "Importing a declaration never prepares or edits a Unity project");
-    assert_eq!(imported.recipe["outfits"], export.document.recipe.outfits.into_iter().map(|o| serde_json::to_value(o).unwrap()).collect::<serde_json::Value>());
+    assert_eq!(
+        recipient.engine.import_recipe(&export.file_text).unwrap(),
+        imported
+    );
+    assert!(
+        recipient.engine.list().unwrap().is_empty(),
+        "Importing a declaration never prepares or edits a Unity project"
+    );
+    assert_eq!(
+        imported.recipe["outfits"],
+        export
+            .document
+            .recipe
+            .outfits
+            .into_iter()
+            .map(|o| serde_json::to_value(o).unwrap())
+            .collect::<serde_json::Value>()
+    );
     let id = imported.recipe["recipeId"].as_str().unwrap();
-    recipient.engine.begin_recipe("n3-imported", id, "synthetic-editor").unwrap();
+    recipient
+        .engine
+        .begin_recipe("n3-imported", id, "synthetic-editor")
+        .unwrap();
     assert!(recipient.job(|engine, ctx| engine.prepare("n3-imported", ctx)));
-    assert_eq!(recipient.engine.get("n3-imported").unwrap().selection, Some(selection()));
+    assert_eq!(
+        recipient.engine.get("n3-imported").unwrap().selection,
+        Some(selection())
+    );
 }
 
 #[test]
 fn recipe_application_binds_current_facts_and_recovers_failed_mutations() {
     use vua_orchestrator::amf_recipe_apply::RecipeApplyChoice;
-    let h=Harness::new();h.prepared();
-    let digest=plan_digest(&h.engine.get("n3-test").unwrap(),&selection()).unwrap();
-    assert!(h.job(move |engine,ctx| engine.assemble("n3-test",selection(),&digest,ctx)));
-    h.engine.save_recipe("n3-test","recipe-apply","Retained recipe").unwrap();
-    let plan=h.engine.recipe_apply_plan("n3-test","recipe-apply").unwrap();
-    let snapshots=h.platform.snapshots.load(Ordering::SeqCst);
-    assert_eq!(h.engine.get("n3-test").unwrap().phase,"succeeded","Review does not mutate the run");
-    assert!(h.job(|engine,ctx|engine.reinspect("n3-test",ctx)));
-    assert!(!h.job(move|engine,ctx|engine.apply_recipe("n3-test","recipe-apply",RecipeApplyChoice::RecipeWins,&plan.plan_digest,ctx)));
-    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst),snapshots,"Stale comparisons fail before a snapshot or any write");
-    let plan=h.engine.recipe_apply_plan("n3-test","recipe-apply").unwrap();
-    assert!(h.job(move|engine,ctx|engine.apply_recipe("n3-test","recipe-apply",RecipeApplyChoice::AvatarWins,&plan.plan_digest,ctx)));
-    assert_eq!(h.engine.get("n3-test").unwrap().result["facts"]["avatarGlobalObjectId"],"synthetic-avatar");
-    let plan=h.engine.recipe_apply_plan("n3-test","recipe-apply").unwrap();
-    h.platform.fail.store(true,Ordering::SeqCst);
-    assert!(!h.job(move|engine,ctx|engine.apply_recipe("n3-test","recipe-apply",RecipeApplyChoice::NewAvatar,&plan.plan_digest,ctx)));
-    let run=h.engine.get("n3-test").unwrap();assert_eq!(run.recovery.as_deref(),Some("restored"));
-    assert_eq!(h.platform.fingerprint(Path::new(&run.project_root)).unwrap(),"after");
+    let h = Harness::new();
+    h.prepared();
+    let digest = plan_digest(&h.engine.get("n3-test").unwrap(), &selection()).unwrap();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx)));
+    h.engine
+        .save_recipe("n3-test", "recipe-apply", "Retained recipe")
+        .unwrap();
+    let plan = h
+        .engine
+        .recipe_apply_plan("n3-test", "recipe-apply")
+        .unwrap();
+    let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
+    assert_eq!(
+        h.engine.get("n3-test").unwrap().phase,
+        "succeeded",
+        "Review does not mutate the run"
+    );
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    assert!(!h.job(move |engine, ctx| engine.apply_recipe(
+        "n3-test",
+        "recipe-apply",
+        RecipeApplyChoice::RecipeWins,
+        &plan.plan_digest,
+        ctx
+    )));
+    assert_eq!(
+        h.platform.snapshots.load(Ordering::SeqCst),
+        snapshots,
+        "Stale comparisons fail before a snapshot or any write"
+    );
+    let plan = h
+        .engine
+        .recipe_apply_plan("n3-test", "recipe-apply")
+        .unwrap();
+    assert!(h.job(move |engine, ctx| engine.apply_recipe(
+        "n3-test",
+        "recipe-apply",
+        RecipeApplyChoice::AvatarWins,
+        &plan.plan_digest,
+        ctx
+    )));
+    assert_eq!(
+        h.engine.get("n3-test").unwrap().result["facts"]["avatarGlobalObjectId"],
+        "synthetic-avatar"
+    );
+    let plan = h
+        .engine
+        .recipe_apply_plan("n3-test", "recipe-apply")
+        .unwrap();
+    h.platform.fail.store(true, Ordering::SeqCst);
+    assert!(!h.job(move |engine, ctx| engine.apply_recipe(
+        "n3-test",
+        "recipe-apply",
+        RecipeApplyChoice::NewAvatar,
+        &plan.plan_digest,
+        ctx
+    )));
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(run.recovery.as_deref(), Some("restored"));
+    assert_eq!(
+        h.platform
+            .fingerprint(Path::new(&run.project_root))
+            .unwrap(),
+        "after"
+    );
 }
 
 fn flow_schema(name: &str) -> jsonschema::Validator {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/amf-production-flow/v0.1").join(name);
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../schemas/amf-production-flow/v0.1")
+        .join(name);
     jsonschema::validator_for(&serde_json::from_slice(&fs::read(path).unwrap()).unwrap()).unwrap()
 }
 
 #[test]
 fn progress_and_status_vectors_accept_stage_facts_and_refuse_log_text() {
-    for (schema, folder) in [("progress.schema.json", "progress-examples"), ("status.schema.json", "status-examples"), ("source.schema.json", "source-examples")] {
+    for (schema, folder) in [
+        ("progress.schema.json", "progress-examples"),
+        ("status.schema.json", "status-examples"),
+        ("source.schema.json", "source-examples"),
+    ] {
         let validator = flow_schema(schema);
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/amf-production-flow/v0.1").join(folder);
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../schemas/amf-production-flow/v0.1")
+            .join(folder);
         for entry in fs::read_dir(root).unwrap() {
             let path = entry.unwrap().path();
-            let value: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-            let valid = path.file_name().unwrap().to_string_lossy().contains(".valid.");
+            let value: serde_json::Value =
+                serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+            let valid = path
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .contains(".valid.");
             assert_eq!(validator.is_valid(&value), valid, "{}", path.display());
         }
     }
@@ -1280,23 +2174,32 @@ fn started(
 ) -> (String, std::sync::mpsc::Receiver<Result<(), AppErrorV1>>) {
     let engine = h.engine.clone();
     let (tx, rx) = std::sync::mpsc::channel();
-    let accepted = h.runtime.submit(SubmitRequest {
-        correlation_id: None,
-        timeout: None,
-        job: Box::new(move |ctx| {
-            let result = action(&engine, ctx);
-            tx.send(result.clone()).unwrap();
-            result.map(|()| TaskExit::Done(serde_json::json!({"synthetic":true})))
-        }),
-    }).unwrap();
+    let accepted = h
+        .runtime
+        .submit(SubmitRequest {
+            correlation_id: None,
+            timeout: None,
+            job: Box::new(move |ctx| {
+                let result = action(&engine, ctx);
+                tx.send(result.clone()).unwrap();
+                result.map(|()| TaskExit::Done(serde_json::json!({"synthetic":true})))
+            }),
+        })
+        .unwrap();
     (accepted.task_id, rx)
 }
 
 /// Waits for the job's first Unity progress event and returns its payload.
-fn unity_event(events: &std::sync::mpsc::Receiver<vua_orchestrator::TaskEventV1>) -> serde_json::Value {
+fn unity_event(
+    events: &std::sync::mpsc::Receiver<vua_orchestrator::TaskEventV1>,
+) -> serde_json::Value {
     loop {
-        let event = events.recv_timeout(Duration::from_secs(5)).expect("Unity progress");
-        if event.kind == vua_orchestrator::TaskEventKind::Progress && event.payload.get("unity").is_some() {
+        let event = events
+            .recv_timeout(Duration::from_secs(5))
+            .expect("Unity progress");
+        if event.kind == vua_orchestrator::TaskEventKind::Progress
+            && event.payload.get("unity").is_some()
+        {
             return event.payload;
         }
     }
@@ -1313,31 +2216,62 @@ fn a_stopped_unity_step_keeps_the_project_and_continue_reinspects_it() {
     let (task, outcome) = started(&h, |engine, ctx| engine.reinspect("n3-test", ctx));
 
     let payload = unity_event(&events);
-    assert!(flow_schema("progress.schema.json").is_valid(&payload), "{payload}");
-    assert_eq!((payload["step"].as_str(), payload["unity"]["stage"].as_str()), (Some("reinspect"), Some("importing")));
+    assert!(
+        flow_schema("progress.schema.json").is_valid(&payload),
+        "{payload}"
+    );
+    assert_eq!(
+        (payload["step"].as_str(), payload["unity"]["stage"].as_str()),
+        (Some("reinspect"), Some("importing"))
+    );
     let running = h.engine.get("n3-test").unwrap();
     assert_eq!(running.phase, "inspecting");
-    let progress = h.engine.progress(&running).expect("the running step's progress");
+    let progress = h
+        .engine
+        .progress(&running)
+        .expect("the running step's progress");
     assert_eq!(progress["step"], "reinspect");
     assert_eq!(progress["unity"]["total"], 379);
     assert!(progress["elapsedSeconds"].as_u64().is_some());
-    assert!(progress["usualSeconds"].is_null(), "no earlier reinspection finished on this computer");
+    assert!(
+        progress["usualSeconds"].is_null(),
+        "no earlier reinspection finished on this computer"
+    );
 
     h.runtime.cancel(&task).unwrap();
-    let error = outcome.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err();
+    let error = outcome
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap()
+        .unwrap_err();
     assert_eq!(error.code, "vua.task.cancelled");
     let stopped = h.engine.get("n3-test").unwrap();
     assert_eq!(stopped.phase, "stopped");
     assert_eq!(stopped.error, None);
     let step = stopped.steps.last().unwrap();
-    assert_eq!((step.key.as_str(), step.state.as_str()), ("reinspect", "stopped"));
+    assert_eq!(
+        (step.key.as_str(), step.state.as_str()),
+        ("reinspect", "stopped")
+    );
     assert!(step.ended_at.is_some());
-    assert!(h.engine.progress(&stopped).is_none(), "a stopped run has no running step");
-    assert_eq!(fs::read_to_string(&state).unwrap(), "before", "the work project stays");
+    assert!(
+        h.engine.progress(&stopped).is_none(),
+        "a stopped run has no running step"
+    );
+    assert_eq!(
+        fs::read_to_string(&state).unwrap(),
+        "before",
+        "the work project stays"
+    );
     assert_eq!(stopped.sources.len(), 2, "the imported materials stay");
-    assert!(h.engine.rollback_plan("n3-test").is_err(), "preparation alone has no restore point");
+    assert!(
+        h.engine.rollback_plan("n3-test").is_err(),
+        "preparation alone has no restore point"
+    );
 
-    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)), "continue reinspects the retained project");
+    assert!(
+        h.job(|engine, ctx| engine.reinspect("n3-test", ctx)),
+        "continue reinspects the retained project"
+    );
     let continued = h.engine.get("n3-test").unwrap();
     assert_eq!(continued.phase, "ready");
     assert_eq!(continued.steps.last().unwrap().state, "succeeded");
@@ -1352,15 +2286,26 @@ fn stopping_assembly_restores_the_protected_project() {
     let digest = plan_digest(&run, &selection()).unwrap();
     let events = h.runtime.subscribe();
     h.platform.wait_for_stop.store(true, Ordering::SeqCst);
-    let (task, outcome) = started(&h, move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx));
+    let (task, outcome) = started(&h, move |engine, ctx| {
+        engine.assemble("n3-test", selection(), &digest, ctx)
+    });
     assert_eq!(unity_event(&events)["step"], "assembly");
     h.runtime.cancel(&task).unwrap();
-    assert!(outcome.recv_timeout(Duration::from_secs(5)).unwrap().is_err());
+    assert!(outcome
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap()
+        .is_err());
     let stopped = h.engine.get("n3-test").unwrap();
     assert_eq!(stopped.phase, "stopped");
     assert_eq!(stopped.recovery.as_deref(), Some("restored"));
-    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "before");
-    assert!(h.engine.plan("n3-test", &selection()).is_err(), "a stopped assembly needs reinspection before a new plan");
+    assert_eq!(
+        fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),
+        "before"
+    );
+    assert!(
+        h.engine.plan("n3-test", &selection()).is_err(),
+        "a stopped assembly needs reinspection before a new plan"
+    );
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
     assert_eq!(h.engine.get("n3-test").unwrap().phase, "ready");
 }
@@ -1370,8 +2315,15 @@ fn steps_record_their_times_and_usual_durations_take_the_median_of_finished_step
     let h = Harness::new();
     h.prepared();
     let run = h.engine.get("n3-test").unwrap();
-    assert_eq!(run.steps.iter().map(|s| s.key.as_str()).collect::<Vec<_>>(), ["project", "materials", "inspect"]);
-    let millis = |text: &Option<String>| text.as_deref().and_then(vua_orchestrator::rfc3339_millis).unwrap();
+    assert_eq!(
+        run.steps.iter().map(|s| s.key.as_str()).collect::<Vec<_>>(),
+        ["project", "materials", "inspect"]
+    );
+    let millis = |text: &Option<String>| {
+        text.as_deref()
+            .and_then(vua_orchestrator::rfc3339_millis)
+            .unwrap()
+    };
     for step in &run.steps {
         assert!(millis(&step.started_at) <= millis(&step.ended_at));
     }
@@ -1380,54 +2332,125 @@ fn steps_record_their_times_and_usual_durations_take_the_median_of_finished_step
     view["progress"] = serde_json::Value::Null;
     assert!(flow_schema("status.schema.json").is_valid(&view), "{view}");
     let usual = h.engine.usual_durations();
-    assert_eq!(usual.keys().map(String::as_str).collect::<Vec<_>>(), ["inspect", "materials", "project"]);
+    assert_eq!(
+        usual.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["inspect", "materials", "project"]
+    );
 
     // Earlier runs on this computer: inspections of 60, 300 and 120 seconds, and steps that do
     // not count — a failed one, a stopped one and one recorded before step times existed.
     let record = |id: &str, steps: serde_json::Value| {
         let mut other = serde_json::to_value(&run).unwrap();
         other["runId"] = id.into();
-        other["projectRoot"] = h.root.join("production/projects").join(id).to_string_lossy().into_owned().into();
+        other["projectRoot"] = h
+            .root
+            .join("production/projects")
+            .join(id)
+            .to_string_lossy()
+            .into_owned()
+            .into();
         other["steps"] = steps;
-        fs::write(h.root.join("production/runs").join(format!("{id}.json")), serde_json::to_vec(&other).unwrap()).unwrap();
+        fs::write(
+            h.root.join("production/runs").join(format!("{id}.json")),
+            serde_json::to_vec(&other).unwrap(),
+        )
+        .unwrap();
     };
-    let step = |state: &str, start: &str, end: &str| serde_json::json!({"key":"inspect","name":"Inspect","state":state,"detail":"",
-        "startedAt":format!("2026-10-17T{start}.000Z"),"endedAt":format!("2026-10-17T{end}.000Z")});
-    record("n3-earlier-1", serde_json::json!([step("succeeded", "08:00:00", "08:01:00"), step("failed", "09:00:00", "10:00:00")]));
-    record("n3-earlier-2", serde_json::json!([step("succeeded", "08:00:00", "08:05:00"), step("stopped", "09:00:00", "09:30:00")]));
-    record("n3-earlier-3", serde_json::json!([step("succeeded", "08:00:00", "08:02:00"), {"key":"inspect","name":"Inspect","state":"succeeded","detail":""}]));
+    let step = |state: &str, start: &str, end: &str| {
+        serde_json::json!({"key":"inspect","name":"Inspect","state":state,"detail":"",
+        "startedAt":format!("2026-10-17T{start}.000Z"),"endedAt":format!("2026-10-17T{end}.000Z")})
+    };
+    record(
+        "n3-earlier-1",
+        serde_json::json!([
+            step("succeeded", "08:00:00", "08:01:00"),
+            step("failed", "09:00:00", "10:00:00")
+        ]),
+    );
+    record(
+        "n3-earlier-2",
+        serde_json::json!([
+            step("succeeded", "08:00:00", "08:05:00"),
+            step("stopped", "09:00:00", "09:30:00")
+        ]),
+    );
+    record(
+        "n3-earlier-3",
+        serde_json::json!([step("succeeded", "08:00:00", "08:02:00"), {"key":"inspect","name":"Inspect","state":"succeeded","detail":""}]),
+    );
     // This run's own inspection took well under a minute, so it is the shortest of four.
-    assert_eq!(h.engine.usual_durations()["inspect"], 90, "the median of four finished inspections");
-    record("n3-earlier-4", serde_json::json!([step("succeeded", "08:00:00", "08:10:00")]));
-    assert_eq!(h.engine.usual_durations()["inspect"], 120, "a new record replaces the cached medians");
-    assert!(h.engine.get("n3-earlier-3").unwrap().steps[1].started_at.is_none(), "records without step times still read");
+    assert_eq!(
+        h.engine.usual_durations()["inspect"],
+        90,
+        "the median of four finished inspections"
+    );
+    record(
+        "n3-earlier-4",
+        serde_json::json!([step("succeeded", "08:00:00", "08:10:00")]),
+    );
+    assert_eq!(
+        h.engine.usual_durations()["inspect"],
+        120,
+        "a new record replaces the cached medians"
+    );
+    assert!(
+        h.engine.get("n3-earlier-3").unwrap().steps[1]
+            .started_at
+            .is_none(),
+        "records without step times still read"
+    );
 }
 
 #[test]
 fn every_step_the_engine_records_is_in_the_published_status_schema() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let mut sources = vec![root.join("src/amf_production.rs"), root.join("src/amf_production")];
+    let mut sources = vec![
+        root.join("src/amf_production.rs"),
+        root.join("src/amf_production"),
+    ];
     let marker = "self.step(&mutrun,ctx,\"";
     let mut keys = Vec::new();
     while let Some(source) = sources.pop() {
         if source.is_dir() {
-            sources.extend(fs::read_dir(source).unwrap().map(|entry| entry.unwrap().path()));
+            sources.extend(
+                fs::read_dir(source)
+                    .unwrap()
+                    .map(|entry| entry.unwrap().path()),
+            );
             continue;
         }
-        if source.extension() != Some(std::ffi::OsStr::new("rs")) { continue; }
+        if source.extension() != Some(std::ffi::OsStr::new("rs")) {
+            continue;
+        }
         // Rustfmt can split a step call across lines, including in nested release modules.
-        let code: String = fs::read_to_string(source).unwrap().chars().filter(|c| !c.is_ascii_whitespace()).collect();
+        let code: String = fs::read_to_string(source)
+            .unwrap()
+            .chars()
+            .filter(|c| !c.is_ascii_whitespace())
+            .collect();
         for part in code.split(marker).skip(1) {
             keys.push(part.split('"').next().unwrap().to_owned());
         }
     }
     assert!(keys.len() >= 8, "found the engine's steps: {keys:?}");
-    assert!(keys.iter().any(|key| key == "local_test"), "found the nested local-test step");
+    assert!(
+        keys.iter().any(|key| key == "local_test"),
+        "found the nested local-test step"
+    );
     for name in ["status", "progress"] {
-        let schema: serde_json::Value = serde_json::from_str(&fs::read_to_string(root.join(format!("../../schemas/amf-production-flow/v0.1/{name}.schema.json"))).unwrap()).unwrap();
+        let schema: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(root.join(format!(
+                "../../schemas/amf-production-flow/v0.1/{name}.schema.json"
+            )))
+            .unwrap(),
+        )
+        .unwrap();
         let allowed = schema["$defs"]["stepKey"]["enum"].as_array().unwrap();
         for key in &keys {
-            assert!(allowed.contains(&serde_json::Value::String(key.clone())), "{name}.schema.json lists the step key {key}");
+            assert!(
+                allowed.contains(&serde_json::Value::String(key.clone())),
+                "{name}.schema.json lists the step key {key}"
+            );
         }
     }
 }
@@ -1438,7 +2461,8 @@ fn a_v1_record_compares_by_computing_v1_once_and_then_carries_the_current_value(
     h.prepared();
     let record = h.root.join("production/runs/n3-test.json");
     let carry = |value: &str| {
-        let mut run: serde_json::Value = serde_json::from_slice(&fs::read(&record).unwrap()).unwrap();
+        let mut run: serde_json::Value =
+            serde_json::from_slice(&fs::read(&record).unwrap()).unwrap();
         run["projectFingerprint"] = value.into();
         run["snapshotId"] = "n3-snap".into();
         fs::write(&record, serde_json::to_vec_pretty(&run).unwrap()).unwrap();
@@ -1446,17 +2470,43 @@ fn a_v1_record_compares_by_computing_v1_once_and_then_carries_the_current_value(
     // A record from before the cached fingerprint, on a project nobody touched.
     carry("sha256:before");
     let plan = h.engine.rollback_plan("n3-test").unwrap();
-    assert_eq!(plan["currentChanged"], false, "a new algorithm must not read as a changed project");
+    assert_eq!(
+        plan["currentChanged"], false,
+        "a new algorithm must not read as a changed project"
+    );
     // The gate passes and upgrades the record; this synthetic run has not been assembled,
     // so building the Recipe itself declines for its own reason.
-    let refused = h.engine.save_recipe("n3-test", "recipe-migrated", "Migrated").unwrap_err();
-    assert_ne!(refused.code, "vua.amf_production.inspect_required", "the fingerprint gate accepted the legacy value");
-    assert_eq!(h.engine.get("n3-test").unwrap().project_fingerprint, "before", "the record carries the current value after the match");
+    let refused = h
+        .engine
+        .save_recipe("n3-test", "recipe-migrated", "Migrated")
+        .unwrap_err();
+    assert_ne!(
+        refused.code, "vua.amf_production.inspect_required",
+        "the fingerprint gate accepted the legacy value"
+    );
+    assert_eq!(
+        h.engine.get("n3-test").unwrap().project_fingerprint,
+        "before",
+        "the record carries the current value after the match"
+    );
     // A record whose project really changed still reports the change, in either algorithm.
     carry("sha256:before");
-    fs::write(h.root.join("production/projects/n3-test/Assets/state"), "external edit").unwrap();
-    assert_eq!(h.engine.rollback_plan("n3-test").unwrap()["currentChanged"], true);
-    assert_eq!(h.engine.save_recipe("n3-test", "recipe-stale", "Stale").unwrap_err().code, "vua.amf_production.inspect_required");
+    fs::write(
+        h.root.join("production/projects/n3-test/Assets/state"),
+        "external edit",
+    )
+    .unwrap();
+    assert_eq!(
+        h.engine.rollback_plan("n3-test").unwrap()["currentChanged"],
+        true
+    );
+    assert_eq!(
+        h.engine
+            .save_recipe("n3-test", "recipe-stale", "Stale")
+            .unwrap_err()
+            .code,
+        "vua.amf_production.inspect_required"
+    );
 }
 
 #[test]
@@ -1473,14 +2523,26 @@ fn the_after_unity_project_check_shows_as_its_own_stage() {
             stages.push(event.payload["unity"]["stage"].clone());
         }
     }
-    assert_eq!(stages, vec![serde_json::json!("fingerprint")], "the check is a named stage, and the only Unity stage of a synthetic reinspection");
+    assert_eq!(
+        stages,
+        vec![serde_json::json!("fingerprint")],
+        "the check is a named stage, and the only Unity stage of a synthetic reinspection"
+    );
 }
 
 fn choices(ids: &[&str]) -> Vec<SourceChoice> {
-    ids.iter().map(|id| SourceChoice { source_id: (*id).into(), role: SourceRole::Auto }).collect()
+    ids.iter()
+        .map(|id| SourceChoice {
+            source_id: (*id).into(),
+            role: SourceRole::Auto,
+        })
+        .collect()
 }
 fn ids(sources: &[PreparedSource]) -> Vec<&str> {
-    sources.iter().map(|source| source.source_id.as_str()).collect()
+    sources
+        .iter()
+        .map(|source| source.source_id.as_str())
+        .collect()
 }
 
 #[test]
@@ -1490,21 +2552,52 @@ fn a_line_changes_its_materials_in_place_and_its_restore_point_brings_them_back(
     assert_eq!(run.phase, "succeeded");
     let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
     // The same materials, or one no longer in the library, change nothing.
-    assert!(!h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["outfit", "avatar"]), ctx)));
-    assert!(!h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "gone"]), ctx)));
-    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots, "a refused change takes no restore point");
+    assert!(!h.job(|engine, ctx| engine.change_sources(
+        "n3-test",
+        choices(&["outfit", "avatar"]),
+        ctx
+    )));
+    assert!(!h.job(|engine, ctx| engine.change_sources(
+        "n3-test",
+        choices(&["avatar", "gone"]),
+        ctx
+    )));
+    assert_eq!(
+        h.platform.snapshots.load(Ordering::SeqCst),
+        snapshots,
+        "a refused change takes no restore point"
+    );
 
-    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    assert!(h.job(|engine, ctx| engine.change_sources(
+        "n3-test",
+        choices(&["avatar", "outfit2"]),
+        ctx
+    )));
     let changed = h.engine.get("n3-test").unwrap();
-    assert_eq!(changed.project_root, run.project_root, "the line keeps its work project");
+    assert_eq!(
+        changed.project_root, run.project_root,
+        "the line keeps its work project"
+    );
     assert_eq!(changed.phase, "ready", "the line plans again");
     assert!(changed.completed_at.is_none());
     assert_eq!(ids(&changed.sources), ["avatar", "outfit2"]);
-    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "materials:avatar+outfit2");
+    assert_eq!(
+        fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),
+        "materials:avatar+outfit2"
+    );
     let kept = changed.selection.clone().expect("the Avatar choice stays");
     assert_eq!(kept.avatar_prefab, "Assets/Avatar.prefab");
-    assert!(kept.outfits.is_empty(), "an outfit of a removed material leaves the plan");
-    let keys: Vec<&str> = changed.steps.iter().rev().take(3).map(|step| step.key.as_str()).collect();
+    assert!(
+        kept.outfits.is_empty(),
+        "an outfit of a removed material leaves the plan"
+    );
+    let keys: Vec<&str> = changed
+        .steps
+        .iter()
+        .rev()
+        .take(3)
+        .map(|step| step.key.as_str())
+        .collect();
     assert_eq!(keys, ["inspect", "materials", "snapshot"]);
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots + 1);
 
@@ -1513,10 +2606,16 @@ fn a_line_changes_its_materials_in_place_and_its_restore_point_brings_them_back(
     let restored = h.engine.get("n3-test").unwrap();
     assert_eq!(ids(&restored.sources), ["avatar", "outfit"]);
     assert_eq!(restored.choices, run.choices);
-    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "after");
+    assert_eq!(
+        fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),
+        "after"
+    );
     // And the restore is itself reversible, materials included.
     assert!(restore_reviewed(&h));
-    assert_eq!(ids(&h.engine.get("n3-test").unwrap().sources), ["avatar", "outfit2"]);
+    assert_eq!(
+        ids(&h.engine.get("n3-test").unwrap().sources),
+        ["avatar", "outfit2"]
+    );
 }
 
 #[test]
@@ -1524,13 +2623,20 @@ fn a_failed_material_change_restores_the_project_and_the_materials() {
     let h = Harness::new();
     let run = assembled(&h);
     h.platform.fail_replace.store(true, Ordering::SeqCst);
-    assert!(!h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    assert!(!h.job(|engine, ctx| engine.change_sources(
+        "n3-test",
+        choices(&["avatar", "outfit2"]),
+        ctx
+    )));
     let failed = h.engine.get("n3-test").unwrap();
     assert_eq!(failed.recovery.as_deref(), Some("restored"));
     assert_eq!(failed.phase, "failed");
     assert_eq!(ids(&failed.sources), ["avatar", "outfit"]);
     assert_eq!(failed.choices, run.choices);
-    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "after");
+    assert_eq!(
+        fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),
+        "after"
+    );
 }
 
 #[test]
@@ -1541,20 +2647,40 @@ fn deleting_a_line_removes_its_work_project_and_records() {
     fs::create_dir_all(release.parent().unwrap()).unwrap();
     fs::write(&release, "{}").unwrap();
     h.platform.editor_open.store(true, Ordering::SeqCst);
-    assert!(h.engine.delete_run("n3-test").unwrap_err().code.ends_with("project_open"));
-    assert!(Path::new(&run.project_root).exists(), "a project Unity holds stays");
+    assert!(h
+        .engine
+        .delete_run("n3-test")
+        .unwrap_err()
+        .code
+        .ends_with("project_open"));
+    assert!(
+        Path::new(&run.project_root).exists(),
+        "a project Unity holds stays"
+    );
     h.platform.editor_open.store(false, Ordering::SeqCst);
     let records = h.root.join("production/records");
-    let own: Vec<_> = fs::read_dir(&records).unwrap().flatten().map(|entry| entry.path()).collect();
+    let own: Vec<_> = fs::read_dir(&records)
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.path())
+        .collect();
     assert!(!own.is_empty(), "the assembly left its record");
     let other = records.join("n3-other-0123456789abcdef.json");
     fs::write(&other, "{}").unwrap();
     h.engine.delete_run("n3-test").unwrap();
     assert!(!Path::new(&run.project_root).exists());
     assert!(!release.exists());
-    assert!(own.iter().all(|record| !record.exists()), "the line's assembly records leave with it");
+    assert!(
+        own.iter().all(|record| !record.exists()),
+        "the line's assembly records leave with it"
+    );
     assert!(other.exists(), "another line's record stays");
-    assert!(h.engine.get("n3-test").unwrap_err().code.ends_with("run_not_found"));
+    assert!(h
+        .engine
+        .get("n3-test")
+        .unwrap_err()
+        .code
+        .ends_with("run_not_found"));
     assert!(h.engine.list().unwrap().is_empty());
 }
 
@@ -1564,8 +2690,18 @@ fn work_on_a_project_unity_holds_is_refused_when_asked() {
     assembled(&h);
     h.engine.precheck_closed("n3-test").unwrap();
     h.platform.editor_open.store(true, Ordering::SeqCst);
-    assert!(h.engine.precheck_closed("n3-test").unwrap_err().code.ends_with("project_open"));
-    assert!(h.engine.precheck_closed("n3-missing").unwrap_err().code.ends_with("run_not_found"));
+    assert!(h
+        .engine
+        .precheck_closed("n3-test")
+        .unwrap_err()
+        .code
+        .ends_with("project_open"));
+    assert!(h
+        .engine
+        .precheck_closed("n3-missing")
+        .unwrap_err()
+        .code
+        .ends_with("run_not_found"));
 }
 
 // --- lilToon brightness limit alignment ---
@@ -1625,33 +2761,68 @@ fn coat_entry() -> serde_json::Value {
 fn lighting_plan_uses_the_body_renderers_pair_and_apply_changes_only_the_two_lines() {
     for newline in ["\n", "\r\n"] {
         let h = Harness::new();
-        let run = assembled_with_material_use(&h, serde_json::json!([
-            {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
-            {"owner":"avatar","renderer":"Hair","material":"Assets/Avatar/Hair.mat"},
-            {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
-        ]));
+        let run = assembled_with_material_use(
+            &h,
+            serde_json::json!([
+                {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+                {"owner":"avatar","renderer":"Hair","material":"Assets/Avatar/Hair.mat"},
+                {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+            ]),
+        );
         let project = run.project_root.clone();
-        write_mat(&project, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", newline));
-        write_mat(&project, "Assets/Avatar/Hair.mat", &liltoon_mat("Hair", "0.1", "1", newline));
+        write_mat(
+            &project,
+            "Assets/Avatar/Body.mat",
+            &liltoon_mat("Body", "0.1", "1", newline),
+        );
+        write_mat(
+            &project,
+            "Assets/Avatar/Hair.mat",
+            &liltoon_mat("Hair", "0.1", "1", newline),
+        );
         let coat = liltoon_mat("Coat", "0.05", "1", newline);
         write_mat(&project, "Assets/Outfit/Coat.mat", &coat);
 
         let plan = h.engine.plan_lighting("n3-test").unwrap();
-        assert_eq!(plan["reference"], serde_json::json!({"min":"0.1","max":"1"}));
+        assert_eq!(
+            plan["reference"],
+            serde_json::json!({"min":"0.1","max":"1"})
+        );
         assert_eq!(plan["referenceReason"], serde_json::Value::Null);
         assert_eq!(plan["entries"], serde_json::json!([coat_entry()]));
         assert_eq!(plan["skipped"], serde_json::json!([]));
         let digest = plan["planDigest"].as_str().unwrap().to_owned();
-        assert!(h.job(move |engine, ctx| engine.apply_lighting("n3-test", &digest, &["Assets/Outfit/Coat.mat".to_owned()], ctx)));
+        assert!(h.job(move |engine, ctx| engine.apply_lighting(
+            "n3-test",
+            &digest,
+            &["Assets/Outfit/Coat.mat".to_owned()],
+            ctx
+        )));
 
         let updated = fs::read(Path::new(&project).join("Assets/Outfit/Coat.mat")).unwrap();
-        assert_eq!(updated, liltoon_mat("Coat", "0.1", "1", newline), "only the lower-limit line changed, {newline:?} endings intact");
+        assert_eq!(
+            updated,
+            liltoon_mat("Coat", "0.1", "1", newline),
+            "only the lower-limit line changed, {newline:?} endings intact"
+        );
         let run = h.engine.get("n3-test").unwrap();
         assert_eq!(run.phase, "succeeded");
-        assert!(run.snapshot_id.is_some(), "a restore point protects the change");
-        let keys: Vec<&str> = run.steps.iter().rev().take(3).map(|step| step.key.as_str()).collect();
+        assert!(
+            run.snapshot_id.is_some(),
+            "a restore point protects the change"
+        );
+        let keys: Vec<&str> = run
+            .steps
+            .iter()
+            .rev()
+            .take(3)
+            .map(|step| step.key.as_str())
+            .collect();
         assert_eq!(keys, ["inspect", "lighting", "snapshot"]);
-        assert_eq!(run.result["facts"]["materialUse"][2]["material"], "Assets/Outfit/Coat.mat", "the recheck refreshed the facts");
+        assert_eq!(
+            run.result["facts"]["materialUse"][2]["material"], "Assets/Outfit/Coat.mat",
+            "the recheck refreshed the facts"
+        );
     }
 }
 
@@ -1659,34 +2830,81 @@ fn lighting_plan_uses_the_body_renderers_pair_and_apply_changes_only_the_two_lin
 fn lighting_plan_prefers_body_over_the_majority_and_falls_back_to_it() {
     // A Body pair different from every other Avatar material wins over the majority.
     let h = Harness::new();
-    let run = assembled_with_material_use(&h, serde_json::json!([
-        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
-        {"owner":"avatar","renderer":"Hair","material":"Assets/Avatar/Hair.mat"},
-        {"owner":"avatar","renderer":"Face","material":"Assets/Avatar/Face.mat"},
-        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
-    ]));
-    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.15", "0.9", "\n"));
-    write_mat(&run.project_root, "Assets/Avatar/Hair.mat", &liltoon_mat("Hair", "0.1", "1", "\n"));
-    write_mat(&run.project_root, "Assets/Avatar/Face.mat", &liltoon_mat("Face", "0.1", "1", "\n"));
-    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    let run = assembled_with_material_use(
+        &h,
+        serde_json::json!([
+            {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+            {"owner":"avatar","renderer":"Hair","material":"Assets/Avatar/Hair.mat"},
+            {"owner":"avatar","renderer":"Face","material":"Assets/Avatar/Face.mat"},
+            {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+        ]),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Body.mat",
+        &liltoon_mat("Body", "0.15", "0.9", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Hair.mat",
+        &liltoon_mat("Hair", "0.1", "1", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Face.mat",
+        &liltoon_mat("Face", "0.1", "1", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Outfit/Coat.mat",
+        &liltoon_mat("Coat", "0.05", "1", "\n"),
+    );
     let plan = h.engine.plan_lighting("n3-test").unwrap();
-    assert_eq!(plan["reference"], serde_json::json!({"min":"0.15","max":"0.9"}));
-    assert_eq!(plan["entries"][0]["proposed"], serde_json::json!({"min":"0.15","max":"0.9"}));
+    assert_eq!(
+        plan["reference"],
+        serde_json::json!({"min":"0.15","max":"0.9"})
+    );
+    assert_eq!(
+        plan["entries"][0]["proposed"],
+        serde_json::json!({"min":"0.15","max":"0.9"})
+    );
 
     // Without a Body renderer the most common pair wins, one vote per Avatar material.
     let h = Harness::new();
-    let run = assembled_with_material_use(&h, serde_json::json!([
-        {"owner":"avatar","renderer":"Hair","material":"Assets/Avatar/Hair.mat"},
-        {"owner":"avatar","renderer":"Face","material":"Assets/Avatar/Face.mat"},
-        {"owner":"avatar","renderer":"Eye","material":"Assets/Avatar/Eye.mat"},
-        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
-    ]));
-    write_mat(&run.project_root, "Assets/Avatar/Hair.mat", &liltoon_mat("Hair", "0.1", "1", "\n"));
-    write_mat(&run.project_root, "Assets/Avatar/Face.mat", &liltoon_mat("Face", "0.1", "1", "\n"));
-    write_mat(&run.project_root, "Assets/Avatar/Eye.mat", &liltoon_mat("Eye", "0.2", "1", "\n"));
-    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    let run = assembled_with_material_use(
+        &h,
+        serde_json::json!([
+            {"owner":"avatar","renderer":"Hair","material":"Assets/Avatar/Hair.mat"},
+            {"owner":"avatar","renderer":"Face","material":"Assets/Avatar/Face.mat"},
+            {"owner":"avatar","renderer":"Eye","material":"Assets/Avatar/Eye.mat"},
+            {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+        ]),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Hair.mat",
+        &liltoon_mat("Hair", "0.1", "1", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Face.mat",
+        &liltoon_mat("Face", "0.1", "1", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Eye.mat",
+        &liltoon_mat("Eye", "0.2", "1", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Outfit/Coat.mat",
+        &liltoon_mat("Coat", "0.05", "1", "\n"),
+    );
     let plan = h.engine.plan_lighting("n3-test").unwrap();
-    assert_eq!(plan["reference"], serde_json::json!({"min":"0.1","max":"1"}));
+    assert_eq!(
+        plan["reference"],
+        serde_json::json!({"min":"0.1","max":"1"})
+    );
     assert_eq!(plan["entries"], serde_json::json!([coat_entry()]));
 }
 
@@ -1694,14 +2912,29 @@ fn lighting_plan_prefers_body_over_the_majority_and_falls_back_to_it() {
 fn lighting_plan_has_no_entries_without_a_unique_reference() {
     // A tied vote.
     let h = Harness::new();
-    let run = assembled_with_material_use(&h, serde_json::json!([
-        {"owner":"avatar","renderer":"Hair","material":"Assets/Avatar/Hair.mat"},
-        {"owner":"avatar","renderer":"Face","material":"Assets/Avatar/Face.mat"},
-        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
-    ]));
-    write_mat(&run.project_root, "Assets/Avatar/Hair.mat", &liltoon_mat("Hair", "0.1", "1", "\n"));
-    write_mat(&run.project_root, "Assets/Avatar/Face.mat", &liltoon_mat("Face", "0.2", "1", "\n"));
-    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    let run = assembled_with_material_use(
+        &h,
+        serde_json::json!([
+            {"owner":"avatar","renderer":"Hair","material":"Assets/Avatar/Hair.mat"},
+            {"owner":"avatar","renderer":"Face","material":"Assets/Avatar/Face.mat"},
+            {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+        ]),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Hair.mat",
+        &liltoon_mat("Hair", "0.1", "1", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Face.mat",
+        &liltoon_mat("Face", "0.2", "1", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Outfit/Coat.mat",
+        &liltoon_mat("Coat", "0.05", "1", "\n"),
+    );
     let plan = h.engine.plan_lighting("n3-test").unwrap();
     assert_eq!(plan["reference"], serde_json::Value::Null);
     assert_eq!(plan["referenceReason"], "tie");
@@ -1709,12 +2942,23 @@ fn lighting_plan_has_no_entries_without_a_unique_reference() {
 
     // An Avatar without lilToon materials.
     let h = Harness::new();
-    let run = assembled_with_material_use(&h, serde_json::json!([
-        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
-        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
-    ]));
-    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &standard_mat("Body"));
-    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    let run = assembled_with_material_use(
+        &h,
+        serde_json::json!([
+            {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+            {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+        ]),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Body.mat",
+        &standard_mat("Body"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Outfit/Coat.mat",
+        &liltoon_mat("Coat", "0.05", "1", "\n"),
+    );
     let plan = h.engine.plan_lighting("n3-test").unwrap();
     assert_eq!(plan["reference"], serde_json::Value::Null);
     assert_eq!(plan["referenceReason"], "no_avatar_liltoon");
@@ -1724,34 +2968,62 @@ fn lighting_plan_has_no_entries_without_a_unique_reference() {
 #[test]
 fn lighting_plan_skips_shared_and_ignores_non_liltoon_materials() {
     let h = Harness::new();
-    let run = assembled_with_material_use(&h, serde_json::json!([
-        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
-        {"owner":"avatar","renderer":"Hair","material":"Assets/Shared/Shared.mat"},
-        {"owner":"outfit","renderer":"Outfit/Trim","material":"Assets/Shared/Shared.mat"},
-        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
-        {"owner":"outfit","renderer":"Outfit/Cap","material":"Assets/Outfit/Cap.mat"},
-    ]));
-    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", "\n"));
+    let run = assembled_with_material_use(
+        &h,
+        serde_json::json!([
+            {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+            {"owner":"avatar","renderer":"Hair","material":"Assets/Shared/Shared.mat"},
+            {"owner":"outfit","renderer":"Outfit/Trim","material":"Assets/Shared/Shared.mat"},
+            {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+            {"owner":"outfit","renderer":"Outfit/Cap","material":"Assets/Outfit/Cap.mat"},
+        ]),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Body.mat",
+        &liltoon_mat("Body", "0.1", "1", "\n"),
+    );
     // The shared material still informs the Avatar's reference through its Body-less renderers.
-    write_mat(&run.project_root, "Assets/Shared/Shared.mat", &liltoon_mat("Shared", "0.05", "0.9", "\n"));
-    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
-    write_mat(&run.project_root, "Assets/Outfit/Cap.mat", &standard_mat("Cap"));
+    write_mat(
+        &run.project_root,
+        "Assets/Shared/Shared.mat",
+        &liltoon_mat("Shared", "0.05", "0.9", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Outfit/Coat.mat",
+        &liltoon_mat("Coat", "0.05", "1", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Outfit/Cap.mat",
+        &standard_mat("Cap"),
+    );
     let plan = h.engine.plan_lighting("n3-test").unwrap();
-    assert_eq!(plan["reference"], serde_json::json!({"min":"0.1","max":"1"}));
+    assert_eq!(
+        plan["reference"],
+        serde_json::json!({"min":"0.1","max":"1"})
+    );
     assert_eq!(plan["entries"], serde_json::json!([coat_entry()]));
     assert_eq!(
         plan["skipped"],
         serde_json::json!([{"material":"Assets/Shared/Shared.mat","reason":"shared_with_avatar"}]),
         "a material the Avatar and an outfit share is never changed"
     );
-    assert!(!plan.to_string().contains("Cap.mat"), "a non-lilToon material never appears");
+    assert!(
+        !plan.to_string().contains("Cap.mat"),
+        "a non-lilToon material never appears"
+    );
 }
 
 #[test]
 fn lighting_needs_an_assembled_undrifted_line_with_material_use_facts() {
     let h = Harness::new();
     h.prepared();
-    assert_eq!(h.engine.plan_lighting("n3-test").unwrap_err().code, "vua.amf_production.result_not_ready");
+    assert_eq!(
+        h.engine.plan_lighting("n3-test").unwrap_err().code,
+        "vua.amf_production.result_not_ready"
+    );
     let digest = plan_digest(&h.engine.get("n3-test").unwrap(), &selection()).unwrap();
     assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx)));
     let run = h.engine.get("n3-test").unwrap();
@@ -1763,63 +3035,137 @@ fn lighting_needs_an_assembled_undrifted_line_with_material_use_facts() {
     // A fresh check carries the facts; a project changed since then replans instead.
     *h.platform.material_use.lock().unwrap() = serde_json::json!([]);
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
-    fs::write(Path::new(&run.project_root).join("Assets/state"), "external edit").unwrap();
-    assert_eq!(h.engine.plan_lighting("n3-test").unwrap_err().code, "vua.amf_production.project_drift");
+    fs::write(
+        Path::new(&run.project_root).join("Assets/state"),
+        "external edit",
+    )
+    .unwrap();
+    assert_eq!(
+        h.engine.plan_lighting("n3-test").unwrap_err().code,
+        "vua.amf_production.project_drift"
+    );
 }
 
 #[test]
 fn lighting_apply_refuses_a_stale_digest_and_unknown_materials_before_any_change() {
     let h = Harness::new();
-    let run = assembled_with_material_use(&h, serde_json::json!([
-        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
-        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
-    ]));
-    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", "\n"));
+    let run = assembled_with_material_use(
+        &h,
+        serde_json::json!([
+            {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+            {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+        ]),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Body.mat",
+        &liltoon_mat("Body", "0.1", "1", "\n"),
+    );
     let coat = liltoon_mat("Coat", "0.05", "1", "\n");
     write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &coat);
     let plan = h.engine.plan_lighting("n3-test").unwrap();
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
     let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
 
-    assert!(!h.job(|engine, ctx| engine.apply_lighting("n3-test", &"f".repeat(64), &["Assets/Outfit/Coat.mat".to_owned()], ctx)));
+    assert!(!h.job(|engine, ctx| engine.apply_lighting(
+        "n3-test",
+        &"f".repeat(64),
+        &["Assets/Outfit/Coat.mat".to_owned()],
+        ctx
+    )));
     // Materials outside the reviewed entries, duplicates and an empty choice are refused too.
     let reviewed = digest.clone();
-    assert!(!h.job(move |engine, ctx| engine.apply_lighting("n3-test", &reviewed, &["Assets/Avatar/Body.mat".to_owned()], ctx)));
+    assert!(!h.job(move |engine, ctx| engine.apply_lighting(
+        "n3-test",
+        &reviewed,
+        &["Assets/Avatar/Body.mat".to_owned()],
+        ctx
+    )));
     let reviewed = digest.clone();
     assert!(!h.job(move |engine, ctx| engine.apply_lighting("n3-test", &reviewed, &[], ctx)));
     let reviewed = digest.clone();
-    assert!(!h.job(move |engine, ctx| engine.apply_lighting("n3-test", &reviewed, &["Assets/Outfit/Coat.mat".to_owned(), "Assets/Outfit/Coat.mat".to_owned()], ctx)));
-    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots, "refusals happen before any restore point");
-    assert_eq!(fs::read(Path::new(&run.project_root).join("Assets/Outfit/Coat.mat")).unwrap(), coat);
+    assert!(!h.job(move |engine, ctx| engine.apply_lighting(
+        "n3-test",
+        &reviewed,
+        &[
+            "Assets/Outfit/Coat.mat".to_owned(),
+            "Assets/Outfit/Coat.mat".to_owned()
+        ],
+        ctx
+    )));
+    assert_eq!(
+        h.platform.snapshots.load(Ordering::SeqCst),
+        snapshots,
+        "refusals happen before any restore point"
+    );
+    assert_eq!(
+        fs::read(Path::new(&run.project_root).join("Assets/Outfit/Coat.mat")).unwrap(),
+        coat
+    );
     assert_eq!(h.engine.get("n3-test").unwrap().phase, "succeeded");
 
     // A project change between review and execution replans instead of executing.
-    fs::write(Path::new(&run.project_root).join("Assets/state"), "player-change").unwrap();
-    assert!(!h.job(move |engine, ctx| engine.apply_lighting("n3-test", &digest, &["Assets/Outfit/Coat.mat".to_owned()], ctx)));
+    fs::write(
+        Path::new(&run.project_root).join("Assets/state"),
+        "player-change",
+    )
+    .unwrap();
+    assert!(!h.job(move |engine, ctx| engine.apply_lighting(
+        "n3-test",
+        &digest,
+        &["Assets/Outfit/Coat.mat".to_owned()],
+        ctx
+    )));
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots);
-    assert_eq!(fs::read(Path::new(&run.project_root).join("Assets/Outfit/Coat.mat")).unwrap(), coat);
+    assert_eq!(
+        fs::read(Path::new(&run.project_root).join("Assets/Outfit/Coat.mat")).unwrap(),
+        coat
+    );
 }
 
 #[test]
 fn a_failed_recheck_restores_the_written_materials() {
     let h = Harness::new();
-    let run = assembled_with_material_use(&h, serde_json::json!([
-        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
-        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
-    ]));
-    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", "\n"));
+    let run = assembled_with_material_use(
+        &h,
+        serde_json::json!([
+            {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+            {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+        ]),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Body.mat",
+        &liltoon_mat("Body", "0.1", "1", "\n"),
+    );
     let coat = liltoon_mat("Coat", "0.05", "1", "\n");
     let coat_path = Path::new(&run.project_root).join("Assets/Outfit/Coat.mat");
     write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &coat);
     // The synthetic restore point brings the original file bytes back, as the real one does.
-    h.platform.restore_files.lock().unwrap().push((coat_path.clone(), coat.clone()));
-    let digest = h.engine.plan_lighting("n3-test").unwrap()["planDigest"].as_str().unwrap().to_owned();
+    h.platform
+        .restore_files
+        .lock()
+        .unwrap()
+        .push((coat_path.clone(), coat.clone()));
+    let digest = h.engine.plan_lighting("n3-test").unwrap()["planDigest"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     h.platform.fail_inspect.store(true, Ordering::SeqCst);
-    assert!(!h.job(move |engine, ctx| engine.apply_lighting("n3-test", &digest, &["Assets/Outfit/Coat.mat".to_owned()], ctx)));
+    assert!(!h.job(move |engine, ctx| engine.apply_lighting(
+        "n3-test",
+        &digest,
+        &["Assets/Outfit/Coat.mat".to_owned()],
+        ctx
+    )));
     let failed = h.engine.get("n3-test").unwrap();
     assert_eq!(failed.phase, "failed");
     assert_eq!(failed.recovery.as_deref(), Some("restored"));
-    assert_eq!(fs::read(&coat_path).unwrap(), coat, "the failure restored the written material");
+    assert_eq!(
+        fs::read(&coat_path).unwrap(),
+        coat,
+        "the failure restored the written material"
+    );
     // The run keeps the observations that match the restored project.
     assert_eq!(failed.result["facts"], run.result["facts"]);
     assert_eq!(failed.unity_fingerprint, run.unity_fingerprint);
@@ -1828,31 +3174,66 @@ fn a_failed_recheck_restores_the_written_materials() {
 #[test]
 fn lighting_apply_accepts_a_reviewed_subset_and_the_plan_stays_reproducible() {
     let h = Harness::new();
-    let run = assembled_with_material_use(&h, serde_json::json!([
-        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
-        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
-        {"owner":"outfit","renderer":"Outfit/Skirt","material":"Assets/Outfit/Skirt.mat"},
-    ]));
-    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", "\n"));
-    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
-    write_mat(&run.project_root, "Assets/Outfit/Skirt.mat", &liltoon_mat("Skirt", "0.05", "0.8", "\n"));
+    let run = assembled_with_material_use(
+        &h,
+        serde_json::json!([
+            {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+            {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+            {"owner":"outfit","renderer":"Outfit/Skirt","material":"Assets/Outfit/Skirt.mat"},
+        ]),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Body.mat",
+        &liltoon_mat("Body", "0.1", "1", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Outfit/Coat.mat",
+        &liltoon_mat("Coat", "0.05", "1", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Outfit/Skirt.mat",
+        &liltoon_mat("Skirt", "0.05", "0.8", "\n"),
+    );
     let plan = h.engine.plan_lighting("n3-test").unwrap();
     assert_eq!(plan["entries"].as_array().unwrap().len(), 2);
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
-    assert!(h.job(move |engine, ctx| engine.apply_lighting("n3-test", &digest, &["Assets/Outfit/Coat.mat".to_owned()], ctx)));
+    assert!(h.job(move |engine, ctx| engine.apply_lighting(
+        "n3-test",
+        &digest,
+        &["Assets/Outfit/Coat.mat".to_owned()],
+        ctx
+    )));
     // The chosen material changed; the other entry keeps its limits, and the next review
     // proposes only what still differs.
-    assert_eq!(fs::read(Path::new(&run.project_root).join("Assets/Outfit/Coat.mat")).unwrap(), liltoon_mat("Coat", "0.1", "1", "\n"));
-    assert_eq!(fs::read(Path::new(&run.project_root).join("Assets/Outfit/Skirt.mat")).unwrap(), liltoon_mat("Skirt", "0.05", "0.8", "\n"));
+    assert_eq!(
+        fs::read(Path::new(&run.project_root).join("Assets/Outfit/Coat.mat")).unwrap(),
+        liltoon_mat("Coat", "0.1", "1", "\n")
+    );
+    assert_eq!(
+        fs::read(Path::new(&run.project_root).join("Assets/Outfit/Skirt.mat")).unwrap(),
+        liltoon_mat("Skirt", "0.05", "0.8", "\n")
+    );
     let next = h.engine.plan_lighting("n3-test").unwrap();
     assert_eq!(next["entries"].as_array().unwrap().len(), 1);
     assert_eq!(next["entries"][0]["material"], "Assets/Outfit/Skirt.mat");
-    assert_eq!(next["entries"][0]["proposed"], serde_json::json!({"min":"0.1","max":"1"}));
-    assert!(h.engine.rollback_plan("n3-test").is_ok(), "the restore point stays compatible with the workshop's restore");
+    assert_eq!(
+        next["entries"][0]["proposed"],
+        serde_json::json!({"min":"0.1","max":"1"})
+    );
+    assert!(
+        h.engine.rollback_plan("n3-test").is_ok(),
+        "the restore point stays compatible with the workshop's restore"
+    );
 }
 
 fn alt_selection() -> AssemblySelection {
-    AssemblySelection { avatar_prefab: "Assets/AvatarAlt.prefab".into(), ..selection() }
+    AssemblySelection {
+        avatar_prefab: "Assets/AvatarAlt.prefab".into(),
+        ..selection()
+    }
 }
 
 #[test]
@@ -1861,7 +3242,10 @@ fn another_base_on_a_finished_line_rebuilds_it_behind_a_restore_point() {
     h.platform.alt_avatar.store(true, Ordering::SeqCst);
     let before = assembled(&h);
     assert_eq!(before.phase, "succeeded");
-    assert_eq!(h.engine.plan("n3-test", &selection()).unwrap()["rebuild"], false);
+    assert_eq!(
+        h.engine.plan("n3-test", &selection()).unwrap()["rebuild"],
+        false
+    );
     let plan = h.engine.plan("n3-test", &alt_selection()).unwrap();
     assert_eq!(plan["rebuild"], true);
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
@@ -1871,17 +3255,32 @@ fn another_base_on_a_finished_line_rebuilds_it_behind_a_restore_point() {
     assert_eq!(rebuilt.phase, "succeeded");
     assert_eq!(h.platform.cleared.load(Ordering::SeqCst), 1);
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots + 1);
-    assert_eq!(h.platform.assembled_with.lock().unwrap().last(), Some(&alt_selection()));
+    assert_eq!(
+        h.platform.assembled_with.lock().unwrap().last(),
+        Some(&alt_selection())
+    );
     assert_eq!(rebuilt.selection, Some(alt_selection()));
     assert_eq!(rebuilt.snapshot_selection, Some(selection()));
-    assert_eq!(rebuilt.result["facts"]["observedSelection"]["avatarPrefab"], "Assets/AvatarAlt.prefab");
-    let keys: Vec<_> = rebuilt.steps.iter().rev().take(3).map(|step| step.key.as_str()).collect();
+    assert_eq!(
+        rebuilt.result["facts"]["observedSelection"]["avatarPrefab"],
+        "Assets/AvatarAlt.prefab"
+    );
+    let keys: Vec<_> = rebuilt
+        .steps
+        .iter()
+        .rev()
+        .take(3)
+        .map(|step| step.key.as_str())
+        .collect();
     assert_eq!(keys, ["assembly", "inspect", "snapshot"]);
     // The restore point brings the earlier base back.
     assert!(restore_reviewed(&h));
     let restored = h.engine.get("n3-test").unwrap();
     assert_eq!(restored.selection, Some(selection()));
-    assert_eq!(fs::read_to_string(Path::new(&restored.project_root).join("Assets/state")).unwrap(), "after");
+    assert_eq!(
+        fs::read_to_string(Path::new(&restored.project_root).join("Assets/state")).unwrap(),
+        "after"
+    );
 }
 
 #[test]
@@ -1889,13 +3288,22 @@ fn a_failed_rebuild_restores_the_earlier_base_and_its_facts() {
     let h = Harness::new();
     h.platform.alt_avatar.store(true, Ordering::SeqCst);
     let before = assembled(&h);
-    let digest = h.engine.plan("n3-test", &alt_selection()).unwrap()["planDigest"].as_str().unwrap().to_owned();
+    let digest = h.engine.plan("n3-test", &alt_selection()).unwrap()["planDigest"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     h.platform.fail.store(true, Ordering::SeqCst);
     assert!(!h.job(move |engine, ctx| engine.assemble("n3-test", alt_selection(), &digest, ctx)));
     let failed = h.engine.get("n3-test").unwrap();
     assert_eq!(failed.recovery.as_deref(), Some("restored"));
-    assert_eq!(fs::read_to_string(Path::new(&failed.project_root).join("Assets/state")).unwrap(), "after");
-    assert_eq!(failed.result["facts"]["observedSelection"], before.result["facts"]["observedSelection"]);
+    assert_eq!(
+        fs::read_to_string(Path::new(&failed.project_root).join("Assets/state")).unwrap(),
+        "after"
+    );
+    assert_eq!(
+        failed.result["facts"]["observedSelection"],
+        before.result["facts"]["observedSelection"]
+    );
     assert_eq!(failed.unity_fingerprint, before.unity_fingerprint);
     assert_eq!(failed.project_fingerprint, before.project_fingerprint);
 }
@@ -1938,7 +3346,11 @@ fn version_records_replay_the_materials_and_selection_of_a_finished_line() {
     assert!(!run.revisions[0].edited_in_unity);
 
     // The line changes its outfit and assembles again — the real-machine failure scenario.
-    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    assert!(h.job(|engine, ctx| engine.change_sources(
+        "n3-test",
+        choices(&["avatar", "outfit2"]),
+        ctx
+    )));
     let digest = plan_digest(&h.engine.get("n3-test").unwrap(), &selection2()).unwrap();
     assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection2(), &digest, ctx)));
     let changed = h.engine.get("n3-test").unwrap();
@@ -1946,26 +3358,50 @@ fn version_records_replay_the_materials_and_selection_of_a_finished_line() {
     assert_eq!(changed.revisions.len(), 3);
     assert_eq!(changed.revisions[0].before, RevisionKind::Assembly);
     assert_eq!(changed.revisions[1].before, RevisionKind::Materials);
-    assert_eq!(changed.revisions[1].state.choices, choices(&["avatar", "outfit"]));
-    assert_eq!(changed.revisions[1].state.sources[1].sha256, format!("sha256:{}", "b".repeat(64)));
+    assert_eq!(
+        changed.revisions[1].state.choices,
+        choices(&["avatar", "outfit"])
+    );
+    assert_eq!(
+        changed.revisions[1].state.sources[1].sha256,
+        format!("sha256:{}", "b".repeat(64))
+    );
 
     // Restoring the version taken before the material change replays it: the earlier
     // materials and the earlier assembly come back.
-    let plan = h.engine.revision_plan("n3-test", &changed.revisions[1].id).unwrap();
+    let plan = h
+        .engine
+        .revision_plan("n3-test", &changed.revisions[1].id)
+        .unwrap();
     assert_eq!(plan["editedInUnity"], false);
-    assert_eq!(plan["steps"][0], serde_json::json!({"key":"materials","skipped":false}));
-    assert_eq!(plan["steps"][1], serde_json::json!({"key":"assembly","skipped":false,"rebuild":false}));
-    assert!(restore_reviewed_revision(&h, &changed.revisions[1].id.clone()));
+    assert_eq!(
+        plan["steps"][0],
+        serde_json::json!({"key":"materials","skipped":false})
+    );
+    assert_eq!(
+        plan["steps"][1],
+        serde_json::json!({"key":"assembly","skipped":false,"rebuild":false})
+    );
+    assert!(restore_reviewed_revision(
+        &h,
+        &changed.revisions[1].id.clone()
+    ));
     let restored = h.engine.get("n3-test").unwrap();
     assert_eq!(ids(&restored.sources), ["avatar", "outfit"]);
     assert_eq!(restored.choices, run.choices);
     assert_eq!(restored.selection, Some(selection()));
     assert_eq!(restored.phase, "succeeded");
-    assert_eq!(h.platform.assembled_with.lock().unwrap().last(), Some(&selection()));
+    assert_eq!(
+        h.platform.assembled_with.lock().unwrap().last(),
+        Some(&selection())
+    );
 
     // The restore recorded its own version first, so it is itself reversible.
     assert_eq!(restored.revisions[0].before, RevisionKind::Restore);
-    assert!(restore_reviewed_revision(&h, &restored.revisions[0].id.clone()));
+    assert!(restore_reviewed_revision(
+        &h,
+        &restored.revisions[0].id.clone()
+    ));
     let back = h.engine.get("n3-test").unwrap();
     assert_eq!(ids(&back.sources), ["avatar", "outfit2"]);
     assert_eq!(back.selection, Some(selection2()));
@@ -1975,48 +3411,106 @@ fn version_records_replay_the_materials_and_selection_of_a_finished_line() {
 fn a_restore_warns_when_unity_edited_the_project_and_still_replays() {
     let h = Harness::new();
     let run = assembled(&h);
-    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    assert!(h.job(|engine, ctx| engine.change_sources(
+        "n3-test",
+        choices(&["avatar", "outfit2"]),
+        ctx
+    )));
     let target = h.engine.get("n3-test").unwrap().revisions[0].id.clone();
     // The player edited the project in Unity since VUA last checked it.
-    fs::write(Path::new(&run.project_root).join("Assets/state"), "player-edit").unwrap();
+    fs::write(
+        Path::new(&run.project_root).join("Assets/state"),
+        "player-edit",
+    )
+    .unwrap();
     let plan = h.engine.revision_plan("n3-test", &target).unwrap();
     assert_eq!(plan["editedInUnity"], true);
     assert!(plan["warning"].as_str().is_some());
     assert!(restore_reviewed_revision(&h, &target));
     let restored = h.engine.get("n3-test").unwrap();
     assert_eq!(ids(&restored.sources), ["avatar", "outfit"]);
-    assert!(restored.revisions[0].edited_in_unity, "the undo version records the foreign edits");
+    assert!(
+        restored.revisions[0].edited_in_unity,
+        "the undo version records the foreign edits"
+    );
 }
 
 #[test]
 fn a_restore_writes_back_the_recorded_lighting_values() {
     let h = Harness::new();
-    let run = assembled_with_material_use(&h, serde_json::json!([
-        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
-        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
-    ]));
-    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", "\n"));
-    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    let run = assembled_with_material_use(
+        &h,
+        serde_json::json!([
+            {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+            {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+        ]),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Body.mat",
+        &liltoon_mat("Body", "0.1", "1", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Outfit/Coat.mat",
+        &liltoon_mat("Coat", "0.05", "1", "\n"),
+    );
     // Align the outfit's lighting, then change to another outfit and assemble it: the version
     // taken before the material change carries the aligned values.
-    let digest = h.engine.plan_lighting("n3-test").unwrap()["planDigest"].as_str().unwrap().to_owned();
-    assert!(h.job(move |engine, ctx| engine.apply_lighting("n3-test", &digest, &["Assets/Outfit/Coat.mat".to_owned()], ctx)));
-    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
-    let digest = h.engine.plan("n3-test", &selection2()).unwrap()["planDigest"].as_str().unwrap().to_owned();
+    let digest = h.engine.plan_lighting("n3-test").unwrap()["planDigest"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(h.job(move |engine, ctx| engine.apply_lighting(
+        "n3-test",
+        &digest,
+        &["Assets/Outfit/Coat.mat".to_owned()],
+        ctx
+    )));
+    assert!(h.job(|engine, ctx| engine.change_sources(
+        "n3-test",
+        choices(&["avatar", "outfit2"]),
+        ctx
+    )));
+    let digest = h.engine.plan("n3-test", &selection2()).unwrap()["planDigest"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection2(), &digest, ctx)));
     let changed = h.engine.get("n3-test").unwrap();
-    let target = changed.revisions.iter().find(|revision| revision.before == RevisionKind::Materials).unwrap().clone();
-    let coat = target.state.lighting.iter().find(|entry| entry.material == "Assets/Outfit/Coat.mat").unwrap();
-    assert_eq!((coat.min.as_str(), coat.max.as_str()), ("0.1", "1"), "the aligned values are recorded");
+    let target = changed
+        .revisions
+        .iter()
+        .find(|revision| revision.before == RevisionKind::Materials)
+        .unwrap()
+        .clone();
+    let coat = target
+        .state
+        .lighting
+        .iter()
+        .find(|entry| entry.material == "Assets/Outfit/Coat.mat")
+        .unwrap();
+    assert_eq!(
+        (coat.min.as_str(), coat.max.as_str()),
+        ("0.1", "1"),
+        "the aligned values are recorded"
+    );
     assert_eq!(target.summary.lighting_materials, 2);
 
     // The material drifts afterwards; the restore writes the recorded values back.
-    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    write_mat(
+        &run.project_root,
+        "Assets/Outfit/Coat.mat",
+        &liltoon_mat("Coat", "0.05", "1", "\n"),
+    );
     let plan = h.engine.revision_plan("n3-test", &target.id).unwrap();
     assert_eq!(plan["steps"][2]["skipped"], false);
     assert!(restore_reviewed_revision(&h, &target.id.clone()));
     let restored = h.engine.get("n3-test").unwrap();
-    assert_eq!(fs::read(Path::new(&run.project_root).join("Assets/Outfit/Coat.mat")).unwrap(), liltoon_mat("Coat", "0.1", "1", "\n"));
+    assert_eq!(
+        fs::read(Path::new(&run.project_root).join("Assets/Outfit/Coat.mat")).unwrap(),
+        liltoon_mat("Coat", "0.1", "1", "\n")
+    );
     assert_eq!(restored.selection, Some(selection()));
     assert_eq!(restored.phase, "succeeded");
 }
@@ -2026,14 +3520,26 @@ fn version_records_are_bounded_and_the_oldest_leave() {
     let h = Harness::new();
     assembled(&h);
     for round in 0..REVISION_LIMIT {
-        let next = if round % 2 == 0 { choices(&["avatar", "outfit2"]) } else { choices(&["avatar", "outfit"]) };
+        let next = if round % 2 == 0 {
+            choices(&["avatar", "outfit2"])
+        } else {
+            choices(&["avatar", "outfit"])
+        };
         assert!(h.job(move |engine, ctx| engine.change_sources("n3-test", next, ctx)));
     }
     let run = h.engine.get("n3-test").unwrap();
     assert_eq!(run.revisions.len(), REVISION_LIMIT);
-    assert!(run.revisions.iter().all(|revision| revision.before == RevisionKind::Materials),
-        "the first assembly's version was the oldest and left");
-    let unique: std::collections::BTreeSet<&str> = run.revisions.iter().map(|revision| revision.id.as_str()).collect();
+    assert!(
+        run.revisions
+            .iter()
+            .all(|revision| revision.before == RevisionKind::Materials),
+        "the first assembly's version was the oldest and left"
+    );
+    let unique: std::collections::BTreeSet<&str> = run
+        .revisions
+        .iter()
+        .map(|revision| revision.id.as_str())
+        .collect();
     assert_eq!(unique.len(), REVISION_LIMIT);
 }
 
@@ -2043,10 +3549,18 @@ fn a_failed_change_restored_automatically_leaves_no_version() {
     assembled(&h);
     let before = h.engine.get("n3-test").unwrap().revisions.len();
     h.platform.fail_replace.store(true, Ordering::SeqCst);
-    assert!(!h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    assert!(!h.job(|engine, ctx| engine.change_sources(
+        "n3-test",
+        choices(&["avatar", "outfit2"]),
+        ctx
+    )));
     let failed = h.engine.get("n3-test").unwrap();
     assert_eq!(failed.recovery.as_deref(), Some("restored"));
-    assert_eq!(failed.revisions.len(), before, "the restored change recorded nothing");
+    assert_eq!(
+        failed.revisions.len(),
+        before,
+        "the restored change recorded nothing"
+    );
 }
 
 #[test]
@@ -2059,60 +3573,115 @@ fn only_the_referenced_full_copy_survives_a_protected_change() {
         fs::create_dir_all(snapshots.join(name)).unwrap();
     }
     fs::write(snapshots.join("note.txt"), b"stray").unwrap();
-    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
-    assert!(!snapshots.join("before").exists(), "an unreferenced copy is pruned");
+    assert!(h.job(|engine, ctx| engine.change_sources(
+        "n3-test",
+        choices(&["avatar", "outfit2"]),
+        ctx
+    )));
+    assert!(
+        !snapshots.join("before").exists(),
+        "an unreferenced copy is pruned"
+    );
     assert!(!snapshots.join("n3-stale").exists());
-    assert!(snapshots.join("after").exists(), "the referenced copy stays");
-    assert!(snapshots.join("note.txt").exists(), "a foreign file is left in place");
+    assert!(
+        snapshots.join("after").exists(),
+        "the referenced copy stays"
+    );
+    assert!(
+        snapshots.join("note.txt").exists(),
+        "a foreign file is left in place"
+    );
     let run = h.engine.get("n3-test").unwrap();
-    assert_eq!(run.phase, "ready", "a pruning problem never fails the change");
-    let log: serde_json::Value = serde_json::from_slice(&fs::read(h.root.join("production/snapshot-prune.json")).unwrap()).unwrap();
-    assert!(log.as_array().unwrap().iter().any(|entry| entry["diagnostic"].as_str().unwrap().contains("note.txt")));
+    assert_eq!(
+        run.phase, "ready",
+        "a pruning problem never fails the change"
+    );
+    let log: serde_json::Value =
+        serde_json::from_slice(&fs::read(h.root.join("production/snapshot-prune.json")).unwrap())
+            .unwrap();
+    assert!(log
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|entry| entry["diagnostic"].as_str().unwrap().contains("note.txt")));
 }
 
 #[test]
 fn a_restore_whose_review_went_stale_is_refused_before_any_change() {
     let h = Harness::new();
     let run = assembled(&h);
-    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    assert!(h.job(|engine, ctx| engine.change_sources(
+        "n3-test",
+        choices(&["avatar", "outfit2"]),
+        ctx
+    )));
     let target = h.engine.get("n3-test").unwrap().revisions[0].id.clone();
-    let digest = h.engine.revision_plan("n3-test", &target).unwrap()["planDigest"].as_str().unwrap().to_owned();
+    let digest = h.engine.revision_plan("n3-test", &target).unwrap()["planDigest"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     // The line changed after the review.
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
     let id = target.clone();
     let stale = digest.clone();
-    assert_eq!(h.run_job(move |engine, ctx| engine.restore_revision("n3-test", &id, &stale, ctx)).unwrap_err(),
-        "vua.amf_production.plan_drift");
-    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "materials:avatar+outfit2");
+    assert_eq!(
+        h.run_job(move |engine, ctx| engine.restore_revision("n3-test", &id, &stale, ctx))
+            .unwrap_err(),
+        "vua.amf_production.plan_drift"
+    );
+    assert_eq!(
+        fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),
+        "materials:avatar+outfit2"
+    );
     // A version discarded between review and execution is refused as missing.
-    let digest = h.engine.revision_plan("n3-test", &target).unwrap()["planDigest"].as_str().unwrap().to_owned();
+    let digest = h.engine.revision_plan("n3-test", &target).unwrap()["planDigest"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let file = h.root.join("production/runs/n3-test.json");
     let mut stored: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
     stored.as_object_mut().unwrap().remove("revisions");
     fs::write(&file, serde_json::to_vec_pretty(&stored).unwrap()).unwrap();
-    assert_eq!(h.run_job(move |engine, ctx| engine.restore_revision("n3-test", &target, &digest, ctx)).unwrap_err(),
-        "vua.amf_production.revision_missing");
+    assert_eq!(
+        h.run_job(move |engine, ctx| engine.restore_revision("n3-test", &target, &digest, ctx))
+            .unwrap_err(),
+        "vua.amf_production.revision_missing"
+    );
 }
 
 #[test]
 fn a_restore_refuses_materials_whose_content_changed_in_the_library() {
     let h = Harness::new();
     assembled(&h);
-    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    assert!(h.job(|engine, ctx| engine.change_sources(
+        "n3-test",
+        choices(&["avatar", "outfit2"]),
+        ctx
+    )));
     let target = h.engine.get("n3-test").unwrap().revisions[0].id.clone();
     // The library's copy of a recorded original changed.
     h.platform.change_recipe_input.store(true, Ordering::SeqCst);
     let error = h.engine.revision_plan("n3-test", &target).unwrap_err();
     assert_eq!(error.code, "vua.amf_production.revision_source_missing");
-    let detail = error.params.as_ref().and_then(|params| params.get("detail")).map(|value| format!("{value:?}")).unwrap_or_default();
+    let detail = error
+        .params
+        .as_ref()
+        .and_then(|params| params.get("detail"))
+        .map(|value| format!("{value:?}"))
+        .unwrap_or_default();
     assert!(detail.contains("outfit.unitypackage"), "{detail}");
     // And one the library no longer holds at all.
-    h.platform.change_recipe_input.store(false, Ordering::SeqCst);
+    h.platform
+        .change_recipe_input
+        .store(false, Ordering::SeqCst);
     let file = h.root.join("production/runs/n3-test.json");
     let mut stored: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
     stored["revisions"][0]["state"]["sources"][1]["sourceId"] = serde_json::json!("gone");
     fs::write(&file, serde_json::to_vec_pretty(&stored).unwrap()).unwrap();
-    assert_eq!(h.engine.revision_plan("n3-test", &target).unwrap_err().code, "vua.amf_production.revision_source_missing");
+    assert_eq!(
+        h.engine.revision_plan("n3-test", &target).unwrap_err().code,
+        "vua.amf_production.revision_source_missing"
+    );
 }
 
 #[test]
@@ -2127,9 +3696,15 @@ fn a_record_from_before_version_records_reads_with_one_synthesized_version() {
     assert_eq!(read.revisions.len(), 1);
     let legacy = &read.revisions[0];
     assert_eq!(legacy.before, RevisionKind::Assembly);
-    assert_eq!(legacy.id, format!("rev-legacy-{}", run.snapshot_id.as_deref().unwrap()));
+    assert_eq!(
+        legacy.id,
+        format!("rev-legacy-{}", run.snapshot_id.as_deref().unwrap())
+    );
     assert_eq!(legacy.state.selection, run.snapshot_selection);
-    assert!(legacy.state.sources.is_empty(), "a restore point without materials leaves them empty");
+    assert!(
+        legacy.state.sources.is_empty(),
+        "a restore point without materials leaves them empty"
+    );
     assert!(legacy.state.lighting.is_empty() && legacy.state.sdk_fixes.is_empty());
     assert!(!legacy.edited_in_unity);
 }
@@ -2137,40 +3712,88 @@ fn a_record_from_before_version_records_reads_with_one_synthesized_version() {
 #[test]
 fn a_recipe_records_adjustments_and_a_prepared_line_writes_them_after_its_first_assembly() {
     let h = Harness::new();
-    let run = assembled_with_material_use(&h, serde_json::json!([
-        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
-        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
-    ]));
-    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", "\n"));
-    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.1", "1", "\n"));
+    let run = assembled_with_material_use(
+        &h,
+        serde_json::json!([
+            {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+            {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+        ]),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Avatar/Body.mat",
+        &liltoon_mat("Body", "0.1", "1", "\n"),
+    );
+    write_mat(
+        &run.project_root,
+        "Assets/Outfit/Coat.mat",
+        &liltoon_mat("Coat", "0.1", "1", "\n"),
+    );
     assert!(h.job(|engine, ctx| engine.sdk_fix("n3-test", vec![PIPELINE_FIX.to_owned()], ctx)));
-    let saved = h.engine.save_recipe("n3-test", "recipe-adjusted", "Adjusted").unwrap();
-    assert_eq!(saved.recipe["adjustments"]["sdkFixes"], serde_json::json!([PIPELINE_FIX]));
+    let saved = h
+        .engine
+        .save_recipe("n3-test", "recipe-adjusted", "Adjusted")
+        .unwrap();
+    assert_eq!(
+        saved.recipe["adjustments"]["sdkFixes"],
+        serde_json::json!([PIPELINE_FIX])
+    );
     let lighting = saved.recipe["adjustments"]["lighting"].as_array().unwrap();
     assert_eq!(lighting.len(), 2);
-    assert!(lighting.iter().all(|entry| entry["min"] == "0.1" && entry["max"] == "1"));
+    assert!(lighting
+        .iter()
+        .all(|entry| entry["min"] == "0.1" && entry["max"] == "1"));
 
     // A line prepared from the Recipe lists the adjustments in its assembly plan and writes
     // them after the first successful assembly.
-    h.engine.begin_recipe("n3-adjusted", "recipe-adjusted", "synthetic-editor").unwrap();
+    h.engine
+        .begin_recipe("n3-adjusted", "recipe-adjusted", "synthetic-editor")
+        .unwrap();
     assert!(h.job(|engine, ctx| engine.prepare("n3-adjusted", ctx)));
     let prepared = h.engine.get("n3-adjusted").unwrap();
     assert!(prepared.recipe_adjustments.is_some());
     // The new project's materials still carry their original values.
-    write_mat(&prepared.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.05", "0.9", "\n"));
-    write_mat(&prepared.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "0.9", "\n"));
+    write_mat(
+        &prepared.project_root,
+        "Assets/Avatar/Body.mat",
+        &liltoon_mat("Body", "0.05", "0.9", "\n"),
+    );
+    write_mat(
+        &prepared.project_root,
+        "Assets/Outfit/Coat.mat",
+        &liltoon_mat("Coat", "0.05", "0.9", "\n"),
+    );
     let plan = h.engine.plan("n3-adjusted", &selection()).unwrap();
-    assert_eq!(plan["adjustments"]["sdkFixes"], serde_json::json!([PIPELINE_FIX]));
+    assert_eq!(
+        plan["adjustments"]["sdkFixes"],
+        serde_json::json!([PIPELINE_FIX])
+    );
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
     let project = prepared.project_root.clone();
     assert!(h.job(move |engine, ctx| engine.assemble("n3-adjusted", selection(), &digest, ctx)));
     let assembled = h.engine.get("n3-adjusted").unwrap();
-    assert!(assembled.recipe_adjustments.is_none(), "the adjustments landed and are spent");
+    assert!(
+        assembled.recipe_adjustments.is_none(),
+        "the adjustments landed and are spent"
+    );
     assert_eq!(assembled.sdk_fixes_applied, vec![PIPELINE_FIX.to_owned()]);
-    assert_eq!(fs::read(Path::new(&project).join("Assets/Outfit/Coat.mat")).unwrap(), liltoon_mat("Coat", "0.1", "1", "\n"));
-    assert_eq!(fs::read(Path::new(&project).join("Assets/Avatar/Body.mat")).unwrap(), liltoon_mat("Body", "0.1", "1", "\n"));
-    let keys: Vec<&str> = assembled.steps.iter().map(|step| step.key.as_str()).collect();
-    assert!(keys.contains(&"lighting") && keys.contains(&"sdk_fix"), "the adjustments ran as their own steps: {keys:?}");
+    assert_eq!(
+        fs::read(Path::new(&project).join("Assets/Outfit/Coat.mat")).unwrap(),
+        liltoon_mat("Coat", "0.1", "1", "\n")
+    );
+    assert_eq!(
+        fs::read(Path::new(&project).join("Assets/Avatar/Body.mat")).unwrap(),
+        liltoon_mat("Body", "0.1", "1", "\n")
+    );
+    let keys: Vec<&str> = assembled
+        .steps
+        .iter()
+        .map(|step| step.key.as_str())
+        .collect();
+    assert!(
+        keys.contains(&"lighting") && keys.contains(&"sdk_fix"),
+        "the adjustments ran as their own steps: {keys:?}"
+    );
 }
 
 #[test]
@@ -2178,7 +3801,11 @@ fn a_restore_to_fewer_outfits_on_the_same_materials_starts_a_fresh_scene() {
     let h = Harness::new();
     assembled(&h);
     // The same materials carry a second outfit: assemble one, then add the other in place.
-    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit", "outfit2"]), ctx)));
+    assert!(h.job(|engine, ctx| engine.change_sources(
+        "n3-test",
+        choices(&["avatar", "outfit", "outfit2"]),
+        ctx
+    )));
     let digest = plan_digest(&h.engine.get("n3-test").unwrap(), &selection()).unwrap();
     assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx)));
     let mut both = selection();
@@ -2195,13 +3822,23 @@ fn a_restore_to_fewer_outfits_on_the_same_materials_starts_a_fresh_scene() {
     let cleared = h.platform.cleared.load(Ordering::SeqCst);
     let plan = h.engine.revision_plan("n3-test", &target.id).unwrap();
     assert_eq!(plan["steps"][0]["skipped"], true);
-    assert_eq!(plan["steps"][1], serde_json::json!({"key":"assembly","skipped":false,"rebuild":true}));
-    assert!(restore_reviewed_revision(&h, &target.id), "{:?}", h.engine.get("n3-test").unwrap().error);
+    assert_eq!(
+        plan["steps"][1],
+        serde_json::json!({"key":"assembly","skipped":false,"rebuild":true})
+    );
+    assert!(
+        restore_reviewed_revision(&h, &target.id),
+        "{:?}",
+        h.engine.get("n3-test").unwrap().error
+    );
     let restored = h.engine.get("n3-test").unwrap();
     assert_eq!(restored.selection, Some(selection()));
     assert_eq!(restored.phase, "succeeded");
     assert_eq!(h.platform.cleared.load(Ordering::SeqCst), cleared + 1);
-    assert_eq!(h.platform.assembled_with.lock().unwrap().last(), Some(&selection()));
+    assert_eq!(
+        h.platform.assembled_with.lock().unwrap().last(),
+        Some(&selection())
+    );
 }
 
 #[test]
@@ -2211,7 +3848,10 @@ fn a_restore_to_the_version_before_the_first_assembly_leaves_a_fresh_scene() {
     let target = run.revisions[0].clone();
     assert_eq!(target.state.selection, None);
     let plan = h.engine.revision_plan("n3-test", &target.id).unwrap();
-    assert_eq!(plan["steps"][1], serde_json::json!({"key":"assembly","skipped":false,"rebuild":true}));
+    assert_eq!(
+        plan["steps"][1],
+        serde_json::json!({"key":"assembly","skipped":false,"rebuild":true})
+    );
     let cleared = h.platform.cleared.load(Ordering::SeqCst);
     let assemblies = h.platform.assembled_with.lock().unwrap().len();
     assert!(restore_reviewed_revision(&h, &target.id));
@@ -2220,12 +3860,22 @@ fn a_restore_to_the_version_before_the_first_assembly_leaves_a_fresh_scene() {
     assert_eq!(restored.selection, None);
     assert_eq!(restored.completed_at, None);
     assert_eq!(h.platform.cleared.load(Ordering::SeqCst), cleared + 1);
-    assert_eq!(h.platform.assembled_with.lock().unwrap().len(), assemblies, "nothing is assembled");
+    assert_eq!(
+        h.platform.assembled_with.lock().unwrap().len(),
+        assemblies,
+        "nothing is assembled"
+    );
     // The restore's own version brings the assembly back.
     assert_eq!(restored.revisions[0].state.selection, Some(selection()));
-    assert!(restore_reviewed_revision(&h, &restored.revisions[0].id.clone()));
+    assert!(restore_reviewed_revision(
+        &h,
+        &restored.revisions[0].id.clone()
+    ));
     let back = h.engine.get("n3-test").unwrap();
-    assert_eq!((back.phase.as_str(), back.selection), ("succeeded", Some(selection())));
+    assert_eq!(
+        (back.phase.as_str(), back.selection),
+        ("succeeded", Some(selection()))
+    );
 }
 
 // --- Saved fits: named local-Transform adjustments of a garment on one Avatar ---
@@ -2234,8 +3884,17 @@ fn fit_object(path: &str, x: f64) -> FitObject {
     FitObject {
         path: path.into(),
         local_position: FitVec3 { x, y: 0.0, z: 0.0 },
-        local_rotation: FitQuat { x: 0.0, y: 0.0, z: 0.0, w: 1.0 },
-        local_scale: FitVec3 { x: 1.0, y: 1.0, z: 1.0 },
+        local_rotation: FitQuat {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            w: 1.0,
+        },
+        local_scale: FitVec3 {
+            x: 1.0,
+            y: 1.0,
+            z: 1.0,
+        },
     }
 }
 
@@ -2251,7 +3910,11 @@ fn write_baseline(h: &Harness, run_id: &str, objects: Vec<FitObject>) {
     };
     let dir = h.root.join("production/projects").join(run_id).join(".vua");
     fs::create_dir_all(&dir).unwrap();
-    fs::write(dir.join("amf-fit-baseline.json"), serde_json::to_vec(&baseline).unwrap()).unwrap();
+    fs::write(
+        dir.join("amf-fit-baseline.json"),
+        serde_json::to_vec(&baseline).unwrap(),
+    )
+    .unwrap();
 }
 
 fn report_changes(h: &Harness, moved: Vec<FitObject>, missing: Vec<String>) {
@@ -2259,22 +3922,47 @@ fn report_changes(h: &Harness, moved: Vec<FitObject>, missing: Vec<String>) {
         Some(serde_json::json!([{"sourceId":"outfit","moved":moved,"missing":missing}]));
 }
 
-fn write_changes_overlay(h: &Harness, run_id: &str, written_at: &str, moved: Vec<FitObject>, missing: Vec<String>) {
+fn write_changes_overlay(
+    h: &Harness,
+    run_id: &str,
+    written_at: &str,
+    moved: Vec<FitObject>,
+    missing: Vec<String>,
+) {
     let file = FitChangesFile {
         schema_version: "0.1".into(),
         run_id: run_id.into(),
         written_at: written_at.into(),
-        fit_changes: vec![GarmentFitChanges { source_id: "outfit".into(), moved, missing }],
+        fit_changes: vec![GarmentFitChanges {
+            source_id: "outfit".into(),
+            moved,
+            missing,
+        }],
     };
-    let dir = h.root.join("production/projects").join(run_id).join(".vua/bridge");
+    let dir = h
+        .root
+        .join("production/projects")
+        .join(run_id)
+        .join(".vua/bridge");
     fs::create_dir_all(&dir).unwrap();
-    fs::write(dir.join("amf-fit-changes.json"), serde_json::to_vec(&file).unwrap()).unwrap();
+    fs::write(
+        dir.join("amf-fit-changes.json"),
+        serde_json::to_vec(&file).unwrap(),
+    )
+    .unwrap();
 }
 
 fn changes_digest_of(h: &Harness, run_id: &str) -> String {
     let run = h.engine.get(run_id).unwrap();
     let (changes, _) = h.engine.fit_view(&run);
-    changes_digest(run_id, "outfit", changes.iter().find(|entry| entry.source_id == "outfit").expect("reported changes"))
+    changes_digest(
+        run_id,
+        "outfit",
+        changes
+            .iter()
+            .find(|entry| entry.source_id == "outfit")
+            .expect("reported changes"),
+    )
 }
 
 /// The baseline, a changes report and a saved fit on an assembled line.
@@ -2284,14 +3972,20 @@ fn fitted(h: &Harness) -> StoredFit {
     report_changes(h, vec![fit_object("Clip", 0.5)], vec![]);
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
     let digest = changes_digest_of(h, "n3-test");
-    h.engine.save_fit("n3-test", "outfit", "Clip fit", &digest).unwrap()
+    h.engine
+        .save_fit("n3-test", "outfit", "Clip fit", &digest)
+        .unwrap()
 }
 
 #[test]
 fn fit_changes_overlay_and_save_fit_update_the_baseline_and_clear_the_report() {
     let h = Harness::new();
     assembled(&h);
-    write_baseline(&h, "n3-test", vec![fit_object("Clip", 0.0), fit_object("Hook", 0.0)]);
+    write_baseline(
+        &h,
+        "n3-test",
+        vec![fit_object("Clip", 0.0), fit_object("Hook", 0.0)],
+    );
     report_changes(&h, vec![fit_object("Clip", 0.5)], vec!["Hook".into()]);
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
     let run = h.engine.get("n3-test").unwrap();
@@ -2303,15 +3997,40 @@ fn fit_changes_overlay_and_save_fit_update_the_baseline_and_clear_the_report() {
     assert!(available.is_empty(), "no fit is stored yet");
     // The save hook's file overlays the recorded facts only when it is newer than the
     // last observation of the same line.
-    write_changes_overlay(&h, "n3-test", "2000-01-01T00:00:00.0000000Z", vec![fit_object("Clip", 9.0)], vec![]);
+    write_changes_overlay(
+        &h,
+        "n3-test",
+        "2000-01-01T00:00:00.0000000Z",
+        vec![fit_object("Clip", 9.0)],
+        vec![],
+    );
     let (changes, _) = h.engine.fit_view(&run);
-    assert_eq!(changes[0].moved[0].local_position.x, 0.5, "an older overlay loses to the observation");
-    write_changes_overlay(&h, "n3-test", "2999-01-01T00:00:00.0000000Z", vec![fit_object("Clip", 0.25)], vec!["Hook".into()]);
+    assert_eq!(
+        changes[0].moved[0].local_position.x, 0.5,
+        "an older overlay loses to the observation"
+    );
+    write_changes_overlay(
+        &h,
+        "n3-test",
+        "2999-01-01T00:00:00.0000000Z",
+        vec![fit_object("Clip", 0.25)],
+        vec!["Hook".into()],
+    );
     let (changes, _) = h.engine.fit_view(&run);
-    assert_eq!(changes[0].moved[0].local_position.x, 0.25, "a newer overlay wins");
+    assert_eq!(
+        changes[0].moved[0].local_position.x, 0.25,
+        "a newer overlay wins"
+    );
     let digest = changes_digest("n3-test", "outfit", &changes[0]);
-    let fit = h.engine.save_fit("n3-test", "outfit", "Clip fit", &digest).unwrap();
-    assert_eq!(fit.objects, vec![fit_object("Clip", 0.25)], "moved transforms folded into the baseline, missing dropped");
+    let fit = h
+        .engine
+        .save_fit("n3-test", "outfit", "Clip fit", &digest)
+        .unwrap();
+    assert_eq!(
+        fit.objects,
+        vec![fit_object("Clip", 0.25)],
+        "moved transforms folded into the baseline, missing dropped"
+    );
     assert_eq!(fit.garment.sha256, "b".repeat(64));
     assert_eq!(fit.garment.prefab_path, "Assets/Outfit.prefab");
     assert_eq!(fit.avatar.sha256, "a".repeat(64));
@@ -2320,23 +4039,46 @@ fn fit_changes_overlay_and_save_fit_update_the_baseline_and_clear_the_report() {
     // the save hook's file left empty is deleted.
     let baseline: FitBaseline = serde_json::from_slice(
         &fs::read(Path::new(&run.project_root).join(".vua/amf-fit-baseline.json")).unwrap(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(baseline.garments[0].objects, vec![fit_object("Clip", 0.25)]);
-    assert!(!Path::new(&run.project_root).join(".vua/bridge/amf-fit-changes.json").exists());
+    assert!(!Path::new(&run.project_root)
+        .join(".vua/bridge/amf-fit-changes.json")
+        .exists());
     let run = h.engine.get("n3-test").unwrap();
     assert!(run.fit_changes.is_empty());
     let (changes, available) = h.engine.fit_view(&run);
     assert!(changes.is_empty());
-    assert_eq!(available, vec![FitRef { source_id: "outfit".into(), fit_id: Some(fit.fit_id.clone()), name: Some("Clip fit".into()) }]);
+    assert_eq!(
+        available,
+        vec![FitRef {
+            source_id: "outfit".into(),
+            fit_id: Some(fit.fit_id.clone()),
+            name: Some("Clip fit".into())
+        }]
+    );
     // The garment reports no further changes, so it cannot be saved twice.
-    let error = h.engine.save_fit("n3-test", "outfit", "Again", &digest).unwrap_err();
+    let error = h
+        .engine
+        .save_fit("n3-test", "outfit", "Again", &digest)
+        .unwrap_err();
     assert_eq!(error.code, "vua.amf_production.fit_changes_missing");
     // Names: whitespace removed, empty falls back, capped at 80.
     assert_eq!(default_fit_name("Hair Clip", "Meiyun"), "HairClipForMeiyun");
-    assert_eq!(default_fit_name("  ", ""), "For", "only a wholly empty result falls back");
+    assert_eq!(
+        default_fit_name("  ", ""),
+        "For",
+        "only a wholly empty result falls back"
+    );
     assert_eq!(default_fit_name("", ""), "For");
     assert_eq!(default_fit_name(&"ab ".repeat(40), "").chars().count(), 80);
-    assert!(valid_fit_name("Clip fit") && !valid_fit_name("") && !valid_fit_name(" \t") && !valid_fit_name("a\nb") && !valid_fit_name(&"a".repeat(81)));
+    assert!(
+        valid_fit_name("Clip fit")
+            && !valid_fit_name("")
+            && !valid_fit_name(" \t")
+            && !valid_fit_name("a\nb")
+            && !valid_fit_name(&"a".repeat(81))
+    );
 }
 
 #[test]
@@ -2344,28 +4086,71 @@ fn a_saved_fit_applies_to_the_same_avatar_and_garment_only() {
     let h = Harness::new();
     let fit = fitted(&h);
     // A second line with the same Avatar and garment content lists and applies the fit.
-    h.engine.begin("n3-second", choices(&["avatar", "outfit"]), "synthetic-editor").unwrap();
+    h.engine
+        .begin(
+            "n3-second",
+            choices(&["avatar", "outfit"]),
+            "synthetic-editor",
+        )
+        .unwrap();
     assert!(h.job(|engine, ctx| engine.prepare("n3-second", ctx)));
     let plan = h.engine.plan("n3-second", &selection()).unwrap();
-    assert_eq!(plan["fits"], serde_json::json!([{"sourceId":"outfit","fitId":fit.fit_id,"name":"Clip fit"}]));
+    assert_eq!(
+        plan["fits"],
+        serde_json::json!([{"sourceId":"outfit","fitId":fit.fit_id,"name":"Clip fit"}])
+    );
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
     assert!(h.job(move |engine, ctx| engine.assemble("n3-second", selection(), &digest, ctx)));
-    let applied = h.platform.assembled_fits.lock().unwrap().last().cloned().unwrap();
-    assert_eq!(applied, vec![OutfitFit { source_id: "outfit".into(), objects: vec![fit_object("Clip", 0.5)] }]);
+    let applied = h
+        .platform
+        .assembled_fits
+        .lock()
+        .unwrap()
+        .last()
+        .cloned()
+        .unwrap();
+    assert_eq!(
+        applied,
+        vec![OutfitFit {
+            source_id: "outfit".into(),
+            objects: vec![fit_object("Clip", 0.5)]
+        }]
+    );
     let run = h.engine.get("n3-second").unwrap();
     assert_eq!(run.applied_fits.len(), 1);
-    assert_eq!(run.applied_fits[0].fit_id.as_deref(), Some(fit.fit_id.as_str()));
+    assert_eq!(
+        run.applied_fits[0].fit_id.as_deref(),
+        Some(fit.fit_id.as_str())
+    );
     // A different Avatar content hash does not match.
     h.platform.alt_avatar_hash.store(true, Ordering::SeqCst);
-    h.engine.begin("n3-other", choices(&["avatar", "outfit"]), "synthetic-editor").unwrap();
+    h.engine
+        .begin(
+            "n3-other",
+            choices(&["avatar", "outfit"]),
+            "synthetic-editor",
+        )
+        .unwrap();
     assert!(h.job(|engine, ctx| engine.prepare("n3-other", ctx)));
-    assert_eq!(h.engine.plan("n3-other", &selection()).unwrap()["fits"], serde_json::json!([]));
+    assert_eq!(
+        h.engine.plan("n3-other", &selection()).unwrap()["fits"],
+        serde_json::json!([])
+    );
     // Neither does a different garment content hash.
     h.platform.alt_avatar_hash.store(false, Ordering::SeqCst);
     h.platform.change_recipe_input.store(true, Ordering::SeqCst);
-    h.engine.begin("n3-changed", choices(&["avatar", "outfit"]), "synthetic-editor").unwrap();
+    h.engine
+        .begin(
+            "n3-changed",
+            choices(&["avatar", "outfit"]),
+            "synthetic-editor",
+        )
+        .unwrap();
     assert!(h.job(|engine, ctx| engine.prepare("n3-changed", ctx)));
-    assert_eq!(h.engine.plan("n3-changed", &selection()).unwrap()["fits"], serde_json::json!([]));
+    assert_eq!(
+        h.engine.plan("n3-changed", &selection()).unwrap()["fits"],
+        serde_json::json!([])
+    );
 }
 
 #[test]
@@ -2376,16 +4161,35 @@ fn save_fit_refuses_stale_digests_bad_names_and_missing_pieces() {
     report_changes(&h, vec![fit_object("Clip", 0.5)], vec![]);
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
     let digest = changes_digest_of(&h, "n3-test");
-    let error = h.engine.save_fit("n3-test", "outfit", "two\nlines", &digest).unwrap_err();
+    let error = h
+        .engine
+        .save_fit("n3-test", "outfit", "two\nlines", &digest)
+        .unwrap_err();
     assert_eq!(error.code, "vua.amf_production.fit_invalid");
-    let error = h.engine.save_fit("n3-test", "outfit", "Fit", &"a".repeat(64)).unwrap_err();
+    let error = h
+        .engine
+        .save_fit("n3-test", "outfit", "Fit", &"a".repeat(64))
+        .unwrap_err();
     assert_eq!(error.code, "vua.amf_production.plan_drift");
-    let error = h.engine.save_fit("n3-test", "outfit2", "Fit", &digest).unwrap_err();
+    let error = h
+        .engine
+        .save_fit("n3-test", "outfit2", "Fit", &digest)
+        .unwrap_err();
     assert_eq!(error.code, "vua.amf_production.fit_changes_missing");
-    let error = h.engine.save_fit("n3-none", "outfit", "Fit", &digest).unwrap_err();
+    let error = h
+        .engine
+        .save_fit("n3-none", "outfit", "Fit", &digest)
+        .unwrap_err();
     assert_eq!(error.code, "vua.amf_production.run_not_found");
-    fs::remove_file(h.root.join("production/projects/n3-test/.vua/amf-fit-baseline.json")).unwrap();
-    let error = h.engine.save_fit("n3-test", "outfit", "Fit", &digest).unwrap_err();
+    fs::remove_file(
+        h.root
+            .join("production/projects/n3-test/.vua/amf-fit-baseline.json"),
+    )
+    .unwrap();
+    let error = h
+        .engine
+        .save_fit("n3-test", "outfit", "Fit", &digest)
+        .unwrap_err();
     assert_eq!(error.code, "vua.amf_production.fit_baseline_missing");
 }
 
@@ -2403,7 +4207,10 @@ fn fits_rename_delete_and_refuse_beyond_their_limits() {
     ] {
         assert_eq!(error.code, "vua.amf_production.fit_not_found");
     }
-    assert_eq!(h.engine.rename_fit(&fit.fit_id, "  ").unwrap_err().code, "vua.amf_production.fit_invalid");
+    assert_eq!(
+        h.engine.rename_fit(&fit.fit_id, "  ").unwrap_err().code,
+        "vua.amf_production.fit_invalid"
+    );
     h.engine.delete_fit(&fit.fit_id).unwrap();
     assert!(h.engine.list_fits().unwrap().is_empty());
     // The store keeps at most 500 fits; a new identity beyond that is refused.
@@ -2416,8 +4223,16 @@ fn fits_rename_delete_and_refuse_beyond_their_limits() {
                 name: format!("Fit {index}"),
                 created_at: "2026-01-01T00:00:00.000Z".into(),
                 updated_at: "2026-01-01T00:00:00.000Z".into(),
-                garment: FitIdentity { sha256: "0".repeat(64), prefab_path: "Assets/X.prefab".into(), name: "X".into() },
-                avatar: FitIdentity { sha256: "0".repeat(64), prefab_path: "Assets/Y.prefab".into(), name: "Y".into() },
+                garment: FitIdentity {
+                    sha256: "0".repeat(64),
+                    prefab_path: "Assets/X.prefab".into(),
+                    name: "X".into(),
+                },
+                avatar: FitIdentity {
+                    sha256: "0".repeat(64),
+                    prefab_path: "Assets/Y.prefab".into(),
+                    name: "Y".into(),
+                },
                 objects: vec![],
             })
             .unwrap();
@@ -2425,17 +4240,31 @@ fn fits_rename_delete_and_refuse_beyond_their_limits() {
     report_changes(&h, vec![fit_object("Clip", 0.5)], vec![]);
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
     let digest = changes_digest_of(&h, "n3-test");
-    let error = h.engine.save_fit("n3-test", "outfit", "Clip fit", &digest).unwrap_err();
+    let error = h
+        .engine
+        .save_fit("n3-test", "outfit", "Clip fit", &digest)
+        .unwrap_err();
     assert_eq!(error.code, "vua.amf_production.fit_limit");
     h.engine.delete_fit("fit-d0").unwrap();
-    h.engine.save_fit("n3-test", "outfit", "Clip fit", &digest).unwrap();
+    h.engine
+        .save_fit("n3-test", "outfit", "Clip fit", &digest)
+        .unwrap();
     // A fit carries at most 2048 objects.
     h.engine.delete_fit("fit-d1").unwrap();
-    write_baseline(&h, "n3-test", (0..2049).map(|index| fit_object(&format!("Part{index}"), 0.0)).collect());
+    write_baseline(
+        &h,
+        "n3-test",
+        (0..2049)
+            .map(|index| fit_object(&format!("Part{index}"), 0.0))
+            .collect(),
+    );
     report_changes(&h, vec![fit_object("Part0", 0.5)], vec![]);
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
     let digest = changes_digest_of(&h, "n3-test");
-    let error = h.engine.save_fit("n3-test", "outfit", "Clip fit", &digest).unwrap_err();
+    let error = h
+        .engine
+        .save_fit("n3-test", "outfit", "Clip fit", &digest)
+        .unwrap_err();
     assert_eq!(error.code, "vua.amf_production.fit_too_large");
 }
 
@@ -2445,44 +4274,97 @@ fn a_version_replay_applies_the_recorded_fit_not_the_store() {
     let fit = fitted(&h);
     // A second line assembles with the fit applied, then changes its materials; the version
     // recorded before that change carries the applied fit.
-    h.engine.begin("n3-second", choices(&["avatar", "outfit"]), "synthetic-editor").unwrap();
+    h.engine
+        .begin(
+            "n3-second",
+            choices(&["avatar", "outfit"]),
+            "synthetic-editor",
+        )
+        .unwrap();
     assert!(h.job(|engine, ctx| engine.prepare("n3-second", ctx)));
     let plan = h.engine.plan("n3-second", &selection()).unwrap();
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
     assert!(h.job(move |engine, ctx| engine.assemble("n3-second", selection(), &digest, ctx)));
-    assert!(h.job(|engine, ctx| engine.change_sources("n3-second", choices(&["avatar", "outfit2"]), ctx)));
+    assert!(h.job(|engine, ctx| engine.change_sources(
+        "n3-second",
+        choices(&["avatar", "outfit2"]),
+        ctx
+    )));
     let changed = h.engine.get("n3-second").unwrap();
-    let recorded = changed.revisions.iter().find(|revision| revision.before == RevisionKind::Materials).unwrap().clone();
+    let recorded = changed
+        .revisions
+        .iter()
+        .find(|revision| revision.before == RevisionKind::Materials)
+        .unwrap()
+        .clone();
     assert_eq!(recorded.state.fits.len(), 1);
-    assert_eq!(recorded.state.fits[0].objects, vec![fit_object("Clip", 0.5)]);
+    assert_eq!(
+        recorded.state.fits[0].objects,
+        vec![fit_object("Clip", 0.5)]
+    );
     // The store losing the fit does not lose the replay.
     h.engine.delete_fit(&fit.fit_id).unwrap();
     let plan = h.engine.revision_plan("n3-second", &recorded.id).unwrap();
-    assert_eq!(plan["fits"], serde_json::json!([{"sourceId":"outfit","fitId":fit.fit_id,"name":"Clip fit"}]));
+    assert_eq!(
+        plan["fits"],
+        serde_json::json!([{"sourceId":"outfit","fitId":fit.fit_id,"name":"Clip fit"}])
+    );
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
     let revision_id = recorded.id.clone();
-    assert!(h.job(move |engine, ctx| engine.restore_revision("n3-second", &revision_id, &digest, ctx)));
-    let applied = h.platform.assembled_fits.lock().unwrap().last().cloned().unwrap();
-    assert_eq!(applied, vec![OutfitFit { source_id: "outfit".into(), objects: vec![fit_object("Clip", 0.5)] }]);
+    assert!(h.job(move |engine, ctx| engine.restore_revision(
+        "n3-second",
+        &revision_id,
+        &digest,
+        ctx
+    )));
+    let applied = h
+        .platform
+        .assembled_fits
+        .lock()
+        .unwrap()
+        .last()
+        .cloned()
+        .unwrap();
+    assert_eq!(
+        applied,
+        vec![OutfitFit {
+            source_id: "outfit".into(),
+            objects: vec![fit_object("Clip", 0.5)]
+        }]
+    );
     let restored = h.engine.get("n3-second").unwrap();
     assert_eq!(restored.applied_fits.len(), 1);
-    assert_eq!(restored.applied_fits[0].fit_id.as_deref(), Some(fit.fit_id.as_str()));
+    assert_eq!(
+        restored.applied_fits[0].fit_id.as_deref(),
+        Some(fit.fit_id.as_str())
+    );
 }
 
 #[test]
 fn recipes_carry_and_replay_the_applied_fits() {
     let h = Harness::new();
     let fit = fitted(&h);
-    h.engine.begin("n3-second", choices(&["avatar", "outfit"]), "synthetic-editor").unwrap();
+    h.engine
+        .begin(
+            "n3-second",
+            choices(&["avatar", "outfit"]),
+            "synthetic-editor",
+        )
+        .unwrap();
     assert!(h.job(|engine, ctx| engine.prepare("n3-second", ctx)));
     let plan = h.engine.plan("n3-second", &selection()).unwrap();
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
     assert!(h.job(move |engine, ctx| engine.assemble("n3-second", selection(), &digest, ctx)));
     // A Recipe saved from the fitted line records the fit under the material identity.
-    h.engine.save_recipe("n3-second", "recipe-fits", "Fitted").unwrap();
+    h.engine
+        .save_recipe("n3-second", "recipe-fits", "Fitted")
+        .unwrap();
     let stored = h.engine.get_recipe("recipe-fits").unwrap();
     let fits = &stored.recipe["adjustments"]["fits"];
-    assert_eq!(fits[0]["materialId"], stored.recipe["outfits"][0]["materialId"]);
+    assert_eq!(
+        fits[0]["materialId"],
+        stored.recipe["outfits"][0]["materialId"]
+    );
     assert_eq!(stored.recipe["formatVersion"], "0.5");
     assert_eq!(fits[0]["objects"][0]["path"], "Clip");
     // Saving again for the same garment and Avatar updates the stored fit in place, leaving
@@ -2491,22 +4373,47 @@ fn recipes_carry_and_replay_the_applied_fits() {
     report_changes(&h, vec![fit_object("Clip", 0.75)], vec![]);
     assert!(h.job(|engine, ctx| engine.reinspect("n3-second", ctx)));
     let digest = changes_digest_of(&h, "n3-second");
-    let updated = h.engine.save_fit("n3-second", "outfit", "Clip fit", &digest).unwrap();
-    assert_eq!(updated.fit_id, fit.fit_id, "the same identity updates in place");
+    let updated = h
+        .engine
+        .save_fit("n3-second", "outfit", "Clip fit", &digest)
+        .unwrap();
+    assert_eq!(
+        updated.fit_id, fit.fit_id,
+        "the same identity updates in place"
+    );
     assert_eq!(updated.created_at, fit.created_at);
     assert_eq!(updated.objects, vec![fit_object("Clip", 0.75)]);
     // A line prepared from the Recipe applies the Recipe's fit, not the store's newer one.
-    h.engine.begin_recipe("n3-third", "recipe-fits", "synthetic-editor").unwrap();
+    h.engine
+        .begin_recipe("n3-third", "recipe-fits", "synthetic-editor")
+        .unwrap();
     assert!(h.job(|engine, ctx| engine.prepare("n3-third", ctx)));
     let third = h.engine.get("n3-third").unwrap();
     let selection = third.selection.clone().unwrap();
     let plan = h.engine.plan("n3-third", &selection).unwrap();
-    assert_eq!(plan["fits"], serde_json::json!([{"sourceId":"outfit","fitId":null,"name":null}]));
+    assert_eq!(
+        plan["fits"],
+        serde_json::json!([{"sourceId":"outfit","fitId":null,"name":null}])
+    );
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
     assert!(h.job(move |engine, ctx| engine.assemble("n3-third", selection, &digest, ctx)));
-    let applied = h.platform.assembled_fits.lock().unwrap().last().cloned().unwrap();
-    assert_eq!(applied[0].objects, vec![fit_object("Clip", 0.5)], "the Recipe's recorded fit wins over the store");
-    assert_eq!(h.engine.get("n3-third").unwrap().applied_fits[0].fit_id, None);
+    let applied = h
+        .platform
+        .assembled_fits
+        .lock()
+        .unwrap()
+        .last()
+        .cloned()
+        .unwrap();
+    assert_eq!(
+        applied[0].objects,
+        vec![fit_object("Clip", 0.5)],
+        "the Recipe's recorded fit wins over the store"
+    );
+    assert_eq!(
+        h.engine.get("n3-third").unwrap().applied_fits[0].fit_id,
+        None
+    );
 }
 
 #[test]
@@ -2521,140 +4428,307 @@ fn runs_recorded_before_fits_read_with_empty_defaults() {
 
 #[test]
 fn close_editor_requires_confirmation_and_protects_player_saves_before_dispatch() {
-    let h = Harness::new(); h.prepared();
+    let h = Harness::new();
+    h.prepared();
     h.platform.editor_open.store(true, Ordering::SeqCst);
     let count = h.platform.snapshots.load(Ordering::SeqCst);
-    h.run_job(|engine,ctx| {
-        assert_eq!(engine.close_editor("n3-test",false,ctx).unwrap_err().code,"vua.amf_production.confirmation_required");
+    h.run_job(|engine, ctx| {
+        assert_eq!(
+            engine.close_editor("n3-test", false, ctx).unwrap_err().code,
+            "vua.amf_production.confirmation_required"
+        );
         Ok(())
-    }).unwrap();
-    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst),count);
-    h.run_job(|engine,ctx| { let value=engine.close_editor("n3-test",true,ctx)?; assert_eq!(value["editorClosed"],true); Ok(()) }).unwrap();
-    let run=h.engine.get("n3-test").unwrap();
-    assert_eq!(run.phase,"inspect_required");
-    assert_eq!(run.revisions[0].before,RevisionKind::EditorSave);
+    })
+    .unwrap();
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count);
+    h.run_job(|engine, ctx| {
+        let value = engine.close_editor("n3-test", true, ctx)?;
+        assert_eq!(value["editorClosed"], true);
+        Ok(())
+    })
+    .unwrap();
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(run.phase, "inspect_required");
+    assert_eq!(run.revisions[0].before, RevisionKind::EditorSave);
     assert!(run.editor_close.unwrap().succeeded());
     assert!(run.confirmed_digest.is_none());
-    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),"saved-player-edits");
+    assert_eq!(
+        fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),
+        "saved-player-edits"
+    );
 }
 
 #[test]
 fn a_failed_save_preserves_the_live_editor_and_reports_blocked_automatic_recovery() {
-    let h = Harness::new(); h.prepared();
+    let h = Harness::new();
+    h.prepared();
     h.platform.editor_open.store(true, Ordering::SeqCst);
     h.platform.close_outcome.store(2, Ordering::SeqCst);
-    assert_eq!(h.run_job(|e,c|e.close_editor("n3-test",true,c).map(|_|())).unwrap_err(),"vua.amf_production.editor_save_failed");
-    let run=h.engine.get("n3-test").unwrap();
-    assert_eq!(run.recovery.as_deref(),Some("restore_failed: vua.amf_production.project_open"));
-    assert!(run.snapshot_id.is_some()); assert_eq!(run.revisions[0].before,RevisionKind::EditorSave);
+    assert_eq!(
+        h.run_job(|e, c| e.close_editor("n3-test", true, c).map(|_| ()))
+            .unwrap_err(),
+        "vua.amf_production.editor_save_failed"
+    );
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(
+        run.recovery.as_deref(),
+        Some("restore_failed: vua.amf_production.project_open")
+    );
+    assert!(run.snapshot_id.is_some());
+    assert_eq!(run.revisions[0].before, RevisionKind::EditorSave);
     assert!(h.platform.editor_open.load(Ordering::SeqCst));
     assert!(!run.editor_close.unwrap().scenes_saved);
     let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
-    assert_eq!(h.run_job(|e,c|e.close_editor("n3-test",true,c).map(|_|())).unwrap_err(), "vua.amf_production.inspect_required");
-    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots, "a retry cannot replace unfinished recovery");
+    assert_eq!(
+        h.run_job(|e, c| e.close_editor("n3-test", true, c).map(|_| ()))
+            .unwrap_err(),
+        "vua.amf_production.inspect_required"
+    );
+    assert_eq!(
+        h.platform.snapshots.load(Ordering::SeqCst),
+        snapshots,
+        "a retry cannot replace unfinished recovery"
+    );
 }
 
 #[test]
 fn a_failed_save_restores_automatically_once_unity_released_the_project() {
-    let h = Harness::new(); h.prepared();
+    let h = Harness::new();
+    h.prepared();
     h.platform.editor_open.store(true, Ordering::SeqCst);
     h.platform.close_outcome.store(3, Ordering::SeqCst);
-    assert!(h.run_job(|e,c|e.close_editor("n3-test",true,c).map(|_|())).is_err());
-    let run=h.engine.get("n3-test").unwrap();
-    assert_eq!(run.recovery.as_deref(),Some("restored"));
-    assert!(!run.revisions.iter().any(|r|r.before==RevisionKind::EditorSave));
-    assert_ne!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),"saved-player-edits");
+    assert!(h
+        .run_job(|e, c| e.close_editor("n3-test", true, c).map(|_| ()))
+        .is_err());
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(run.recovery.as_deref(), Some("restored"));
+    assert!(!run
+        .revisions
+        .iter()
+        .any(|r| r.before == RevisionKind::EditorSave));
+    assert_ne!(
+        fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),
+        "saved-player-edits"
+    );
 }
 
 #[test]
 fn closing_an_already_closed_project_is_a_noop_and_open_errors_offer_a_cooperative_action() {
-    let h = Harness::new(); h.prepared();
-    let count=h.platform.snapshots.load(Ordering::SeqCst);
-    h.run_job(|e,c| { assert_eq!(e.close_editor("n3-test",true,c)?["outcome"],"already_closed");Ok(()) }).unwrap();
-    assert_eq!(count,h.platform.snapshots.load(Ordering::SeqCst));
-    h.platform.editor_open.store(true,Ordering::SeqCst);
-    let value=serde_json::to_value(h.engine.precheck_closed("n3-test").unwrap_err()).unwrap();
-    assert_eq!(value["params"]["suggestedAction"],"amf.production.closeEditor");
+    let h = Harness::new();
+    h.prepared();
+    let count = h.platform.snapshots.load(Ordering::SeqCst);
+    h.run_job(|e, c| {
+        assert_eq!(
+            e.close_editor("n3-test", true, c)?["outcome"],
+            "already_closed"
+        );
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(count, h.platform.snapshots.load(Ordering::SeqCst));
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    let value = serde_json::to_value(h.engine.precheck_closed("n3-test").unwrap_err()).unwrap();
+    assert_eq!(
+        value["params"]["suggestedAction"],
+        "amf.production.closeEditor"
+    );
 }
 
 #[test]
 fn a_receipt_that_refused_before_saving_allows_retry_without_live_restore() {
-    let h=Harness::new();h.prepared();
-    h.platform.editor_open.store(true,Ordering::SeqCst);
-    h.platform.close_outcome.store(5,Ordering::SeqCst);
-    assert_eq!(h.run_job(|e,c|e.close_editor("n3-test",true,c).map(|_|())).unwrap_err(),"vua.amf_production.editor_save_failed");
-    let run=h.engine.get("n3-test").unwrap();
-    assert_eq!(run.recovery,None);
-    assert!(!run.revisions.iter().any(|r|r.before==RevisionKind::EditorSave));
-    h.platform.close_outcome.store(1,Ordering::SeqCst);
-    assert!(h.job(|e,c|e.close_editor("n3-test",true,c).map(|_|())));
+    let h = Harness::new();
+    h.prepared();
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    h.platform.close_outcome.store(5, Ordering::SeqCst);
+    assert_eq!(
+        h.run_job(|e, c| e.close_editor("n3-test", true, c).map(|_| ()))
+            .unwrap_err(),
+        "vua.amf_production.editor_save_failed"
+    );
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(run.recovery, None);
+    assert!(!run
+        .revisions
+        .iter()
+        .any(|r| r.before == RevisionKind::EditorSave));
+    h.platform.close_outcome.store(1, Ordering::SeqCst);
+    assert!(h.job(|e, c| e.close_editor("n3-test", true, c).map(|_| ())));
 }
 
 fn assembled_with_textures(h: &Harness) -> ProductionRun {
-    let raw: serde_json::Value = serde_json::from_slice(include_bytes!("../../../schemas/unity-bridge/v5/examples/texture-memory.valid.result.json")).unwrap();
+    let raw: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../../schemas/unity-bridge/v5/examples/texture-memory.valid.result.json"
+    ))
+    .unwrap();
     assembled(h);
     *h.platform.texture_facts.lock().unwrap() = Some(raw["data"]["textureMemory"].clone());
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
     h.engine.get("n3-test").unwrap()
 }
 fn texture_digest(h: &Harness) -> String {
-    h.engine.plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good).unwrap()["planDigest"].as_str().unwrap().into()
+    h.engine
+        .plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good)
+        .unwrap()["planDigest"]
+        .as_str()
+        .unwrap()
+        .into()
 }
 #[test]
 fn texture_apply_requires_a_current_review_and_explicit_subset_before_snapshot() {
-    let h = Harness::new(); assembled_with_textures(&h);
+    let h = Harness::new();
+    assembled_with_textures(&h);
     let digest = texture_digest(&h);
     let count = h.platform.snapshots.load(Ordering::SeqCst);
-    for (review, paths) in [("f".repeat(64), vec!["Assets/Color.png".into()]),
-        (digest.clone(), vec![]), (digest.clone(), vec!["Assets/Unknown.png".into()]),
-        (digest.clone(), vec!["Assets/Color.png".into(), "Assets/Color.png".into()])] {
-        assert!(!h.job(move |e,c| e.apply_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good, &review, &paths, c)));
+    for (review, paths) in [
+        ("f".repeat(64), vec!["Assets/Color.png".into()]),
+        (digest.clone(), vec![]),
+        (digest.clone(), vec!["Assets/Unknown.png".into()]),
+        (
+            digest.clone(),
+            vec!["Assets/Color.png".into(), "Assets/Color.png".into()],
+        ),
+    ] {
+        assert!(!h.job(move |e, c| e.apply_texture_memory(
+            "n3-test",
+            TexturePlatform::Pc,
+            TextureRank::Good,
+            &review,
+            &paths,
+            c
+        )));
     }
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count);
-    assert!(h.job(move |e,c| e.apply_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good, &digest, &["Assets/Color.png".into()], c)));
+    assert!(h.job(move |e, c| e.apply_texture_memory(
+        "n3-test",
+        TexturePlatform::Pc,
+        TextureRank::Good,
+        &digest,
+        &["Assets/Color.png".into()],
+        c
+    )));
     let run = h.engine.get("n3-test").unwrap();
     assert_eq!(run.result["facts"]["textureMemory"][0]["rank"], "excellent");
-    assert_eq!(run.result["facts"]["textureMemory"][1]["rank"], "very_poor", "PC changes leave the Android override alone");
+    assert_eq!(
+        run.result["facts"]["textureMemory"][1]["rank"], "very_poor",
+        "PC changes leave the Android override alone"
+    );
     assert_eq!(run.revisions[0].before, RevisionKind::TextureMemory);
     assert_eq!(run.phase, "succeeded");
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count + 1);
-    assert_eq!(h.engine.revision_plan("n3-test", &run.revisions[0].id).unwrap_err().code, "vua.amf_production.texture_manual_replay");
+    assert_eq!(
+        h.engine
+            .revision_plan("n3-test", &run.revisions[0].id)
+            .unwrap_err()
+            .code,
+        "vua.amf_production.texture_manual_replay"
+    );
 }
 #[test]
-fn texture_partial_writes_verification_failure_cancel_and_inspection_failure_restore_observations() {
-    for outcome in [1,2,3,4,5] {
-        let h = Harness::new(); let before = assembled_with_textures(&h);
+fn texture_partial_writes_verification_failure_cancel_and_inspection_failure_restore_observations()
+{
+    for outcome in [1, 2, 3, 4, 5] {
+        let h = Harness::new();
+        let before = assembled_with_textures(&h);
         let digest = texture_digest(&h);
         h.platform.texture_outcome.store(outcome, Ordering::SeqCst);
-        assert!(!h.job(move |e,c| e.apply_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good, &digest, &["Assets/Color.png".into()], c)));
+        assert!(!h.job(move |e, c| e.apply_texture_memory(
+            "n3-test",
+            TexturePlatform::Pc,
+            TextureRank::Good,
+            &digest,
+            &["Assets/Color.png".into()],
+            c
+        )));
         let after = h.engine.get("n3-test").unwrap();
         assert_eq!(after.recovery.as_deref(), Some("restored"));
         assert_eq!(after.result, before.result);
-        assert_eq!(after.revisions, before.revisions, "automatically restored changes leave no fictitious history");
+        assert_eq!(
+            after.revisions, before.revisions,
+            "automatically restored changes leave no fictitious history"
+        );
     }
-    let h = Harness::new(); assembled_with_textures(&h); let digest = texture_digest(&h);
-    h.platform.texture_outcome.store(1, Ordering::SeqCst); h.platform.fail_restore.store(true, Ordering::SeqCst);
-    assert!(!h.job(move |e,c| e.apply_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good, &digest, &["Assets/Color.png".into()], c)));
+    let h = Harness::new();
+    assembled_with_textures(&h);
+    let digest = texture_digest(&h);
+    h.platform.texture_outcome.store(1, Ordering::SeqCst);
+    h.platform.fail_restore.store(true, Ordering::SeqCst);
+    assert!(!h.job(move |e, c| e.apply_texture_memory(
+        "n3-test",
+        TexturePlatform::Pc,
+        TextureRank::Good,
+        &digest,
+        &["Assets/Color.png".into()],
+        c
+    )));
     let run = h.engine.get("n3-test").unwrap();
     assert!(run.recovery.unwrap().starts_with("restore_failed"));
     assert_eq!(run.revisions[0].before, RevisionKind::TextureMemory);
 }
 #[test]
 fn texture_planning_requires_facts_and_refuses_project_drift() {
-    let h = Harness::new(); assembled(&h);
-    assert_eq!(h.engine.plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good).unwrap_err().code, "vua.amf_production.inspect_required");
-    let h = Harness::new(); let run = assembled_with_textures(&h);
-    fs::write(Path::new(&run.project_root).join("Assets/state"), "external edit").unwrap();
-    assert_eq!(h.engine.plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good).unwrap_err().code, "vua.amf_production.project_drift");
+    let h = Harness::new();
+    assembled(&h);
+    assert_eq!(
+        h.engine
+            .plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good)
+            .unwrap_err()
+            .code,
+        "vua.amf_production.inspect_required"
+    );
+    let h = Harness::new();
+    let run = assembled_with_textures(&h);
+    fs::write(
+        Path::new(&run.project_root).join("Assets/state"),
+        "external edit",
+    )
+    .unwrap();
+    assert_eq!(
+        h.engine
+            .plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good)
+            .unwrap_err()
+            .code,
+        "vua.amf_production.project_drift"
+    );
 }
 
 fn synthetic_removal(source: &str) -> OutfitRemoval {
-    let outfit = format!("id-{source}"); let menu = format!("menu-{source}");
-    OutfitRemoval { source_id: source.into(), avatar_global_object_id: "synthetic-avatar".into(), blocked_reason: String::new(),
-        roots: vec![OutfitRemovalRoot { kind:"outfit".into(), global_object_id:outfit.clone() }, OutfitRemovalRoot { kind:"menu".into(), global_object_id:menu.clone() }],
-        objects: vec![OutfitRemovalObject { global_object_id:outfit,path:"Coat".into(),type_name:"UnityEngine.GameObject".into(),manual:false },
-            OutfitRemovalObject { global_object_id:menu,path:"Switch".into(),type_name:"UnityEngine.GameObject".into(),manual:false },
-            OutfitRemovalObject { global_object_id:format!("added-{source}"),path:"Coat/Added child".into(),type_name:"UnityEngine.GameObject".into(),manual:true }] }
+    let outfit = format!("id-{source}");
+    let menu = format!("menu-{source}");
+    OutfitRemoval {
+        source_id: source.into(),
+        avatar_global_object_id: "synthetic-avatar".into(),
+        blocked_reason: String::new(),
+        roots: vec![
+            OutfitRemovalRoot {
+                kind: "outfit".into(),
+                global_object_id: outfit.clone(),
+            },
+            OutfitRemovalRoot {
+                kind: "menu".into(),
+                global_object_id: menu.clone(),
+            },
+        ],
+        objects: vec![
+            OutfitRemovalObject {
+                global_object_id: outfit,
+                path: "Coat".into(),
+                type_name: "UnityEngine.GameObject".into(),
+                manual: false,
+            },
+            OutfitRemovalObject {
+                global_object_id: menu,
+                path: "Switch".into(),
+                type_name: "UnityEngine.GameObject".into(),
+                manual: false,
+            },
+            OutfitRemovalObject {
+                global_object_id: format!("added-{source}"),
+                path: "Coat/Added child".into(),
+                type_name: "UnityEngine.GameObject".into(),
+                manual: true,
+            },
+        ],
+    }
 }
 #[path = "support/outfit_removal.rs"]
 mod outfit_removal_tests;
@@ -2665,29 +4739,57 @@ fn avatar_optimizer_defaults_off_emits_v06_only_when_enabled_and_replays_in_reci
     assembled(&h);
     let initial = h.engine.get("n3-test").unwrap();
     assert!(!initial.optimizer.as_ref().is_some_and(|o| o.enabled));
-    let saved_v05 = h.engine.save_recipe("n3-test", "recipe-no-opt", "Without Optimizer").unwrap();
+    let saved_v05 = h
+        .engine
+        .save_recipe("n3-test", "recipe-no-opt", "Without Optimizer")
+        .unwrap();
     assert_eq!(saved_v05.recipe["formatVersion"], "0.5");
-    assert!(saved_v05.recipe["packages"].get("com.anatawa12.avatar-optimizer").is_none());
+    assert!(saved_v05.recipe["packages"]
+        .get("com.anatawa12.avatar-optimizer")
+        .is_none());
 
     assert!(h.job(|e, c| e.set_optimizer("n3-test", true, c)));
     let enabled = h.engine.get("n3-test").unwrap();
-    let opt = enabled.optimizer.as_ref().expect("optimizer state recorded");
+    let opt = enabled
+        .optimizer
+        .as_ref()
+        .expect("optimizer state recorded");
     assert!(opt.enabled);
     assert_eq!(opt.package_version.as_deref(), Some("1.9.21"));
     assert_eq!(enabled.revisions[0].before, RevisionKind::Optimizer);
-    assert_eq!(enabled.result["facts"]["optimizerReport"]["localMeasurementOnly"], true);
-    assert_eq!(enabled.result["facts"]["optimizerReport"]["state"], "measured");
+    assert_eq!(
+        enabled.result["facts"]["optimizerReport"]["localMeasurementOnly"],
+        true
+    );
+    assert_eq!(
+        enabled.result["facts"]["optimizerReport"]["state"],
+        "measured"
+    );
     assert_eq!(enabled.result["facts"]["optimizerReport"]["enabled"], true);
-    assert_eq!(enabled.result["facts"]["optimizerReport"]["after"]["triangles"], 39200);
+    assert_eq!(
+        enabled.result["facts"]["optimizerReport"]["after"]["triangles"],
+        39200
+    );
     let records: Vec<_> = fs::read_dir(h.root.join("production/records"))
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
         .collect();
-    assert!(records.iter().any(|name| name.starts_with("n3-test-optimizer-")), "{records:?}");
+    assert!(
+        records
+            .iter()
+            .any(|name| name.starts_with("n3-test-optimizer-")),
+        "{records:?}"
+    );
 
-    let saved_v06 = h.engine.save_recipe("n3-test", "recipe-with-opt", "With Optimizer").unwrap();
+    let saved_v06 = h
+        .engine
+        .save_recipe("n3-test", "recipe-with-opt", "With Optimizer")
+        .unwrap();
     assert_eq!(saved_v06.recipe["formatVersion"], "0.6");
-    assert_eq!(saved_v06.recipe["packages"]["com.anatawa12.avatar-optimizer"], "1.9.21");
+    assert_eq!(
+        saved_v06.recipe["packages"]["com.anatawa12.avatar-optimizer"],
+        "1.9.21"
+    );
     assert_eq!(saved_v06.recipe["adjustments"]["optimizer"], true);
 
     let share_plan = h.engine.recipe_share_plan("recipe-with-opt").unwrap();
@@ -2696,13 +4798,26 @@ fn avatar_optimizer_defaults_off_emits_v06_only_when_enabled_and_replays_in_reci
         .iter()
         .map(|m| (m.material_id.clone(), "1000001".to_owned()))
         .collect();
-    let exported = h.engine.export_recipe("recipe-with-opt", &share_plan.plan_digest, &sources).unwrap();
-    assert!(exported.share_code.starts_with("vuar0.6."), "{}", exported.share_code);
+    let exported = h
+        .engine
+        .export_recipe("recipe-with-opt", &share_plan.plan_digest, &sources)
+        .unwrap();
+    assert!(
+        exported.share_code.starts_with("vuar0.6."),
+        "{}",
+        exported.share_code
+    );
 
     let recipient = Harness::new();
-    let imported = recipient.engine.import_recipe(&exported.share_code).unwrap();
+    let imported = recipient
+        .engine
+        .import_recipe(&exported.share_code)
+        .unwrap();
     let imported_id = imported.recipe["recipeId"].as_str().unwrap();
-    recipient.engine.begin_recipe("n3-replayed", imported_id, "synthetic-editor").unwrap();
+    recipient
+        .engine
+        .begin_recipe("n3-replayed", imported_id, "synthetic-editor")
+        .unwrap();
     assert!(recipient.job(|e, c| e.prepare("n3-replayed", c)));
     let replay_plan = recipient.engine.plan("n3-replayed", &selection()).unwrap();
     assert_eq!(replay_plan["adjustments"]["optimizer"], true);
@@ -2710,26 +4825,40 @@ fn avatar_optimizer_defaults_off_emits_v06_only_when_enabled_and_replays_in_reci
     assert!(recipient.job(move |e, c| e.assemble("n3-replayed", selection(), &replay_digest, c)));
     let replayed = recipient.engine.get("n3-replayed").unwrap();
     assert!(replayed.optimizer.as_ref().is_some_and(|o| o.enabled));
-    assert_eq!(replayed.result["facts"]["optimizerReport"]["localMeasurementOnly"], true);
+    assert_eq!(
+        replayed.result["facts"]["optimizerReport"]["localMeasurementOnly"],
+        true
+    );
 
     // Revision restore back to the pre-optimizer state turns optimizer off and saves 0.5 again.
     let pre_opt_rev = enabled.revisions[0].id.clone();
     let rev_plan = h.engine.revision_plan("n3-test", &pre_opt_rev).unwrap();
-    assert!(rev_plan["steps"].as_array().unwrap().iter().any(|s| s["key"] == "optimizer" && s["enabled"] == false && s["skipped"] == false), "{rev_plan}");
+    assert!(
+        rev_plan["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["key"] == "optimizer" && s["enabled"] == false && s["skipped"] == false),
+        "{rev_plan}"
+    );
     let rev_digest = rev_plan["planDigest"].as_str().unwrap().to_owned();
     assert!(h.job(move |e, c| e.restore_revision("n3-test", &pre_opt_rev, &rev_digest, c)));
     let restored = h.engine.get("n3-test").unwrap();
     assert!(!restored.optimizer.as_ref().is_some_and(|o| o.enabled));
-    let saved_again = h.engine.save_recipe("n3-test", "recipe-restored", "Restored Without Optimizer").unwrap();
+    let saved_again = h
+        .engine
+        .save_recipe("n3-test", "recipe-restored", "Restored Without Optimizer")
+        .unwrap();
     assert_eq!(saved_again.recipe["formatVersion"], "0.5");
 }
 
 #[test]
 fn avatar_optimizer_failure_restores_snapshot_and_face_tracking_raises_osc_warning() {
     let h = Harness::new();
-    let ft_vector: serde_json::Value = serde_json::from_slice(
-        include_bytes!("../../../schemas/unity-bridge/v5/examples/face-tracking.valid.result.json"),
-    ).unwrap();
+    let ft_vector: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../../schemas/unity-bridge/v5/examples/face-tracking.valid.result.json"
+    ))
+    .unwrap();
     *h.platform.ft_facts.lock().unwrap() = Some(ft_vector["data"]["faceTracking"].clone());
     assembled(&h);
 
@@ -2738,11 +4867,17 @@ fn avatar_optimizer_failure_restores_snapshot_and_face_tracking_raises_osc_warni
     let failed = h.engine.get("n3-test").unwrap();
     assert!(!failed.optimizer.as_ref().is_some_and(|o| o.enabled));
     assert_eq!(failed.recovery.as_deref(), Some("restored"));
-    assert_eq!(fs::read_to_string(Path::new(&failed.project_root).join("Assets/state")).unwrap(), "after");
+    assert_eq!(
+        fs::read_to_string(Path::new(&failed.project_root).join("Assets/state")).unwrap(),
+        "after"
+    );
 
     assert!(h.job(|e, c| e.reinspect("n3-test", c)));
     assert!(h.job(|e, c| e.set_optimizer("n3-test", true, c)));
     let warned = h.engine.get("n3-test").unwrap();
     assert!(warned.optimizer.as_ref().is_some_and(|o| o.enabled));
-    assert_eq!(warned.result["facts"]["optimizerWarnings"], serde_json::json!(["osc_gimmick_possible"]));
+    assert_eq!(
+        warned.result["facts"]["optimizerWarnings"],
+        serde_json::json!(["osc_gimmick_possible"])
+    );
 }

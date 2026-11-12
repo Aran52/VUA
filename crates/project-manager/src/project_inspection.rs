@@ -26,15 +26,15 @@
 //! port; the wire vocabulary that will expose either face is proposed in
 //! `collab/proposals/013` and must not be guessed here.
 
-use vua_orchestrator::{
-    classify_version_string, env_managers_codes, Clock, EditorClass, FindingSeverity,
-    ManagerDiagnostic, PRODUCTION_TARGET,
-};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::io;
 use std::path::Path;
+use vua_orchestrator::{
+    classify_version_string, env_managers_codes, Clock, EditorClass, FindingSeverity,
+    ManagerDiagnostic, PRODUCTION_TARGET,
+};
 
 use crate::environment_managers::{read_alcom_settings, read_vcc_settings, ManagerRoots};
 
@@ -68,7 +68,11 @@ pub enum MutationStatus {
 /// is an identity file that exists but cannot be parsed — evidence, never
 /// silently reported as absent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(tag = "status", rename_all = "snake_case", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "status",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
 pub enum VuaIdentityFinding {
     Absent,
     Present {
@@ -84,9 +88,10 @@ impl From<crate::vua_identity::VuaIdentity> for VuaIdentityFinding {
     fn from(identity: crate::vua_identity::VuaIdentity) -> Self {
         match identity {
             crate::vua_identity::VuaIdentity::Absent => VuaIdentityFinding::Absent,
-            crate::vua_identity::VuaIdentity::Present(found) => {
-                VuaIdentityFinding::Present { marked_at: found.marked_at, note: found.note }
-            }
+            crate::vua_identity::VuaIdentity::Present(found) => VuaIdentityFinding::Present {
+                marked_at: found.marked_at,
+                note: found.note,
+            },
             crate::vua_identity::VuaIdentity::Unreadable => VuaIdentityFinding::Unreadable,
         }
     }
@@ -176,8 +181,11 @@ pub fn collect_project_inspections(
     let mut by_path: BTreeMap<String, Vec<crate::environment_managers::ProjectAssociation>> =
         BTreeMap::new();
     let register = |path: &str,
-                        association: crate::environment_managers::ProjectAssociation,
-                        by_path: &mut BTreeMap<String, Vec<crate::environment_managers::ProjectAssociation>>| {
+                    association: crate::environment_managers::ProjectAssociation,
+                    by_path: &mut BTreeMap<
+        String,
+        Vec<crate::environment_managers::ProjectAssociation>,
+    >| {
         let entry = by_path.entry(path.to_owned()).or_default();
         if !entry.contains(&association) {
             entry.push(association);
@@ -187,7 +195,11 @@ pub fn collect_project_inspections(
     match vcc.projects_source {
         Some("userProjects") => {
             for path in &vcc.user_projects {
-                register(path, crate::environment_managers::ProjectAssociation::VccRegistered, &mut by_path);
+                register(
+                    path,
+                    crate::environment_managers::ProjectAssociation::VccRegistered,
+                    &mut by_path,
+                );
             }
         }
         Some("localProjectFolders") => {
@@ -214,7 +226,11 @@ pub fn collect_project_inspections(
         _ => {}
     }
     for path in &alcom.user_projects {
-        register(path, crate::environment_managers::ProjectAssociation::AlcomRegistered, &mut by_path);
+        register(
+            path,
+            crate::environment_managers::ProjectAssociation::AlcomRegistered,
+            &mut by_path,
+        );
     }
 
     let projects = by_path
@@ -329,9 +345,7 @@ fn inspect_one(
             inspection.diagnostics.push(ManagerDiagnostic {
                 code: env_managers_codes::PROJECT_MARKERS_INCOMPLETE,
                 severity: FindingSeverity::Warning,
-                detail: format!(
-                    "{path}: ProjectVersion.txt exists but cannot be read: {error}"
-                ),
+                detail: format!("{path}: ProjectVersion.txt exists but cannot be read: {error}"),
             });
         }
     }
@@ -346,21 +360,27 @@ fn inspect_one(
                     inspection.manifest_schema_ok = true;
                     let dependencies =
                         manifest_map(&value, "dependencies", path, &mut inspection.diagnostics);
-                    let locked =
-                        manifest_map(&value, "locked", path, &mut inspection.diagnostics);
+                    let locked = manifest_map(&value, "locked", path, &mut inspection.diagnostics);
                     inspection.dependencies = dependencies;
                     inspection.locked = locked;
-                    inspection.vrchat_sdks = vrchat_sdks(&inspection.dependencies, &inspection.locked);
+                    inspection.vrchat_sdks =
+                        vrchat_sdks(&inspection.dependencies, &inspection.locked);
                 }
                 Ok(_) => inspection.diagnostics.push(ManagerDiagnostic {
                     code: codes::MANIFEST_SCHEMA_UNEXPECTED,
                     severity: FindingSeverity::Warning,
-                    detail: format!("{}: manifest is valid JSON but not an object", manifest_path.display()),
+                    detail: format!(
+                        "{}: manifest is valid JSON but not an object",
+                        manifest_path.display()
+                    ),
                 }),
                 Err(error) => inspection.diagnostics.push(ManagerDiagnostic {
                     code: codes::MANIFEST_SCHEMA_UNEXPECTED,
                     severity: FindingSeverity::Warning,
-                    detail: format!("{}: manifest is not valid JSON: {error}", manifest_path.display()),
+                    detail: format!(
+                        "{}: manifest is not valid JSON: {error}",
+                        manifest_path.display()
+                    ),
                 }),
             },
             Err(error) => inspection.diagnostics.push(ManagerDiagnostic {
@@ -373,12 +393,11 @@ fn inspect_one(
 
     // Pending-mutation marker: a read-only observation; acquiring the lock
     // would be a write, so the inspection never does.
-    inspection.mutation_status =
-        match crate::project_lock::read_pending_mutation(dir) {
-            crate::project_lock::PendingMutation::None => MutationStatus::None,
-            crate::project_lock::PendingMutation::Leftover(_) => MutationStatus::Leftover,
-            crate::project_lock::PendingMutation::Unreadable => MutationStatus::Unreadable,
-        };
+    inspection.mutation_status = match crate::project_lock::read_pending_mutation(dir) {
+        crate::project_lock::PendingMutation::None => MutationStatus::None,
+        crate::project_lock::PendingMutation::Leftover(_) => MutationStatus::Leftover,
+        crate::project_lock::PendingMutation::Unreadable => MutationStatus::Unreadable,
+    };
 
     // VUA-native identity (`.vua/project.json`): same read-only discipline.
     inspection.vua_identity = crate::vua_identity::read_identity(dir).into();
@@ -443,7 +462,10 @@ fn manifest_map(
 /// VRChat SDK packages among the manifest maps: `locked` wins over
 /// `dependencies` (the pin is the installed truth), and the union is
 /// reported as seen — `com.vrchat.*` is the only claimed pattern.
-fn vrchat_sdks(dependencies: &[ManifestPackage], locked: &[ManifestPackage]) -> Vec<VrchatSdkFinding> {
+fn vrchat_sdks(
+    dependencies: &[ManifestPackage],
+    locked: &[ManifestPackage],
+) -> Vec<VrchatSdkFinding> {
     fn is_vrchat_sdk(package_id: &str) -> bool {
         package_id.starts_with("com.vrchat.")
     }
@@ -459,7 +481,9 @@ fn vrchat_sdks(dependencies: &[ManifestPackage], locked: &[ManifestPackage]) -> 
     }
     for package in dependencies {
         if is_vrchat_sdk(&package.package_id)
-            && !findings.iter().any(|finding| finding.package_id == package.package_id)
+            && !findings
+                .iter()
+                .any(|finding| finding.package_id == package.package_id)
         {
             findings.push(VrchatSdkFinding {
                 package_id: package.package_id.clone(),

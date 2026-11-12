@@ -188,7 +188,10 @@ fn the_termination_primitive_terminates_and_confirms_exit_for_a_controlled_proce
 
     assert_eq!(receipt.kind, "terminated", "receipt: {receipt:?}");
     assert_eq!(receipt.exit_confirmed, Some(true));
-    assert_eq!(receipt.post_check.as_ref().map(|check| check.pid_gone), Some(true));
+    assert_eq!(
+        receipt.post_check.as_ref().map(|check| check.pid_gone),
+        Some(true)
+    );
     assert!(receipt.terminated_at.is_some());
 
     cleanup(&base);
@@ -231,12 +234,12 @@ fn an_active_vrchat_session_refuses_independently_of_the_allowlist() {
     let receipt = terminate_candidate(&request, "cmd-test-r4", &clock());
 
     assert_eq!(receipt.kind, "refused");
-    assert_eq!(
-        receipt.guard,
-        Some(TerminationGuard::ActiveVrchatSession)
-    );
+    assert_eq!(receipt.guard, Some(TerminationGuard::ActiveVrchatSession));
     assert!(!receipt.verified);
-    assert!(receipt.inspect_required.is_none(), "a refusal is not a failure");
+    assert!(
+        receipt.inspect_required.is_none(),
+        "a refusal is not a failure"
+    );
 
     // The refused step did NOT terminate the target — clean it up
     // explicitly (test-owned process).

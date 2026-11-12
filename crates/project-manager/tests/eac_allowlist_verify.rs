@@ -64,9 +64,7 @@ fn entry(name: &str) -> AllowlistEntryV01 {
 #[test]
 fn allowlist_fixtures_are_schema_valid_and_loader_accepted() {
     for name in ["allowlist.empty.json", "allowlist.example-entry.json"] {
-        let fixture = read_repo_json(&format!(
-            "schemas/eac-allowlist/v0.1/fixtures/{name}"
-        ));
+        let fixture = read_repo_json(&format!("schemas/eac-allowlist/v0.1/fixtures/{name}"));
         let problems = violations(&allowlist_validator(), &fixture);
         assert!(problems.is_empty(), "{name}: {problems:#?}");
 
@@ -149,10 +147,7 @@ fn path_patterns_match_case_insensitively_prefix_or_literal() {
     );
     // Literal full-path pattern matches exactly (case-insensitive).
     assert_eq!(
-        path_pattern_matches(
-            "C:\\Tools\\cleanup.exe",
-            "c:\\tools\\CLEANUP.EXE"
-        ),
+        path_pattern_matches("C:\\Tools\\cleanup.exe", "c:\\tools\\CLEANUP.EXE"),
         Some(())
     );
     assert_eq!(
@@ -317,10 +312,11 @@ fn real_machine_verification_records_the_actual_checks() {
     // with a signed EasyAntiCheat.exe the expected verdict is Verified.
     let source = vua_project_manager::eac_probe::os_source::ToolhelpProcessSource;
     let table = source.snapshot().expect("real process table");
-    let Some(candidate) = table
-        .iter()
-        .find(|candidate| candidate.image_name.eq_ignore_ascii_case("easyanticheat.exe"))
-    else {
+    let Some(candidate) = table.iter().find(|candidate| {
+        candidate
+            .image_name
+            .eq_ignore_ascii_case("easyanticheat.exe")
+    }) else {
         println!("no easyanticheat.exe on this machine — B2b not covered this window (honest)");
         return;
     };
@@ -360,7 +356,10 @@ fn real_machine_verification_records_the_actual_checks() {
         .iter()
         .find(|check| check.code == "vua.eac_verify.path_mismatch")
         .expect("path check reports");
-    assert!(path_check.passed, "the real location matches its own prefix");
+    assert!(
+        path_check.passed,
+        "the real location matches its own prefix"
+    );
     let signature_check = report
         .checks
         .iter()
@@ -384,4 +383,3 @@ fn read_image_path_via_probe(pid: u32) -> Option<String> {
     let _ = pid;
     None
 }
-

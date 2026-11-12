@@ -100,7 +100,7 @@ impl VpmBackend for FakeCreateBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -155,7 +155,7 @@ impl VpmBackend for NoCreateBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -201,7 +201,7 @@ impl VpmBackend for RefusingCreateBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -253,7 +253,11 @@ fn ops_v05_schema_admits_positive_vectors_and_rejects_negative_ones() {
         violations(&command, &create_explicit)
     );
     let created = example("create-project-result-created.result.json");
-    assert!(result.is_valid(&created), "{:?}", violations(&result, &created));
+    assert!(
+        result.is_valid(&created),
+        "{:?}",
+        violations(&result, &created)
+    );
 
     // --- the ten negative vectors all fail ---
     for name in [
@@ -361,16 +365,17 @@ fn fake_create_backend_port_facts_project_onto_the_a5_wire_shapes() {
             "template": FAKE_TEMPLATE,
         },
     });
-    assert!(command.is_valid(&request), "{:?}", violations(&command, &request));
+    assert!(
+        command.is_valid(&request),
+        "{:?}",
+        violations(&command, &request)
+    );
 
     let project = backend
         .create_project(Path::new(FAKE_PARENT), FAKE_NAME, Some(FAKE_TEMPLATE))
         .expect("the fake backend must create");
     assert_eq!(project.id, FAKE_PROJECT_ID);
-    assert_eq!(
-        project.root,
-        PathBuf::from(FAKE_PARENT).join(FAKE_NAME)
-    );
+    assert_eq!(project.root, PathBuf::from(FAKE_PARENT).join(FAKE_NAME));
 
     let receipt = json!({
         "schemaVersion": "0.5",
@@ -382,7 +387,11 @@ fn fake_create_backend_port_facts_project_onto_the_a5_wire_shapes() {
             "projectPath": FAKE_PROJECT_PATH,
         },
     });
-    assert!(result.is_valid(&receipt), "{:?}", violations(&result, &receipt));
+    assert!(
+        result.is_valid(&receipt),
+        "{:?}",
+        violations(&result, &receipt)
+    );
     assert_eq!(receipt["result"]["kind"], "created");
     assert_eq!(receipt["result"]["projectId"], FAKE_PROJECT_ID);
     assert_eq!(receipt["result"]["projectPath"], FAKE_PROJECT_PATH);

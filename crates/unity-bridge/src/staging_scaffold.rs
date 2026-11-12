@@ -141,7 +141,9 @@ pub static BRIDGE_PACKAGE_FILES: &[(&str, &str)] = &[
     ),
     (
         "Editor/Bridge/BridgeCommandProcessor.cs",
-        include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Bridge/BridgeCommandProcessor.cs"),
+        include_str!(
+            "../../../unity/Packages/com.ph-r.vua/Editor/Bridge/BridgeCommandProcessor.cs"
+        ),
     ),
     (
         "Editor/Bridge/BridgeCommandProcessor.cs.meta",
@@ -171,7 +173,9 @@ pub static BRIDGE_PACKAGE_FILES: &[(&str, &str)] = &[
     ),
     (
         "Editor/Bridge/BridgePreviewBake.cs.meta",
-        include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Bridge/BridgePreviewBake.cs.meta"),
+        include_str!(
+            "../../../unity/Packages/com.ph-r.vua/Editor/Bridge/BridgePreviewBake.cs.meta"
+        ),
     ),
     (
         "Editor/Bridge/BridgeResultJson.cs",
@@ -213,7 +217,8 @@ mod package_coverage {
 
     /// Every file the package keeps in a folder, relative to the package root.
     fn package_files(folder: &str) -> Vec<String> {
-        let package = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../unity/Packages/com.ph-r.vua");
+        let package =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../unity/Packages/com.ph-r.vua");
         let mut files: Vec<String> = std::fs::read_dir(package.join(folder))
             .unwrap()
             .map(|entry| format!("{folder}/{}", entry.unwrap().file_name().to_string_lossy()))
@@ -226,9 +231,15 @@ mod package_coverage {
     /// leaves Unity without code the rest of the package calls.
     #[test]
     fn every_bridge_and_amf_package_file_reaches_the_work_project() {
-        for (folder, list) in [("Editor/Amf", AMF_PRODUCTION_BRIDGE_FILES), ("Editor/Bridge", BRIDGE_PACKAGE_FILES)] {
+        for (folder, list) in [
+            ("Editor/Amf", AMF_PRODUCTION_BRIDGE_FILES),
+            ("Editor/Bridge", BRIDGE_PACKAGE_FILES),
+        ] {
             for file in package_files(folder) {
-                assert!(list.iter().any(|(relative, _)| *relative == file), "{file} is missing from the embedded package files");
+                assert!(
+                    list.iter().any(|(relative, _)| *relative == file),
+                    "{file} is missing from the embedded package files"
+                );
             }
         }
     }

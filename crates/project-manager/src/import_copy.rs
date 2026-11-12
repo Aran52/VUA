@@ -184,9 +184,12 @@ fn validated_project_name(name: &str) -> Result<(), ImportRejected> {
         && name != "."
         && name != ".."
         && !name.starts_with('-')
-        && !name
-            .chars()
-            .any(|character| matches!(character, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'));
+        && !name.chars().any(|character| {
+            matches!(
+                character,
+                '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'
+            )
+        });
     if valid {
         Ok(())
     } else {
@@ -321,10 +324,7 @@ fn registered_associations(
 /// Walks `dir` skipping the excluded entry names, accumulating the total
 /// size and the source top-level entries in scope. Returns
 /// (bytes, top_levels).
-fn measure_copy_scope(
-    dir: &Path,
-    top_levels: &mut Vec<String>,
-) -> std::io::Result<u64> {
+fn measure_copy_scope(dir: &Path, top_levels: &mut Vec<String>) -> std::io::Result<u64> {
     let mut total = 0u64;
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
@@ -350,7 +350,10 @@ fn compute_plan(
     name: &str,
 ) -> Result<ImportPlanV01, ImportRejected> {
     if !source.join("Packages").join("vpm-manifest.json").is_file()
-        || !source.join("ProjectSettings").join("ProjectVersion.txt").is_file()
+        || !source
+            .join("ProjectSettings")
+            .join("ProjectVersion.txt")
+            .is_file()
     {
         return Err(ImportRejected::new(
             RejectionGuard::SourceInvalid,
@@ -385,7 +388,10 @@ fn compute_plan(
     let estimated_bytes = measure_copy_scope(source, &mut top_levels).map_err(|error| {
         ImportRejected::new(
             RejectionGuard::SourceInvalid,
-            format!("{}: measuring the copy scope failed: {error}", source.display()),
+            format!(
+                "{}: measuring the copy scope failed: {error}",
+                source.display()
+            ),
         )
     })?;
     top_levels.sort();
@@ -445,7 +451,10 @@ fn check_disk_free(target_parent: &Path, needed: u64) -> Result<(), ImportReject
     if ok == 0 {
         return Err(ImportRejected::new(
             RejectionGuard::InsufficientDiskSpace,
-            format!("{}: querying free disk space failed", target_parent.display()),
+            format!(
+                "{}: querying free disk space failed",
+                target_parent.display()
+            ),
         ));
     }
     if free_to_caller < needed + DISK_HEADROOM_BYTES {
@@ -509,12 +518,14 @@ pub struct ImportCopyRequest<'a> {
 /// The confirmation face of `project.import-copy`: run the guards, measure
 /// the copy scope, and bind the state with a digest. No filesystem writes
 /// happen here.
-pub fn plan_import_copy(
-    request: &ImportCopyRequest<'_>,
-) -> Result<ImportPlanV01, ImportRejected> {
+pub fn plan_import_copy(request: &ImportCopyRequest<'_>) -> Result<ImportPlanV01, ImportRejected> {
     validated_project_name(request.name)?;
-    if registered_associations(request.source, request.vcc_settings_candidates, request.roots)
-        .is_none()
+    if registered_associations(
+        request.source,
+        request.vcc_settings_candidates,
+        request.roots,
+    )
+    .is_none()
     {
         return Err(ImportRejected::new(
             RejectionGuard::SourceNotRegistered,
@@ -566,14 +577,13 @@ pub fn apply_import_copy(
         instance_id: format!("import-copy-{task_correlation}"),
         acquired_at: clock.now_rfc3339(),
     };
-    let lock = crate::project_lock::acquire_project_lock(&target_path, holder).map_err(
-        |error| {
+    let lock =
+        crate::project_lock::acquire_project_lock(&target_path, holder).map_err(|error| {
             ImportRejected::new(
                 RejectionGuard::ExecutionFailed,
                 format!("acquiring the new project mutation lock failed: {error}"),
             )
-        },
-    )?;
+        })?;
 
     let mut copied_top_levels = Vec::new();
     let copy_result = copy_with_exclusions(source, &target_path, &mut copied_top_levels);
@@ -601,7 +611,9 @@ pub fn apply_import_copy(
     // productName line) stay as pinned — this call site no longer discards
     // the errors the primitive does report.
     crate::vpm_backend::set_product_name(
-        &target_path.join("ProjectSettings").join("ProjectSettings.asset"),
+        &target_path
+            .join("ProjectSettings")
+            .join("ProjectSettings.asset"),
         name,
     )
     .map_err(|error| {
@@ -623,7 +635,10 @@ pub fn apply_import_copy(
     vua_orchestrator::FileSystemProjectStore::initialize(&project_ref).map_err(|error| {
         ImportRejected::new(
             RejectionGuard::ExecutionFailed,
-            format!("{}: initializing the VUA project store failed: {error}", target_path.display()),
+            format!(
+                "{}: initializing the VUA project store failed: {error}",
+                target_path.display()
+            ),
         )
     })?;
     let source_link = SourceLink {
@@ -651,7 +666,10 @@ pub fn apply_import_copy(
     std::fs::write(vua_dir.join("source.json"), source_doc).map_err(|error| {
         ImportRejected::new(
             RejectionGuard::ExecutionFailed,
-            format!("{}: writing the source link failed: {error}", vua_dir.display()),
+            format!(
+                "{}: writing the source link failed: {error}",
+                vua_dir.display()
+            ),
         )
     })?;
 
@@ -661,17 +679,18 @@ pub fn apply_import_copy(
     crate::vua_identity::mark_vua_native(&target_path, &clock.now_rfc3339()).map_err(|error| {
         ImportRejected::new(
             RejectionGuard::ExecutionFailed,
-            format!("{}: writing the VUA identity failed: {error}", target_path.display()),
+            format!(
+                "{}: writing the VUA identity failed: {error}",
+                target_path.display()
+            ),
         )
     })?;
 
     // Re-inspect the copy (spec item 4: never inherit the original's
     // confirmations or snapshots — the receipt carries the copy's own
     // freshly read state).
-    let inspected = crate::project_inspection::inspect_project_deep(
-        &target_path.to_string_lossy(),
-        vec![],
-    );
+    let inspected =
+        crate::project_inspection::inspect_project_deep(&target_path.to_string_lossy(), vec![]);
 
     Ok(ImportReceiptV01 {
         kind: "receipt",

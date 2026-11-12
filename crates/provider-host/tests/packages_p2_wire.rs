@@ -26,8 +26,8 @@ use vua_orchestrator::{
     AppErrorV1, CatalogCapabilities, CatalogVersionV01, ErrorCategory, PackageCatalogV01,
     PackageRequestV1, PackageSourceV01, ProjectRef, RepoInfoV01, VpmBackend, VpmCapabilities,
 };
-use vua_provider_host::{run_provider_host_full, ProjectOpsConfig};
 use vua_project_manager::ManagerRoots;
+use vua_provider_host::{run_provider_host_full, ProjectOpsConfig};
 
 fn unique_root(label: &str) -> PathBuf {
     let nanos = std::time::SystemTime::now()
@@ -75,7 +75,9 @@ fn seed_registered_project(root: &Path) -> (PathBuf, PathBuf) {
 fn project_ops_config(vcc_settings: &Path) -> ProjectOpsConfig {
     ProjectOpsConfig {
         vcc_settings_candidates: vec![vcc_settings.to_path_buf()],
-        manager_roots: ManagerRoots { alcom_settings_candidates: Vec::new() },
+        manager_roots: ManagerRoots {
+            alcom_settings_candidates: Vec::new(),
+        },
         editor_roots: Vec::new(),
     }
 }
@@ -181,11 +183,13 @@ impl VpmBackend for CatalogVpm {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn catalog_capabilities(&self) -> CatalogCapabilities {
-        CatalogCapabilities { catalog: self.catalog_cap }
+        CatalogCapabilities {
+            catalog: self.catalog_cap,
+        }
     }
     fn preview_install(
         &self,
@@ -376,8 +380,17 @@ fn wired_routes_project_facts_inside_the_frozen_envelopes() {
 
     // listRepos: the frozen envelope, nullable facts projected verbatim,
     // the REQUIRED cached fact on every row, subscription-face order kept.
-    let payload = run_query_frame(&database, Some(&config), Some(vpm.clone()), "packages.listRepos", json!({}));
-    assert_eq!(payload["ok"], true, "wired + declared must succeed: {payload}");
+    let payload = run_query_frame(
+        &database,
+        Some(&config),
+        Some(vpm.clone()),
+        "packages.listRepos",
+        json!({}),
+    );
+    assert_eq!(
+        payload["ok"], true,
+        "wired + declared must succeed: {payload}"
+    );
     let value = &payload["value"];
     assert_eq!(value["schemaVersion"], "0.1");
     assert_eq!(value["operation"], "packages.listRepos");
@@ -389,8 +402,15 @@ fn wired_routes_project_facts_inside_the_frozen_envelopes() {
     assert_eq!(rows[0]["cached"], true);
     // Null = the honest library-Option projection (never padded).
     assert_eq!(rows[1]["repoId"], Value::Null);
-    assert_eq!(rows[1]["cached"], false, "subscribed-never-refreshed rides as its own state");
-    assert_eq!(rows[2]["url"], Value::Null, "a local-directory repo carries no url");
+    assert_eq!(
+        rows[1]["cached"], false,
+        "subscribed-never-refreshed rides as its own state"
+    );
+    assert_eq!(
+        rows[2]["url"],
+        Value::Null,
+        "a local-directory repo carries no url"
+    );
     assert_eq!(rows[2]["name"], Value::Null);
 
     // packageCatalog: the frozen envelope, the family const stamped by the
@@ -405,13 +425,19 @@ fn wired_routes_project_facts_inside_the_frozen_envelopes() {
             "packageId": "com.anatawa12.avatar-optimizer",
         }),
     );
-    assert_eq!(payload["ok"], true, "registered + declared must succeed: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "registered + declared must succeed: {payload}"
+    );
     let value = &payload["value"];
     assert_eq!(value["schemaVersion"], "0.1");
     assert_eq!(value["operation"], "packages.packageCatalog");
     let result = &value["result"];
     assert_eq!(result["schemaVersion"], "vua.packages-catalog/v0.1");
-    assert_eq!(result["projectPath"], project.to_string_lossy().into_owned());
+    assert_eq!(
+        result["projectPath"],
+        project.to_string_lossy().into_owned()
+    );
     assert_eq!(result["packageId"], "com.anatawa12.avatar-optimizer");
     assert_eq!(result["displayName"], "Avatar Optimizer");
     assert_eq!(result["source"], "repo");
@@ -442,7 +468,10 @@ fn empty_subscription_list_is_an_honest_valid_answer() {
     let vpm: Arc<dyn VpmBackend> = Arc::new(fake);
 
     let payload = run_query_frame(&database, None, Some(vpm), "packages.listRepos", json!({}));
-    assert_eq!(payload["ok"], true, "zero subscriptions is a real backend fact");
+    assert_eq!(
+        payload["ok"], true,
+        "zero subscriptions is a real backend fact"
+    );
     assert_eq!(payload["value"]["result"]["repos"], json!([]));
     fs::remove_dir_all(&root).ok();
 }
@@ -456,8 +485,17 @@ fn the_subscription_list_needs_no_registration_binding() {
     let vpm: Arc<dyn VpmBackend> = Arc::new(CatalogVpm::declaring());
 
     let payload = run_query_frame(&database, None, Some(vpm), "packages.listRepos", json!({}));
-    assert_eq!(payload["ok"], true, "the global face never needs the 013 aggregate: {payload}");
-    assert_eq!(payload["value"]["result"]["repos"].as_array().unwrap().len(), 3);
+    assert_eq!(
+        payload["ok"], true,
+        "the global face never needs the 013 aggregate: {payload}"
+    );
+    assert_eq!(
+        payload["value"]["result"]["repos"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
     fs::remove_dir_all(&root).ok();
 }
 
@@ -525,7 +563,10 @@ fn unregistered_catalog_path_reuses_the_013_not_found_code() {
     // Same fact, same code: the reused 013 typed not-found (validation).
     assert_eq!(payload["error"]["code"], "vua.project.project_not_found");
     assert_eq!(payload["error"]["category"], "validation");
-    assert_eq!(payload["error"]["messageKey"], "errors.project.projectNotFound");
+    assert_eq!(
+        payload["error"]["messageKey"],
+        "errors.project.projectNotFound"
+    );
     fs::remove_dir_all(&root).ok();
 }
 
@@ -549,7 +590,10 @@ fn params_violations_answer_invalid_params_never_absence() {
             "packages.listRepos",
             params.clone(),
         );
-        assert_eq!(payload["error"]["code"], "vua.packages.invalid_params", "{params}");
+        assert_eq!(
+            payload["error"]["code"], "vua.packages.invalid_params",
+            "{params}"
+        );
         assert_eq!(payload["error"]["category"], "validation");
     }
 
@@ -573,7 +617,10 @@ fn params_violations_answer_invalid_params_never_absence() {
             "packages.packageCatalog",
             params.clone(),
         );
-        assert_eq!(payload["error"]["code"], "vua.packages.invalid_params", "{params}");
+        assert_eq!(
+            payload["error"]["code"], "vua.packages.invalid_params",
+            "{params}"
+        );
         assert_eq!(payload["error"]["category"], "validation");
     }
     fs::remove_dir_all(&root).ok();

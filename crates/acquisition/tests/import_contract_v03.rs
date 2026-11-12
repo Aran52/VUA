@@ -82,7 +82,10 @@ fn import_vector_validates_against_the_command_schema() {
         .iter_errors(&vector)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "the import vector must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "the import vector must validate: {errors:?}"
+    );
 }
 
 #[test]
@@ -92,7 +95,10 @@ fn import_result_vector_validates_against_the_result_schema() {
         .iter_errors(&vector)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "the import result must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "the import result must validate: {errors:?}"
+    );
 }
 
 #[test]
@@ -177,7 +183,10 @@ fn import_vector_drives_the_real_batch_import_and_validates() {
         .iter_errors(&retargeted)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "the retargeted vector must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "the retargeted vector must validate: {errors:?}"
+    );
 
     let store = Arc::new(BdlStore::open_in_memory().unwrap());
     let runtime = TaskRuntime::new(
@@ -215,7 +224,10 @@ fn import_vector_drives_the_real_batch_import_and_validates() {
         .iter_errors(&acceptance)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "the real acceptance must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "the real acceptance must validate: {errors:?}"
+    );
     let expected = read_json(IMPORT_RESULT);
     assert_eq!(acceptance["operation"], expected["operation"]);
 
@@ -224,7 +236,9 @@ fn import_vector_drives_the_real_batch_import_and_validates() {
     // entry per folder, exactly as the vector's batch promised.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let snapshot = loop {
-        let snapshot = runtime.snapshot(&accepted.task_id).expect("task must exist");
+        let snapshot = runtime
+            .snapshot(&accepted.task_id)
+            .expect("task must exist");
         if snapshot.state.is_terminal() {
             break snapshot;
         }
@@ -232,6 +246,8 @@ fn import_vector_drives_the_real_batch_import_and_validates() {
         std::thread::sleep(std::time::Duration::from_millis(10));
     };
     assert_eq!(snapshot.correlation_id, correlation_id);
-    let cards = store.warehouse_entry_cards(vua_bdl_store::ArtifactMode::GenerateVpm).unwrap();
+    let cards = store
+        .warehouse_entry_cards(vua_bdl_store::ArtifactMode::GenerateVpm)
+        .unwrap();
     assert_eq!(cards.len(), 2, "the batch created one entry per folder");
 }

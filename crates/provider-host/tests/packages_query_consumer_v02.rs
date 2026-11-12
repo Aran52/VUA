@@ -72,7 +72,7 @@ impl VpmBackend for MinimalBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -117,7 +117,7 @@ impl VpmBackend for FakeQueryBackend {
             list_packages: true,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -157,10 +157,7 @@ impl VpmBackend for FakeQueryBackend {
     fn query_v02(&self) -> bool {
         true
     }
-    fn list_packages_v02(
-        &self,
-        _project: &ProjectRef,
-    ) -> Result<InstalledListingV02, AppErrorV1> {
+    fn list_packages_v02(&self, _project: &ProjectRef) -> Result<InstalledListingV02, AppErrorV1> {
         // Synthetic facts covering every arm of the frozen judgment word
         // face: judged-true, judged-false, judgment-not-executed (local
         // source), and the prerelease-boundary false (installed prerelease
@@ -213,9 +210,8 @@ fn query_v02_schema_admits_positive_vectors_and_rejects_negative_ones() {
 
     // The command face is byte-for-byte the v0.1 face; the single positive
     // request vector rides the v0.2 validator once.
-    let request = read_repo_json(
-        "schemas/packages-query/v0.2/examples/packages-list-installed.request.json",
-    );
+    let request =
+        read_repo_json("schemas/packages-query/v0.2/examples/packages-list-installed.request.json");
     assert!(
         command.is_valid(&request),
         "{:?}",
@@ -259,11 +255,12 @@ fn trait_default_keeps_serving_v01_and_declares_no_v02() {
     // served — and the unimplemented v0.2 method answers the generic
     // capability absence.
     assert!(!backend.query_v02());
-    let err = backend.list_packages_v02(&ProjectRef {
-        id: "minimal".into(),
-        root: std::path::PathBuf::from("C:/nowhere"),
-    })
-    .unwrap_err();
+    let err = backend
+        .list_packages_v02(&ProjectRef {
+            id: "minimal".into(),
+            root: std::path::PathBuf::from("C:/nowhere"),
+        })
+        .unwrap_err();
     assert_eq!(err.code, "vua.vpm.capability_missing");
 }
 
@@ -290,13 +287,20 @@ fn fake_backend_port_facts_project_onto_the_frozen_v02_wire_shape() {
         "result": result,
     });
     let validator = result_validator();
-    assert!(validator.is_valid(&envelope), "{:?}", violations(&validator, &envelope));
+    assert!(
+        validator.is_valid(&envelope),
+        "{:?}",
+        violations(&validator, &envelope)
+    );
     assert_eq!(
         envelope["result"]["schemaVersion"],
         "vua.packages-installed/v0.2"
     );
     // camelCase projection pins (serde rename_all verbatim).
-    assert_eq!(envelope["result"]["cacheSourced"], serde_json::Value::Bool(true));
+    assert_eq!(
+        envelope["result"]["cacheSourced"],
+        serde_json::Value::Bool(true)
+    );
     let packages = envelope["result"]["packages"].as_array().unwrap();
     assert_eq!(packages.len(), 4);
     // packageId-ascending order — the frozen presentation fact, unchanged.
@@ -308,7 +312,10 @@ fn fake_backend_port_facts_project_onto_the_frozen_v02_wire_shape() {
     sorted.sort();
     assert_eq!(ids, sorted, "rows stay packageId-ascending");
     // The judged-true arm.
-    assert_eq!(packages[0]["updateAvailable"], serde_json::Value::Bool(true));
+    assert_eq!(
+        packages[0]["updateAvailable"],
+        serde_json::Value::Bool(true)
+    );
     assert_eq!(packages[0]["latestVersion"], "1.8.2");
     // The judgment-not-executed arm: null/null for a local-source package —
     // honest absence, NEVER a boolean false, never an invented fact.
@@ -317,7 +324,10 @@ fn fake_backend_port_facts_project_onto_the_frozen_v02_wire_shape() {
     // The prerelease-boundary arm: installed prerelease 2.0.0-beta.4, stable
     // qualifying latest 1.9.0 — `false` under the CURRENT filter, paired
     // with the version fact that keeps the boundary readable.
-    assert_eq!(packages[2]["updateAvailable"], serde_json::Value::Bool(false));
+    assert_eq!(
+        packages[2]["updateAvailable"],
+        serde_json::Value::Bool(false)
+    );
     assert_eq!(packages[2]["latestVersion"], "1.9.0");
     // The deliberate ceiling: no invented catalog facts ride this face.
     for key in ["changelogUrl", "displayName", "source", "versions"] {
@@ -337,9 +347,8 @@ fn v01_rows_are_invalid_under_v02_making_the_version_machine_detectable() {
     // never a guess. The negative vector pins it; here the same fact is
     // derived live from the v0.1 fixture to keep the two generations
     // adjacent.
-    let v01_fixture = read_repo_json(
-        "schemas/packages-query/v0.1/examples/packages-list-installed.result.json",
-    );
+    let v01_fixture =
+        read_repo_json("schemas/packages-query/v0.1/examples/packages-list-installed.result.json");
     let validator = result_validator();
     assert!(
         !validator.is_valid(&v01_fixture),

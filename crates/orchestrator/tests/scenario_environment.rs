@@ -184,7 +184,10 @@ fn play_setups_v02_enforces_exact_combinations_engines_and_step_ids() {
             .collect::<Vec<_>>(),
         vec!["steam", "steam-sign-in", "platform", "launch"]
     );
-    assert_eq!(desktop["sopVersions"]["connection"], serde_json::Value::Null);
+    assert_eq!(
+        desktop["sopVersions"]["connection"],
+        serde_json::Value::Null
+    );
 
     let pico = scenario_sop_v02(&PlaySetupSelection {
         platform: PlayPlatformId::Vrchat,

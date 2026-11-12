@@ -57,11 +57,17 @@ pub struct EvidenceSourceRef {
 
 impl EvidenceSourceRef {
     pub fn from_local_resolution(id: impl Into<String>) -> Self {
-        Self { local_resolution_id: Some(id.into()), task_correlation: None }
+        Self {
+            local_resolution_id: Some(id.into()),
+            task_correlation: None,
+        }
     }
 
     pub fn from_task_correlation(id: impl Into<String>) -> Self {
-        Self { local_resolution_id: None, task_correlation: Some(id.into()) }
+        Self {
+            local_resolution_id: None,
+            task_correlation: Some(id.into()),
+        }
     }
 }
 
@@ -177,9 +183,11 @@ impl EvidenceStore {
     pub fn read(&self, evidence_id: &str) -> io::Result<Option<ProductionEvidenceV01>> {
         let path = self.path_for(evidence_id)?;
         match fs::read(&path) {
-            Ok(bytes) => Ok(Some(serde_json::from_slice(&bytes).map_err(|error| {
-                io::Error::new(io::ErrorKind::InvalidData, error)
-            })?)),
+            Ok(bytes) => {
+                Ok(Some(serde_json::from_slice(&bytes).map_err(|error| {
+                    io::Error::new(io::ErrorKind::InvalidData, error)
+                })?))
+            }
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(error) => Err(error),
         }
@@ -215,16 +223,11 @@ impl EvidenceStore {
     /// `sourceRef.localResolutionId` back-reference). The Build Record
     /// evidence summary consumes this at execution time — the resolve Done
     /// payload is long gone by then, while the evidence facts persist.
-    pub fn list_by_local_resolution(
-        &self,
-        local_resolution_id: &str,
-    ) -> io::Result<Vec<String>> {
+    pub fn list_by_local_resolution(&self, local_resolution_id: &str) -> io::Result<Vec<String>> {
         let mut ids = Vec::new();
         for id in self.list_ids()? {
             if let Some(document) = self.read(&id)? {
-                if document.source_ref.local_resolution_id.as_deref()
-                    == Some(local_resolution_id)
-                {
+                if document.source_ref.local_resolution_id.as_deref() == Some(local_resolution_id) {
                     ids.push(id);
                 }
             }
@@ -257,7 +260,8 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("vua-evidence-{tag}-{}-{nanos}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("vua-evidence-{tag}-{}-{nanos}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -290,13 +294,19 @@ mod tests {
         let read = store.read(&evidence.evidence_id).unwrap().unwrap();
         assert_eq!(read, evidence);
         assert_eq!(read.resolution, None, "unresolved serializes as null");
-        assert_eq!(read.source_ref.local_resolution_id.as_deref(), Some("0198a7b3-9f8e-7d6c-5b4a-321098765432"));
+        assert_eq!(
+            read.source_ref.local_resolution_id.as_deref(),
+            Some("0198a7b3-9f8e-7d6c-5b4a-321098765432")
+        );
     }
 
     #[test]
     fn read_of_absent_evidence_is_none_and_invalid_ids_are_typed() {
         let store = EvidenceStore::new(unique_root("absent"));
-        assert_eq!(store.read("0198a7b3-1c2d-7e4f-8a5b-3c2d1e0f9a8b").unwrap(), None);
+        assert_eq!(
+            store.read("0198a7b3-1c2d-7e4f-8a5b-3c2d1e0f9a8b").unwrap(),
+            None
+        );
         assert!(store.path_for("../escape").is_err());
         assert!(store.path_for("").is_err());
     }
@@ -326,9 +336,8 @@ mod tests {
         let mut mine = sample("0198a7b3-1c2d-7e4f-8a5b-3c2d1e0f9a8d");
         mine.source_ref = EvidenceSourceRef::from_local_resolution(resolution);
         let mut other = sample("0198a7b3-1c2d-7e4f-8a5b-3c2d1e0f9a8e");
-        other.source_ref = EvidenceSourceRef::from_local_resolution(
-            "0198a7b3-0000-7d6c-5b4a-321098765432",
-        );
+        other.source_ref =
+            EvidenceSourceRef::from_local_resolution("0198a7b3-0000-7d6c-5b4a-321098765432");
         let mut task_born = sample("0198a7b3-1c2d-7e4f-8a5b-3c2d1e0f9a8f");
         task_born.source_ref = EvidenceSourceRef::from_task_correlation("corr-1");
         for evidence in [mine, other, task_born] {

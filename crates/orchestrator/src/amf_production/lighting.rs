@@ -145,11 +145,23 @@ fn property_tokens(bytes: &[u8], property: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     for raw in bytes.split(|byte| *byte == b'\n') {
         let content = raw.strip_suffix(b"\r").unwrap_or(raw);
-        let start = content.iter().take_while(|byte| **byte == b' ' || **byte == b'\t').count();
-        let Some(rest) = content[start..].strip_prefix(needle.as_bytes()) else { continue };
-        let token_start = rest.iter().take_while(|byte| **byte == b' ' || **byte == b'\t').count();
+        let start = content
+            .iter()
+            .take_while(|byte| **byte == b' ' || **byte == b'\t')
+            .count();
+        let Some(rest) = content[start..].strip_prefix(needle.as_bytes()) else {
+            continue;
+        };
+        let token_start = rest
+            .iter()
+            .take_while(|byte| **byte == b' ' || **byte == b'\t')
+            .count();
         let token = &rest[token_start..];
-        let end = token.iter().rev().take_while(|byte| **byte == b' ' || **byte == b'\t').count();
+        let end = token
+            .iter()
+            .rev()
+            .take_while(|byte| **byte == b' ' || **byte == b'\t')
+            .count();
         tokens.push(String::from_utf8_lossy(&token[..token.len() - end]).into_owned());
     }
     tokens
@@ -174,8 +186,14 @@ pub fn parse_material_limits(bytes: &[u8]) -> MaterialLimits {
 /// A material's effective limits: its serialized lines, or lilToon's defaults where absent.
 fn effective_limits(limits: &MaterialLimits) -> LightingLimits {
     LightingLimits {
-        min: limits.min.clone().unwrap_or_else(|| DEFAULT_LIGHT_MIN.into()),
-        max: limits.max.clone().unwrap_or_else(|| DEFAULT_LIGHT_MAX.into()),
+        min: limits
+            .min
+            .clone()
+            .unwrap_or_else(|| DEFAULT_LIGHT_MIN.into()),
+        max: limits
+            .max
+            .clone()
+            .unwrap_or_else(|| DEFAULT_LIGHT_MAX.into()),
     }
 }
 
@@ -192,11 +210,20 @@ pub fn compute_lighting_plan(
     let mut avatar_limits: BTreeMap<&str, LightingLimits> = BTreeMap::new();
     let mut outfit_owner: BTreeMap<&str, &str> = BTreeMap::new();
     for use_ in uses {
-        let Some(limits) = materials.get(use_.material.as_str()).filter(|limits| limits.liltoon) else { continue };
+        let Some(limits) = materials
+            .get(use_.material.as_str())
+            .filter(|limits| limits.liltoon)
+        else {
+            continue;
+        };
         if use_.owner == "avatar" {
-            avatar_limits.entry(use_.material.as_str()).or_insert_with(|| effective_limits(limits));
+            avatar_limits
+                .entry(use_.material.as_str())
+                .or_insert_with(|| effective_limits(limits));
         } else {
-            outfit_owner.entry(use_.material.as_str()).or_insert(use_.owner.as_str());
+            outfit_owner
+                .entry(use_.material.as_str())
+                .or_insert(use_.owner.as_str());
         }
     }
     let shared: BTreeSet<&str> = avatar_limits
@@ -206,11 +233,16 @@ pub fn compute_lighting_plan(
         .collect();
     let body: BTreeSet<&LightingLimits> = uses
         .iter()
-        .filter(|use_| use_.owner == "avatar" && renderer_name(&use_.renderer).eq_ignore_ascii_case("body"))
+        .filter(|use_| {
+            use_.owner == "avatar" && renderer_name(&use_.renderer).eq_ignore_ascii_case("body")
+        })
         .filter_map(|use_| avatar_limits.get(use_.material.as_str()))
         .collect();
     let (reference, reference_reason) = if body.len() == 1 {
-        (Some((*body.iter().next().expect("one Body pair")).clone()), None)
+        (
+            Some((*body.iter().next().expect("one Body pair")).clone()),
+            None,
+        )
     } else if body.len() > 1 {
         (None, Some("tie"))
     } else if avatar_limits.is_empty() {
@@ -230,15 +262,30 @@ pub fn compute_lighting_plan(
             _ => (None, Some("tie")),
         }
     };
-    let mut plan = LightingPlanData { reference, reference_reason, ..Default::default() };
+    let mut plan = LightingPlanData {
+        reference,
+        reference_reason,
+        ..Default::default()
+    };
     for (material, owner) in outfit_owner {
         if shared.contains(material) {
-            plan.skipped.push(LightingSkip { material: material.into(), reason: "shared_with_avatar".into() });
+            plan.skipped.push(LightingSkip {
+                material: material.into(),
+                reason: "shared_with_avatar".into(),
+            });
             continue;
         }
-        let (Some(reference), Some(limits)) = (plan.reference.as_ref(), materials.get(material)) else { continue };
-        let (Some(min), Some(max)) = (limits.min.as_ref(), limits.max.as_ref()) else { continue };
-        let current = LightingLimits { min: min.clone(), max: max.clone() };
+        let (Some(reference), Some(limits)) = (plan.reference.as_ref(), materials.get(material))
+        else {
+            continue;
+        };
+        let (Some(min), Some(max)) = (limits.min.as_ref(), limits.max.as_ref()) else {
+            continue;
+        };
+        let current = LightingLimits {
+            min: min.clone(),
+            max: max.clone(),
+        };
         if !same_value(&current.min, &reference.min) || !same_value(&current.max, &reference.max) {
             plan.entries.push(LightingEntry {
                 material: material.into(),
@@ -258,15 +305,18 @@ pub fn safe_material_path(path: &str) -> bool {
         && path.to_ascii_lowercase().ends_with(".mat")
         && !path.contains(['\\', ':', '<', '>', '"', '|', '?', '*'])
         && !path.chars().any(char::is_control)
-        && path
-            .split('/')
-            .all(|part| !part.is_empty() && part != "." && part != ".." && !part.ends_with(['.', ' ']))
+        && path.split('/').all(|part| {
+            !part.is_empty() && part != "." && part != ".." && !part.ends_with(['.', ' '])
+        })
 }
 
 /// Resolves a reported material path to its file, which stays inside the work project.
 fn material_file(project: &Path, material: &str) -> Result<PathBuf, AppErrorV1> {
-    let root = fs::canonicalize(project).map_err(|e| production_error("project_missing", e.to_string()))?;
-    let file = material.split('/').fold(project.to_path_buf(), |path, part| path.join(part));
+    let root = fs::canonicalize(project)
+        .map_err(|e| production_error("project_missing", e.to_string()))?;
+    let file = material
+        .split('/')
+        .fold(project.to_path_buf(), |path, part| path.join(part));
     let actual = fs::canonicalize(&file)
         .map_err(|e| production_error("material_unreadable", format!("{material}: {e}")))?;
     if !actual.starts_with(&root) {
@@ -281,7 +331,10 @@ fn material_file(project: &Path, material: &str) -> Result<PathBuf, AppErrorV1> 
 /// The run's reported material use, checked against the material path rules. Runs checked before
 /// the Bridge reported material use need a fresh inspection first.
 fn material_use(run: &ProductionRun) -> Result<Vec<MaterialUse>, AppErrorV1> {
-    let Some(value) = run.result["facts"].as_object().and_then(|facts| facts.get("materialUse")) else {
+    let Some(value) = run.result["facts"]
+        .as_object()
+        .and_then(|facts| facts.get("materialUse"))
+    else {
         return Err(production_error(
             "inspect_required",
             "This run's check has no material use facts. Reinspect the work project.",
@@ -295,11 +348,20 @@ fn material_use(run: &ProductionRun) -> Result<Vec<MaterialUse>, AppErrorV1> {
     for item in items {
         let owner = item["owner"].as_str().filter(|owner| !owner.is_empty());
         let renderer = item["renderer"].as_str();
-        let material = item["material"].as_str().filter(|material| safe_material_path(material));
+        let material = item["material"]
+            .as_str()
+            .filter(|material| safe_material_path(material));
         let (Some(owner), Some(renderer), Some(material)) = (owner, renderer, material) else {
-            return Err(production_error("result_invalid", "Material use facts are malformed."));
+            return Err(production_error(
+                "result_invalid",
+                "Material use facts are malformed.",
+            ));
         };
-        uses.push(MaterialUse { owner: owner.into(), renderer: renderer.into(), material: material.into() });
+        uses.push(MaterialUse {
+            owner: owner.into(),
+            renderer: renderer.into(),
+            material: material.into(),
+        });
     }
     Ok(uses)
 }
@@ -314,8 +376,9 @@ fn read_material_limits(
         if materials.contains_key(use_.material.as_str()) {
             continue;
         }
-        let bytes = fs::read(material_file(project, &use_.material)?)
-            .map_err(|e| production_error("material_unreadable", format!("{}: {e}", use_.material)))?;
+        let bytes = fs::read(material_file(project, &use_.material)?).map_err(|e| {
+            production_error("material_unreadable", format!("{}: {e}", use_.material))
+        })?;
         materials.insert(use_.material.clone(), parse_material_limits(&bytes));
     }
     Ok(materials)
@@ -337,10 +400,12 @@ fn lighting_digest(
         "entries": plan.entries,
         "skipped": plan.skipped,
     });
-    Ok(Sha256::digest(serde_json::to_vec(&value).map_err(io_error)?)
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect())
+    Ok(
+        Sha256::digest(serde_json::to_vec(&value).map_err(io_error)?)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect(),
+    )
 }
 
 /// Replaces the value text of one property's single line. Any other current text, a missing
@@ -360,12 +425,20 @@ fn rewrite_property(
             out.push(b'\n');
         }
         let content = raw.strip_suffix(b"\r").unwrap_or(raw);
-        let start = content.iter().take_while(|byte| **byte == b' ' || **byte == b'\t').count();
+        let start = content
+            .iter()
+            .take_while(|byte| **byte == b' ' || **byte == b'\t')
+            .count();
         let Some(rest) = content[start..].strip_prefix(needle.as_bytes()) else {
             out.extend_from_slice(raw);
             continue;
         };
-        let token_start = start + needle.len() + rest.iter().take_while(|byte| **byte == b' ' || **byte == b'\t').count();
+        let token_start = start
+            + needle.len()
+            + rest
+                .iter()
+                .take_while(|byte| **byte == b' ' || **byte == b'\t')
+                .count();
         let mut end = content.len();
         while end > token_start && (content[end - 1] == b' ' || content[end - 1] == b'\t') {
             end -= 1;
@@ -398,21 +471,34 @@ fn rewrite_property(
 fn write_lighting(project: &Path, entries: &[LightingEntry]) -> Result<(), AppErrorV1> {
     for entry in entries {
         let file = material_file(project, &entry.material)?;
-        let bytes = fs::read(&file)
-            .map_err(|e| production_error("material_unreadable", format!("{}: {e}", entry.material)))?;
+        let bytes = fs::read(&file).map_err(|e| {
+            production_error("material_unreadable", format!("{}: {e}", entry.material))
+        })?;
         let mut updated = bytes.clone();
         if !same_value(&entry.current.min, &entry.proposed.min) {
-            updated = rewrite_property(&updated, LIGHT_MIN_LIMIT, &entry.current.min, &entry.proposed.min)?;
+            updated = rewrite_property(
+                &updated,
+                LIGHT_MIN_LIMIT,
+                &entry.current.min,
+                &entry.proposed.min,
+            )?;
         }
         if !same_value(&entry.current.max, &entry.proposed.max) {
-            updated = rewrite_property(&updated, LIGHT_MAX_LIMIT, &entry.current.max, &entry.proposed.max)?;
+            updated = rewrite_property(
+                &updated,
+                LIGHT_MAX_LIMIT,
+                &entry.current.max,
+                &entry.proposed.max,
+            )?;
         }
         if updated != bytes {
             let pending = file.with_extension("pending");
-            fs::write(&pending, &updated)
-                .map_err(|e| production_error("material_unwritable", format!("{}: {e}", entry.material)))?;
-            fs::rename(&pending, &file)
-                .map_err(|e| production_error("material_unwritable", format!("{}: {e}", entry.material)))?;
+            fs::write(&pending, &updated).map_err(|e| {
+                production_error("material_unwritable", format!("{}: {e}", entry.material))
+            })?;
+            fs::rename(&pending, &file).map_err(|e| {
+                production_error("material_unwritable", format!("{}: {e}", entry.material))
+            })?;
         }
     }
     Ok(())
@@ -421,15 +507,25 @@ fn write_lighting(project: &Path, entries: &[LightingEntry]) -> Result<(), AppEr
 /// After the recheck, each written material must hold the reviewed values on disk.
 fn verify_lighting(project: &Path, entries: &[LightingEntry]) -> Result<(), AppErrorV1> {
     for entry in entries {
-        let bytes = fs::read(material_file(project, &entry.material)?)
-            .map_err(|e| production_error("material_unreadable", format!("{}: {e}", entry.material)))?;
+        let bytes = fs::read(material_file(project, &entry.material)?).map_err(|e| {
+            production_error("material_unreadable", format!("{}: {e}", entry.material))
+        })?;
         let limits = parse_material_limits(&bytes);
-        let holds = limits.min.as_deref().is_some_and(|min| same_value(min, &entry.proposed.min))
-            && limits.max.as_deref().is_some_and(|max| same_value(max, &entry.proposed.max));
+        let holds = limits
+            .min
+            .as_deref()
+            .is_some_and(|min| same_value(min, &entry.proposed.min))
+            && limits
+                .max
+                .as_deref()
+                .is_some_and(|max| same_value(max, &entry.proposed.max));
         if !holds {
             return Err(production_error(
                 "lighting_unverified",
-                format!("{} does not hold the reviewed lighting limits.", entry.material),
+                format!(
+                    "{} does not hold the reviewed lighting limits.",
+                    entry.material
+                ),
             ));
         }
     }
@@ -452,8 +548,12 @@ pub(crate) fn current_lighting(run: &ProductionRun) -> Vec<MaterialLighting> {
         if !seen.insert(use_.material.as_str()) {
             continue;
         }
-        let Some(limits) = materials.get(use_.material.as_str()) else { continue };
-        let (Some(min), Some(max)) = (limits.min.as_ref(), limits.max.as_ref()) else { continue };
+        let Some(limits) = materials.get(use_.material.as_str()) else {
+            continue;
+        };
+        let (Some(min), Some(max)) = (limits.min.as_ref(), limits.max.as_ref()) else {
+            continue;
+        };
         if limits.liltoon {
             recorded.push(MaterialLighting {
                 material: use_.material.clone(),
@@ -524,8 +624,9 @@ impl AmfProductionEngine {
                     format!("A recorded lighting value is malformed: {}", value.material),
                 ));
             }
-            let bytes = fs::read(material_file(&project, &value.material)?)
-                .map_err(|e| production_error("material_unreadable", format!("{}: {e}", value.material)))?;
+            let bytes = fs::read(material_file(&project, &value.material)?).map_err(|e| {
+                production_error("material_unreadable", format!("{}: {e}", value.material))
+            })?;
             let limits = parse_material_limits(&bytes);
             let (Some(min), Some(max)) = (limits.min, limits.max) else {
                 return Err(production_error(
@@ -537,7 +638,10 @@ impl AmfProductionEngine {
                 material: value.material.clone(),
                 source_id: String::new(),
                 current: LightingLimits { min, max },
-                proposed: LightingLimits { min: value.min.clone(), max: value.max.clone() },
+                proposed: LightingLimits {
+                    min: value.min.clone(),
+                    max: value.max.clone(),
+                },
             });
         }
         write_lighting(&project, &entries)?;
@@ -573,9 +677,16 @@ impl AmfProductionEngine {
         let mut named = BTreeSet::new();
         for material in materials {
             if !named.insert(material) {
-                return Err(production_error("materials_invalid", "Name each material once."));
+                return Err(production_error(
+                    "materials_invalid",
+                    "Name each material once.",
+                ));
             }
-            let Some(entry) = plan.entries.iter().find(|entry| entry.material == *material) else {
+            let Some(entry) = plan
+                .entries
+                .iter()
+                .find(|entry| entry.material == *material)
+            else {
                 return Err(production_error(
                     "materials_invalid",
                     format!("{material} is not a reviewed lighting entry."),
@@ -584,7 +695,10 @@ impl AmfProductionEngine {
             chosen.push(entry.clone());
         }
         if chosen.is_empty() {
-            return Err(production_error("materials_invalid", "Choose at least one reviewed material."));
+            return Err(production_error(
+                "materials_invalid",
+                "Choose at least one reviewed material.",
+            ));
         }
         self.ensure_project_matches(&mut run)?;
         let phase = run.phase.clone();
@@ -594,7 +708,12 @@ impl AmfProductionEngine {
         run.recovery = None;
         let mut snapshot = None;
         // The recheck replaces the observed facts; a restore brings these back with the files.
-        let observed_before = (run.prefabs.clone(), run.result.clone(), run.unity_fingerprint.clone(), run.project_fingerprint.clone());
+        let observed_before = (
+            run.prefabs.clone(),
+            run.result.clone(),
+            run.unity_fingerprint.clone(),
+            run.project_fingerprint.clone(),
+        );
         let mut revision_id = None;
         let result = (|| {
             self.step(&mut run, ctx, "snapshot", "Protect the work project")?;
@@ -609,7 +728,12 @@ impl AmfProductionEngine {
             if let Some(error) = ctx.cancellation_error("amf-production") {
                 return Err(error);
             }
-            self.step(&mut run, ctx, "inspect", "Recheck the work project in Unity")?;
+            self.step(
+                &mut run,
+                ctx,
+                "inspect",
+                "Recheck the work project in Unity",
+            )?;
             self.update_observations(&mut run, ctx)?;
             if let Some(error) = ctx.cancellation_error("amf-production") {
                 return Err(error);
@@ -623,7 +747,12 @@ impl AmfProductionEngine {
             if let Some(snapshot) = snapshot {
                 run.recovery = Some(match self.platform.restore(&run, &snapshot) {
                     Ok(()) => {
-                        (run.prefabs, run.result, run.unity_fingerprint, run.project_fingerprint) = observed_before;
+                        (
+                            run.prefabs,
+                            run.result,
+                            run.unity_fingerprint,
+                            run.project_fingerprint,
+                        ) = observed_before;
                         "restored".into()
                     }
                     Err(error) => format!("restore_failed: {}", error.code),
@@ -631,7 +760,8 @@ impl AmfProductionEngine {
             }
             // A change whose automatic restore brought the project back leaves no state
             // behind worth a version record.
-            if !matches!(run.recovery.as_deref(), Some(recovery) if recovery.starts_with("restore_failed")) {
+            if !matches!(run.recovery.as_deref(), Some(recovery) if recovery.starts_with("restore_failed"))
+            {
                 if let Some(id) = &revision_id {
                     run.revisions.retain(|revision| revision.id != *id);
                 }
@@ -653,14 +783,18 @@ mod tests {
 
     #[test]
     fn parse_reads_the_two_limit_lines_once_each() {
-        let limits = parse_material_limits(&mat("    - _LightMaxLimit: 1\n    - _LightMinLimit: 0.05\n    - _lilToonVersion: 44\n"));
+        let limits = parse_material_limits(&mat(
+            "    - _LightMaxLimit: 1\n    - _LightMinLimit: 0.05\n    - _lilToonVersion: 44\n",
+        ));
         assert!(limits.liltoon);
         assert_eq!(limits.min.as_deref(), Some("0.05"));
         assert_eq!(limits.max.as_deref(), Some("1"));
         // A property written zero or two times carries no readable value.
         let missing = parse_material_limits(&mat("    - _lilToonVersion: 44\n"));
         assert_eq!((missing.min, missing.max), (None, None));
-        let doubled = parse_material_limits(&mat("    - _LightMinLimit: 0.05\n    - _LightMinLimit: 0.1\n    - _lilToonVersion: 44\n"));
+        let doubled = parse_material_limits(&mat(
+            "    - _LightMinLimit: 0.05\n    - _LightMinLimit: 0.1\n    - _lilToonVersion: 44\n",
+        ));
         assert_eq!(doubled.min, None);
         // The marker decides; a Standard material has no lilToon reading.
         assert!(!parse_material_limits(&mat("    - _Glossiness: 0.5\n")).liltoon);
@@ -672,15 +806,31 @@ mod tests {
         let rewritten = rewrite_property(&original, LIGHT_MIN_LIMIT, "0.05", "0.1").unwrap();
         assert_eq!(
             String::from_utf8(rewritten).unwrap(),
-            String::from_utf8(original.clone()).unwrap().replace("    - _LightMinLimit: 0.05\r\n", "    - _LightMinLimit: 0.1\r\n"),
+            String::from_utf8(original.clone()).unwrap().replace(
+                "    - _LightMinLimit: 0.05\r\n",
+                "    - _LightMinLimit: 0.1\r\n"
+            ),
             "the CRLF line keeps its ending and indentation"
         );
         // The last line may carry no terminator.
         let tail = b"    - _LightMinLimit: 0.05";
-        assert_eq!(rewrite_property(tail, LIGHT_MIN_LIMIT, "0.05", "1").unwrap(), b"    - _LightMinLimit: 1");
+        assert_eq!(
+            rewrite_property(tail, LIGHT_MIN_LIMIT, "0.05", "1").unwrap(),
+            b"    - _LightMinLimit: 1"
+        );
         // A different current value, a missing line and a repeated line all refuse.
-        assert_eq!(rewrite_property(&original, LIGHT_MIN_LIMIT, "0.2", "0.1").unwrap_err().code, "vua.amf_production.material_changed");
-        assert_eq!(rewrite_property(b"Material:\n", LIGHT_MIN_LIMIT, "0.05", "0.1").unwrap_err().code, "vua.amf_production.material_invalid");
+        assert_eq!(
+            rewrite_property(&original, LIGHT_MIN_LIMIT, "0.2", "0.1")
+                .unwrap_err()
+                .code,
+            "vua.amf_production.material_changed"
+        );
+        assert_eq!(
+            rewrite_property(b"Material:\n", LIGHT_MIN_LIMIT, "0.05", "0.1")
+                .unwrap_err()
+                .code,
+            "vua.amf_production.material_invalid"
+        );
         let doubled = mat("    - _LightMinLimit: 0.05\n    - _LightMinLimit: 0.05\n");
         assert!(rewrite_property(&doubled, LIGHT_MIN_LIMIT, "0.05", "0.1").is_err());
     }

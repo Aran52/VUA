@@ -47,8 +47,13 @@ pub const HANDSHAKE_POLL_INTERVAL: Duration = Duration::from_millis(500);
 #[derive(Debug)]
 pub enum HandoffError {
     Io(std::io::Error),
-    LaunchFailed { exe: PathBuf, source: std::io::Error },
-    HandshakeTimeout { budget: Duration },
+    LaunchFailed {
+        exe: PathBuf,
+        source: std::io::Error,
+    },
+    HandshakeTimeout {
+        budget: Duration,
+    },
 }
 
 impl std::fmt::Display for HandoffError {
@@ -133,7 +138,11 @@ pub trait WindowFocus: Send + Sync {
 /// use case (dependency direction: core use case -> domain port -> adapter).
 pub trait EditorHandoffPort: Send + Sync {
     fn probe(&self, project_root: &Path) -> Result<EditorOpenState, HandoffError>;
-    fn launch(&self, editor_exe: &Path, project_root: &Path) -> Result<EditorLaunched, HandoffError>;
+    fn launch(
+        &self,
+        editor_exe: &Path,
+        project_root: &Path,
+    ) -> Result<EditorLaunched, HandoffError>;
     fn await_handshake(
         &self,
         project_root: &Path,
@@ -146,7 +155,10 @@ pub trait EditorHandoffPort: Send + Sync {
 /// root — the same bridge directory family as the batchmode request/result
 /// files, and the location itself binds the trail to this project.
 pub fn handshake_path(project_root: &Path) -> PathBuf {
-    project_root.join(".vua").join("bridge").join("handshake.json")
+    project_root
+        .join(".vua")
+        .join("bridge")
+        .join("handshake.json")
 }
 
 pub struct DefaultEditorHandoff {
@@ -172,14 +184,22 @@ impl DefaultEditorHandoff {
         liveness: Arc<dyn ProcessLiveness>,
         focus: Arc<dyn WindowFocus>,
     ) -> Self {
-        Self { spawner, wait, liveness, focus }
+        Self {
+            spawner,
+            wait,
+            liveness,
+            focus,
+        }
     }
 
     /// Reads and validates the handshake trail. Missing file, malformed
     /// payload, unknown schema version or a dead pid are all reported as
     /// "no valid trail" (`None`) — the launch path is safe to take in all
     /// those cases, and the honest absence beats a guessed state.
-    fn read_valid_trail(&self, project_root: &Path) -> Result<Option<EditorHandshake>, HandoffError> {
+    fn read_valid_trail(
+        &self,
+        project_root: &Path,
+    ) -> Result<Option<EditorHandshake>, HandoffError> {
         let bytes = match std::fs::read(handshake_path(project_root)) {
             Ok(bytes) => bytes,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -213,17 +233,24 @@ impl EditorHandoffPort for DefaultEditorHandoff {
         })
     }
 
-    fn launch(&self, editor_exe: &Path, project_root: &Path) -> Result<EditorLaunched, HandoffError> {
+    fn launch(
+        &self,
+        editor_exe: &Path,
+        project_root: &Path,
+    ) -> Result<EditorLaunched, HandoffError> {
         // Windowed launch (no -batchmode/-quit): the handoff delivers the
         // user to the official SDK flow inside a real editor session.
         let args = vec![
             "-projectPath".to_string(),
             project_root.to_string_lossy().into_owned(),
         ];
-        let pid = self
-            .spawner
-            .spawn(editor_exe, &args)
-            .map_err(|source| HandoffError::LaunchFailed { exe: editor_exe.to_path_buf(), source })?;
+        let pid =
+            self.spawner
+                .spawn(editor_exe, &args)
+                .map_err(|source| HandoffError::LaunchFailed {
+                    exe: editor_exe.to_path_buf(),
+                    source,
+                })?;
         Ok(EditorLaunched { pid })
     }
 
@@ -355,14 +382,18 @@ impl WindowFocus for OsWindowFocus {
             EnumWindows(Some(enum_proc), &mut context as *mut Context as LPARAM);
         }
         let Some(window) = context.window else {
-            return FocusOutcome::Unavailable { reason: "editor_window_not_found" };
+            return FocusOutcome::Unavailable {
+                reason: "editor_window_not_found",
+            };
         };
         unsafe {
             if IsIconic(window) != 0 {
                 ShowWindow(window, SW_RESTORE);
             }
             if SetForegroundWindow(window) == 0 {
-                return FocusOutcome::Unavailable { reason: "os_denied_foreground" };
+                return FocusOutcome::Unavailable {
+                    reason: "os_denied_foreground",
+                };
             }
         }
         FocusOutcome::Focused
@@ -372,6 +403,8 @@ impl WindowFocus for OsWindowFocus {
 #[cfg(not(windows))]
 impl WindowFocus for OsWindowFocus {
     fn focus(&self, _pid: u32) -> FocusOutcome {
-        FocusOutcome::Unavailable { reason: "os_window_focus_unavailable_on_this_platform" }
+        FocusOutcome::Unavailable {
+            reason: "os_window_focus_unavailable_on_this_platform",
+        }
     }
 }

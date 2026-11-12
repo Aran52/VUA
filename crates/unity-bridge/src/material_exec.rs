@@ -22,31 +22,31 @@
 //! (timeout budget, real rejection payloads, rollback equivalence) is the
 //! separate local matrix per the M3 gate.
 
+use crate::material_identity::LocalPackageIdentityStore;
+use crate::material_intake::{
+    error_codes as intake_codes, MaterialIntakeConfirmationV01, MaterialIntakeEngine,
+    MaterialIntakeStepKind,
+};
+use crate::material_staging::StagingProject;
+use serde::Serialize;
+use sha2::{Digest, Sha256};
+use std::fs;
+use std::io::Read as _;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use vua_orchestrator::Clock;
+use vua_orchestrator::MaterialEntryMode;
+use vua_orchestrator::UnityBridge;
 use vua_orchestrator::{
     BridgeJobEvidenceV01, BuildRecordStatus, BuildRecordStore, BuildRecordV01,
     BuildSnapshotEvidenceV01, BuildValidationEvidenceV01,
 };
 use vua_orchestrator::{FileSystemSnapshotStore, VerifiedSnapshot};
-use crate::material_intake::{
-    error_codes as intake_codes, MaterialIntakeConfirmationV01, MaterialIntakeEngine,
-    MaterialIntakeStepKind,
-};
-use vua_orchestrator::MaterialEntryMode;
-use crate::material_identity::LocalPackageIdentityStore;
-use crate::material_staging::StagingProject;
+use vua_orchestrator::{PackageRequestV1, VpmBackend};
 use vua_orchestrator::{
     ProjectRef, ResultStatus, UnityCommand, UnityOperation, UnityPayload, UnityResult,
 };
-use vua_orchestrator::Clock;
-use vua_orchestrator::{PackageRequestV1, VpmBackend};
-use vua_orchestrator::UnityBridge;
-use serde::Serialize;
-use sha2::{Digest, Sha256};
-use std::io::Read as _;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 pub mod error_codes {
     pub const BRIDGE_FAILED: &str = "vua.material.bridge_failed";
@@ -307,7 +307,11 @@ impl MaterialExecutor {
         // 永久卡死。修复：attempt > 1 时给命令 id 注入运行盐（首 attempt
         // 的 id 逐字节保持既有形态，既有行为零变化）；schema 对 commandId
         // 仅约束非空，C# 侧语法 `^[A-Za-z0-9_-]{1,128}$` 同样容纳。
-        let run_tag = if attempt > 1 { format!("-r{attempt}") } else { String::new() };
+        let run_tag = if attempt > 1 {
+            format!("-r{attempt}")
+        } else {
+            String::new()
+        };
         let mut bridge_jobs: Vec<BridgeJobEvidenceV01> = Vec::new();
         let started_at = self.clock.now_rfc3339();
 
@@ -318,14 +322,18 @@ impl MaterialExecutor {
         }
 
         // VerifySource: recompute both digests before the first mutation.
-        if let Err(error) = MaterialIntakeEngine
-            .verify_source_unchanged(source_folder, &plan.source, &confirmation.correlation_id)
-        {
+        if let Err(error) = MaterialIntakeEngine.verify_source_unchanged(
+            source_folder,
+            &plan.source,
+            &confirmation.correlation_id,
+        ) {
             report.status = MaterialExecutionStatus::Failed;
             report.error_code = Some(error.code);
             return report;
         }
-        report.completed_steps.push(MaterialIntakeStepKind::VerifySource);
+        report
+            .completed_steps
+            .push(MaterialIntakeStepKind::VerifySource);
 
         if token.is_cancelled() {
             report.status = MaterialExecutionStatus::Cancelled;
@@ -356,7 +364,9 @@ impl MaterialExecutor {
             restore_attempted: false,
             restore_succeeded: None,
         };
-        report.completed_steps.push(MaterialIntakeStepKind::CreateSnapshot);
+        report
+            .completed_steps
+            .push(MaterialIntakeStepKind::CreateSnapshot);
 
         // Mutating body plus read-only validation. The Bridge fingerprint
         // CHAINS across mutating commands: every success returns the
@@ -374,75 +384,78 @@ impl MaterialExecutor {
         // executor re-checks the condition (the assembly run-step law): if
         // the project appeared between plan review and execution, creation
         // skips and the plan-time fingerprint chain continues unchanged.
-        let failure: Option<StepFailure> =
-            if plan
-                .steps
-                .iter()
-                .any(|step| step.kind == MaterialIntakeStepKind::ProvisionProject)
-            {
-                match self.run_provision(
-                    plan,
-                    project,
-                    token,
-                    &mut current_fingerprint,
-                    &mut bridge_jobs,
-                ) {
-                    Ok(()) => {
-                        report.completed_steps.push(MaterialIntakeStepKind::ProvisionProject);
-                        None
-                    }
-                    Err(failure) => Some(failure),
+        let failure: Option<StepFailure> = if plan
+            .steps
+            .iter()
+            .any(|step| step.kind == MaterialIntakeStepKind::ProvisionProject)
+        {
+            match self.run_provision(
+                plan,
+                project,
+                token,
+                &mut current_fingerprint,
+                &mut bridge_jobs,
+            ) {
+                Ok(()) => {
+                    report
+                        .completed_steps
+                        .push(MaterialIntakeStepKind::ProvisionProject);
+                    None
                 }
-            } else {
-                None
-            };
+                Err(failure) => Some(failure),
+            }
+        } else {
+            None
+        };
 
         let failure = if failure.is_some() {
             failure
         } else {
             match plan.mode {
-            MaterialEntryMode::DirectUnityPackage => {
-                match self.run_direct_imports(
-                    plan,
-                    source_folder,
-                    project,
-                    token,
-                    &run_tag,
-                    &mut current_fingerprint,
-                    &mut bridge_jobs,
-                    &mut final_fingerprint,
-                    &mut validation_expectations,
-                ) {
-                    Ok(()) => {
-                        report.completed_steps.push(MaterialIntakeStepKind::ImportUnityPackages);
-                        None
+                MaterialEntryMode::DirectUnityPackage => {
+                    match self.run_direct_imports(
+                        plan,
+                        source_folder,
+                        project,
+                        token,
+                        &run_tag,
+                        &mut current_fingerprint,
+                        &mut bridge_jobs,
+                        &mut final_fingerprint,
+                        &mut validation_expectations,
+                    ) {
+                        Ok(()) => {
+                            report
+                                .completed_steps
+                                .push(MaterialIntakeStepKind::ImportUnityPackages);
+                            None
+                        }
+                        Err(failure) => Some(failure),
                     }
-                    Err(failure) => Some(failure),
                 }
-            }
-            MaterialEntryMode::LocalReusableVpm => {
-                match self.run_local_reusable(
-                    confirmation,
-                    source_folder,
-                    project,
-                    artifact_output_root,
-                    token,
-                    &mut bridge_jobs,
-                    &mut local_vpm,
-                    &mut validation_expectations,
-                ) {
-                    Ok(()) => {
-                        report.completed_steps.extend([
-                            MaterialIntakeStepKind::ImportUnityPackages,
-                            MaterialIntakeStepKind::CreateLocalVpmPackage,
-                            MaterialIntakeStepKind::PreviewVpmInstall,
-                            MaterialIntakeStepKind::ApplyVpmInstall,
-                        ]);
-                        None
+                MaterialEntryMode::LocalReusableVpm => {
+                    match self.run_local_reusable(
+                        confirmation,
+                        source_folder,
+                        project,
+                        artifact_output_root,
+                        token,
+                        &mut bridge_jobs,
+                        &mut local_vpm,
+                        &mut validation_expectations,
+                    ) {
+                        Ok(()) => {
+                            report.completed_steps.extend([
+                                MaterialIntakeStepKind::ImportUnityPackages,
+                                MaterialIntakeStepKind::CreateLocalVpmPackage,
+                                MaterialIntakeStepKind::PreviewVpmInstall,
+                                MaterialIntakeStepKind::ApplyVpmInstall,
+                            ]);
+                            None
+                        }
+                        Err(failure) => Some(failure),
                     }
-                    Err(failure) => Some(failure),
                 }
-            }
             }
         };
 
@@ -450,7 +463,10 @@ impl MaterialExecutor {
             Some(failure) => Some(failure),
             None => {
                 if token.is_cancelled() {
-                    Some((intake_codes::CANCELLED.to_owned(), MaterialExecutionStatus::Cancelled))
+                    Some((
+                        intake_codes::CANCELLED.to_owned(),
+                        MaterialExecutionStatus::Cancelled,
+                    ))
                 } else {
                     match self.run_minimum_structure_validation(
                         project,
@@ -478,7 +494,10 @@ impl MaterialExecutor {
             None => None,
             Some((code, run_status)) => {
                 snapshot_evidence.restore_attempted = true;
-                match self.snapshots.restore_verified(project, &verified.reference) {
+                match self
+                    .snapshots
+                    .restore_verified(project, &verified.reference)
+                {
                     Ok(()) => {
                         snapshot_evidence.restore_succeeded = Some(true);
                         report.rollback = RollbackOutcome::Restored;
@@ -543,7 +562,9 @@ impl MaterialExecutor {
         };
         match self.records.publish(&record) {
             Ok(_) => {
-                report.completed_steps.push(MaterialIntakeStepKind::WriteBuildRecord);
+                report
+                    .completed_steps
+                    .push(MaterialIntakeStepKind::WriteBuildRecord);
                 report.build_record_id = Some(record_id);
             }
             Err(error) => {
@@ -607,7 +628,10 @@ impl MaterialExecutor {
         }
         let parent = project.root.parent().ok_or_else(|| {
             (
-                format!("{}: target has no parent directory", error_codes::PROVISION_FAILED),
+                format!(
+                    "{}: target has no parent directory",
+                    error_codes::PROVISION_FAILED
+                ),
                 MaterialExecutionStatus::Failed,
             )
         })?;
@@ -625,7 +649,10 @@ impl MaterialExecutor {
         self.vpm
             .create_project(parent, &name, None)
             .map_err(|error| {
-                let detail = error.params.as_ref().and_then(|params| params.get("reason").cloned());
+                let detail = error
+                    .params
+                    .as_ref()
+                    .and_then(|params| params.get("reason").cloned());
                 (
                     format!(
                         "{}: {}{}",
@@ -633,8 +660,7 @@ impl MaterialExecutor {
                         error.code,
                         detail
                             .map(|value| match value {
-                                vua_orchestrator::ParamValue::Text(reason) =>
-                                    format!(": {reason}"),
+                                vua_orchestrator::ParamValue::Text(reason) => format!(": {reason}"),
                                 other => format!(": {other:?}"),
                             })
                             .unwrap_or_default()
@@ -654,7 +680,10 @@ impl MaterialExecutor {
         // half-provisioned content into the `.vua/recovery` quarantine, and
         // the Cancelled receipt publishes like any other exit.
         if token.is_cancelled() {
-            return Err((intake_codes::CANCELLED.to_owned(), MaterialExecutionStatus::Cancelled));
+            return Err((
+                intake_codes::CANCELLED.to_owned(),
+                MaterialExecutionStatus::Cancelled,
+            ));
         }
         // Resolve the declared SDK dependencies (batch 146): the network
         // segment is inherent to the face, and a backend without the face
@@ -724,7 +753,10 @@ impl MaterialExecutor {
         for package in &plan.source.packages {
             if token.is_cancelled() {
                 cleanup_import_extractions(&mut extracted_roots);
-                return Err((intake_codes::CANCELLED.to_owned(), MaterialExecutionStatus::Cancelled));
+                return Err((
+                    intake_codes::CANCELLED.to_owned(),
+                    MaterialExecutionStatus::Cancelled,
+                ));
             }
             let command_id = format!("{}{}-import-{}", plan.plan_id, run_tag, bridge_jobs.len());
             // Unity's ImportPackage is a silent no-op in batchmode, so the
@@ -745,7 +777,10 @@ impl MaterialExecutor {
             };
             if archive_digest != package.sha256 {
                 cleanup_import_extractions(&mut extracted_roots);
-                return Err((intake_codes::SOURCE_DRIFT.to_owned(), MaterialExecutionStatus::Failed));
+                return Err((
+                    intake_codes::SOURCE_DRIFT.to_owned(),
+                    MaterialExecutionStatus::Failed,
+                ));
             }
             let extracted_root = project.root.join(".vua/imports").join(&command_id);
             let logical_paths = match extract_package_into_dir(&archive_path, &extracted_root) {
@@ -818,7 +853,7 @@ impl MaterialExecutor {
                             error_codes::BRIDGE_FAILED
                         ),
                         MaterialExecutionStatus::Failed,
-                    ))
+                    ));
                 }
             }
             *final_fingerprint = Some(current_fingerprint.clone());
@@ -863,7 +898,10 @@ impl MaterialExecutor {
             ),
         }
         .map_err(|error| {
-            (format!("{}: {error}", error_codes::STAGING_FAILED), MaterialExecutionStatus::Failed)
+            (
+                format!("{}: {error}", error_codes::STAGING_FAILED),
+                MaterialExecutionStatus::Failed,
+            )
         })?;
         let staging_project = ProjectRef {
             id: format!("{}-staging", plan.project_id),
@@ -884,16 +922,25 @@ impl MaterialExecutor {
 
         // The fresh staging project needs its own fingerprint for its first
         // mutating command.
-        let inspect =
-            self.inspect(&staging_project, &format!("{}-stage-inspect", plan.plan_id), bridge_jobs)?;
+        let inspect = self.inspect(
+            &staging_project,
+            &format!("{}-stage-inspect", plan.plan_id),
+            bridge_jobs,
+        )?;
         let mut staging_fingerprint = fingerprint_of(&inspect).ok_or_else(|| {
-            (error_codes::BRIDGE_FAILED.to_owned(), MaterialExecutionStatus::Failed)
+            (
+                error_codes::BRIDGE_FAILED.to_owned(),
+                MaterialExecutionStatus::Failed,
+            )
         })?;
 
         // Import the whole batch into staging (chained fingerprints).
         for package in &plan.source.packages {
             if token.is_cancelled() {
-                return Err((intake_codes::CANCELLED.to_owned(), MaterialExecutionStatus::Cancelled));
+                return Err((
+                    intake_codes::CANCELLED.to_owned(),
+                    MaterialExecutionStatus::Cancelled,
+                ));
             }
             let command_id = format!("{}-stage-import-{}", plan.plan_id, bridge_jobs.len());
             let archive_path = source_folder.join(&package.relative_path);
@@ -904,7 +951,10 @@ impl MaterialExecutor {
                 )
             })?;
             if archive_digest != package.sha256 {
-                return Err((intake_codes::SOURCE_DRIFT.to_owned(), MaterialExecutionStatus::Failed));
+                return Err((
+                    intake_codes::SOURCE_DRIFT.to_owned(),
+                    MaterialExecutionStatus::Failed,
+                ));
             }
             let extracted_root = staging.root().join(".vua/imports").join(&command_id);
             extract_package_into_dir(&source_folder.join(&package.relative_path), &extracted_root)
@@ -1000,14 +1050,20 @@ impl MaterialExecutor {
             "0.1.0",
         )
         .map_err(|error| {
-            (format!("{}: {error}", error_codes::STAGING_FAILED), MaterialExecutionStatus::Failed)
+            (
+                format!("{}: {error}", error_codes::STAGING_FAILED),
+                MaterialExecutionStatus::Failed,
+            )
         })?;
 
         // Every file the produced package carries must load in the target
         // after install — nested prefabs, materials, textures included.
         collect_package_files(&artifact.package_root, &package_id, validation_expectations)
             .map_err(|error| {
-                (format!("{}: {error}", error_codes::STAGING_FAILED), MaterialExecutionStatus::Failed)
+                (
+                    format!("{}: {error}", error_codes::STAGING_FAILED),
+                    MaterialExecutionStatus::Failed,
+                )
             })?;
         validation_expectations.sort();
         validation_expectations.dedup();
@@ -1023,7 +1079,10 @@ impl MaterialExecutor {
         // published files stay and the receipt says Cancelled, never
         // pretending the tail never ran.
         if token.is_cancelled() {
-            return Err((intake_codes::CANCELLED.to_owned(), MaterialExecutionStatus::Cancelled));
+            return Err((
+                intake_codes::CANCELLED.to_owned(),
+                MaterialExecutionStatus::Cancelled,
+            ));
         }
         self.vpm
             .register_local_package(&artifact.package_root)
@@ -1040,7 +1099,10 @@ impl MaterialExecutor {
         // read-only; skipping the apply keeps the target free of an install
         // it would only have to be rolled back.
         if token.is_cancelled() {
-            return Err((intake_codes::CANCELLED.to_owned(), MaterialExecutionStatus::Cancelled));
+            return Err((
+                intake_codes::CANCELLED.to_owned(),
+                MaterialExecutionStatus::Cancelled,
+            ));
         }
         self.vpm
             .apply_install(project, std::slice::from_ref(&request), &preview.digest)
@@ -1079,10 +1141,16 @@ impl MaterialExecutor {
                 ..UnityPayload::default()
             },
         };
-        let result = self.dispatch(project, &command, bridge_jobs).map_err(|(code, _)| code)?;
+        let result = self
+            .dispatch(project, &command, bridge_jobs)
+            .map_err(|(code, _)| code)?;
         for diagnostic in &result.diagnostics {
             if diagnostic.severity == vua_orchestrator::DiagnosticSeverity::Error {
-                return Err(format!("{}: {}", error_codes::BRIDGE_FAILED, diagnostic.code));
+                return Err(format!(
+                    "{}: {}",
+                    error_codes::BRIDGE_FAILED,
+                    diagnostic.code
+                ));
             }
         }
         // The validate op reports the loaded list through
@@ -1138,7 +1206,10 @@ impl MaterialExecutor {
     ) -> Result<GeneratedVpm, StepFailure> {
         let staging = StagingProject::create(&self.temp_root, correlation_id, correlation_id)
             .map_err(|error| {
-                (format!("{}: {error}", error_codes::STAGING_FAILED), MaterialExecutionStatus::Failed)
+                (
+                    format!("{}: {error}", error_codes::STAGING_FAILED),
+                    MaterialExecutionStatus::Failed,
+                )
             })?;
         let staging_project = ProjectRef {
             id: format!("{correlation_id}-staging"),
@@ -1150,7 +1221,10 @@ impl MaterialExecutor {
             .identity_store
             .resolve(entry_folder, display_name)
             .map_err(|error| {
-                (format!("{}: {error}", error_codes::STAGING_FAILED), MaterialExecutionStatus::Failed)
+                (
+                    format!("{}: {error}", error_codes::STAGING_FAILED),
+                    MaterialExecutionStatus::Failed,
+                )
             })?;
         let package_id = identity.package_id;
 
@@ -1162,12 +1236,18 @@ impl MaterialExecutor {
             &mut Vec::new(),
         )?;
         let mut staging_fingerprint = fingerprint_of(&inspect).ok_or_else(|| {
-            (error_codes::BRIDGE_FAILED.to_owned(), MaterialExecutionStatus::Failed)
+            (
+                error_codes::BRIDGE_FAILED.to_owned(),
+                MaterialExecutionStatus::Failed,
+            )
         })?;
 
         for (index, package) in originals.iter().enumerate() {
             if token.is_cancelled() {
-                return Err((intake_codes::CANCELLED.to_owned(), MaterialExecutionStatus::Cancelled));
+                return Err((
+                    intake_codes::CANCELLED.to_owned(),
+                    MaterialExecutionStatus::Cancelled,
+                ));
             }
             // Drift check against the copy row's recorded identity: the
             // warehouse original must be byte-identical to what BDL inspected.
@@ -1178,7 +1258,10 @@ impl MaterialExecutor {
                 )
             })?;
             if archive_digest != package.sha256 {
-                return Err((intake_codes::SOURCE_DRIFT.to_owned(), MaterialExecutionStatus::Failed));
+                return Err((
+                    intake_codes::SOURCE_DRIFT.to_owned(),
+                    MaterialExecutionStatus::Failed,
+                ));
             }
             let command_id = format!("{correlation_id}-stage-import-{index}");
             let extracted_root = staging.root().join(".vua/imports").join(&command_id);
@@ -1256,10 +1339,16 @@ impl MaterialExecutor {
             "0.1.0",
         )
         .map_err(|error| {
-            (format!("{}: {error}", error_codes::STAGING_FAILED), MaterialExecutionStatus::Failed)
+            (
+                format!("{}: {error}", error_codes::STAGING_FAILED),
+                MaterialExecutionStatus::Failed,
+            )
         })?;
 
-        Ok(GeneratedVpm { package_id, artifact })
+        Ok(GeneratedVpm {
+            package_id,
+            artifact,
+        })
     }
 
     // --- port helpers ---
@@ -1332,10 +1421,10 @@ pub(crate) fn extract_package_into_dir(
     archive_path: &Path,
     extracted_root: &Path,
 ) -> std::io::Result<Vec<String>> {
-        use flate2::read::GzDecoder;
-        use std::fs::File;
-        use std::io::Read;
-        use tar::Archive;
+    use flate2::read::GzDecoder;
+    use std::fs::File;
+    use std::io::Read;
+    use tar::Archive;
 
     // Pass 1: map each guid folder to its logical asset path.
     let mut folders: Vec<(String, String)> = Vec::new();
@@ -1372,7 +1461,9 @@ pub(crate) fn extract_package_into_dir(
                     ));
                 }
                 if logical.starts_with("Assets/")
-                    && !logical.split('/').any(|part| part.is_empty() || part == "..")
+                    && !logical
+                        .split('/')
+                        .any(|part| part.is_empty() || part == "..")
                 {
                     folders.push((guid.to_owned(), logical));
                 }
@@ -1401,14 +1492,12 @@ pub(crate) fn extract_package_into_dir(
             // 参与物化）。
             if entry_path.contains("..")
                 || entry_path.starts_with('/')
-                || Path::new(&entry_path)
-                    .components()
-                    .any(|component| {
-                        !matches!(
-                            component,
-                            std::path::Component::Normal(_) | std::path::Component::CurDir
-                        )
-                    })
+                || Path::new(&entry_path).components().any(|component| {
+                    !matches!(
+                        component,
+                        std::path::Component::Normal(_) | std::path::Component::CurDir
+                    )
+                })
             {
                 continue;
             }
@@ -1436,8 +1525,10 @@ pub(crate) fn extract_package_into_dir(
 
     fs::write(
         extracted_root.join("manifest.sha256"),
-        manifest_lines.join("
-") + "
+        manifest_lines.join(
+            "
+",
+        ) + "
 ",
     )?;
 
@@ -1455,12 +1546,21 @@ fn collect_package_files(
     package_id: &str,
     out: &mut Vec<String>,
 ) -> std::io::Result<()> {
-    fn walk(dir: &Path, relative: &str, package_id: &str, out: &mut Vec<String>) -> std::io::Result<()> {
+    fn walk(
+        dir: &Path,
+        relative: &str,
+        package_id: &str,
+        out: &mut Vec<String>,
+    ) -> std::io::Result<()> {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let name = entry.file_name().to_string_lossy().into_owned();
             let path = entry.path();
-            let relative = if relative.is_empty() { name } else { format!("{relative}/{name}") };
+            let relative = if relative.is_empty() {
+                name
+            } else {
+                format!("{relative}/{name}")
+            };
             if path.is_dir() {
                 walk(&path, &relative, package_id, out)?;
             } else if !relative.ends_with(".meta") {
@@ -1487,7 +1587,9 @@ pub fn sha256_file(path: &Path) -> std::io::Result<String> {
         }
         hasher.update(&buffer[..read]);
     }
-    Ok(crate::material_intake::sha256_text(hasher.finalize().as_ref()))
+    Ok(crate::material_intake::sha256_text(
+        hasher.finalize().as_ref(),
+    ))
 }
 
 fn fingerprint_of(result: &UnityResult) -> Option<String> {
@@ -1559,7 +1661,11 @@ mod probe {
         let archive = std::path::PathBuf::from(std::env::var("VUA_PROBE_ARCHIVE").unwrap());
         let out = std::path::PathBuf::from(std::env::var("VUA_PROBE_OUT").unwrap());
         match super::extract_package_into_dir(&archive, &out) {
-            Ok(paths) => println!("OK {} logical paths, first: {:?}", paths.len(), paths.first()),
+            Ok(paths) => println!(
+                "OK {} logical paths, first: {:?}",
+                paths.len(),
+                paths.first()
+            ),
             Err(e) => println!("ERR io={e} raw_os_error={:?}", e.raw_os_error()),
         }
     }
@@ -1580,7 +1686,10 @@ mod batch148_extraction_guard {
     /// 绝对路径条目，守卫测试必须能构造它们。
     fn raw_entry(tar: &mut Vec<u8>, path: &str, bytes: &[u8]) {
         let name = path.as_bytes();
-        assert!(name.len() <= 100, "test entries stay in the ustar name field");
+        assert!(
+            name.len() <= 100,
+            "test entries stay in the ustar name field"
+        );
         let mut header = [0_u8; 512];
         header[..name.len()].copy_from_slice(name);
         header[100..108].copy_from_slice(b"0000644\0");
@@ -1645,7 +1754,10 @@ mod batch148_extraction_guard {
         write_gztar(
             &archive_path,
             &[
-                (&format!("{guid}/pathname"), b"Assets/OK.prefab\n".as_slice()),
+                (
+                    &format!("{guid}/pathname"),
+                    b"Assets/OK.prefab\n".as_slice(),
+                ),
                 (&format!("{guid}/asset"), b"synthetic".as_slice()),
                 (&format!("{guid}/asset.meta"), b"meta".as_slice()),
                 (escape_entry.as_str(), b"escaped".as_slice()),
@@ -1662,10 +1774,20 @@ mod batch148_extraction_guard {
         assert!(extracted_root.join(guid).join("asset").is_file());
 
         // Every hostile entry is skipped: never written, never manifested.
-        assert!(!escape_dir.exists(), "drive-absolute entry escaped the root");
-        assert!(!base.join("outside.txt").exists(), "`..` entry escaped the root");
+        assert!(
+            !escape_dir.exists(),
+            "drive-absolute entry escaped the root"
+        );
+        assert!(
+            !base.join("outside.txt").exists(),
+            "`..` entry escaped the root"
+        );
         let manifest = fs::read_to_string(extracted_root.join("manifest.sha256")).unwrap();
-        assert_eq!(manifest.lines().count(), 3, "only the guid entries manifest");
+        assert_eq!(
+            manifest.lines().count(),
+            3,
+            "only the guid entries manifest"
+        );
         assert!(!manifest.contains("evil.txt"));
         assert!(!manifest.contains("outside.txt"));
         assert!(!manifest.contains("root-anchored.txt"));
@@ -1713,7 +1835,10 @@ mod batch150_channel_boundary {
     }
 
     fn fresh_base(label: &str) -> std::path::PathBuf {
-        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         std::env::temp_dir().join(format!("vua-150-boundary-{label}-{nanos}"))
     }
 
@@ -1723,7 +1848,13 @@ mod batch150_channel_boundary {
         let extracted_root = base.join("extracted");
         let archive = base.join("pack.unitypackage");
         fs::create_dir_all(&base).unwrap();
-        guid_archive(&archive, &[("0123456789abcdef0123456789abcdef", "Packages/com.evil/thing.asset")]);
+        guid_archive(
+            &archive,
+            &[(
+                "0123456789abcdef0123456789abcdef",
+                "Packages/com.evil/thing.asset",
+            )],
+        );
 
         let error = super::extract_package_into_dir(&archive, &extracted_root)
             .expect_err("a Packages/-targeting archive is refused at the channel boundary");

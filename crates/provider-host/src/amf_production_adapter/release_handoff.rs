@@ -36,7 +36,9 @@ pub(super) fn upload(
     let project = Path::new(&run.project_root);
     let open = editor_holds_project(project);
     ensure_sdk_idle(project)?;
-    if open { ensure_current_bridge(project)?; }
+    if open {
+        ensure_current_bridge(project)?;
+    }
     if !open {
         refresh_bridge_package(project)?;
     }
@@ -57,14 +59,20 @@ pub(super) fn upload(
 
 fn remove(path: &Path) -> Result<(), AppErrorV1> {
     match fs::remove_file(path) {
-        Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(err("upload_failed", error)),
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+            Err(err("upload_failed", error))
+        }
         _ => Ok(()),
     }
 }
 
 fn write_atomic(path: &Path, value: &serde_json::Value) -> Result<(), AppErrorV1> {
     let pending = path.with_extension("pending");
-    fs::write(&pending, serde_json::to_vec_pretty(value).map_err(|e| err("upload_failed", e))?).map_err(|e| err("upload_failed", e))?;
+    fs::write(
+        &pending,
+        serde_json::to_vec_pretty(value).map_err(|e| err("upload_failed", e))?,
+    )
+    .map_err(|e| err("upload_failed", e))?;
     fs::rename(&pending, path).map_err(|e| err("upload_failed", e))
 }
 
@@ -77,56 +85,111 @@ fn request_json(run: &ProductionRun, request: &UploadRequest, avatar: &str) -> s
 }
 
 /// A bounded JSON file that names this run and upload; anything else is an earlier answer.
-fn read_bound(path: &Path, run: &ProductionRun, request: &UploadRequest) -> Option<serde_json::Value> {
+fn read_bound(
+    path: &Path,
+    run: &ProductionRun,
+    request: &UploadRequest,
+) -> Option<serde_json::Value> {
     let metadata = fs::metadata(path).ok()?;
     if !metadata.is_file() || metadata.len() > MAX_FILE {
         return None;
     }
     let value: serde_json::Value = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
-    (value["schemaVersion"] == "0.1" && value["runId"] == run.run_id.as_str() && value["uploadId"] == request.upload_id.as_str()).then_some(value)
+    (value["schemaVersion"] == "0.1"
+        && value["runId"] == run.run_id.as_str()
+        && value["uploadId"] == request.upload_id.as_str())
+    .then_some(value)
 }
 
-fn read_progress(path: &Path, run: &ProductionRun, request: &UploadRequest) -> Option<UploadProgress> {
+fn read_progress(
+    path: &Path,
+    run: &ProductionRun,
+    request: &UploadRequest,
+) -> Option<UploadProgress> {
     let value = read_bound(path, run, request)?;
-    let stage = value["stage"].as_str().filter(|stage| UPLOAD_STAGES.contains(stage))?;
+    let stage = value["stage"]
+        .as_str()
+        .filter(|stage| UPLOAD_STAGES.contains(stage))?;
     Some(UploadProgress {
         stage: stage.into(),
-        progress: value["progress"].as_f64().filter(|share| (0.0..=1.0).contains(share)),
+        progress: value["progress"]
+            .as_f64()
+            .filter(|share| (0.0..=1.0).contains(share)),
         status: bounded_text(value["status"].as_str().unwrap_or(""), 200),
     })
 }
 
-fn read_receipt(path: &Path, run: &ProductionRun, request: &UploadRequest) -> Result<Option<UploadReceipt>, AppErrorV1> {
-    let Some(value) = read_bound(path, run, request) else { return Ok(None); };
-    let outcome = value["outcome"].as_str().filter(|outcome| ["succeeded", "failed", "cancelled"].contains(outcome))
-        .ok_or_else(|| err("receipt_invalid", "The Editor reported an unknown upload outcome."))?;
-    let text = |key: &str| value[key].as_str().filter(|text| !text.is_empty()).map(str::to_owned);
+fn read_receipt(
+    path: &Path,
+    run: &ProductionRun,
+    request: &UploadRequest,
+) -> Result<Option<UploadReceipt>, AppErrorV1> {
+    let Some(value) = read_bound(path, run, request) else {
+        return Ok(None);
+    };
+    let outcome = value["outcome"]
+        .as_str()
+        .filter(|outcome| ["succeeded", "failed", "cancelled"].contains(outcome))
+        .ok_or_else(|| {
+            err(
+                "receipt_invalid",
+                "The Editor reported an unknown upload outcome.",
+            )
+        })?;
+    let text = |key: &str| {
+        value[key]
+            .as_str()
+            .filter(|text| !text.is_empty())
+            .map(str::to_owned)
+    };
     Ok(Some(UploadReceipt {
         outcome: outcome.into(),
         blueprint_id: text("blueprintId"),
         first_upload: value["firstUpload"].as_bool().unwrap_or(false),
         reason: text("reason"),
         detail: text("detail").unwrap_or_default(),
-        errors: value["errors"].as_array().into_iter().flatten().filter_map(|error| error.as_str().map(str::to_owned)).take(32).collect(),
-        sdk_sign_in: text("sdkSignIn").filter(|source| source == "vua_session" || source == "panel"),
+        errors: value["errors"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|error| error.as_str().map(str::to_owned))
+            .take(32)
+            .collect(),
+        sdk_sign_in: text("sdkSignIn")
+            .filter(|source| source == "vua_session" || source == "panel"),
         sdk_review: Some(value["sdkReview"].clone()).filter(read_review),
-        can_publish_avatars: value["canPublishAvatars"].as_bool().filter(|_| value["canPublishAvatarsObserved"] == true),
+        can_publish_avatars: value["canPublishAvatars"]
+            .as_bool()
+            .filter(|_| value["canPublishAvatarsObserved"] == true),
     }))
 }
 
 fn ensure_current_bridge(project: &Path) -> Result<(), AppErrorV1> {
-    let current = vua_unity_bridge::staging_scaffold::BRIDGE_PACKAGE_FILES.iter()
+    let current = vua_unity_bridge::staging_scaffold::BRIDGE_PACKAGE_FILES
+        .iter()
         .chain(vua_unity_bridge::staging_scaffold::AMF_PRODUCTION_BRIDGE_FILES)
-        .all(|(relative, contents)| fs::read(project.join("Packages/com.ph-r.vua").join(relative))
-            .is_ok_and(|bytes| bytes == contents.as_bytes()));
-    if current { Ok(()) } else {
+        .all(|(relative, contents)| {
+            fs::read(project.join("Packages/com.ph-r.vua").join(relative))
+                .is_ok_and(|bytes| bytes == contents.as_bytes())
+        });
+    if current {
+        Ok(())
+    } else {
         Err(err("bridge_outdated", "Close this project's Unity Editor so VUA can update its Bridge, then retry the SDK task."))
     }
 }
 
 fn ensure_sdk_idle(project: &Path) -> Result<(), AppErrorV1> {
     let folder = project.join(".vua/bridge");
-    if ["amf-upload.json", "amf-upload.started", "amf-test.json", "amf-test.started"].iter().any(|name| folder.join(name).exists()) {
+    if [
+        "amf-upload.json",
+        "amf-upload.started",
+        "amf-test.json",
+        "amf-test.started",
+    ]
+    .iter()
+    .any(|name| folder.join(name).exists())
+    {
         return Err(err("sdk_busy", "An SDK task or its recovery is still pending in Unity. Finish or inspect that task first."));
     }
     Ok(())
@@ -136,22 +199,38 @@ fn ensure_sdk_idle(project: &Path) -> Result<(), AppErrorV1> {
 /// left out, so the line keeps its earlier facts.
 fn read_review(review: &serde_json::Value) -> bool {
     const RATINGS: [&str; 5] = ["Excellent", "Good", "Medium", "Poor", "VeryPoor"];
-    let text = |value: &serde_json::Value, min: usize| value.as_str().is_some_and(|text| {
-        let chars = text.chars().count();
-        chars >= min && chars <= 600 && !text.contains('\0')
-    });
+    let text = |value: &serde_json::Value, min: usize| {
+        value.as_str().is_some_and(|text| {
+            let chars = text.chars().count();
+            chars >= min && chars <= 600 && !text.contains('\0')
+        })
+    };
     let items = |key: &str| review[key].as_array().filter(|items| items.len() <= 64);
     review.as_object().is_some_and(|object| object.len() == 6)
         && matches!(review["state"].as_str(), Some("checked" | "partial"))
         && matches!(review["platform"].as_str(), Some("" | "pc" | "android"))
-        && review["overall"].as_str().is_some_and(|overall| matches!(overall, "" | "None") || RATINGS.contains(&overall))
+        && review["overall"]
+            .as_str()
+            .is_some_and(|overall| matches!(overall, "" | "None") || RATINGS.contains(&overall))
         && text(&review["detail"], 0)
-        && items("issues").is_some_and(|issues| issues.iter().all(|issue| issue.as_object().is_some_and(|o| o.len() == 3)
-            && matches!(issue["level"].as_str(), Some("error" | "warning" | "info"))
-            && text(&issue["text"], 1) && issue["canFix"].is_boolean()))
-        && items("stats").is_some_and(|stats| stats.iter().all(|stat| stat.as_object().is_some_and(|o| o.len() == 3)
-            && text(&stat["category"], 1) && stat["rating"].as_str().is_some_and(|rating| RATINGS.contains(&rating))
-            && text(&stat["text"], 0)))
+        && items("issues").is_some_and(|issues| {
+            issues.iter().all(|issue| {
+                issue.as_object().is_some_and(|o| o.len() == 3)
+                    && matches!(issue["level"].as_str(), Some("error" | "warning" | "info"))
+                    && text(&issue["text"], 1)
+                    && issue["canFix"].is_boolean()
+            })
+        })
+        && items("stats").is_some_and(|stats| {
+            stats.iter().all(|stat| {
+                stat.as_object().is_some_and(|o| o.len() == 3)
+                    && text(&stat["category"], 1)
+                    && stat["rating"]
+                        .as_str()
+                        .is_some_and(|rating| RATINGS.contains(&rating))
+                    && text(&stat["text"], 0)
+            })
+        })
 }
 
 fn wait(
@@ -179,7 +258,10 @@ fn wait(
                     remove(&folder.join(REQUEST))?;
                     return Err(error);
                 }
-                write_atomic(&folder.join(CANCEL), &serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id, "uploadId":request.upload_id}))?;
+                write_atomic(
+                    &folder.join(CANCEL),
+                    &serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id, "uploadId":request.upload_id}),
+                )?;
                 stopping = Some((Instant::now(), error));
             }
         }
@@ -194,9 +276,15 @@ fn wait(
             return Err(err("editor_unavailable", "Unity did not open the VRChat SDK for this upload. Open the project in Unity, then upload again."));
         }
         if start.elapsed() > UPLOAD_TIMEOUT {
-            let _ = write_atomic(&folder.join(CANCEL), &serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id, "uploadId":request.upload_id}));
+            let _ = write_atomic(
+                &folder.join(CANCEL),
+                &serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id, "uploadId":request.upload_id}),
+            );
             let _ = remove(&folder.join(REQUEST));
-            return Err(err("upload_timeout", "The VRChat SDK did not finish the upload within 90 minutes."));
+            return Err(err(
+                "upload_timeout",
+                "The VRChat SDK did not finish the upload within 90 minutes.",
+            ));
         }
         std::thread::sleep(POLL);
     }
@@ -213,10 +301,15 @@ mod tests {
             "result":{"facts":{"avatarGlobalObjectId":"GlobalObjectId_V1-avatar"}}, "error":null, "recovery":null})).unwrap()
     }
     fn request(thumbnail: Option<&str>) -> UploadRequest {
-        UploadRequest { upload_id: "upload-1".into(), avatar_name: "Meiyun".into(), thumbnail: thumbnail.map(str::to_owned) }
+        UploadRequest {
+            upload_id: "upload-1".into(),
+            avatar_name: "Meiyun".into(),
+            thumbnail: thumbnail.map(str::to_owned),
+        }
     }
     fn folder(name: &str) -> PathBuf {
-        let folder = std::env::temp_dir().join(format!("vua-upload-handoff-{name}-{}", std::process::id()));
+        let folder =
+            std::env::temp_dir().join(format!("vua-upload-handoff-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&folder);
         fs::create_dir_all(&folder).unwrap();
         folder
@@ -225,12 +318,19 @@ mod tests {
     #[test]
     fn the_request_carries_the_players_confirmation_and_the_new_avatar_thumbnail() {
         let project = folder("request");
-        let value = request_json(&run(&project), &request(Some(".vua/previews/cmd/front.png")), "GlobalObjectId_V1-avatar");
+        let value = request_json(
+            &run(&project),
+            &request(Some(".vua/previews/cmd/front.png")),
+            "GlobalObjectId_V1-avatar",
+        );
         assert_eq!(value["rightsConfirmed"], true);
         assert_eq!(value["uploadId"], "upload-1");
         assert_eq!(value["avatarName"], "Meiyun");
         assert_eq!(value["thumbnail"], ".vua/previews/cmd/front.png");
-        assert_eq!(request_json(&run(&project), &request(None), "id")["thumbnail"], "");
+        assert_eq!(
+            request_json(&run(&project), &request(None), "id")["thumbnail"],
+            ""
+        );
         fs::remove_dir_all(project).unwrap();
     }
 
@@ -240,20 +340,37 @@ mod tests {
         let (run, request) = (run(&project), request(None));
         let receipt = project.join(RECEIPT);
         fs::write(&receipt, br#"{"schemaVersion":"0.1","runId":"n3-upload","uploadId":"upload-0","outcome":"succeeded"}"#).unwrap();
-        assert_eq!(read_receipt(&receipt, &run, &request).unwrap(), None, "an earlier upload's receipt");
+        assert_eq!(
+            read_receipt(&receipt, &run, &request).unwrap(),
+            None,
+            "an earlier upload's receipt"
+        );
         fs::write(&receipt, br#"{"schemaVersion":"0.1","runId":"n3-upload","uploadId":"upload-1","outcome":"done"}"#).unwrap();
-        assert_eq!(read_receipt(&receipt, &run, &request).unwrap_err().code, "vua.amf_production.receipt_invalid");
+        assert_eq!(
+            read_receipt(&receipt, &run, &request).unwrap_err().code,
+            "vua.amf_production.receipt_invalid"
+        );
         fs::write(&receipt, br#"{"schemaVersion":"0.1","runId":"n3-upload","uploadId":"upload-1","outcome":"failed","blueprintId":"","reason":"validation",
             "detail":"Avatar validation failed","errors":["Too many materials", 7],"firstUpload":true,"sceneSaved":false,"sdkSignIn":"vua_session"}"#).unwrap();
         let read = read_receipt(&receipt, &run, &request).unwrap().unwrap();
-        assert_eq!((read.outcome.as_str(), read.reason.as_deref(), read.blueprint_id), ("failed", Some("validation"), None));
+        assert_eq!(
+            (
+                read.outcome.as_str(),
+                read.reason.as_deref(),
+                read.blueprint_id
+            ),
+            ("failed", Some("validation"), None)
+        );
         assert_eq!(read.errors, vec!["Too many materials".to_owned()]);
         assert!(read.first_upload);
         assert_eq!(read.sdk_sign_in.as_deref(), Some("vua_session"));
         fs::write(&receipt, br#"{"schemaVersion":"0.1","runId":"n3-upload","uploadId":"upload-1","outcome":"succeeded","blueprintId":"avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a",
             "sdkSignIn":"somewhere_else"}"#).unwrap();
         let read = read_receipt(&receipt, &run, &request).unwrap().unwrap();
-        assert_eq!(read.sdk_sign_in, None, "an unknown sign-in source stays unsaid");
+        assert_eq!(
+            read.sdk_sign_in, None,
+            "an unknown sign-in source stays unsaid"
+        );
         assert_eq!(read.sdk_review, None, "a receipt without the SDK check");
         let review = serde_json::json!({"state":"checked","platform":"pc","overall":"Good","detail":"",
             "stats":[{"category":"Triangles","rating":"Excellent","text":"6,000"}],
@@ -261,21 +378,49 @@ mod tests {
         let with = |review: &serde_json::Value| {
             fs::write(&receipt, serde_json::to_vec(&serde_json::json!({"schemaVersion":"0.1","runId":"n3-upload","uploadId":"upload-1",
                 "outcome":"succeeded","sdkReview":review})).unwrap()).unwrap();
-            read_receipt(&receipt, &run, &request).unwrap().unwrap().sdk_review
+            read_receipt(&receipt, &run, &request)
+                .unwrap()
+                .unwrap()
+                .sdk_review
         };
         assert_eq!(with(&review), Some(review.clone()));
-        for broken in [serde_json::json!({"state":"not_run","platform":"","overall":"","detail":"","stats":[],"issues":[]}),
-            { let mut v = review.clone(); v["stats"][0]["rating"] = "None".into(); v },
-            { let mut v = review.clone(); v["issues"][0]["text"] = "".into(); v },
-            { let mut v = review.clone(); v["extra"] = true.into(); v }] {
+        for broken in [
+            serde_json::json!({"state":"not_run","platform":"","overall":"","detail":"","stats":[],"issues":[]}),
+            {
+                let mut v = review.clone();
+                v["stats"][0]["rating"] = "None".into();
+                v
+            },
+            {
+                let mut v = review.clone();
+                v["issues"][0]["text"] = "".into();
+                v
+            },
+            {
+                let mut v = review.clone();
+                v["extra"] = true.into();
+                v
+            },
+        ] {
             assert_eq!(with(&broken), None, "{broken}");
         }
         fs::write(&receipt, vec![b' '; MAX_FILE as usize + 1]).unwrap();
-        assert_eq!(read_receipt(&receipt, &run, &request).unwrap(), None, "an oversized file is no answer");
+        assert_eq!(
+            read_receipt(&receipt, &run, &request).unwrap(),
+            None,
+            "an oversized file is no answer"
+        );
 
         let line = project.join(PROGRESS);
         fs::write(&line, br#"{"schemaVersion":"0.1","runId":"n3-upload","uploadId":"upload-1","stage":"uploading","progress":0.25,"status":"Uploading bundle"}"#).unwrap();
-        assert_eq!(read_progress(&line, &run, &request), Some(UploadProgress { stage: "uploading".into(), progress: Some(0.25), status: "Uploading bundle".into() }));
+        assert_eq!(
+            read_progress(&line, &run, &request),
+            Some(UploadProgress {
+                stage: "uploading".into(),
+                progress: Some(0.25),
+                status: "Uploading bundle".into()
+            })
+        );
         fs::write(&line, br#"{"schemaVersion":"0.1","runId":"n3-upload","uploadId":"upload-1","stage":"building","progress":-1,"status":""}"#).unwrap();
         assert_eq!(read_progress(&line, &run, &request).unwrap().progress, None);
         fs::write(&line, br#"{"schemaVersion":"0.1","runId":"n3-upload","uploadId":"upload-1","stage":"dancing"}"#).unwrap();

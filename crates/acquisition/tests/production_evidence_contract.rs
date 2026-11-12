@@ -113,10 +113,14 @@ fn source_ref_requires_at_least_one_producing_context() {
         "sourceRef": {},
         "resolution": null
     });
-    assert!(!validator.is_valid(&base), "an empty sourceRef is inadmissible");
+    assert!(
+        !validator.is_valid(&base),
+        "an empty sourceRef is inadmissible"
+    );
 
     let mut with_resolution = base.clone();
-    with_resolution["sourceRef"]["localResolutionId"] = json!("0198a7b3-9f8e-7d6c-5b4a-321098765432");
+    with_resolution["sourceRef"]["localResolutionId"] =
+        json!("0198a7b3-9f8e-7d6c-5b4a-321098765432");
     assert!(validator.is_valid(&with_resolution));
 
     let mut with_task = base.clone();
@@ -209,7 +213,10 @@ fn frozen_local_resolution_references_evidence_bodies_across_vocabularies() {
         .map(|value| value.as_str().unwrap())
         .collect();
     assert_eq!(carried_ids, vec![missing["evidenceId"].as_str().unwrap()]);
-    assert_eq!(resolution_id, missing["sourceRef"]["localResolutionId"].as_str().unwrap());
+    assert_eq!(
+        resolution_id,
+        missing["sourceRef"]["localResolutionId"].as_str().unwrap()
+    );
 
     // The honest detail lives in the body, never in the resolution view.
     assert!(!missing["detail"].as_str().unwrap().is_empty());

@@ -159,10 +159,17 @@ pub fn rfc3339_millis(text: &str) -> Option<i64> {
     let bytes = text.as_bytes();
     let number = |range: std::ops::Range<usize>| -> Option<i64> {
         let part = text.get(range)?;
-        part.bytes().all(|b| b.is_ascii_digit()).then(|| part.parse().ok())?
+        part.bytes()
+            .all(|b| b.is_ascii_digit())
+            .then(|| part.parse().ok())?
     };
-    if bytes.len() < 20 || bytes[4] != b'-' || bytes[7] != b'-' || bytes[10] != b'T' || bytes[13] != b':'
-        || bytes[16] != b':' || bytes[bytes.len() - 1] != b'Z'
+    if bytes.len() < 20
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes[10] != b'T'
+        || bytes[13] != b':'
+        || bytes[16] != b':'
+        || bytes[bytes.len() - 1] != b'Z'
     {
         return None;
     }
@@ -172,12 +179,20 @@ pub fn rfc3339_millis(text: &str) -> Option<i64> {
         "" => 0,
         fraction if fraction.len() >= 2 && fraction.starts_with('.') && fraction.len() <= 10 => {
             let digits = &fraction[1..];
-            let value: i64 = digits.bytes().all(|b| b.is_ascii_digit()).then(|| digits.parse().ok())??;
+            let value: i64 = digits
+                .bytes()
+                .all(|b| b.is_ascii_digit())
+                .then(|| digits.parse().ok())??;
             value * 1000 / 10_i64.pow(digits.len() as u32)
         }
         _ => return None,
     };
-    if !(1..=12).contains(&month) || !(1..=31).contains(&day) || hour > 23 || minute > 59 || second > 60 {
+    if !(1..=12).contains(&month)
+        || !(1..=31).contains(&day)
+        || hour > 23
+        || minute > 59
+        || second > 60
+    {
         return None;
     }
     let days = days_from_civil(year, month as u32, day as u32);
@@ -202,8 +217,12 @@ pub fn rfc3339_offset_millis(text: &str) -> Option<i64> {
     }
     let (date, offset) = text.split_at(text.len() - 6);
     let bytes = offset.as_bytes();
-    if !matches!(bytes[0], b'+' | b'-') || bytes[3] != b':'
-        || !bytes[1..3].iter().chain(&bytes[4..6]).all(u8::is_ascii_digit)
+    if !matches!(bytes[0], b'+' | b'-')
+        || bytes[3] != b':'
+        || !bytes[1..3]
+            .iter()
+            .chain(&bytes[4..6])
+            .all(u8::is_ascii_digit)
     {
         return None;
     }
@@ -323,30 +342,78 @@ mod tests {
 
     #[test]
     fn reads_back_the_timestamps_it_writes() {
-        for millis in [0_i64, 951_782_400_000, 1_709_164_800_123, 1_767_225_599_999, 4_107_542_400_000] {
+        for millis in [
+            0_i64,
+            951_782_400_000,
+            1_709_164_800_123,
+            1_767_225_599_999,
+            4_107_542_400_000,
+        ] {
             let text = rfc3339(UNIX_EPOCH + Duration::from_millis(millis as u64));
             assert_eq!(rfc3339_millis(&text), Some(millis), "{text}");
         }
-        assert_eq!(rfc3339_millis("2026-10-17T08:00:00Z"), Some(1_792_224_000_000));
-        assert_eq!(rfc3339_millis("2026-10-17T08:00:00.5Z"), Some(1_792_224_000_500));
+        assert_eq!(
+            rfc3339_millis("2026-10-17T08:00:00Z"),
+            Some(1_792_224_000_000)
+        );
+        assert_eq!(
+            rfc3339_millis("2026-10-17T08:00:00.5Z"),
+            Some(1_792_224_000_500)
+        );
         assert!(rfc3339_millis("2024-02-29T00:00:00Z").is_some());
-        for invalid in ["2026-02-29T00:00:00Z", "2026-02-30T00:00:00Z", "2026-04-31T00:00:00Z", "2100-02-29T00:00:00Z"] {
+        for invalid in [
+            "2026-02-29T00:00:00Z",
+            "2026-02-30T00:00:00Z",
+            "2026-04-31T00:00:00Z",
+            "2100-02-29T00:00:00Z",
+        ] {
             assert_eq!(rfc3339_millis(invalid), None, "{invalid}");
         }
-        for invalid in ["", "2026-10-17", "2026-13-01T00:00:00.000Z", "2026-10-17T08:00:00.000+09:00", "2026-10-17T08:00:00.Z", "x026-10-17T08:00:00.000Z"] {
+        for invalid in [
+            "",
+            "2026-10-17",
+            "2026-13-01T00:00:00.000Z",
+            "2026-10-17T08:00:00.000+09:00",
+            "2026-10-17T08:00:00.Z",
+            "x026-10-17T08:00:00.000Z",
+        ] {
             assert_eq!(rfc3339_millis(invalid), None, "{invalid}");
         }
     }
 
     #[test]
     fn publication_offsets_compare_as_instants_and_reject_invalid_dates() {
-        for text in ["1970-01-01T00:00:00Z", "1970-01-01T09:00:00+09:00", "1969-12-31T19:00:00-05:00", "1970-01-01T00:00:00-00:00"] {
+        for text in [
+            "1970-01-01T00:00:00Z",
+            "1970-01-01T09:00:00+09:00",
+            "1969-12-31T19:00:00-05:00",
+            "1970-01-01T00:00:00-00:00",
+        ] {
             assert_eq!(rfc3339_offset_millis(text), Some(0), "{text}");
         }
-        assert_eq!(rfc3339_offset_millis("1970-01-01T09:00:00.1250000+09:00"), Some(125));
-        assert_eq!(rfc3339_offset_millis("1970-01-01T00:30:00+01:00"), Some(-1_800_000));
+        assert_eq!(
+            rfc3339_offset_millis("1970-01-01T09:00:00.1250000+09:00"),
+            Some(125)
+        );
+        assert_eq!(
+            rfc3339_offset_millis("1970-01-01T00:30:00+01:00"),
+            Some(-1_800_000)
+        );
         assert!(rfc3339_offset_millis("2024-02-29T00:00:00+09:00").is_some());
-        for invalid in ["", "2026-02-30T12:00:00+09:00", "2100-02-29T00:00:00Z", "2026-11-10T00:00:60Z", "2026-11-10T00:00:60+09:00", "2026-11-10T00:00:00+24:00", "2026-11-10T00:00:00+09:60", "2026-11-10T00:00:00++1:00", "2026-11-10T00:00:00+09:0x", "2026-11-10T00:00:00", "2026-11-10T00:00:00+0900", "2026-11-10T00:00:00猫09:00"] {
+        for invalid in [
+            "",
+            "2026-02-30T12:00:00+09:00",
+            "2100-02-29T00:00:00Z",
+            "2026-11-10T00:00:60Z",
+            "2026-11-10T00:00:60+09:00",
+            "2026-11-10T00:00:00+24:00",
+            "2026-11-10T00:00:00+09:60",
+            "2026-11-10T00:00:00++1:00",
+            "2026-11-10T00:00:00+09:0x",
+            "2026-11-10T00:00:00",
+            "2026-11-10T00:00:00+0900",
+            "2026-11-10T00:00:00猫09:00",
+        ] {
             assert_eq!(rfc3339_offset_millis(invalid), None, "{invalid}");
         }
     }

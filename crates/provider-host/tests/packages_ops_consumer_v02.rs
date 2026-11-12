@@ -25,10 +25,8 @@ use std::fs;
 use std::path::Path;
 
 use serde_json::{json, Value};
-use vua_orchestrator::{
-    ChangeKindV1, ChangePreviewV1, PackageRequestV1, ProjectRef, VpmBackend,
-};
 use vua_orchestrator::{AppErrorV1, ChangeItemV1, ErrorCategory};
+use vua_orchestrator::{ChangeKindV1, ChangePreviewV1, PackageRequestV1, ProjectRef, VpmBackend};
 
 fn read_ops_json(relative: &str) -> Value {
     // Tests run from the crate directory; the schemas live at the repo root.
@@ -71,10 +69,16 @@ const FAKE_DIGEST: &str = "fnv1a-7f3a91c2";
 fn fake_requests() -> Vec<PackageRequestV1> {
     vec![
         // version = None → the resolver picks (latest stable).
-        PackageRequestV1 { package_id: "com.lilxyzw.liltoon".into(), version: None },
+        PackageRequestV1 {
+            package_id: "com.lilxyzw.liltoon".into(),
+            version: None,
+        },
         // version = Some → the exact pin (upgrade and downgrade share the
         // pin syntax).
-        PackageRequestV1 { package_id: "com.another.toolkit".into(), version: Some("3.1.4".into()) },
+        PackageRequestV1 {
+            package_id: "com.another.toolkit".into(),
+            version: Some("3.1.4".into()),
+        },
     ]
 }
 
@@ -122,7 +126,7 @@ impl VpmBackend for FakeInstallBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -141,15 +145,13 @@ impl VpmBackend for FakeInstallBackend {
         if confirmed_digest != FAKE_DIGEST {
             // The double-digest discipline word face: drift is a
             // RECOVERABLE conflict (re-preview, never implicit resumption).
-            return Err(
-                AppErrorV1::new(
-                    "vua.vpm.preview_drift",
-                    ErrorCategory::Conflict,
-                    "errors.vpm.previewDrift",
-                    "corr-vpm-apply",
-                )
-                .with_recoverable(true),
-            );
+            return Err(AppErrorV1::new(
+                "vua.vpm.preview_drift",
+                ErrorCategory::Conflict,
+                "errors.vpm.previewDrift",
+                "corr-vpm-apply",
+            )
+            .with_recoverable(true));
         }
         let preview = fake_preview();
         // The port fact: apply_install answers {applied: items} verbatim.
@@ -181,7 +183,7 @@ impl VpmBackend for NoInstallBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -229,50 +231,96 @@ fn ops_v02_schema_admits_positive_vectors_and_rejects_negative_ones() {
         "schemas/packages-ops/v0.2/examples/packages-apply-install.request.json",
     ] {
         let doc = read_ops_json(positive);
-        assert!(command.is_valid(&doc), "{positive}: {:?}", violations(&command, &doc));
+        assert!(
+            command.is_valid(&doc),
+            "{positive}: {:?}",
+            violations(&command, &doc)
+        );
     }
     for positive in [
         "schemas/packages-ops/v0.2/examples/packages-preview-install.result.json",
         "schemas/packages-ops/v0.2/examples/packages-apply-install-result-receipt.result.json",
     ] {
         let doc = read_ops_json(positive);
-        assert!(result.is_valid(&doc), "{positive}: {:?}", violations(&result, &doc));
+        assert!(
+            result.is_valid(&doc),
+            "{positive}: {:?}",
+            violations(&result, &doc)
+        );
     }
 
     // The explicit closed request list: no empty "install nothing".
-    let empty_packages = read_ops_json("schemas/packages-ops/v0.2/examples/invalid-preview-install-empty-packages.request.json");
-    assert!(!command.is_valid(&empty_packages), "empty packages must be invalid");
+    let empty_packages = read_ops_json(
+        "schemas/packages-ops/v0.2/examples/invalid-preview-install-empty-packages.request.json",
+    );
+    assert!(
+        !command.is_valid(&empty_packages),
+        "empty packages must be invalid"
+    );
 
     // A preview request carries NO digest slot: the digest is the
     // preview's product, carrying one is a shape violation.
-    let carries_digest = read_ops_json("schemas/packages-ops/v0.2/examples/invalid-preview-install-carries-digest.request.json");
-    assert!(!command.is_valid(&carries_digest), "a preview request with a digest must be invalid");
+    let carries_digest = read_ops_json(
+        "schemas/packages-ops/v0.2/examples/invalid-preview-install-carries-digest.request.json",
+    );
+    assert!(
+        !command.is_valid(&carries_digest),
+        "a preview request with a digest must be invalid"
+    );
 
     // apply without the confirmed digest has no confirmation to bind to.
-    let missing_digest = read_ops_json("schemas/packages-ops/v0.2/examples/invalid-apply-install-missing-digest.request.json");
-    assert!(!command.is_valid(&missing_digest), "apply without confirmedDigest must be invalid");
+    let missing_digest = read_ops_json(
+        "schemas/packages-ops/v0.2/examples/invalid-apply-install-missing-digest.request.json",
+    );
+    assert!(
+        !command.is_valid(&missing_digest),
+        "apply without confirmedDigest must be invalid"
+    );
 
     // The request row is a closed two-key shape; invented presentation
     // facts are invalid by schema, not merely discouraged.
-    let row_extra = read_ops_json("schemas/packages-ops/v0.2/examples/invalid-install-package-row-extra-key.request.json");
-    assert!(!command.is_valid(&row_extra), "an invented displayName on the request row must be invalid");
+    let row_extra = read_ops_json(
+        "schemas/packages-ops/v0.2/examples/invalid-install-package-row-extra-key.request.json",
+    );
+    assert!(
+        !command.is_valid(&row_extra),
+        "an invented displayName on the request row must be invalid"
+    );
 
     // The false-assertion guard on the plan: no invented read-face facts.
-    let plan_invented = read_ops_json("schemas/packages-ops/v0.2/examples/invalid-install-plan-invented-field.result.json");
-    assert!(!result.is_valid(&plan_invented), "invented updateAvailable on the install plan must be invalid");
+    let plan_invented = read_ops_json(
+        "schemas/packages-ops/v0.2/examples/invalid-install-plan-invented-field.result.json",
+    );
+    assert!(
+        !result.is_valid(&plan_invented),
+        "invented updateAvailable on the install plan must be invalid"
+    );
 
-    let receipt_invented = read_ops_json("schemas/packages-ops/v0.2/examples/invalid-install-receipt-invented-field.result.json");
-    assert!(!result.is_valid(&receipt_invented), "invented downloadedBytes on the receipt must be invalid");
+    let receipt_invented = read_ops_json(
+        "schemas/packages-ops/v0.2/examples/invalid-install-receipt-invented-field.result.json",
+    );
+    assert!(
+        !result.is_valid(&receipt_invented),
+        "invented downloadedBytes on the receipt must be invalid"
+    );
 
     // The error-code family is vua.packages.* for this word face; the
     // port-level vua.vpm.* code never enters a rejected document.
     let code_outside = read_ops_json("schemas/packages-ops/v0.2/examples/invalid-install-rejected-code-outside-family.result.json");
-    assert!(!result.is_valid(&code_outside), "a non-vua.packages.* code must be invalid");
+    assert!(
+        !result.is_valid(&code_outside),
+        "a non-vua.packages.* code must be invalid"
+    );
 
     // Operation/kind lock: the synchronous install preview answers
     // kind=plan exactly, never a task-terminal arm.
-    let kind_mismatch = read_ops_json("schemas/packages-ops/v0.2/examples/invalid-preview-install-answer-receipt.result.json");
-    assert!(!result.is_valid(&kind_mismatch), "previewInstall must never answer kind=receipt");
+    let kind_mismatch = read_ops_json(
+        "schemas/packages-ops/v0.2/examples/invalid-preview-install-answer-receipt.result.json",
+    );
+    assert!(
+        !result.is_valid(&kind_mismatch),
+        "previewInstall must never answer kind=receipt"
+    );
 
     // The explicit closed request list: an exactly repeated row is a
     // word-face violation at the SCHEMA layer too (uniqueItems). NOTE
@@ -280,8 +328,13 @@ fn ops_v02_schema_admits_positive_vectors_and_rejects_negative_ones() {
     // id across rows with DIFFERENT versions is beyond JSON Schema's
     // cross-row expressiveness — it is pinned by the TS guard narrowing
     // and the wire-layer request check, never admitted end to end.
-    let duplicate_row = read_ops_json("schemas/packages-ops/v0.2/examples/invalid-install-package-row-duplicate.request.json");
-    assert!(!command.is_valid(&duplicate_row), "an exactly repeated request row must be invalid");
+    let duplicate_row = read_ops_json(
+        "schemas/packages-ops/v0.2/examples/invalid-install-package-row-duplicate.request.json",
+    );
+    assert!(
+        !command.is_valid(&duplicate_row),
+        "an exactly repeated request row must be invalid"
+    );
 }
 
 #[test]
@@ -289,7 +342,10 @@ fn install_capability_absence_answers_the_generic_capability_missing() {
     let backend = NoInstallBackend;
     assert!(!backend.capabilities().preview_install);
 
-    let project = ProjectRef { id: "demo".into(), root: std::path::PathBuf::from("C:/proj") };
+    let project = ProjectRef {
+        id: "demo".into(),
+        root: std::path::PathBuf::from("C:/proj"),
+    };
     let requests = fake_requests();
 
     // A backend without the install capability refuses BOTH methods with
@@ -298,7 +354,9 @@ fn install_capability_absence_answers_the_generic_capability_missing() {
     let err = backend.preview_install(&project, &requests).unwrap_err();
     assert_eq!(err.code, "vua.vpm.capability_missing");
 
-    let err = backend.apply_install(&project, &requests, FAKE_DIGEST).unwrap_err();
+    let err = backend
+        .apply_install(&project, &requests, FAKE_DIGEST)
+        .unwrap_err();
     assert_eq!(err.code, "vua.vpm.capability_missing");
 }
 
@@ -306,7 +364,10 @@ fn install_capability_absence_answers_the_generic_capability_missing() {
 fn fake_install_backend_port_facts_project_onto_the_frozen_wire_shapes() {
     let backend = FakeInstallBackend;
     assert!(backend.capabilities().preview_install);
-    let project = ProjectRef { id: "demo".into(), root: std::path::PathBuf::from("C:/VRChat/Projects/Chiffon") };
+    let project = ProjectRef {
+        id: "demo".into(),
+        root: std::path::PathBuf::from("C:/VRChat/Projects/Chiffon"),
+    };
     let requests = fake_requests();
 
     // Port facts → serde projection → plan-arm wire envelope → schema.
@@ -321,11 +382,18 @@ fn fake_install_backend_port_facts_project_onto_the_frozen_wire_shapes() {
         "result": plan,
     });
     let validator = ops_result_validator();
-    assert!(validator.is_valid(&envelope), "{:?}", violations(&validator, &envelope));
+    assert!(
+        validator.is_valid(&envelope),
+        "{:?}",
+        violations(&validator, &envelope)
+    );
     assert_eq!(envelope["result"]["schemaVersion"], "vua.packages-ops/v0.2");
     // The frozen camelCase projection of the port facts, including the
     // conflict-triggered remove row on the install face.
-    assert_eq!(envelope["result"]["destructive"], serde_json::Value::Bool(true));
+    assert_eq!(
+        envelope["result"]["destructive"],
+        serde_json::Value::Bool(true)
+    );
     let items = envelope["result"]["items"].as_array().unwrap();
     assert_eq!(items.len(), 3);
     assert_eq!(items[0]["kind"], "install");
@@ -341,7 +409,9 @@ fn fake_install_backend_port_facts_project_onto_the_frozen_wire_shapes() {
     // The receipt: the confirmed digest echo + the request rows verbatim
     // (version-selection semantics included) + the backend's actual
     // applied items, validated against the same schema.
-    let applied = backend.apply_install(&project, &requests, FAKE_DIGEST).unwrap();
+    let applied = backend
+        .apply_install(&project, &requests, FAKE_DIGEST)
+        .unwrap();
     let receipt = json!({
         "schemaVersion": "vua.packages-ops/v0.2",
         "kind": "receipt",
@@ -356,7 +426,11 @@ fn fake_install_backend_port_facts_project_onto_the_frozen_wire_shapes() {
         "result": receipt,
     });
     let validator = ops_result_validator();
-    assert!(validator.is_valid(&envelope), "{:?}", violations(&validator, &envelope));
+    assert!(
+        validator.is_valid(&envelope),
+        "{:?}",
+        violations(&validator, &envelope)
+    );
     // The request rows project through the same camelCase shape
     // ({packageId, version}) — the resolver-picked null rides verbatim.
     let requested = envelope["result"]["requestedPackages"].as_array().unwrap();
@@ -371,7 +445,10 @@ fn fake_install_backend_port_facts_project_onto_the_frozen_wire_shapes() {
 #[test]
 fn install_digest_drift_is_a_recoverable_conflict_word_face() {
     let backend = FakeInstallBackend;
-    let project = ProjectRef { id: "demo".into(), root: std::path::PathBuf::from("C:/proj") };
+    let project = ProjectRef {
+        id: "demo".into(),
+        root: std::path::PathBuf::from("C:/proj"),
+    };
     let requests = fake_requests();
 
     // The apply binds to the confirmed digest; drift is refused with the
@@ -385,6 +462,8 @@ fn install_digest_drift_is_a_recoverable_conflict_word_face() {
 
     // The matching digest executes and the receipt's appliedItems carry
     // the change items verbatim (the consumer loop's audit linkage).
-    let applied = backend.apply_install(&project, &requests, FAKE_DIGEST).unwrap();
+    let applied = backend
+        .apply_install(&project, &requests, FAKE_DIGEST)
+        .unwrap();
     assert!(applied["applied"].is_array());
 }

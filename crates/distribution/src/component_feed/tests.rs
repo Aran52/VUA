@@ -391,7 +391,13 @@ fn v03_schemas_and_transfer_manifest_binding_reject_downgrade_or_file_mismatches
 
     // v0.2 must reject compressedTransfer so v1.0.0 compatibility remains strict.
     let v02_with_compressed = feed(ComponentKind::Amf, vec![entry.clone()]);
-    assert!(verify(&signed(&v02_with_compressed, "0.2"), &key, ComponentKind::Amf, 1).is_err());
+    assert!(verify(
+        &signed(&v02_with_compressed, "0.2"),
+        &key,
+        ComponentKind::Amf,
+        1
+    )
+    .is_err());
 
     let mut v03_feed = feed(ComponentKind::Amf, vec![entry.clone()]);
     v03_feed.schema_version = "0.3".into();

@@ -53,7 +53,12 @@ pub fn parameter_budget_valid(budget: &ParameterBudget) -> bool {
 }
 /// Every candidate's parameter evidence must stay inside its contract before it is stored.
 pub fn validate_prefab_parameter_budgets(prefabs: &[PrefabCandidate]) -> Result<(), AppErrorV1> {
-    if prefabs.iter().any(|prefab| prefab.parameter_budget.as_ref().is_some_and(|budget| !parameter_budget_valid(budget))) {
+    if prefabs.iter().any(|prefab| {
+        prefab
+            .parameter_budget
+            .as_ref()
+            .is_some_and(|budget| !parameter_budget_valid(budget))
+    }) {
         return Err(production_error(
             "receipt_invalid",
             "Parameter budget evidence exceeds its contract.",
@@ -70,7 +75,12 @@ struct BudgetCount {
     seen: std::collections::BTreeSet<String>,
 }
 impl BudgetCount {
-    fn new() -> Self { Self { bits: 0, seen: std::collections::BTreeSet::new() } }
+    fn new() -> Self {
+        Self {
+            bits: 0,
+            seen: std::collections::BTreeSet::new(),
+        }
+    }
     // MA merges same-named parameters, with the earlier declaration winning: the Avatar's
     // own asset first, then its embedded components, then each selected outfit in order.
     fn add(&mut self, entry: &ParameterEntry) {
@@ -79,9 +89,13 @@ impl BudgetCount {
         }
     }
     fn add_budget(&mut self, budget: &ParameterBudget) {
-        for entry in &budget.expression_parameters { self.add(entry); }
+        for entry in &budget.expression_parameters {
+            self.add(entry);
+        }
         for component in &budget.ma_components {
-            for entry in &component.parameters { self.add(entry); }
+            for entry in &component.parameters {
+                self.add(entry);
+            }
         }
     }
 }
@@ -108,10 +122,24 @@ pub(super) struct ParameterEstimate {
 /// merged by name the way MA merges at build time, plus one bit for each switch VUA adds.
 /// Each row holds the bits it adds to the running total. Old runs without the evidence, an
 /// unreadable Avatar asset or a truncated observation report `known: false` instead of a number.
-pub(super) fn estimate_parameters(run: &ProductionRun, selection: &AssemblySelection) -> ParameterEstimate {
-    let unknown = || ParameterEstimate { known: false, avatar_name: String::new(), expression_bits: 0,
-        avatar_ma_bits: 0, avatar_unresolved: 0, outfits: vec![], total: 0, unresolved: 0 };
-    let avatar = run.prefabs.iter().find(|prefab| prefab.is_avatar && prefab.path == selection.avatar_prefab);
+pub(super) fn estimate_parameters(
+    run: &ProductionRun,
+    selection: &AssemblySelection,
+) -> ParameterEstimate {
+    let unknown = || ParameterEstimate {
+        known: false,
+        avatar_name: String::new(),
+        expression_bits: 0,
+        avatar_ma_bits: 0,
+        avatar_unresolved: 0,
+        outfits: vec![],
+        total: 0,
+        unresolved: 0,
+    };
+    let avatar = run
+        .prefabs
+        .iter()
+        .find(|prefab| prefab.is_avatar && prefab.path == selection.avatar_prefab);
     let avatar_budget = avatar.and_then(|prefab| prefab.parameter_budget.as_ref());
     let outfits: Vec<(&OutfitSelection, &PrefabCandidate)> = selection
         .outfits
@@ -120,28 +148,41 @@ pub(super) fn estimate_parameters(run: &ProductionRun, selection: &AssemblySelec
             run.prefabs
                 .iter()
                 .find(|prefab| {
-                    !prefab.is_avatar && prefab.source_id == outfit.source_id && prefab.path == outfit.prefab_path
+                    !prefab.is_avatar
+                        && prefab.source_id == outfit.source_id
+                        && prefab.path == outfit.prefab_path
                 })
                 .map(|prefab| (outfit, prefab))
         })
         .collect();
     let unusable = |budget: &Option<&ParameterBudget>| match budget {
-        None | Some(&ParameterBudget { truncated: true, .. }) => true,
+        None
+        | Some(&ParameterBudget {
+            truncated: true, ..
+        }) => true,
         Some(_) => false,
     };
-    if avatar_budget.map(|budget| !budget.expression_parameters_observed).unwrap_or(true)
+    if avatar_budget
+        .map(|budget| !budget.expression_parameters_observed)
+        .unwrap_or(true)
         || unusable(&avatar_budget)
-        || outfits.iter().any(|(_, outfit)| unusable(&outfit.parameter_budget.as_ref()))
+        || outfits
+            .iter()
+            .any(|(_, outfit)| unusable(&outfit.parameter_budget.as_ref()))
     {
         return unknown();
     }
     let avatar_budget = avatar_budget.expect("checked above");
     let avatar_name = avatar.expect("a budget implies its candidate").name.clone();
     let mut count = BudgetCount::new();
-    for entry in &avatar_budget.expression_parameters { count.add(entry); }
+    for entry in &avatar_budget.expression_parameters {
+        count.add(entry);
+    }
     let expression_bits = count.bits;
     for component in &avatar_budget.ma_components {
-        for entry in &component.parameters { count.add(entry); }
+        for entry in &component.parameters {
+            count.add(entry);
+        }
     }
     let avatar_ma_bits = count.bits - expression_bits;
     let mut unresolved = avatar_budget.unresolved_prefix_configs;
@@ -166,35 +207,60 @@ pub(super) fn estimate_parameters(run: &ProductionRun, selection: &AssemblySelec
             if choice.group.is_empty() {
                 count.bits += 1;
             } else if groups_counted.insert(choice.group.as_str()) {
-                count.bits += if group_sizes[choice.group.as_str()] > 1 { 8 } else { 1 };
+                count.bits += if group_sizes[choice.group.as_str()] > 1 {
+                    8
+                } else {
+                    1
+                };
             }
         }
         let bits = count.bits - before;
         unresolved += budget.unresolved_prefix_configs;
-        rows.push((outfit.source_id.clone(), outfit.name.clone(), bits, budget.unresolved_prefix_configs));
+        rows.push((
+            outfit.source_id.clone(),
+            outfit.name.clone(),
+            bits,
+            budget.unresolved_prefix_configs,
+        ));
     }
-    ParameterEstimate { known: true, avatar_name, expression_bits, avatar_ma_bits,
-        avatar_unresolved: avatar_budget.unresolved_prefix_configs, outfits: rows,
-        total: count.bits, unresolved }
+    ParameterEstimate {
+        known: true,
+        avatar_name,
+        expression_bits,
+        avatar_ma_bits,
+        avatar_unresolved: avatar_budget.unresolved_prefix_configs,
+        outfits: rows,
+        total: count.bits,
+        unresolved,
+    }
 }
 
 /// The plan's parameter-budget document, built from [`estimate_parameters`].
-pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection) -> serde_json::Value {
+pub fn plan_parameter_budget(
+    run: &ProductionRun,
+    selection: &AssemblySelection,
+) -> serde_json::Value {
     let estimate = estimate_parameters(run, selection);
     if !estimate.known {
         return serde_json::json!({"schemaVersion":"0.1","limitBits":PARAMETER_LIMIT_BITS,"state":"unknown",
             "estimateBits":0,"evidence":"unity_source_estimate","sources":[],"unresolvedPrefixConfigs":0});
     }
-    let mut sources = vec![serde_json::json!({"kind":"expression_parameters","origin":"avatar_base",
-        "name":estimate.avatar_name,"bits":estimate.expression_bits})];
+    let mut sources = vec![
+        serde_json::json!({"kind":"expression_parameters","origin":"avatar_base",
+        "name":estimate.avatar_name,"bits":estimate.expression_bits}),
+    ];
     if estimate.avatar_ma_bits > 0 || estimate.avatar_unresolved > 0 {
-        sources.push(serde_json::json!({"kind":"ma_parameters","origin":"avatar_base",
-            "name":estimate.avatar_name,"bits":estimate.avatar_ma_bits}));
+        sources.push(
+            serde_json::json!({"kind":"ma_parameters","origin":"avatar_base",
+            "name":estimate.avatar_name,"bits":estimate.avatar_ma_bits}),
+        );
     }
     for (_, name, bits, unresolved) in &estimate.outfits {
         if *bits > 0 || *unresolved > 0 {
-            sources.push(serde_json::json!({"kind":"ma_parameters","origin":"selected_outfit",
-                "name":name,"bits":bits}));
+            sources.push(
+                serde_json::json!({"kind":"ma_parameters","origin":"selected_outfit",
+                "name":name,"bits":bits}),
+            );
         }
     }
     let estimate_bits = estimate.total;
@@ -214,18 +280,53 @@ pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection)
 mod tests {
     use super::*;
 
-    fn entry(name: &str, bits: u8) -> ParameterEntry { ParameterEntry { name: name.into(), bits, unique: false } }
+    fn entry(name: &str, bits: u8) -> ParameterEntry {
+        ParameterEntry {
+            name: name.into(),
+            bits,
+            unique: false,
+        }
+    }
     fn component(path: &str, entries: Vec<ParameterEntry>) -> ParameterComponent {
-        ParameterComponent { path: path.into(), parameters: entries }
+        ParameterComponent {
+            path: path.into(),
+            parameters: entries,
+        }
     }
-    fn budget(observed: bool, expression: Vec<ParameterEntry>, components: Vec<ParameterComponent>) -> ParameterBudget {
-        ParameterBudget { expression_parameters_observed: observed, expression_parameters: expression,
-            ma_components: components, unresolved_prefix_configs: 0, truncated: false }
+    fn budget(
+        observed: bool,
+        expression: Vec<ParameterEntry>,
+        components: Vec<ParameterComponent>,
+    ) -> ParameterBudget {
+        ParameterBudget {
+            expression_parameters_observed: observed,
+            expression_parameters: expression,
+            ma_components: components,
+            unresolved_prefix_configs: 0,
+            truncated: false,
+        }
     }
-    fn candidate(name: &str, path: &str, avatar: bool, evidence: Option<ParameterBudget>) -> PrefabCandidate {
-        PrefabCandidate { source_id: if avatar { "avatar" } else { "outfit" }.into(), path: path.into(),
-            name: name.into(), is_avatar: avatar, has_skinned_mesh: true, has_merge_armature: false,
-            has_missing_scripts: false, humanoid_bones: vec![], preview: None, parameter_budget: evidence, prefab_guid:None, object_paths:None, footprint: None }
+    fn candidate(
+        name: &str,
+        path: &str,
+        avatar: bool,
+        evidence: Option<ParameterBudget>,
+    ) -> PrefabCandidate {
+        PrefabCandidate {
+            source_id: if avatar { "avatar" } else { "outfit" }.into(),
+            path: path.into(),
+            name: name.into(),
+            is_avatar: avatar,
+            has_skinned_mesh: true,
+            has_merge_armature: false,
+            has_missing_scripts: false,
+            humanoid_bones: vec![],
+            preview: None,
+            parameter_budget: evidence,
+            prefab_guid: None,
+            object_paths: None,
+            footprint: None,
+        }
     }
     fn run(prefabs: Vec<PrefabCandidate>) -> ProductionRun {
         ProductionRun { run_id: "n3-test".into(), prefabs, ..serde_json::from_value(serde_json::json!({
@@ -236,21 +337,45 @@ mod tests {
             "error":null,"recovery":null,"result":null})).expect("synthetic run") }
     }
     fn selection_with(outfits: &[(&str, &str)]) -> AssemblySelection {
-        AssemblySelection { avatar_prefab: "Assets/Avatar.prefab".into(),
-            outfits: outfits.iter().map(|(source, path)| OutfitSelection {
-                source_id: (*source).into(), prefab_path: (*path).into(),
-                mode: BindingMode::MergeArmature, bone: String::new(), toggle_name: String::new(), active: true,
-                saved: true, group: String::new() }).collect() }
+        AssemblySelection {
+            avatar_prefab: "Assets/Avatar.prefab".into(),
+            outfits: outfits
+                .iter()
+                .map(|(source, path)| OutfitSelection {
+                    source_id: (*source).into(),
+                    prefab_path: (*path).into(),
+                    mode: BindingMode::MergeArmature,
+                    bone: String::new(),
+                    toggle_name: String::new(),
+                    active: true,
+                    saved: true,
+                    group: String::new(),
+                })
+                .collect(),
+        }
     }
 
     #[test]
     fn estimate_counts_avatar_and_outfits_against_the_limit() {
-        let evidence = budget(true, vec![entry("VRCEmote", 8), entry("VRMode", 1)],
-            vec![component("Default Clothing", vec![entry("DefaultDress", 1)])]);
-        let outfit = budget(true, vec![], vec![component("", vec![entry("WinterCoat", 1)])]);
-        let run = run(vec![candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
-            candidate("Coat", "Assets/Outfit.prefab", false, Some(outfit))]);
-        let plan = plan_parameter_budget(&run, &selection_with(&[("outfit", "Assets/Outfit.prefab")]));
+        let evidence = budget(
+            true,
+            vec![entry("VRCEmote", 8), entry("VRMode", 1)],
+            vec![component(
+                "Default Clothing",
+                vec![entry("DefaultDress", 1)],
+            )],
+        );
+        let outfit = budget(
+            true,
+            vec![],
+            vec![component("", vec![entry("WinterCoat", 1)])],
+        );
+        let run = run(vec![
+            candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
+            candidate("Coat", "Assets/Outfit.prefab", false, Some(outfit)),
+        ]);
+        let plan =
+            plan_parameter_budget(&run, &selection_with(&[("outfit", "Assets/Outfit.prefab")]));
         assert_eq!(plan["state"], "fits");
         assert_eq!(plan["estimateBits"], 11);
         assert_eq!(plan["sources"].as_array().unwrap().len(), 3);
@@ -262,12 +387,33 @@ mod tests {
     #[test]
     fn same_named_parameters_merge_like_the_build_would() {
         let evidence = budget(true, vec![entry("OutfitMode", 8)], vec![]);
-        let outfit = budget(true, vec![], vec![component("", vec![entry("OutfitMode", 8), entry("Extra", 1),
-            ParameterEntry { name: "Inner".into(), bits: 1, unique: true },
-            ParameterEntry { name: "Inner".into(), bits: 1, unique: true }])]);
-        let run = run(vec![candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
-            candidate("Coat", "Assets/Outfit.prefab", false, Some(outfit))]);
-        let plan = plan_parameter_budget(&run, &selection_with(&[("outfit", "Assets/Outfit.prefab")]));
+        let outfit = budget(
+            true,
+            vec![],
+            vec![component(
+                "",
+                vec![
+                    entry("OutfitMode", 8),
+                    entry("Extra", 1),
+                    ParameterEntry {
+                        name: "Inner".into(),
+                        bits: 1,
+                        unique: true,
+                    },
+                    ParameterEntry {
+                        name: "Inner".into(),
+                        bits: 1,
+                        unique: true,
+                    },
+                ],
+            )],
+        );
+        let run = run(vec![
+            candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
+            candidate("Coat", "Assets/Outfit.prefab", false, Some(outfit)),
+        ]);
+        let plan =
+            plan_parameter_budget(&run, &selection_with(&[("outfit", "Assets/Outfit.prefab")]));
         // The outfit's OutfitMode merges into the Avatar's own; internal parameters keep theirs.
         assert_eq!(plan["estimateBits"], 8 + 1 + 1 + 1);
         // The merged name stays with the Avatar's row, so the rows still sum to the estimate.
@@ -276,18 +422,46 @@ mod tests {
     }
 
     fn rows_total(plan: &serde_json::Value) -> u64 {
-        plan["sources"].as_array().unwrap().iter().map(|row| row["bits"].as_u64().unwrap()).sum()
+        plan["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row["bits"].as_u64().unwrap())
+            .sum()
     }
 
     #[test]
     fn an_exclusive_group_shares_one_int_on_its_first_outfit() {
         let evidence = budget(true, vec![entry("VRCEmote", 8)], vec![]);
-        let run = run(vec![candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
-            candidate("Coat", "Assets/Coat.prefab", false, Some(budget(true, vec![], vec![]))),
-            candidate("Dress", "Assets/Dress.prefab", false, Some(budget(true, vec![], vec![]))),
-            candidate("Hat", "Assets/Hat.prefab", false, Some(budget(true, vec![], vec![])))]);
-        let mut selection = selection_with(&[("outfit", "Assets/Coat.prefab"), ("outfit", "Assets/Dress.prefab"), ("outfit", "Assets/Hat.prefab")]);
-        for (outfit, name) in selection.outfits.iter_mut().zip(["Coat", "Dress", "Hat"]) { outfit.toggle_name = name.into(); }
+        let run = run(vec![
+            candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
+            candidate(
+                "Coat",
+                "Assets/Coat.prefab",
+                false,
+                Some(budget(true, vec![], vec![])),
+            ),
+            candidate(
+                "Dress",
+                "Assets/Dress.prefab",
+                false,
+                Some(budget(true, vec![], vec![])),
+            ),
+            candidate(
+                "Hat",
+                "Assets/Hat.prefab",
+                false,
+                Some(budget(true, vec![], vec![])),
+            ),
+        ]);
+        let mut selection = selection_with(&[
+            ("outfit", "Assets/Coat.prefab"),
+            ("outfit", "Assets/Dress.prefab"),
+            ("outfit", "Assets/Hat.prefab"),
+        ]);
+        for (outfit, name) in selection.outfits.iter_mut().zip(["Coat", "Dress", "Hat"]) {
+            outfit.toggle_name = name.into();
+        }
         selection.outfits[0].group = "main".into();
         selection.outfits[1].group = "main".into();
         let plan = plan_parameter_budget(&run, &selection);
@@ -299,17 +473,38 @@ mod tests {
         assert_eq!(rows_total(&plan), 17);
         // A group of one stays a Bool.
         selection.outfits[1].group.clear();
-        assert_eq!(plan_parameter_budget(&run, &selection)["estimateBits"], 8 + 1 + 1 + 1);
+        assert_eq!(
+            plan_parameter_budget(&run, &selection)["estimateBits"],
+            8 + 1 + 1 + 1
+        );
     }
 
     #[test]
     fn each_labelled_outfit_adds_the_bit_of_the_switch_vua_creates() {
-        let evidence = budget(true, vec![entry("VRCEmote", 8)], vec![component("", vec![entry("Shared", 1)])]);
-        let coat = budget(true, vec![], vec![component("", vec![entry("Shared", 1), entry("Hood", 1)])]);
-        let run = run(vec![candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
+        let evidence = budget(
+            true,
+            vec![entry("VRCEmote", 8)],
+            vec![component("", vec![entry("Shared", 1)])],
+        );
+        let coat = budget(
+            true,
+            vec![],
+            vec![component("", vec![entry("Shared", 1), entry("Hood", 1)])],
+        );
+        let run = run(vec![
+            candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
             candidate("Coat", "Assets/Outfit.prefab", false, Some(coat)),
-            candidate("Hat", "Assets/Hat.prefab", false, Some(budget(true, vec![], vec![])))]);
-        let mut selection = selection_with(&[("outfit", "Assets/Outfit.prefab"), ("outfit", "Assets/Hat.prefab")]);
+            candidate(
+                "Hat",
+                "Assets/Hat.prefab",
+                false,
+                Some(budget(true, vec![], vec![])),
+            ),
+        ]);
+        let mut selection = selection_with(&[
+            ("outfit", "Assets/Outfit.prefab"),
+            ("outfit", "Assets/Hat.prefab"),
+        ]);
         selection.outfits[0].toggle_name = "Coat".into();
         selection.outfits[1].toggle_name = "Hat".into();
         let plan = plan_parameter_budget(&run, &selection);
@@ -327,35 +522,84 @@ mod tests {
     #[test]
     fn the_verdict_marks_near_and_over_the_limit() {
         // 28 distinct synced Int parameters: 224 bits, under the limit on their own.
-        let full = (0..28).map(|index| entry(&format!("Param{index}"), 8)).collect();
+        let full = (0..28)
+            .map(|index| entry(&format!("Param{index}"), 8))
+            .collect();
         let evidence = budget(true, full, vec![]);
         let small = budget(true, vec![], vec![component("", vec![entry("A", 8)])]);
-        let big = budget(true, vec![], vec![component("", (0..5).map(|index| entry(&format!("B{index}"), 8)).collect())]);
-        let run = run(vec![candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
+        let big = budget(
+            true,
+            vec![],
+            vec![component(
+                "",
+                (0..5).map(|index| entry(&format!("B{index}"), 8)).collect(),
+            )],
+        );
+        let run = run(vec![
+            candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
             candidate("Small", "Assets/Small.prefab", false, Some(small.clone())),
-            candidate("Big", "Assets/Big.prefab", false, Some(big))]);
-        assert_eq!(plan_parameter_budget(&run, &selection_with(&[("outfit", "Assets/Small.prefab")]))["state"], "near_limit");
-        assert_eq!(plan_parameter_budget(&run, &selection_with(&[("outfit", "Assets/Big.prefab")]))["state"], "over_limit");
+            candidate("Big", "Assets/Big.prefab", false, Some(big)),
+        ]);
+        assert_eq!(
+            plan_parameter_budget(&run, &selection_with(&[("outfit", "Assets/Small.prefab")]))
+                ["state"],
+            "near_limit"
+        );
+        assert_eq!(
+            plan_parameter_budget(&run, &selection_with(&[("outfit", "Assets/Big.prefab")]))
+                ["state"],
+            "over_limit"
+        );
     }
 
     #[test]
     fn missing_or_untrustworthy_evidence_reports_unknown_instead_of_a_number() {
         let unreadable = budget(false, vec![], vec![]);
-        let truncated = ParameterBudget { truncated: true, ..budget(true, vec![entry("A", 1)], vec![]) };
+        let truncated = ParameterBudget {
+            truncated: true,
+            ..budget(true, vec![entry("A", 1)], vec![])
+        };
         let avatar = candidate("Avatar", "Assets/Avatar.prefab", true, Some(unreadable));
-        assert_eq!(plan_parameter_budget(&run(vec![avatar]), &selection_with(&[]))["state"], "unknown");
+        assert_eq!(
+            plan_parameter_budget(&run(vec![avatar]), &selection_with(&[]))["state"],
+            "unknown"
+        );
         let avatar = candidate("Avatar", "Assets/Avatar.prefab", true, None);
-        assert_eq!(plan_parameter_budget(&run(vec![avatar]), &selection_with(&[]))["state"], "unknown");
+        assert_eq!(
+            plan_parameter_budget(&run(vec![avatar]), &selection_with(&[]))["state"],
+            "unknown"
+        );
         let avatar = candidate("Avatar", "Assets/Avatar.prefab", true, Some(truncated));
-        let outfit = candidate("Coat", "Assets/Outfit.prefab", false,
-            Some(ParameterBudget { truncated: true, ..budget(true, vec![], vec![]) }));
+        let outfit = candidate(
+            "Coat",
+            "Assets/Outfit.prefab",
+            false,
+            Some(ParameterBudget {
+                truncated: true,
+                ..budget(true, vec![], vec![])
+            }),
+        );
         let plan_run = run(vec![avatar, outfit]);
-        assert_eq!(plan_parameter_budget(&plan_run, &selection_with(&[("outfit", "Assets/Outfit.prefab")]))["state"], "unknown");
+        assert_eq!(
+            plan_parameter_budget(
+                &plan_run,
+                &selection_with(&[("outfit", "Assets/Outfit.prefab")])
+            )["state"],
+            "unknown"
+        );
         // A selection naming an unobserved outfit cannot claim a total either.
-        let avatar = candidate("Avatar", "Assets/Avatar.prefab", true, Some(budget(true, vec![], vec![])));
+        let avatar = candidate(
+            "Avatar",
+            "Assets/Avatar.prefab",
+            true,
+            Some(budget(true, vec![], vec![])),
+        );
         let outfit = candidate("Coat", "Assets/Outfit.prefab", false, None);
         let plan_run = run(vec![avatar, outfit]);
-        let plan = plan_parameter_budget(&plan_run, &selection_with(&[("outfit", "Assets/Outfit.prefab")]));
+        let plan = plan_parameter_budget(
+            &plan_run,
+            &selection_with(&[("outfit", "Assets/Outfit.prefab")]),
+        );
         assert_eq!(plan["state"], "unknown");
         assert_eq!(plan["estimateBits"], 0);
         assert_eq!(plan["sources"].as_array().unwrap().len(), 0);
@@ -363,12 +607,20 @@ mod tests {
 
     #[test]
     fn prefix_configs_report_as_unresolved_without_bits() {
-        let evidence = ParameterBudget { unresolved_prefix_configs: 2, ..budget(true, vec![entry("A", 1)], vec![]) };
-        let outfit = ParameterBudget { unresolved_prefix_configs: 1,
-            ..budget(true, vec![], vec![component("", vec![entry("B", 1)])]) };
-        let run = run(vec![candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
-            candidate("Coat", "Assets/Outfit.prefab", false, Some(outfit))]);
-        let plan = plan_parameter_budget(&run, &selection_with(&[("outfit", "Assets/Outfit.prefab")]));
+        let evidence = ParameterBudget {
+            unresolved_prefix_configs: 2,
+            ..budget(true, vec![entry("A", 1)], vec![])
+        };
+        let outfit = ParameterBudget {
+            unresolved_prefix_configs: 1,
+            ..budget(true, vec![], vec![component("", vec![entry("B", 1)])])
+        };
+        let run = run(vec![
+            candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
+            candidate("Coat", "Assets/Outfit.prefab", false, Some(outfit)),
+        ]);
+        let plan =
+            plan_parameter_budget(&run, &selection_with(&[("outfit", "Assets/Outfit.prefab")]));
         assert_eq!(plan["estimateBits"], 2);
         assert_eq!(plan["unresolvedPrefixConfigs"], 3);
         assert_eq!(plan["sources"].as_array().unwrap().len(), 3);
@@ -376,18 +628,51 @@ mod tests {
 
     #[test]
     fn evidence_stays_inside_its_contract() {
-        assert!(parameter_budget_valid(&budget(true, vec![entry("A", 1), entry("B", 8)], vec![])));
-        assert!(parameter_budget_valid(&budget(true, vec![], vec![component("", vec![])])));
-        assert!(!parameter_budget_valid(&budget(true, vec![entry("A", 7)], vec![])), "bits are 1 or 8");
-        assert!(!parameter_budget_valid(&budget(false, vec![entry("A", 1)], vec![])), "unobserved carries no entries");
-        assert!(!parameter_budget_valid(&budget(true, vec![], vec![component("a\u{0}b", vec![])])), "no control characters");
+        assert!(parameter_budget_valid(&budget(
+            true,
+            vec![entry("A", 1), entry("B", 8)],
+            vec![]
+        )));
+        assert!(parameter_budget_valid(&budget(
+            true,
+            vec![],
+            vec![component("", vec![])]
+        )));
+        assert!(
+            !parameter_budget_valid(&budget(true, vec![entry("A", 7)], vec![])),
+            "bits are 1 or 8"
+        );
+        assert!(
+            !parameter_budget_valid(&budget(false, vec![entry("A", 1)], vec![])),
+            "unobserved carries no entries"
+        );
+        assert!(
+            !parameter_budget_valid(&budget(true, vec![], vec![component("a\u{0}b", vec![])])),
+            "no control characters"
+        );
         assert!(!parameter_budget_valid(&ParameterBudget {
-            expression_parameters: vec![entry("A", 1); 257], ..budget(true, vec![], vec![]) }));
+            expression_parameters: vec![entry("A", 1); 257],
+            ..budget(true, vec![], vec![])
+        }));
         assert!(!parameter_budget_valid(&ParameterBudget {
-            unresolved_prefix_configs: 4097, ..budget(true, vec![], vec![]) }));
-        let mut prefabs = vec![candidate("A", "Assets/A.prefab", false,
-            Some(ParameterBudget { expression_parameters: vec![entry("", 1)], ..budget(true, vec![], vec![]) }))];
-        assert_eq!(validate_prefab_parameter_budgets(&prefabs).unwrap_err().code, "vua.amf_production.receipt_invalid");
+            unresolved_prefix_configs: 4097,
+            ..budget(true, vec![], vec![])
+        }));
+        let mut prefabs = vec![candidate(
+            "A",
+            "Assets/A.prefab",
+            false,
+            Some(ParameterBudget {
+                expression_parameters: vec![entry("", 1)],
+                ..budget(true, vec![], vec![])
+            }),
+        )];
+        assert_eq!(
+            validate_prefab_parameter_budgets(&prefabs)
+                .unwrap_err()
+                .code,
+            "vua.amf_production.receipt_invalid"
+        );
         prefabs[0].parameter_budget = None;
         assert!(validate_prefab_parameter_budgets(&prefabs).is_ok());
     }

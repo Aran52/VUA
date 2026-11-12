@@ -705,7 +705,8 @@ pub fn scenario_sop_v02(selection: &PlaySetupSelection) -> Result<Value, &'stati
         environment: if is_route {
             "Windows 11 play-route flow and official upstream documentation".into()
         } else {
-            "Official upstream documentation catalog review (no unverified hardware session claim)".into()
+            "Official upstream documentation catalog review (no unverified hardware session claim)"
+                .into()
         },
         software_versions: Vec::new(),
     };

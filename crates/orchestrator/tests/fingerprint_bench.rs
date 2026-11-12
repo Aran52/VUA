@@ -30,7 +30,11 @@ fn count_files(root: &Path) -> usize {
 fn first_asset(root: &Path) -> PathBuf {
     let mut stack: Vec<PathBuf> = vec![root.join("Assets")];
     while let Some(directory) = stack.pop() {
-        let mut entries: Vec<_> = fs::read_dir(&directory).unwrap().flatten().map(|e| e.path()).collect();
+        let mut entries: Vec<_> = fs::read_dir(&directory)
+            .unwrap()
+            .flatten()
+            .map(|e| e.path())
+            .collect();
         entries.sort();
         for path in entries {
             if path.is_file() {
@@ -54,15 +58,21 @@ fn times_the_legacy_and_cached_fingerprints_on_a_real_project() {
 
     let files = count_files(&project);
     let started = Instant::now();
-    let legacy = project_tree_fingerprint(&project, &SCOPES).unwrap().expect("project");
+    let legacy = project_tree_fingerprint(&project, &SCOPES)
+        .unwrap()
+        .expect("project");
     let legacy_seconds = started.elapsed().as_secs_f64();
 
     let started = Instant::now();
-    let cold = project_tree_fingerprint_cached(&project, &SCOPES).unwrap().expect("project");
+    let cold = project_tree_fingerprint_cached(&project, &SCOPES)
+        .unwrap()
+        .expect("project");
     let cold_seconds = started.elapsed().as_secs_f64();
 
     let started = Instant::now();
-    let warm = project_tree_fingerprint_cached(&project, &SCOPES).unwrap().expect("project");
+    let warm = project_tree_fingerprint_cached(&project, &SCOPES)
+        .unwrap()
+        .expect("project");
     let warm_seconds = started.elapsed().as_secs_f64();
     assert_eq!(cold, warm, "an unchanged project keeps its cached value");
 
@@ -71,12 +81,18 @@ fn times_the_legacy_and_cached_fingerprints_on_a_real_project() {
     fs::write(&changed, concatenate(&original, b"\n")).unwrap();
     std::thread::sleep(std::time::Duration::from_millis(50));
     let started = Instant::now();
-    let after_change = project_tree_fingerprint_cached(&project, &SCOPES).unwrap().expect("project");
+    let after_change = project_tree_fingerprint_cached(&project, &SCOPES)
+        .unwrap()
+        .expect("project");
     let changed_seconds = started.elapsed().as_secs_f64();
     assert_ne!(warm, after_change, "the changed file moves the value");
     fs::write(&changed, &original).unwrap();
 
-    println!("fingerprint benchmark on {} files ({})", files, project.display());
+    println!(
+        "fingerprint benchmark on {} files ({})",
+        files,
+        project.display()
+    );
     println!("  v1 legacy full read : {legacy_seconds:.2} s -> {legacy}");
     println!("  v2 first run        : {cold_seconds:.2} s -> {cold}");
     println!("  v2 unchanged        : {warm_seconds:.2} s");

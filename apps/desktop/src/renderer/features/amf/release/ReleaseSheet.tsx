@@ -2,11 +2,12 @@
 import { useState, type ReactNode } from "react";
 import { toast } from "../../../components/primitives/toast-store.ts";
 import { Icon } from "@vua/design-system";
-import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type AmfSdkIssue, type AmfUpload, type VrchatAvatarCheck } from "../../../gateway/index.ts";
+import { AMF_LOCAL_TEST_STAGES, AMF_UPLOAD_STAGES, type AmfLocalTest, type AmfProductionRun, type AmfReleaseState, type AmfSdkIssue, type AmfUpload, type VrchatAvatarCheck } from "../../../gateway/index.ts";
 import { format, formatDateTime, strings } from "../../../i18n/index.ts";
+import { UploadEligibilityNote } from "../../help/UploadEligibilityNote.tsx";
 import { sdkMessageKey } from "./sdk-messages.ts";
 import { UploadGuide, scrollToUploadGuide } from "./UploadGuide.tsx";
-import { outfitLines, releaseChecks, runningUpload, sdkReviewView, uploadedAvatarId, type CheckLine } from "./release-model.ts";
+import { outfitLines, releaseChecks, runningLocalTest, runningUpload, sdkReviewView, uploadedAvatarId, type CheckLine } from "./release-model.ts";
 
 const copy = strings.releaseRoom;
 const vrchatCopy = strings.vrchat.release;
@@ -26,12 +27,16 @@ export interface SheetActions {
   readonly busy: boolean;
   /** An upload of this Avatar runs or waits; another upload would repeat it. */
   readonly uploadBlocked?: boolean;
+  /** A local test build of this Avatar runs or waits. */
+  readonly localTestBlocked?: boolean;
   /** Another line's work runs; what this page starts now waits for it. */
   readonly otherWork?: boolean;
   readonly queued?: QueuedWork | null;
   readonly onUpload: () => void;
-  /** The work project is gone: the Avatar can be built again from its materials. */
+  readonly onLocalTest?: () => void;
+  /** The work project is gone: the Avatar can be built again from its materials or saved Recipe. */
   readonly onNewLine?: () => void;
+  readonly onRebuildRecipe?: () => void;
   readonly onStop: () => void;
   readonly onCheckAgain: () => void;
   /** Runs the SDK's own Auto Fix for the chosen items. */
@@ -48,9 +53,9 @@ function QueuedNotice({ queued }: { queued: QueuedWork }) {
 }
 
 /** How this upload's SDK sign-in happened, as one plain line; unknown stays unsaid. */
-function SdkSignInLine({ upload }: { upload: AmfUpload }) {
-  if (upload.sdkSignIn == null) return null;
-  return <small className="vua-text-secondary">{vrchatCopy.sdkSignIn[upload.sdkSignIn]}</small>;
+function SdkSignInLine({ sdkSignIn }: { sdkSignIn: "vua_session" | "panel" | null | undefined }) {
+  if (sdkSignIn == null) return null;
+  return <small className="vua-text-secondary">{vrchatCopy.sdkSignIn[sdkSignIn]}</small>;
 }
 
 /** The uploaded Avatar as VRChat lists it: found, waiting to appear, or unreadable. */
@@ -196,6 +201,43 @@ function UploadProgress({ upload, onStop }: { upload: AmfUpload; onStop?: () => 
   </div>;
 }
 
+function LocalTestProgress({ test, onStop }: { test: AmfLocalTest; onStop?: () => void }) {
+  const stages = AMF_LOCAL_TEST_STAGES.filter(stage => stage !== "finishing");
+  const at = Math.min(AMF_LOCAL_TEST_STAGES.indexOf(test.stage), stages.length - 1);
+  return <div className="vua-release-upload__progress" role="status">
+    <div className="vua-release-upload__now"><strong>{copy.stages[test.stage]}</strong><span>{format(copy.pageOf, { page: at + 1, total: stages.length })}</span></div>
+    <ol className="vua-release-upload__stages" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }} aria-hidden="true">
+      {stages.map((stage, index) => <li key={stage} title={copy.stages[stage]} data-state={index < at ? "done" : index === at ? "current" : "todo"} />)}
+    </ol>
+    {test.stage === "sign_in" ? <SignInGuide/> : <p className="vua-release-upload__hint">{copy.stageHints[test.stage]}</p>}
+    {test.status && <small className="vua-text-secondary">{test.status}</small>}
+    {onStop && <button type="button" className="vua-release-upload__stop" onClick={onStop}><Icon name="close" size={16} />{copy.localTest.stop}</button>}
+  </div>;
+}
+
+function LocalTestResult({ test, onCheckAgain }: { test: AmfLocalTest; onCheckAgain?: () => void }) {
+  if (test.state === "succeeded") {
+    return <div className="vua-release-upload__result" data-tone="success" role="status">
+      <strong><Icon name="check" size={16} />{copy.localTest.succeeded}</strong>
+      <span className="vua-text-secondary">{time(test.endedAt)}</span>
+      <p>{copy.localTest.succeededHint}</p>
+      <SdkSignInLine sdkSignIn={test.sdkSignIn} />
+      {test.detail && <small className="vua-text-secondary">{test.detail}</small>}
+    </div>;
+  }
+  const reason = test.reason ?? "unknown";
+  const reasonText = reason === "platform_unsupported" || reason === "bridge_outdated"
+    ? copy.localTest.reasons[reason]
+    : copy.reasons[reason];
+  return <div className="vua-release-upload__result" data-tone={test.state === "cancelled" ? "neutral" : "attention"} role="status">
+    <strong><Icon name={test.state === "cancelled" ? "pause" : "warning"} size={16} />{test.state === "cancelled" ? copy.localTest.cancelled : copy.localTest.failed}</strong>
+    <p>{reasonText}</p>
+    {test.errors.length > 0 && <ul className="vua-release-upload__errors">{test.errors.map((error, index) => <li key={index}>{error}</li>)}</ul>}
+    {test.detail && <details><summary>{copy.upload.details}</summary><p>{test.detail}</p></details>}
+    {onCheckAgain && (reason === "avatar_missing" || reason === "bridge_outdated") && <button type="button" className="vua-release-upload__link" onClick={onCheckAgain}>{copy.upload.checkAgain}</button>}
+  </div>;
+}
+
 function CopyId({ id }: { id: string }) {
   return <button type="button" className="vua-release-upload__copy" onClick={() => {
     void navigator.clipboard?.writeText(id).then(() => toast(copy.upload.copied, "success"), () => {});
@@ -212,7 +254,7 @@ function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, onOpenOnVrc
       <span className="vua-text-secondary">{time(upload.endedAt)}</span>
       <span className="vua-release-upload__id"><span>{copy.upload.avatarId}</span><code>{upload.blueprintId}</code><CopyId id={upload.blueprintId} />
         {onOpenOnVrchat && <button type="button" className="vua-release-upload__copy" onClick={() => onOpenOnVrchat(upload.blueprintId!)}>{vrchatCopy.openPage}</button>}</span>
-      <SdkSignInLine upload={upload} />
+      <SdkSignInLine sdkSignIn={upload.sdkSignIn} />
       {upload.detail && <small className="vua-text-secondary">{upload.detail}</small>}
       {check !== null || onRefreshCheck !== undefined ? <AvatarCheckBlock check={check} {...(onRefreshCheck !== undefined ? { onRefresh: onRefreshCheck } : {})} busy={busy} /> : null}
     </div>;
@@ -241,10 +283,15 @@ export function ReleaseSheet({ run, title, state, number, live, actions, notice,
   const outfits = outfitLines(run);
   const checks = releaseChecks(run);
   const running = runningUpload(state);
+  const runningTest = runningLocalTest(state);
   const latest = state?.uploads[0] ?? null;
+  const latestTest = state?.localTests?.[0] ?? null;
   const earlier = (state?.uploads ?? []).filter(upload => upload !== latest && upload.state !== "running").slice(0, 3);
   const uploaded = uploadedAvatarId(state) !== null;
+  const tested = (state?.localTests ?? []).some(test => test.state === "succeeded");
   const uploadQueued = actions?.queued?.operation === "amf.production.upload";
+  const localTestQueued = actions?.queued?.operation === "amf.production.localTest";
+  const noPublishPermission = state?.uploadEligibility?.canPublish === false;
   return <div className="vua-album__sheet">
     <header className="vua-album__heading">
       <span className="vua-album__number">{format(copy.number, { number: String(number).padStart(2, "0") })}</span>
@@ -255,24 +302,50 @@ export function ReleaseSheet({ run, title, state, number, live, actions, notice,
     {/* A queued upload is the notice alone; other queued work keeps the button, disabled. */}
     {live && actions?.onNewLine ? <section className="vua-release-upload" data-nav-id="release-project-gone">
       <p>{copy.projectGone.title}</p>
-      <button type="button" className="vua-release-upload__button" onClick={actions.onNewLine} data-nav-id="release-new-line"><Icon name="refresh" size={20} />{copy.projectGone.newLine}</button>
+      {actions.onRebuildRecipe ? <>
+        <button type="button" className="vua-release-upload__button" onClick={actions.onRebuildRecipe} data-nav-id="release-rebuild-recipe"><Icon name="refresh" size={20} />{copy.projectGone.rebuildRecipe}</button>
+        <div className="vua-release-upload__secondary-row"><button type="button" className="vua-release-upload__link" onClick={actions.onNewLine} data-nav-id="release-new-line">{copy.projectGone.newLine}</button></div>
+      </> : <button type="button" className="vua-release-upload__button" onClick={actions.onNewLine} data-nav-id="release-new-line"><Icon name="refresh" size={20} />{copy.projectGone.newLine}</button>}
       {latest && latest.state !== "running" && <UploadResult upload={latest} check={avatarCheck ?? null} busy={false}
         {...(onRefreshAvatarCheck ? { onRefreshCheck: onRefreshAvatarCheck } : {})} {...(onOpenOnVrchat ? { onOpenOnVrchat } : {})} />}
-    </section> : <section className="vua-release-upload" aria-label={copy.upload.button}>
+    </section> : <section className="vua-release-upload" aria-label={noPublishPermission ? copy.localTest.button : copy.upload.button}>
       {live && actions?.queued && <QueuedNotice queued={actions.queued} />}
-      {running ? <UploadProgress upload={running} {...(live && actions ? { onStop: actions.onStop } : {})} /> : <>
-        {!(live && uploadQueued) && <>
-          <button type="button" className="vua-release-upload__button" disabled={live && (!actions || (actions.uploadBlocked ?? actions.busy))} tabIndex={live ? 0 : -1}
-            onClick={actions?.onUpload} data-nav-id="release-upload"><Icon name="arrow-up" size={20} />{uploaded ? copy.upload.again : copy.upload.button}</button>
-          {!(live && actions?.queued) && (actions?.busy || actions?.otherWork || state?.editorOpen) && <small className="vua-text-secondary">{actions?.busy ? copy.upload.lineBusy
-            : actions?.otherWork ? copy.upload.busy : copy.upload.unityOpen}</small>}
-        </>}
-        {latest && latest.state !== "running" && <UploadResult upload={latest} check={avatarCheck ?? null}
-          {...(live && onRefreshAvatarCheck ? { onRefreshCheck: onRefreshAvatarCheck } : {})}
-          {...(live && onOpenOnVrchat ? { onOpenOnVrchat } : {})}
-          busy={live && actions ? actions.busy : false}
-          {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} />}
+      {noPublishPermission && <>
+        <UploadEligibilityNote />
+        <p className="vua-caption vua-text-secondary">{copy.localTest.visitorPrimaryHint}</p>
       </>}
+      {running ? <UploadProgress upload={running} {...(live && actions ? { onStop: actions.onStop } : {})} />
+        : runningTest ? <LocalTestProgress test={runningTest}
+            {...(live && actions && (runningTest.stage === "sdk_panel" || runningTest.stage === "sign_in") ? { onStop: actions.onStop } : {})} />
+        : <>
+          {noPublishPermission ? <>
+            {actions?.onLocalTest && !(live && localTestQueued) && <button type="button" className="vua-release-upload__button"
+              disabled={live && (!actions || (actions.localTestBlocked ?? actions.busy))} tabIndex={live ? 0 : -1}
+              onClick={actions?.onLocalTest} data-nav-id="release-local-test"><Icon name="flask" size={20} />{tested ? copy.localTest.again : copy.localTest.button}</button>}
+            {!(live && uploadQueued) && <div className="vua-release-upload__secondary-row">
+              <button type="button" className="vua-album__bake" disabled={live && (!actions || (actions.uploadBlocked ?? actions.busy))} tabIndex={live ? 0 : -1}
+                onClick={actions?.onUpload} data-nav-id="release-upload"><Icon name="arrow-up" size={16} /> {uploaded ? copy.upload.again : copy.upload.button}</button>
+            </div>}
+          </> : <>
+            {!(live && uploadQueued) && <>
+              <button type="button" className="vua-release-upload__button" disabled={live && (!actions || (actions.uploadBlocked ?? actions.busy))} tabIndex={live ? 0 : -1}
+                onClick={actions?.onUpload} data-nav-id="release-upload"><Icon name="arrow-up" size={20} />{uploaded ? copy.upload.again : copy.upload.button}</button>
+              {!(live && actions?.queued) && (actions?.busy || actions?.otherWork || state?.editorOpen) && <small className="vua-text-secondary">{actions?.busy ? copy.upload.lineBusy
+                : actions?.otherWork ? copy.upload.busy : copy.upload.unityOpen}</small>}
+            </>}
+            {actions?.onLocalTest && !(live && localTestQueued) && <div className="vua-release-upload__secondary-row">
+              <button type="button" className="vua-album__bake" disabled={live && (actions.localTestBlocked ?? actions.busy)} tabIndex={live ? 0 : -1}
+                onClick={actions.onLocalTest} data-nav-id="release-local-test">{tested ? copy.localTest.again : copy.localTest.button}</button>
+              <small className="vua-text-secondary">{copy.localTest.hint}</small>
+            </div>}
+          </>}
+          {latestTest && latestTest.state !== "running" && <LocalTestResult test={latestTest} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} />}
+          {latest && latest.state !== "running" && <UploadResult upload={latest} check={avatarCheck ?? null}
+            {...(live && onRefreshAvatarCheck ? { onRefreshCheck: onRefreshAvatarCheck } : {})}
+            {...(live && onOpenOnVrchat ? { onOpenOnVrchat } : {})}
+            busy={live && actions ? actions.busy : false}
+            {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} />}
+        </>}
       {earlier.length > 0 && <details className="vua-release-upload__history"><summary>{copy.upload.history}</summary>
         <ul>{earlier.map(upload => <li key={upload.uploadId}>{format(copy.upload.historyLine, { time: time(upload.endedAt ?? upload.startedAt), result: copy.upload.results[upload.state] })}
           {upload.blueprintId && <code>{upload.blueprintId}</code>}</li>)}</ul></details>}

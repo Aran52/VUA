@@ -4,6 +4,7 @@ const en = {
   noPc: "Standalone (no PC)",
   stepsTitle: "Setup steps", ready: "All software ready", inHeadset: "Runs directly on headset", changeHint: "Change platform, device, or connection",
   officialSource: "Compiled from official setup guides · Nov 2026",
+  verifiedSource: "Official setup guides · verified {date}",
   standaloneNote: "Standalone headsets display avatars that include an Android/Quest build. PC-only avatars appear as fallbacks or default figures.",
   actors: { vua: "Handled by VUA", open: "Opened by VUA", player: "Done by you" },
   steps: {
@@ -35,6 +36,7 @@ export const playSetupCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy>
     noPc: "一体机直玩（不连电脑）",
     stepsTitle: "准备步骤", ready: "软件均已就绪", inHeadset: "在头显内独立运行", changeHint: "切换平台、设备或连接方式",
     officialSource: "步骤整理自官方指南 · 2026 年 11 月",
+    verifiedSource: "整理自官方指南 · 核验于 {date}",
     standaloneNote: "一体机独立版只能直接显示带有移动端版本的 Avatar；仅上传了 PC 版的模型会显示为替身（Fallback）或默认机器人。",
     actors: { vua: "VUA 自动完成", open: "VUA 帮你打开", player: "需要你操作" },
     steps: {
@@ -61,6 +63,7 @@ export const playSetupCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy>
     noPc: "一體機直玩（不連電腦）",
     stepsTitle: "準備步驟", ready: "軟體皆已就緒", inHeadset: "在頭顯內獨立執行", changeHint: "變更平台、裝置或連線方式",
     officialSource: "步驟整理自官方指南 · 2026 年 11 月",
+    verifiedSource: "整理自官方指南 · 核驗於 {date}",
     standaloneNote: "獨立型頭顯只會直接顯示含有行動版建置的 Avatar；僅有 PC 版的模型會顯示為 Fallback 替身或預設形象。",
     actors: { vua: "VUA 自動處理", open: "VUA 協助開啟", player: "由你操作" },
     steps: {
@@ -87,6 +90,7 @@ export const playSetupCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy>
     noPc: "単体プレイ（PC 不要）",
     stepsTitle: "準備手順", ready: "ソフトの準備完了", inHeadset: "ヘッドセット単体で動作", changeHint: "プラットフォーム・機器・接続方法を変更",
     officialSource: "公式ガイドをもとに整理（2026 年 11 月時点）",
+    verifiedSource: "公式ガイドをもとに整理（確認日：{date}）",
     standaloneNote: "単体版では Android / Quest 対応アバターのみそのまま表示され、PC 専用アバターはフォールバックや標準アバターに置き換わります。",
     actors: { vua: "VUA が実行", open: "VUA が開く", player: "自分で操作" },
     steps: {
@@ -113,6 +117,7 @@ export const playSetupCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy>
     noPc: "단독 실행(PC 불필요)",
     stepsTitle: "준비 단계", ready: "모든 소프트웨어 준비 완료", inHeadset: "헤드셋 단독 실행", changeHint: "플랫폼, 기기, 연결 방식 바꾸기",
     officialSource: "공식 안내 기준 정리 (2026년 11월)",
+    verifiedSource: "공식 안내 기준 정리 (확인일: {date})",
     standaloneNote: "단독 실행 모드에서는 Android / Quest 대응 버전이 있는 아바타만 그대로 보이고, PC 전용 아바타는 폴백(대체)이나 기본 모습으로 표시돼요.",
     actors: { vua: "VUA가 처리", open: "VUA가 열기", player: "직접 진행" },
     steps: {

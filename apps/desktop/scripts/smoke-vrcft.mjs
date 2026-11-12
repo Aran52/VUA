@@ -21,10 +21,15 @@ delete process.env.VUA_RENDERER_URL;
 BrowserWindow.prototype.show = function () {}; BrowserWindow.prototype.focus = function () {};
 let window, exitCode = 1, nativeRead = false, unavailable = false;
 let synthetic = { schemaVersion: "vua.external-tool/v0.4", toolId: "vrcft", capturedAt: "synthetic", presence: "missing", steamReady: true, buildId: null, running: false, canStop: false, activity: "idle", issue: null };
+const syntheticInstaller = { schemaVersion: "vua.installer-tool/v0.1", toolId: "slimevr", capturedAt: "synthetic", presence: "missing", location: null, version: null, running: false, canStop: false, activity: "idle", issue: null };
 const actions = [], errors = [], checks = [];
 const handle = ipcMain.handle.bind(ipcMain);
 ipcMain.handle = (channel, listener) => handle(channel, async (event, request, ...rest) => {
   if (channel !== "vua:gateway:invoke" || !request?.method?.startsWith("tools.")) return listener(event, request, ...rest);
+  if (request.method === "tools.observeInstaller" || request.method === "tools.actInstaller") {
+    if (unavailable) return { schemaVersion: 1, requestId: request.requestId, ok: false, error: { code: "internal", messageKey: "errors.installerTool.unavailable" } };
+    return { schemaVersion: 1, requestId: request.requestId, ok: true, value: { installerTool: { ...syntheticInstaller, toolId: request.params.toolId } } };
+  }
   if (nativeRead && request.method === "tools.observeConnection") return listener(event, request);
   if (unavailable) return { schemaVersion: 1, requestId: request.requestId, ok: false, error: { code: "internal", messageKey: "errors.externalTool.unavailable" } };
   if (request.method === "tools.actConnection") {

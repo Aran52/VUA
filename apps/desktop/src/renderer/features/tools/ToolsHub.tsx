@@ -5,8 +5,9 @@ import { currentLocale, strings } from "../../i18n/index.ts";
 import { structureCopy } from "../../i18n/structure-copy.ts";
 import { VrcftCard } from "./VrcftCard.tsx";
 import { SteamToolCard } from "./SteamToolCard.tsx";
+import { InstallerToolCard } from "./InstallerToolCard.tsx";
 import { PlannedToolCard } from "./PlannedToolCard.tsx";
-import { isPlannedTool } from "./planned-tools.ts";
+import { isInstallerTool, isPlannedTool } from "./planned-tools.ts";
 import { SlideDrawer } from "../../components/SlideDrawer.tsx";
 import { useEscapeClose } from "../../components/use-escape-close.ts";
 import { useGridColumns } from "../../components/use-grid-columns.ts";
@@ -44,6 +45,8 @@ export function ToolGroup({ title, group, selected, onSelect, onPrepareSteam }: 
     {tool.id === "vrcft" ? <VrcftCard hint={hints.vrcft} selected={selected === tool.id} onDetails={() => toggle(tool.id)} onReveal={() => reveal(tool.id)} onPrepareSteam={onPrepareSteam} />
       : isPlannedTool(tool.id) ? <PlannedToolCard id={tool.id} title={tool.title} hint={hints[tool.id as keyof typeof hints]} icon={group.icon}
           selected={selected === tool.id} onDetails={() => toggle(tool.id)} onClose={() => onSelect(null)} />
+      : isInstallerTool(tool.id) ? <InstallerToolCard toolId={tool.id} title={tool.title} hint={hints[tool.id as keyof typeof hints]} icon={group.icon} selected={selected === tool.id}
+          onDetails={() => toggle(tool.id)} onReveal={() => reveal(tool.id)} />
       : <SteamToolCard toolId={tool.id as ExternalToolId} title={tool.title} hint={hints[tool.id as keyof typeof hints] ?? platforms[tool.id as keyof typeof platforms]} icon={group.icon} selected={selected === tool.id}
         onDetails={() => toggle(tool.id)} onReveal={() => reveal(tool.id)} onPrepareSteam={onPrepareSteam} />}
   </div>);

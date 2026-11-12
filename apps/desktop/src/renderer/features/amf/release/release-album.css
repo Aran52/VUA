@@ -309,3 +309,8 @@
 .vua-line-terms [data-decision="contact_licensor"] > strong, .vua-line-terms__overall[data-decision="contact_licensor"] { color: var(--vua-warning-text); }
 .vua-line-terms [data-decision="nonconforming"] > strong, .vua-line-terms__overall[data-decision="nonconforming"] { color: var(--vua-error-text); }
 .vua-line-terms [data-decision="unknown"] > strong, .vua-line-terms__overall[data-decision="unknown"] { color: var(--vua-text-secondary); }
+.vua-upload-eligibility { display: grid; gap: var(--vua-space-2); padding: var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); }
+.vua-upload-eligibility h2 { margin: 0; font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
+.vua-upload-eligibility p { margin: 0; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-upload-eligibility__actions { display: flex; flex-wrap: wrap; gap: var(--vua-space-2); }
+.vua-release-upload__secondary-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2); }

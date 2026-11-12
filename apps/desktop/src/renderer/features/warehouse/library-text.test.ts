@@ -32,4 +32,7 @@ describe("readableDescription", () => {
     expect(readableDescription("Intro **bold** text ========= Next part")).toBe("Intro bold text\n\nNext part");
     expect(readableDescription("a - b -- c")).toBe("a - b -- c");
   });
+  it("normalizes CRLF line endings and collapses excess blank lines", () => {
+    expect(readableDescription("Line 1\r\nLine 2\r\n\r\n\r\nLine 3")).toBe("Line 1\nLine 2\n\nLine 3");
+  });
 });

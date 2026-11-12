@@ -46,9 +46,9 @@ export function videoLink(url: string): { readonly href: string; readonly site: 
   } catch { return { href: url, site: url }; }
 }
 
-/** BOOTH's recorded description is one flat line: its bold marks go, and its rule lines become paragraph breaks. */
+/** BOOTH's recorded description can be flat or multi-paragraph: CRLF normalizes, bold marks go, and rule lines become paragraph breaks. */
 export function readableDescription(text: string): string {
-  return text.replace(/\*\*/gu, "").replace(/\s*[=＝─━_~-]{4,}\s*/gu, "\n\n").trim();
+  return text.replace(/\r\n?/gu, "\n").replace(/\*\*/gu, "").replace(/\s*[=＝─━_~-]{4,}\s*/gu, "\n\n").replace(/\n{3,}/gu, "\n\n").trim();
 }
 
 /** The value a non-default order goes by, shown on the card so the order explains itself. */

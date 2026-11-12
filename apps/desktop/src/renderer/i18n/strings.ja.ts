@@ -22,6 +22,10 @@ import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
 import { contextGuideCopy } from "./context-guide-copy.ts";
 import { helpFaqCopy } from "./help-faq-copy.ts";
+import { avatarOptimizerCopy } from "./avatar-optimizer-copy.ts";
+import { guideChannelCopy } from "./guide-channel-copy.ts";
+import { recipeDraftFlowCopy } from "./recipe-draft-flow-copy.ts";
+import { installerToolCopy } from "./installer-tool-copy.ts";
 import type { Strings } from "./strings.en.ts";
 
 /**
@@ -55,6 +59,10 @@ export const strings: Strings = {
   useTerms: useTermsCopy.ja,
   environmentCards: environmentCopy["ja"],
   journey: journeyCopy["ja"],
+  avatarOptimizer: avatarOptimizerCopy["ja"],
+  guideChannel: guideChannelCopy["ja"],
+  recipeDraftFlow: recipeDraftFlowCopy["ja"],
+  installerTool: installerToolCopy["ja"],
   websiteTests: {
     title: "接続テスト", test: "テスト", testAll: "すべてテスト", testing: "テスト中…",
     add: "サイトを追加", edit: "サイトを編集", editSite: "{name} を編集", testSite: "{name} をテスト",

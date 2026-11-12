@@ -16,8 +16,21 @@ export function recipeReadiness(plan: Pick<AmfRecipeMaterialPlan, "materials" | 
 }
 
 export type RecipeMaterialRole = "avatar" | "outfit" | "other";
-/** A file the production list knows, with the BOOTH products it came from. */
-export interface RecipeMaterialSource { readonly sourceId: string; readonly itemId: string; readonly name: string; readonly productIds?: readonly string[] }
+/** A file the production list knows, with the BOOTH products it came from and its recorded digest. */
+export interface RecipeMaterialSource {
+  readonly sourceId: string;
+  readonly itemId: string;
+  readonly name: string;
+  readonly productIds?: readonly string[];
+  readonly sha256?: string;
+}
+
+/** Fast in-memory readiness when every Recipe material matches a local source's recorded SHA-256 digest. */
+export function fastDocumentReadiness(recipe: AmfRecipeDocument, sources: readonly RecipeMaterialSource[]): RecipeReadiness | null {
+  if (recipe.materials.length === 0 || !sources.some(source => Boolean(source.sha256))) return null;
+  const knownDigests = new Set(sources.flatMap(source => (source.sha256 ? [source.sha256.toLowerCase()] : [])));
+  return recipe.materials.every(material => knownDigests.has(material.sha256.toLowerCase())) ? { kind: "ready" } : null;
+}
 export interface RecipeMaterialRow {
   readonly materialId: string;
   readonly packageName: string;

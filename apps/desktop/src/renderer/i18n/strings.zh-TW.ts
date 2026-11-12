@@ -22,6 +22,10 @@ import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
 import { contextGuideCopy } from "./context-guide-copy.ts";
 import { helpFaqCopy } from "./help-faq-copy.ts";
+import { avatarOptimizerCopy } from "./avatar-optimizer-copy.ts";
+import { guideChannelCopy } from "./guide-channel-copy.ts";
+import { recipeDraftFlowCopy } from "./recipe-draft-flow-copy.ts";
+import { installerToolCopy } from "./installer-tool-copy.ts";
 import type { Strings } from "./strings.en.ts";
 
 /**
@@ -59,6 +63,10 @@ export const strings: Strings = {
   useTerms: useTermsCopy["zh-TW"],
   environmentCards: environmentCopy["zh-TW"],
   journey: journeyCopy["zh-TW"],
+  avatarOptimizer: avatarOptimizerCopy["zh-TW"],
+  guideChannel: guideChannelCopy["zh-TW"],
+  recipeDraftFlow: recipeDraftFlowCopy["zh-TW"],
+  installerTool: installerToolCopy["zh-TW"],
   websiteTests: {
     title: "網站連線測試", test: "測試", testAll: "全部測試", testing: "測試中…",
     add: "新增網站", edit: "編輯網站", editSite: "編輯 {name}", testSite: "測試 {name}",

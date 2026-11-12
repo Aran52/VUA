@@ -219,26 +219,51 @@ const KO: CopyTable = CopyTable {
 
 impl Lang {
     pub fn detect(explicit: Option<&str>) -> Self {
+        let preferred = query_user_preferred_ui_languages();
         let lcid = unsafe { windows_sys::Win32::Globalization::GetUserDefaultUILanguage() };
-        Self::resolve(explicit, lcid)
+        Self::resolve_with_preferences(explicit, &preferred, lcid)
     }
 
-    pub fn resolve(explicit: Option<&str>, system_lcid: u16) -> Self {
-        if let Some(tag) = explicit {
-            match tag.trim() {
-                "2052" | "4100" | "zh-CN" | "zh-SG" => return Self::ZhCn,
-                "1028" | "3076" | "5124" | "zh-TW" | "zh-HK" | "zh-MO" => return Self::ZhTw,
-                "1041" | "ja" | "ja-JP" => return Self::Ja,
-                "1042" | "ko" | "ko-KR" => return Self::Ko,
-                "1033" | "2057" | "en" | "en-US" => return Self::En,
-                _ => {
-                    if let Ok(parsed) = tag.trim().parse::<u16>() {
-                        return Self::from_lcid(parsed);
-                    }
+    pub fn resolve_with_preferences<S: AsRef<str>>(
+        explicit: Option<&str>,
+        preferred_tags: &[S],
+        fallback_lcid: u16,
+    ) -> Self {
+        if let Some(raw) = explicit {
+            let trimmed = raw.trim();
+            if !trimmed.is_empty() {
+                if let Ok(parsed) = trimmed.parse::<u16>() {
+                    return Self::from_lcid(parsed);
+                }
+                if let Some(matched) = Self::from_bcp47(trimmed) {
+                    return matched;
                 }
             }
         }
-        Self::from_lcid(system_lcid)
+        if !preferred_tags.is_empty() {
+            for tag in preferred_tags {
+                if let Some(matched) = Self::from_bcp47(tag.as_ref()) {
+                    return matched;
+                }
+            }
+            return Self::En;
+        }
+        Self::from_lcid(fallback_lcid)
+    }
+
+    pub fn from_bcp47(tag: &str) -> Option<Self> {
+        let normalized = tag.trim().to_ascii_lowercase().replace('_', "-");
+        let mut parts = normalized.split('-').filter(|part| !part.is_empty());
+        match parts.next()? {
+            "zh" => match parts.next() {
+                Some("hant" | "cht" | "tw" | "hk" | "mo") => Some(Self::ZhTw),
+                _ => Some(Self::ZhCn),
+            },
+            "en" => Some(Self::En),
+            "ja" => Some(Self::Ja),
+            "ko" => Some(Self::Ko),
+            _ => None,
+        }
     }
 
     pub fn from_lcid(lcid: u16) -> Self {
@@ -280,23 +305,136 @@ impl Lang {
     }
 }
 
+fn query_user_preferred_ui_languages() -> Vec<String> {
+    use windows_sys::Win32::Globalization::{GetUserPreferredUILanguages, MUI_LANGUAGE_NAME};
+    let mut num_languages: u32 = 0;
+    let mut buffer_len: u32 = 0;
+    let sized = unsafe {
+        GetUserPreferredUILanguages(
+            MUI_LANGUAGE_NAME,
+            &mut num_languages,
+            std::ptr::null_mut(),
+            &mut buffer_len,
+        )
+    };
+    if sized == 0 || buffer_len == 0 {
+        return Vec::new();
+    }
+    let mut buffer = vec![0u16; buffer_len as usize];
+    let ok = unsafe {
+        GetUserPreferredUILanguages(
+            MUI_LANGUAGE_NAME,
+            &mut num_languages,
+            buffer.as_mut_ptr(),
+            &mut buffer_len,
+        )
+    };
+    if ok == 0 {
+        return Vec::new();
+    }
+    buffer.truncate(buffer_len as usize);
+    parse_multi_sz(&buffer)
+}
+
+fn parse_multi_sz(buffer: &[u16]) -> Vec<String> {
+    buffer
+        .split(|&unit| unit == 0)
+        .filter(|segment| !segment.is_empty())
+        .map(String::from_utf16_lossy)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn resolves_explicit_and_system_lcids_across_five_locales() {
-        assert_eq!(Lang::resolve(Some("2052"), 1033), Lang::ZhCn);
-        assert_eq!(Lang::resolve(Some("1028"), 1033), Lang::ZhTw);
-        assert_eq!(Lang::resolve(Some("3076"), 1033), Lang::ZhTw);
-        assert_eq!(Lang::resolve(Some("1041"), 1033), Lang::Ja);
-        assert_eq!(Lang::resolve(Some("1042"), 1033), Lang::Ko);
-        assert_eq!(Lang::resolve(None, 0x0804), Lang::ZhCn);
-        assert_eq!(Lang::resolve(None, 0x0404), Lang::ZhTw);
-        assert_eq!(Lang::resolve(None, 0x0c04), Lang::ZhTw);
-        assert_eq!(Lang::resolve(None, 0x0411), Lang::Ja);
-        assert_eq!(Lang::resolve(None, 0x0412), Lang::Ko);
-        assert_eq!(Lang::resolve(None, 0x0409), Lang::En);
+    fn resolves_explicit_and_fallback_lcids_across_five_locales() {
+        let empty: [&str; 0] = [];
+        assert_eq!(
+            Lang::resolve_with_preferences(Some("2052"), &empty, 1033),
+            Lang::ZhCn
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(Some("1028"), &empty, 1033),
+            Lang::ZhTw
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(Some("3076"), &empty, 1033),
+            Lang::ZhTw
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(Some("1041"), &empty, 1033),
+            Lang::Ja
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(Some("1042"), &empty, 1033),
+            Lang::Ko
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(None, &empty, 0x0804),
+            Lang::ZhCn
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(None, &empty, 0x0404),
+            Lang::ZhTw
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(None, &empty, 0x0c04),
+            Lang::ZhTw
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(None, &empty, 0x0411),
+            Lang::Ja
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(None, &empty, 0x0412),
+            Lang::Ko
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(None, &empty, 0x0409),
+            Lang::En
+        );
+    }
+
+    #[test]
+    fn resolves_ordered_preferred_bcp47_tags_like_desktop_main() {
+        assert_eq!(
+            Lang::resolve_with_preferences(None, &["fr-FR", "ja-JP", "en-US"], 0x0409),
+            Lang::Ja
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(None, &["de-DE", "zh-Hant-HK"], 0x0409),
+            Lang::ZhTw
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(None, &["zh-Hans-SG", "en-US"], 0x0409),
+            Lang::ZhCn
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(None, &["es-ES", "ko-KR"], 0x0409),
+            Lang::Ko
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(None, &["fr-FR", "kok-IN"], 0x0411),
+            Lang::En
+        );
+        assert_eq!(
+            Lang::resolve_with_preferences(Some("zh-HK"), &["en-US"], 0x0409),
+            Lang::ZhTw
+        );
+    }
+
+    #[test]
+    fn parses_double_nul_terminated_utf16_language_lists() {
+        let mut raw: Vec<u16> = Vec::new();
+        for tag in ["fr-FR", "ja-JP", "zh-Hant-TW"] {
+            raw.extend(tag.encode_utf16());
+            raw.push(0);
+        }
+        raw.push(0);
+        assert_eq!(parse_multi_sz(&raw), vec!["fr-FR", "ja-JP", "zh-Hant-TW"]);
+        assert!(parse_multi_sz(&[0, 0]).is_empty());
     }
 
     #[test]

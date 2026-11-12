@@ -31,15 +31,34 @@ LoadLanguageFile "${NSISDIR}\Contrib\Language files\TradChinese.nlf"
 LoadLanguageFile "${NSISDIR}\Contrib\Language files\Japanese.nlf"
 LoadLanguageFile "${NSISDIR}\Contrib\Language files\Korean.nlf"
 
+LangString RequireX64 ${LANG_ENGLISH} "VUA requires Windows x64."
+LangString RequireX64 ${LANG_SIMPCHINESE} "VUA 需要 64 位 Windows（x64）系统。"
+LangString RequireX64 ${LANG_TRADCHINESE} "VUA 需要 64 位元 Windows（x64）系統。"
+LangString RequireX64 ${LANG_JAPANESE} "VUA には 64 ビット版 Windows (x64) が必要です。"
+LangString RequireX64 ${LANG_KOREAN} "VUA를 실행하려면 64비트 Windows(x64)가 필요합니다."
+
+LangString RequireWin10 ${LANG_ENGLISH} "VUA requires Windows 10 or later."
+LangString RequireWin10 ${LANG_SIMPCHINESE} "VUA 需要 Windows 10 或更高版本。"
+LangString RequireWin10 ${LANG_TRADCHINESE} "VUA 需要 Windows 10 或更新版本。"
+LangString RequireWin10 ${LANG_JAPANESE} "VUA には Windows 10 以降が必要です。"
+LangString RequireWin10 ${LANG_KOREAN} "VUA를 실행하려면 Windows 10 이상이 필요합니다."
+
 !ifndef VERSION_NUMBER
   !define VERSION_NUMBER "${VERSION}.0"
 !endif
 VIProductVersion "${VERSION_NUMBER}"
-VIAddVersionKey /LANG=1033 "ProductName" "VUA"
-VIAddVersionKey /LANG=1033 "ProductVersion" "${VERSION}"
-VIAddVersionKey /LANG=1033 "FileVersion" "${VERSION}"
-VIAddVersionKey /LANG=1033 "FileDescription" "VUA Installer"
-VIAddVersionKey /LANG=1033 "LegalCopyright" "VUA Project contributors"
+!macro AddLocalizedVersionKeys LANG_ID FILE_DESC
+  VIAddVersionKey /LANG=${LANG_ID} "ProductName" "VUA"
+  VIAddVersionKey /LANG=${LANG_ID} "ProductVersion" "${VERSION}"
+  VIAddVersionKey /LANG=${LANG_ID} "FileVersion" "${VERSION}"
+  VIAddVersionKey /LANG=${LANG_ID} "FileDescription" "${FILE_DESC}"
+  VIAddVersionKey /LANG=${LANG_ID} "LegalCopyright" "VUA Project contributors"
+!macroend
+!insertmacro AddLocalizedVersionKeys ${LANG_ENGLISH} "VUA Installer"
+!insertmacro AddLocalizedVersionKeys ${LANG_SIMPCHINESE} "VUA 安装程序"
+!insertmacro AddLocalizedVersionKeys ${LANG_TRADCHINESE} "VUA 安裝程式"
+!insertmacro AddLocalizedVersionKeys ${LANG_JAPANESE} "VUA インストーラー"
+!insertmacro AddLocalizedVersionKeys ${LANG_KOREAN} "VUA 설치 프로그램"
 
 Function .onInit
   ${If} ${Silent}
@@ -55,14 +74,14 @@ Function .onInit
   ${EndIf}
   ${IfNot} ${RunningX64}
     ${If} $Headless == 0
-      MessageBox MB_OK|MB_ICONSTOP "VUA requires Windows x64."
+      MessageBox MB_OK|MB_ICONSTOP "$(RequireX64)"
     ${EndIf}
     SetErrorLevel 1
     Abort
   ${EndIf}
   ${IfNot} ${AtLeastWin10}
     ${If} $Headless == 0
-      MessageBox MB_OK|MB_ICONSTOP "VUA requires Windows 10 or later."
+      MessageBox MB_OK|MB_ICONSTOP "$(RequireWin10)"
     ${EndIf}
     SetErrorLevel 1
     Abort

@@ -1,0 +1,15 @@
+{
+  "contractVersion": "0.1",
+  "requestId": "sop-standalone",
+  "correlationId": "sop-standalone",
+  "kind": "query",
+  "method": "environment.getScenarioSop",
+  "params": {
+    "schemaVersion": "0.2",
+    "selection": {
+      "platform": "vrchat",
+      "device": "quest",
+      "connection": "standalone"
+    }
+  }
+}

@@ -1523,7 +1523,12 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
     if matches!(method, "tools.observeConnection" | "tools.actConnection") {
         return crate::external_tool_routes::request(state.environment.as_ref().map(|s| &s.tools), request, request_id, correlation_id);
     }
-    if matches!(method, "environment.getScenarioSop" | "environment.checkScenarioEnvironment") {
+    if matches!(
+        method,
+        "environment.listPlaySetups"
+            | "environment.getScenarioSop"
+            | "environment.checkScenarioEnvironment"
+    ) {
         return crate::scenario_routes::request(state.environment.as_ref().map(|s| &s.deployment),method,request,request_id,correlation_id);
     }
     if matches!(method, "environment.planDeployment" | "environment.executeDeployment") {
@@ -1916,6 +1921,7 @@ fn served_capabilities(state: &HostState) -> Value {
         },
     ]);
     capabilities.as_array_mut().expect("capabilities array").extend([
+        json!({"operationId":"environment.listPlaySetups","availability":"available"}),
         json!({"operationId":"environment.getScenarioSop","availability":"available"}),
         deployment_capability(state,"environment.checkScenarioEnvironment"),
     ]);

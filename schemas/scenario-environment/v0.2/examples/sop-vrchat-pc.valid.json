@@ -1,0 +1,15 @@
+{
+  "contractVersion": "0.1",
+  "requestId": "sop-pc",
+  "correlationId": "sop-pc",
+  "kind": "query",
+  "method": "environment.getScenarioSop",
+  "params": {
+    "schemaVersion": "0.2",
+    "selection": {
+      "platform": "vrchat",
+      "device": "pc",
+      "connection": null
+    }
+  }
+}

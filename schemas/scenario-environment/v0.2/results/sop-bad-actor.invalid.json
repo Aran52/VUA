@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "vua.scenario-environment/v0.2",
+  "selection": {
+    "platform": "vrchat",
+    "device": "pc",
+    "connection": null
+  },
+  "engine": {
+    "kind": "route",
+    "route": "desktop_play"
+  },
+  "requirements": [
+    "steam",
+    "vrchat"
+  ],
+  "steps": [
+    {
+      "id": "steam",
+      "actor": "shell",
+      "title": "Install Steam on this computer",
+      "explanation": "Install the official Steam client if it is not already present on Windows.",
+      "expectedResult": "Steam is installed and can open on Windows.",
+      "automatic": false,
+      "verification": "Check local software presence for component `steam`.",
+      "onFailure": "Open the official Steam installer page from VUA and complete the Windows installation."
+    },
+    {
+      "id": "steam-sign-in",
+      "actor": "player",
+      "title": "Sign in to Steam",
+      "explanation": "Sign in with your own Steam account inside the official Steam window. VUA never receives your password.",
+      "expectedResult": "Steam shows your signed-in library.",
+      "automatic": false,
+      "verification": "Confirm the Steam client main library window is signed in and online.",
+      "onFailure": "Complete Steam Guard verification or password recovery in the official Steam client."
+    },
+    {
+      "id": "platform",
+      "actor": "vua",
+      "title": "Install VRChat in Steam",
+      "explanation": "Ensure VRChat is installed in your Steam library before starting play.",
+      "expectedResult": "VRChat is installed and ready in Steam.",
+      "automatic": true,
+      "verification": "Check local software presence for component `vrchat`.",
+      "onFailure": "Open VRChat in Steam and finish downloading any pending update."
+    },
+    {
+      "id": "launch",
+      "actor": "vua",
+      "title": "Launch VRChat in desktop mode",
+      "explanation": "Start VRChat on your computer screen without a headset.",
+      "expectedResult": "The VRChat desktop window opens.",
+      "automatic": true,
+      "verification": "Observe the running play session or external tool process state in VUA.",
+      "onFailure": "Recheck the preceding connection and Steam steps before requesting launch again."
+    }
+  ],
+  "performed": "sop_only",
+  "nextAction": "check_environment",
+  "sopVersions": {
+    "platform": "0.2.0",
+    "device": "0.2.0",
+    "connection": null
+  },
+  "lastVerification": {
+    "date": "2026-11-07",
+    "environment": "Windows 11 play-route flow and official upstream documentation",
+    "softwareVersions": []
+  },
+  "sources": [
+    {
+      "label": "VRChat on Steam",
+      "url": "https://store.steampowered.com/app/438100/VRChat/"
+    }
+  ]
+}

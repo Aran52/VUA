@@ -98,11 +98,15 @@ describe("built-in MCP, using the official HTTP client", () => {
     const tools = await client.listTools();
     expect(tools.tools.map(tool => tool.name)).toEqual(AI_TOOLS.map(tool => tool.name));
     expect(service.snapshot().connections).toBe(1);
+    await client.callTool({ name: "vua_play_setups", arguments: {} });
     await client.callTool({ name: "vua_sop", arguments: { scenario: "pico_pcvr", connection: "wifi" } });
+    await client.callTool({ name: "vua_sop", arguments: { selection: { platform: "vrchat", device: "quest", connection: "quest-link" } } });
     await client.callTool({ name: "vua_check_environment", arguments: { intent: { purposes: ["desktop_play"] } } });
-    expect(calls.map(request => request.method)).toEqual(["environment.getScenarioSop", "environment.checkScenarioEnvironment"]);
-    expect(calls[0]!.params).toEqual({ schemaVersion: "0.1", scenario: { scenario: "pico_pcvr", connection: "wifi" } });
-    expect(calls[1]!.params).toEqual({ schemaVersion: "0.1", intent });
+    expect(calls.map(request => request.method)).toEqual(["environment.listPlaySetups", "environment.getScenarioSop", "environment.getScenarioSop", "environment.checkScenarioEnvironment"]);
+    expect(calls[0]!.params).toEqual({ schemaVersion: "0.2" });
+    expect(calls[1]!.params).toEqual({ schemaVersion: "0.1", scenario: { scenario: "pico_pcvr", connection: "wifi" } });
+    expect(calls[2]!.params).toEqual({ schemaVersion: "0.2", selection: { platform: "vrchat", device: "quest", connection: "quest-link" } });
+    expect(calls[3]!.params).toEqual({ schemaVersion: "0.1", intent });
     expect(service.snapshot().requests).toEqual([]);
   });
   it("exposes only the passive Unity license tool and dispatches no check or approval", async () => {
@@ -335,6 +339,8 @@ describe("built-in MCP, using the official HTTP client", () => {
     for (const request of [
       { name: "execute_shell", arguments: { command: "anything" } },
       { name: "vua_sop", arguments: { scenario: "desktop_play", connection: "wifi" } },
+      { name: "vua_sop", arguments: { selection: { platform: "reborn", device: "pc", connection: null } } },
+      { name: "vua_sop", arguments: { selection: { platform: "chilloutvr", device: "quest", connection: "standalone" } } },
       { name: "vua_check_environment", arguments: { intent: { purposes: ["desktop_play"], method: "anything" } } },
       { name: "vua_request_play", arguments: { route: "desktop", action: "start" } },
     ]) expect((await client.callTool(request)).isError).toBe(true);

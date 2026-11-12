@@ -120,3 +120,119 @@ fn missing_observations_are_unknown_and_invalid_intent_never_reaches_io() {
     assert!(check_scenario(&service, &invalid).is_err());
     assert_eq!(adapter.observations.load(Ordering::SeqCst), 1);
 }
+
+#[test]
+fn play_setups_v02_enforces_exact_combinations_engines_and_step_ids() {
+    let catalog = list_play_setups();
+    assert_eq!(catalog["schemaVersion"], SCENARIO_SCHEMA_V02);
+    assert_eq!(catalog["platforms"].as_array().unwrap().len(), 3);
+    assert_eq!(catalog["devices"].as_array().unwrap().len(), 15);
+    assert_eq!(catalog["connections"].as_array().unwrap().len(), 17);
+
+    // Reborn has no PC mode; standalone is VRChat-only; mismatched or missing headset connection fails.
+    for bad in [
+        PlaySetupSelection {
+            platform: PlayPlatformId::Reborn,
+            device: PlayDeviceId::Pc,
+            connection: None,
+        },
+        PlaySetupSelection {
+            platform: PlayPlatformId::Chilloutvr,
+            device: PlayDeviceId::Quest,
+            connection: Some(PlayConnectionId::Standalone),
+        },
+        PlaySetupSelection {
+            platform: PlayPlatformId::Reborn,
+            device: PlayDeviceId::Pico,
+            connection: Some(PlayConnectionId::Standalone),
+        },
+        PlaySetupSelection {
+            platform: PlayPlatformId::Vrchat,
+            device: PlayDeviceId::Quest,
+            connection: Some(PlayConnectionId::PicoConnect),
+        },
+        PlaySetupSelection {
+            platform: PlayPlatformId::Vrchat,
+            device: PlayDeviceId::Quest,
+            connection: None,
+        },
+        PlaySetupSelection {
+            platform: PlayPlatformId::Vrchat,
+            device: PlayDeviceId::Pc,
+            connection: Some(PlayConnectionId::SteamLink),
+        },
+    ] {
+        assert_eq!(scenario_sop_v02(&bad), Err("vua.scenario.invalid_params"));
+    }
+
+    let desktop = scenario_sop_v02(&PlaySetupSelection {
+        platform: PlayPlatformId::Vrchat,
+        device: PlayDeviceId::Pc,
+        connection: None,
+    })
+    .unwrap();
+    assert_eq!(desktop["engine"]["kind"], "route");
+    assert_eq!(desktop["engine"]["route"], "desktop_play");
+    assert_eq!(
+        desktop["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["id"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        vec!["steam", "steam-sign-in", "platform", "launch"]
+    );
+    assert_eq!(desktop["sopVersions"]["connection"], serde_json::Value::Null);
+
+    let pico = scenario_sop_v02(&PlaySetupSelection {
+        platform: PlayPlatformId::Vrchat,
+        device: PlayDeviceId::Pico,
+        connection: Some(PlayConnectionId::PicoConnect),
+    })
+    .unwrap();
+    assert_eq!(pico["engine"]["kind"], "route");
+    assert_eq!(pico["engine"]["route"], "pico_pcvr");
+    assert_eq!(
+        pico["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["id"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        vec![
+            "steam",
+            "steam-sign-in",
+            "platform",
+            "connection-pc",
+            "connection-headset",
+            "launch"
+        ]
+    );
+
+    let standalone = scenario_sop_v02(&PlaySetupSelection {
+        platform: PlayPlatformId::Vrchat,
+        device: PlayDeviceId::Quest,
+        connection: Some(PlayConnectionId::Standalone),
+    })
+    .unwrap();
+    assert_eq!(standalone["engine"]["kind"], "headset");
+    assert_eq!(standalone["nextAction"], "follow_sop");
+    assert_eq!(
+        standalone["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["id"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        vec!["store-install", "store-launch"]
+    );
+
+    let cvr = scenario_sop_v02(&PlaySetupSelection {
+        platform: PlayPlatformId::Chilloutvr,
+        device: PlayDeviceId::SteamFrame,
+        connection: Some(PlayConnectionId::SteamFrame),
+    })
+    .unwrap();
+    assert_eq!(cvr["engine"]["kind"], "tool");
+    assert_eq!(cvr["engine"]["toolId"], "chilloutvr");
+}

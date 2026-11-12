@@ -2638,6 +2638,7 @@ mod tests {
         let adapter = NativeAmfProduction {
             bdl: Arc::new(BdlStore::open(root.join("bdl.db")).unwrap()),
             root: root.join("amf"),
+            read_cache: ProductionReadCache::default(),
             editor_roots: vec![],
             explicit_editor: None,
             unity_hub: None,

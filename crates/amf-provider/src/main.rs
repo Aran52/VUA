@@ -180,7 +180,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             )),
             editor_version: editor_selection
                 .path()
-                .and_then(|path| vua_orchestrator::editor_version_from_path(path))
+                .and_then(vua_orchestrator::editor_version_from_path)
                 .unwrap_or_else(|| "unknown".to_owned()),
             records: std::sync::Arc::new(vua_orchestrator::RecipeRecordStore::new(
                 production_root.join("records"),

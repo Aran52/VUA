@@ -31,7 +31,7 @@ function usage() {
 }
 
 function updates(release) {
-  return `<section class="vua-section wrap" id="updates"><h2>安装、更新与数据</h2><div class="vua-columns"><article><h3>更新 VUA</h3><p>完成手头工作并退出 VUA，再运行新版安装器。相同且通过校验的运行时会复用；已有 ZIP 用户也可以改用安装器，保留原来的应用资料。</p></article><article><h3>AMF 可以单独更新</h3><p>「设置 → 模块」或「关于」提供 AMF 的更新检查、下载与重启应用。更新复用相同文件，只获取变化或缺失的部分；服务器不支持分段下载时会提示下载完整模块。</p></article></div><p>素材、项目、账号会话和个人设置保存在本机。停用 AMF 或卸载程序会保留应用资料；外部软件的购买、更新和卸载由对应平台负责。</p>${release.version === "0.6.7" ? '<p class="vua-meta">v0.6.7 内置更新检查仍使用 GitHub。官网已提供同版本下载；官网备用更新源将在后续客户端构建中启用。</p>' : ''}</section>`;
+  return `<section class="vua-section wrap" id="updates"><h2>安装、更新与数据</h2><div class="vua-columns"><article><h3>更新 VUA</h3><p>完成手头工作并退出 VUA，再运行新版安装器。相同且通过校验的运行时会复用；已有 ZIP 用户也可以改用安装器，保留原来的应用资料。</p></article><article><h3>AMF 可以单独更新</h3><p>「设置 → 模块」或「关于」提供 AMF 的更新检查、下载与重启应用。更新复用相同文件，只获取变化或缺失的部分；服务器不支持分段下载时会提示下载完整模块。</p></article></div><p>素材、项目、账号会话和个人设置保存在本机。停用 AMF 或卸载程序会保留应用资料；外部软件的购买、更新和卸载由对应平台负责。</p><p id="update-privacy">更新联网说明：自动更新检查会访问 ph-r.com，也可能使用 GitHub 或镜像（已发布的 v1.0.0 在启动后约 2.5 秒检查，新版在首次使用须知关闭后检查）。请求按常规包含来源 IP、请求时间、路径与 User-Agent，新版客户端另附已安装的宿主及 AMF 版本，GitHub 和镜像也可能收到同样信息。PH-R 原始分发日志（含错误日志、轮转与副本）最多保留 7 天；按 Asia/Shanghai 切天的独立 IP 去重仅在采集进程内存中完成，落盘仅保留不含 IP 的每日计数与版本分布汇总并可长期保留，不增加安装 ID、账号关联或额外统计请求。第三方服务遵循各自的保留策略。宿主与 AMF 的自动检查可在「关于」和「设置 → 模块」中分别关闭；手动检查和下载更新仍会联网。</p>${release.version === "0.6.7" ? '<p class="vua-meta">v0.6.7 内置更新检查仍使用 GitHub。官网已提供同版本下载；官网备用更新源将在后续客户端构建中启用。</p>' : ''}</section>`;
 }
 
 export function projectPage(release) {

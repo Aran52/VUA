@@ -9,10 +9,11 @@
 // 6. 进程关闭:prepareShutdown → Provider 协议化退出,无孤儿。
 // 证据写入 _local_m2/v<版本>/m2-deliverables-smoke.json(.gitignore 排除)。
 import assert from "node:assert/strict";
-import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { app, BrowserWindow, session } from "electron";
@@ -22,6 +23,8 @@ import {
   isAllowedLocalSender,
   localWindowWebPreferences,
 } from "../dist/electron/security.js";
+
+app.setPath("userData", mkdtempSync(path.join(os.tmpdir(), "vua-m2-smoke-")));
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scriptDirectory, "../../..");
@@ -48,36 +51,45 @@ process.on("unhandledRejection", (reason) => {
   log("smoke.unhandled_rejection", { message: String(reason) });
 });
 
-// 只终止本次冒烟拥有的 Provider:按命令行里的专属数据库文件名过滤 PID
-const PROVIDER_IMAGE = "vua-orchestrator-provider.exe";
+// 只终止本次冒烟自身启动的 Provider 子进程句柄与 PID,绝不按进程名误杀机器上的其他 VUA 实例
+const ownedChildren = new Set();
+
+function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === "EPERM";
+  }
+}
 
 function listOwnedProviderPids() {
-  // wmic CSV:CommandLine 含专属数据库文件名的行才是本次冒烟拥有的 Provider;
-  // CSV 行尾最后一列即 ProcessId
-  let output = "";
-  try {
-    output = execSync(
-      "wmic process where \"name='vua-orchestrator-provider.exe'\" get processid,commandline /format:csv",
-      { stdio: ["ignore", "pipe", "ignore"] },
-    )
-      .toString()
-      .trim();
-  } catch {
-    return [];
-  }
-  return output
-    .split(/\r?\n/)
-    .filter((line) => line.includes("m2-smoke-provider.db"))
-    .map((line) => Number(line.trim().split(",").pop()))
-    .filter((pid) => Number.isInteger(pid) && pid > 0);
+  return [...ownedChildren]
+    .filter((child) => child.exitCode === null && child.signalCode === null && Number.isInteger(child.pid) && isProcessAlive(child.pid))
+    .map((child) => child.pid);
 }
 
 function killOwnedProviders() {
-  const pids = listOwnedProviderPids();
-  for (const pid of pids) {
-    execSync(`taskkill /F /PID ${pid}`, { stdio: "ignore" });
+  const active = [...ownedChildren].filter((child) => child.exitCode === null && child.signalCode === null && Number.isInteger(child.pid));
+  let killed = 0;
+  for (const child of active) {
+    const pid = child.pid;
+    try {
+      child.kill("SIGKILL");
+    } catch {
+      /* ignore if already exited */
+    }
+    if (process.platform === "win32" && isProcessAlive(pid)) {
+      try {
+        execFileSync("taskkill", ["/F", "/T", "/PID", String(pid)], { stdio: "ignore" });
+      } catch {
+        /* process exited between check and taskkill */
+      }
+    }
+    killed += 1;
   }
-  return pids.length;
+  return killed;
 }
 
 async function waitFor(predicate, label, timeoutMs = 10_000) {
@@ -129,20 +141,26 @@ async function main() {
   // ---- 装配:与 app 完全相同的端点解析(独立库,不污染用户数据) ----
   const platformSuffix = process.platform === "win32" ? ".exe" : "";
   const executablePath = process.env.VUA_PROVIDER_EXECUTABLE
-    ?? path.join(
-      scriptDirectory,
-      "..",
-      "..",
-      "..",
-      "target",
-      "release",
-      `vua-orchestrator-provider${platformSuffix}`,
-    );
+    ?? (process.env.CARGO_TARGET_DIR
+      ? path.join(
+          process.env.CARGO_TARGET_DIR,
+          "release",
+          `vua-orchestrator-provider${platformSuffix}`,
+        )
+      : path.join(
+          scriptDirectory,
+          "..",
+          "..",
+          "..",
+          "target",
+          "release",
+          `vua-orchestrator-provider${platformSuffix}`,
+        ));
   const { existsSync } = await import("node:fs");
   if (!existsSync(executablePath)) {
     throw new Error(`Provider executable is missing: ${executablePath}`);
   }
-  const databasePath = path.join(evidenceDirectory, "m2-smoke-provider.db");
+  const databasePath = path.join(evidenceDirectory, `m2-smoke-provider-${process.pid}.db`);
   await rm(databasePath, { force: true });
 
   const providerModule = await import(
@@ -150,13 +168,25 @@ async function main() {
       path.join(scriptDirectory, "../node_modules/@vua/orchestrator-provider/dist/index.js"),
     ).href
   );
-  const { SupervisedProcessProviderV01 } = providerModule;
+  const { SupervisedProcessProviderV01, providerEnvironment } = providerModule;
+  const spawnOwnedProvider = (exe, db) => {
+    const child = spawn(exe, ["--database", db], {
+      cwd: path.dirname(exe),
+      env: providerEnvironment(process.env),
+      shell: false,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+    });
+    ownedChildren.add(child);
+    child.once("close", () => ownedChildren.delete(child));
+    return child;
+  };
 
   let provider = new SupervisedProcessProviderV01({
     executablePath,
     databasePath,
     handshakeTimeoutMs: 15_000,
-  });
+  }, spawnOwnedProvider);
   const kernelEvents = [];
   provider.subscribe((event) => kernelEvents.push(event));
   await provider.start();
@@ -208,7 +238,7 @@ async function main() {
     executablePath,
     databasePath,
     handshakeTimeoutMs: 15_000,
-  });
+  }, spawnOwnedProvider);
   provider.subscribe((event) => kernelEvents.push(event));
   await provider.start();
   const after = await invoke(provider, "task.list", {});
@@ -221,34 +251,29 @@ async function main() {
   const leftover = await invoke(provider, "task.startDemo", { commandId: "m2-leftover-1" });
   assert.equal(leftover.ok, true);
   const leftoverId = leftover.value.task.taskId;
-  // 杀进程:任务停在 queued,没有到达安全边界
-  execSync("taskkill /F /IM vua-orchestrator-provider.exe", { stdio: "ignore" });
+  // 只杀本次冒烟拥有的子进程:任务停在非终态,没有到达安全边界
+  killOwnedProviders();
   await delay(300);
 
   const restarted = new SupervisedProcessProviderV01({
     executablePath,
     databasePath,
     handshakeTimeoutMs: 15_000,
-  });
+  }, spawnOwnedProvider);
   restarted.subscribe((event) => kernelEvents.push(event));
   await restarted.start();
   const recovered = await invoke(restarted, "task.list", {});
   const leftoverTask = recovered.value.tasks.find((entry) => entry.taskId === leftoverId);
-  // 契约语义:遗留任务保留最后真实状态,并标注 inspect_required
-  // (它不表示仍在执行,也不得自动转成暂停或失败)
+  // 契约语义:遗留非终态任务在重启后立即归结为诚实的中断终态(排队/准备期 → cancelled,执行期 → failed),
+  // 绝不静默续跑或继续冒充 running,并标注 inspect_required 供下一步检查接管。
   check(
     "restart_recovery.inspect_required",
     leftoverTask !== undefined
-      && leftoverTask.state === "running"
+      && (leftoverTask.state === "cancelled" || leftoverTask.state === "failed")
       && leftoverTask.recoveryDisposition === "inspect_required",
     { state: leftoverTask?.state, disposition: leftoverTask?.recoveryDisposition },
   );
 
-  // 收尾遗留任务,避免影响后续检查
-  await invoke(restarted, "task.requestCancellation", {
-    commandId: "m2-cancel-leftover",
-    params: { taskId: leftoverId },
-  });
   await invoke(restarted, "task.list", {});
 
   // ---- 检查 4:Renderer 重载与多窗口事件同步 ----
@@ -257,12 +282,16 @@ async function main() {
   const preload = path.join(scriptDirectory, "../dist/electron/preload.js");
   const localWindow = new BrowserWindow({
     show: false,
-    webPreferences: localWindowWebPreferences(preload),
+    webPreferences: { ...localWindowWebPreferences(preload), backgroundThrottling: false },
   });
-  installLocalContentNavigationPolicy(localWindow.webContents, undefined, () => {});
   const { server, url: rendererUrl } = await serveOnce(
     "<!doctype html><html><body><h1>VUA M2 smoke</h1></body></html>",
   );
+  installLocalContentNavigationPolicy(localWindow.webContents, {
+    rendererUrl,
+    allowedOrigins: [],
+    openExternal: () => {},
+  });
   await localWindow.loadURL(rendererUrl);
   // 本地窗口 preload 面证明(行为法):隔离世界订阅 Kernel 广播,收到即面活着。
   // contextBridge 对象对 executeJavaScript(主世界)不可见是 Electron 语义,
@@ -395,6 +424,9 @@ async function main() {
   });
 
   await mkdir(evidenceDirectory, { recursive: true });
+  await rm(databasePath, { force: true });
+  await rm(`${databasePath}-wal`, { force: true });
+  await rm(`${databasePath}-shm`, { force: true });
   await writeFile(
     evidencePath,
     `${JSON.stringify({ at: new Date().toISOString(), productVersion, ...results }, null, 2)}\n`,
@@ -407,6 +439,7 @@ main()
     app.exit(0);
   })
   .catch((error) => {
+    killOwnedProviders();
     log("smoke.failed", { message: String(error) });
     console.error(error);
     mkdir(evidenceDirectory, { recursive: true })

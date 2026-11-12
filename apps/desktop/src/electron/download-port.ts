@@ -134,7 +134,7 @@ export class DownloadPort {
     const attempt = restart ? restart.attempt + 1 : 1;
     if (restart !== undefined) this.#pendingRestarts.delete(requestUrl);
 
-    const storedPath = this.#reserveStagingPath(downloadId, item.getFilename());
+    const storedPath = this.#reserveStagingPath(downloadId, item.getFilename(), attempt);
     item.setSavePath(storedPath);
     const record: DownloadRecord = {
       downloadId,
@@ -363,17 +363,17 @@ export class DownloadPort {
   }
 
   /** Never reuse a consumed delivery path: old manifests still refer to it. */
-  #reserveStagingPath(downloadId: string, suggestedName: string | null): string {
+  #reserveStagingPath(downloadId: string, suggestedName: string | null, attempt = 1): string {
     const rawName = (suggestedName ?? "download.bin").replaceAll("\\", "/").split("/").at(-1) ?? "download.bin";
     const sanitized = rawName.replace(/[<>:"|?*\u0000-\u001f]/g, "_").replace(/[. ]+$/u, "");
     let leaf = (sanitized || "download.bin").slice(-128);
     if (/^[\uDC00-\uDFFF]/u.test(leaf)) leaf = leaf.slice(1);
-    const stem = `${downloadId}-${leaf}`;
-    const candidatePath = path.join(this.#options.stagingRoot, stem);
+    const prefix = attempt > 1 ? `${downloadId}-a${attempt}` : downloadId;
+    const candidatePath = path.join(this.#options.stagingRoot, `${prefix}-${leaf}`);
     if (!fs.existsSync(candidatePath)) return candidatePath;
     let counter = 2;
     for (;;) {
-      const candidatePath = path.join(this.#options.stagingRoot, `${downloadId}-${counter}-${leaf}`);
+      const candidatePath = path.join(this.#options.stagingRoot, `${prefix}-${counter}-${leaf}`);
       if (!fs.existsSync(candidatePath)) return candidatePath;
       counter += 1;
     }

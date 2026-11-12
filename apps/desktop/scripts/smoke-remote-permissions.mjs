@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, session } from "electron";
@@ -10,6 +11,8 @@ import {
   installPermissionDenyPolicy,
   localWindowWebPreferences,
 } from "../dist/electron/security.js";
+
+app.setPath("userData", mkdtempSync(path.join(os.tmpdir(), "vua-remote-perm-smoke-")));
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scriptDirectory, "../../..");
@@ -94,6 +97,7 @@ async function run() {
     show: false,
     webPreferences: {
       ...localWindowWebPreferences(),
+      backgroundThrottling: false,
       session: remoteSession,
     },
   });
@@ -123,7 +127,7 @@ async function run() {
       vuaType: typeof window.vua,
       gatewayCallable: typeof window.vua?.gateway?.invoke === "function"
     };
-  })()`);
+  })()`, true);
 
   await waitFor(
     () => ["notifications", "geolocation", "media"].every(
@@ -139,26 +143,44 @@ async function run() {
   log("remote.boundary.passed", remoteResults);
 
   const localUrl = "data:text/html,<meta charset=utf-8><title>VUA local smoke</title>";
+  const viewRedirects = [];
   const shellHandoffs = [];
   let blockedNavigation = false;
-  applicationWindow = new BrowserWindow({ show: false, webPreferences: localWindowWebPreferences() });
+  applicationWindow = new BrowserWindow({
+    show: false,
+    webPreferences: { ...localWindowWebPreferences(), backgroundThrottling: false },
+  });
   await applicationWindow.loadURL(localUrl);
   applicationWindow.webContents.on("will-navigate", (_event, url) => {
     if (url === remoteUrl) blockedNavigation = true;
   });
-  installLocalContentNavigationPolicy(applicationWindow.webContents, localUrl, (url) => {
-    shellHandoffs.push(url);
-    log("shell.handoff", { url });
+  installLocalContentNavigationPolicy(applicationWindow.webContents, {
+    rendererUrl: localUrl,
+    allowedOrigins: [remoteUrl],
+    navigateCurrentView: (url) => {
+      viewRedirects.push(url);
+      log("view.redirect", { url });
+    },
+    openExternal: (url) => {
+      shellHandoffs.push(url);
+      log("shell.handoff", { url });
+    },
+    confirmNavigation: async () => true,
   });
 
   const windowCountBefore = BrowserWindow.getAllWindows().length;
-  await applicationWindow.webContents.executeJavaScript(`window.open(${JSON.stringify(remoteUrl)}); true`);
-  await waitFor(() => shellHandoffs.length === 1, "shell handoff");
-  await delay(100);
-  assert.deepEqual(shellHandoffs, [remoteUrl]);
+  await applicationWindow.webContents.executeJavaScript(`window.open(${JSON.stringify(remoteUrl)}); true`, true);
+  await waitFor(() => viewRedirects.length === 1, "embedded view redirect");
+  assert.deepEqual(viewRedirects, [remoteUrl]);
   assert.equal(BrowserWindow.getAllWindows().length, windowCountBefore);
 
-  await applicationWindow.webContents.executeJavaScript(`location.href = ${JSON.stringify(remoteUrl)}; true`);
+  await applicationWindow.webContents.executeJavaScript(`window.open("steam://open/friends"); true`, true);
+  await waitFor(() => shellHandoffs.length === 1, "confirmed external protocol handoff");
+  await delay(100);
+  assert.deepEqual(shellHandoffs, ["steam://open/friends"]);
+  assert.equal(BrowserWindow.getAllWindows().length, windowCountBefore);
+
+  await applicationWindow.webContents.executeJavaScript(`setTimeout(() => { location.href = ${JSON.stringify(remoteUrl)}; }, 0); true`, true);
   await waitFor(() => blockedNavigation, "blocked remote navigation");
   await delay(100);
   assert.equal(applicationWindow.webContents.getURL(), localUrl);

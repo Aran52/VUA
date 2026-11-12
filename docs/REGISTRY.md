@@ -1,6 +1,6 @@
 # Contract and decision registry
 
-> Updated: 2026-11-12
+> Updated: 2026-11-13
 
 Contracts, schema directories and decisions with their version, status, owner and last review date. [Documentation governance](meta/documentation-governance.md) defines the statuses and when a row changes. Earlier registry contents, including other document versions, remain in Git history and [the archive](archive/2026-09-29/registry-before-simplification.md).
 
@@ -31,6 +31,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/catalog-sync-v0.2.md | 0.2 | Frozen | Data | 2026-10-02 |
 | docs/protocols/catalog-sync-v0.3.md | 0.3 | Implementation baseline | AMF | 2026-10-07 |
 | docs/protocols/catalog-enrichment-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-11-11 |
+| docs/protocols/catalog-orders-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-11-07 |
 | docs/protocols/desktop-browser-v0.1.md | 1.1.0 | Candidate | Desktop | 2026-10-11 |
 | docs/protocols/desktop-library-v0.1.md | 1.4.0 | Candidate | Desktop | 2026-10-12 |
 | docs/protocols/desktop-resource-v0.2.md | 1.0.0 | Candidate | Desktop | 2026-10-10 |
@@ -58,7 +59,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/library-records-v0.2.md | 0.2 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/library-view-v0.1.md | 0.8 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/library-view-v0.2.md | 0.2.1 | Candidate | AMF | 2026-11-06 |
-| docs/protocols/library-view-v0.3.md | 0.3.0 | Candidate | AMF | 2026-11-06 |
+| docs/protocols/library-view-v0.3.md | 0.3.0 | Candidate | AMF | 2026-11-07 |
 | docs/protocols/material-intake-v0.1.md | 0.1 | Implementation baseline | Production | 2026-09-06 |
 | docs/protocols/material-intake-v0.2.md | 0.2.1 | Frozen | Core | 2026-09-21 |
 | docs/protocols/packages-catalog-v0.2.md | 0.2 | Frozen | Core | 2026-09-17 |
@@ -135,10 +136,12 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/catalog-sync/v0.2 | 0.2 | Frozen | Data | 2026-10-02 |
 | schemas/catalog-sync/v0.3 | 0.3 | Implementation baseline | AMF | 2026-10-07 |
 | schemas/catalog-enrichment/v0.1 | 0.1 | Implementation baseline | AMF | 2026-11-10 |
+| schemas/catalog-orders/v0.1 | 0.1 | Implementation baseline | AMF | 2026-11-07 |
 | schemas/eac-allowlist/v0.1 | 0.1 | Frozen | Environment | 2026-09-10 |
 | schemas/eac-probe/v0.1 | 0.1 | Frozen | Environment | 2026-09-10 |
 | schemas/eac-terminate/v0.1 | 0.1 | Frozen | Environment | 2026-09-10 |
 | schemas/editor-verify/v0.1 | 0.1 | Frozen | Environment | 2026-09-13 |
+| schemas/environment-deployment/v0.1 | 0.1 | Candidate | Environment | 2026-11-11 |
 | schemas/environment-managers/v0.1 | 0.1 | Frozen | Environment | 2026-09-10 |
 | schemas/environment-network/v0.1/ | 0.1 | Candidate | Environment | 2026-10-03 |
 | schemas/external-tool/v0.1/ | 0.1 | Superseded (→ schemas/external-tool/v0.2/) | Environment | 2026-10-10 |

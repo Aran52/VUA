@@ -1129,7 +1129,7 @@ export const strings: Strings = {
             id: "lighting",
             title: "室內光線",
             paragraphs: [
-              "一體機靠機身外部鏡頭辨識房間環境，均勻柔和的一般室內照明效果最好。避免陽光直射地面，也不要正對強烈背光。",
+              "獨立型頭戴式裝置靠機身外部鏡頭辨識房間環境，均勻柔和的一般室內照明效果最好。避免陽光直射地面，也不要正對強烈背光。",
               "保持頭戴式裝置正面的追蹤鏡頭乾淨無遮擋；鏡片沾上指紋或貼了保護貼紙都會明顯影響定位精準度。",
             ],
           },
@@ -1293,14 +1293,14 @@ export const strings: Strings = {
           {
             id: "platforms",
             title: "跨平台連線說明",
-            paragraphs: ["電腦端與一體機玩家在同一個伺服器連線，不過每個世界與模型都有各自的平台相容標記，進圖或換裝前留意綠色的可用圖示即可。"],
+            paragraphs: ["電腦端與獨立型頭戴式裝置玩家在同一個伺服器連線，不過每個世界與模型都有各自的平台相容標記，進圖或換裝前留意綠色的可用圖示即可。"],
           },
           {
             id: "pico-prepare",
             title: "串流前需要安裝哪些軟體",
             paragraphs: [
               "電腦端先裝好 SteamVR，並從 PICO 官網下載安裝 PICO Connect。目前 PICO Connect 要求電腦系統為 Windows 10 22H2 及以上、至少 8 GB 記憶體，顯示卡達到 GTX 1060 6GB 或 RX 480 同級及以上。",
-              "頭戴式裝置端請把系統更新到較新的 PICO OS（PICO Connect 需 5.11.2 及以上，眼球追蹤需 5.9.0 及以上），並在一體機商店裡裝好 PICO Connect 應用程式。",
+              "頭戴式裝置端請把系統更新到較新的 PICO OS（PICO Connect 需 5.11.2 及以上，眼球追蹤需 5.9.0 及以上），並在頭戴式裝置商店裡裝好 PICO Connect 應用程式。",
               "如果安裝程式報錯中止，先檢查 Windows 系統版本與硬碟剩餘空間，再回官網重新下載安裝檔。",
             ],
           },
@@ -2029,7 +2029,7 @@ export const strings: Strings = {
       },
       "devices-platforms": {
         title: "不同裝置能一起玩嗎",
-        body: "PC、VR 一體機與手機玩家可以同服連線；只要世界與模型帶有對應平台的綠色相容標記，目前裝置就能正常顯示。",
+        body: "PC、獨立型 VR 頭戴式裝置與手機玩家可以同服連線；只要世界與模型帶有對應平台的綠色相容標記，目前裝置就能正常顯示。",
       },
       "devices-tracking": {
         title: "全身追蹤與 IK",
@@ -2049,7 +2049,7 @@ export const strings: Strings = {
       },
       "tutorials-accounts": {
         title: "帳號升級與綁定",
-        body: "用 Steam 或一體機帳號直接登入的玩家，後續可依官方指引綁定升級為正式 VRChat 帳號，好友與收藏都會完整保留。",
+        body: "用 Steam 或頭戴式裝置平台帳號直接登入的玩家，後續可依官方指引綁定升級為正式 VRChat 帳號，好友與收藏都會完整保留。",
       },
     },
   },
@@ -2286,7 +2286,7 @@ export const strings: Strings = {
         succeeded_with_warnings: "成功（有警告）",
         failed: "失敗",
         cancelled: "已取消",
-        rolled_back: "已回滾",
+        rolled_back: "已還原",
         recovered: "已恢復",
       },
       detailTitle: "紀錄詳情",
@@ -2334,7 +2334,7 @@ export const strings: Strings = {
         blockedTitle: "暫時無法準備上傳",
         blockedFailed: "這次製作未成功，無法直接準備上傳；請先查看錯誤訊息、恢復或重新製作。",
         blockedCancelled: "這次製作已取消，請重新製作後再準備上傳。",
-        blockedRolledBack: "這次製作已回滾，請重新製作後再準備上傳。",
+        blockedRolledBack: "這次製作已還原，請重新製作後再準備上傳。",
         recoveredBlockNote: "這次紀錄是中斷恢復後完成的，請先完成檢查與工坊後續步驟，再準備上傳。",
         unconfirmedNote: "無法核實這條製作紀錄的狀態，暫時不能準備上傳。",
         entryWorkshop: "前往工坊",
@@ -3185,7 +3185,7 @@ export const strings: Strings = {
     productionCancelled: "展示 · 建置已取消",
     productionDrifted: "展示 · 建置異動",
     productionExpired: "展示 · 確認已過期",
-    productionRollback: "展示 · 建置回滾",
+    productionRollback: "展示 · 建置還原",
     notRun: "空狀態（未連線）",
     perfProbe: {
       title: "效能取樣",
@@ -3349,7 +3349,7 @@ export const strings: Strings = {
       riskDecisionRequired: "請先檢視並確認風險提示後再繼續。",
       cancelled: "已取消素材操作",
       internal: "準備素材操作時發生內部錯誤。",
-      recordFailed: "變更已安全回滾還原，但未能寫入工作記錄。",
+      recordFailed: "變更已安全還原，但未能寫入工作紀錄。",
     },
     releaseHandoff: {
       stateBlocked: "無法轉交到 Unity 上傳：此建置記錄目前狀態不支援轉交（目前狀態：{state}）。",

@@ -8,7 +8,7 @@
 
 This N2 face connects ten fixed official Steam applications and adds reinstalling through Steam. It
 supersedes [external tool connection v0.2](external-tool-v0.2.md): snapshots carrying
-`schemaVersion: "vua.external-tool/v0.3"` are no longer accepted; producers and consumers use
+`schemaVersion: "vua.external-tool/v0.2"` are no longer accepted; producers and consumers use
 `vua.external-tool/v0.3`. It runs on the host with AMF disabled. It does not define a
 plugin SDK or accept arbitrary app IDs, executables, arguments, URLs, hardware settings or
 module packages from Renderer.

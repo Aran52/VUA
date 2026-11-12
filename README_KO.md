@@ -58,7 +58,7 @@ AMF는 VUA와 함께 설치되는 자체 편집 모듈이며 새 사용자에게
 
 ## 문서
 
-- [문서 가이드](docs/README.md)——작업별 최소 경로
+- [문서 가이드](docs/README.md) — 작업별 최소 경로
 - [제품 경계](docs/product-boundary.md)
 - [아키텍처](docs/architecture/system.md)
 - [v1.1.0 릴리스 노트(준비판)](docs/release/v1.1.0_KO.md) · [v1.0.0 릴리스 노트](docs/release/v1.0.0_KO.md)

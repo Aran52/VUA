@@ -3,7 +3,7 @@
 > **Superseded by [external tool connection v0.3](external-tool-v0.3.md).** This document is kept as history.
 
 > Document version: 0.1.2
-> Status: Candidate
+> Status: Superseded (→ external-tool-v0.3.md)
 > Owner: Environment
 > Updated: 2026-10-14
 > Schemas: [request](../../schemas/external-tool/v0.2/request.schema.json), [result](../../schemas/external-tool/v0.2/result.schema.json), [vectors](../../schemas/external-tool/v0.2/vectors.json)

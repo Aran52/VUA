@@ -1,5 +1,5 @@
 /** The release room's view of finished Avatars: names, outfits, checks, uploads and page turns. */
-import { AMF_SDK_RATINGS, type AmfProductionList, type AmfProductionRun, type AmfReleaseState, type AmfSdkIssue, type AmfSdkRating, type AmfSdkReview, type AmfSdkStat, type AmfUpload } from "../../../gateway/index.ts";
+import { AMF_SDK_RATINGS, type AmfLocalTest, type AmfProductionList, type AmfProductionRun, type AmfReleaseState, type AmfSdkIssue, type AmfSdkRating, type AmfSdkReview, type AmfSdkStat, type AmfUpload } from "../../../gateway/index.ts";
 
 /** "Meiyun_v2.1.0/Meiyun.unitypackage" → "Meiyun". */
 export const baseName = (value: string) => value.split(/[\\/]/u).pop()!.replace(/\.(unitypackage|zip|prefab)$/iu, "");
@@ -79,6 +79,7 @@ export function sdkReviewView(run: AmfProductionRun): SdkReviewView | null {
 }
 
 export const runningUpload = (state: AmfReleaseState | null): AmfUpload | null => state?.uploads.find(upload => upload.state === "running") ?? null;
+export const runningLocalTest = (state: AmfReleaseState | null): AmfLocalTest | null => state?.localTests?.find(test => test.state === "running") ?? null;
 /** The Avatar ID of the newest successful upload: the Avatar that later uploads update. */
 export const uploadedAvatarId = (state: AmfReleaseState | null): string | null => state?.uploads.find(upload => upload.state === "succeeded")?.blueprintId ?? null;
 /** Every Avatar ID VUA uploaded across these runs. */

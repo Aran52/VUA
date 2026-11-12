@@ -18,14 +18,14 @@ import { ReleaseStage, StagePhoto } from "./ReleaseStage.tsx";
 import { ReleaseSheet } from "./ReleaseSheet.tsx";
 import { LineTerms } from "./LineTerms.tsx";
 import { ReleaseUploadDialog } from "./ReleaseUploadDialog.tsx";
-import { baseName, finishedRunIds, lastStep, proposedUploadName, runBusy, runningUpload, sdkReviewView, uploadedAvatarId, uploadedAvatarIds } from "./release-model.ts";
+import { baseName, finishedRunIds, lastStep, proposedUploadName, runBusy, runningLocalTest, runningUpload, sdkReviewView, uploadedAvatarId, uploadedAvatarIds } from "./release-model.ts";
 import { VrchatAvatarShelf } from "./VrchatAvatarShelf.tsx";
 import "./release-album.css";
 import { TurntableExportDialog } from "./TurntableExportDialog.tsx";
 import { recipeShareCopy } from "../../../i18n/index.ts";
 import { lineName } from "../line-presentation.ts";
 import { SegmentBar } from "../../../components/SegmentBar.tsx";
-import { requestNewProductionLine, takeRequestedTurntable } from "../production-recipe-navigation.ts";
+import { requestNewProductionLine, requestProductionRecipe, takeRequestedTurntable } from "../production-recipe-navigation.ts";
 
 const copy = strings.releaseRoom;
 const shelfCopy = strings.vrchat.shelf;
@@ -90,7 +90,7 @@ function useAlbumData(production: AmfProductionPort, release: AmfReleasePort, fo
         if (!alive) return;
         setRuns(previous => ({ ...previous, ...Object.fromEntries(gotRuns.flatMap(run => run ? [[run.runId, run]] : [])) }));
         setStates(previous => ({ ...previous, ...Object.fromEntries(gotStates.flatMap(state => state ? [[state.runId, state]] : [])) }));
-        busy = observed.busy || gotRuns.some(run => run !== null && runBusy(run)) || gotStates.some(state => runningUpload(state) !== null);
+        busy = observed.busy || gotRuns.some(run => run !== null && runBusy(run)) || gotStates.some(state => runningUpload(state) !== null || runningLocalTest(state) !== null);
       } catch {
         if (alive) setFailed(true);
       }
@@ -120,13 +120,13 @@ function Album({ production, release, checksEnabled, onNavigate }: {
   const [exportRun, setExportRun] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<unknown>(null);
   const [starting, setStarting] = useState(false);
-  const [actionError, setActionError] = useState<{ runId: string; kind: "bake" | "upload"; error: unknown } | null>(null);
+  const [actionError, setActionError] = useState<{ runId: string; kind: "bake" | "upload" | "localTest"; error: unknown } | null>(null);
   const otherWork = list?.busy ?? false;
   const queuedFor = (runId: string) => list?.queue.find(item => item.runId === runId) ?? null;
-  const ownWork = (runId: string) => { const run = runs[runId]; return (run !== undefined && runBusy(run)) || queuedFor(runId) !== null || runningUpload(states[runId] ?? null) !== null; };
+  const ownWork = (runId: string) => { const run = runs[runId]; const state = states[runId] ?? null; return (run !== undefined && runBusy(run)) || queuedFor(runId) !== null || runningUpload(state) !== null || runningLocalTest(state) !== null; };
   // Work started here, followed until it ends: one that waited and then could not start shows why.
-  const [followed, setFollowed] = useState<Readonly<Record<string, { taskId: string; kind: "bake" | "upload" }>>>({});
-  const follow = (runId: string, kind: "bake" | "upload", accepted: unknown) => {
+  const [followed, setFollowed] = useState<Readonly<Record<string, { taskId: string; kind: "bake" | "upload" | "localTest" }>>>({});
+  const follow = (runId: string, kind: "bake" | "upload" | "localTest", accepted: unknown) => {
     const taskId = (accepted as { taskId?: unknown } | null)?.taskId;
     if (typeof taskId === "string") setFollowed(previous => ({ ...previous, [runId]: { taskId, kind } }));
   };
@@ -141,8 +141,10 @@ function Album({ production, release, checksEnabled, onNavigate }: {
           const task = view.tasks.find(item => item.id === taskId);
           if (task === undefined || !["completed", "completedWithWarnings", "failed", "cancelled"].includes(task.status)) continue;
           setFollowed(previous => { const { [runId]: _ended, ...rest } = previous; return rest; });
-          // A failure the run already records (an upload record, a turntable step) speaks for itself.
-          const recorded = kind === "upload" ? (states[runId]?.uploads.some(upload => upload.uploadId.includes(taskId.replace(/[^A-Za-z0-9-]/gu, "").slice(0, 80))) ?? false)
+          const cleanId = taskId.replace(/[^A-Za-z0-9-]/gu, "").slice(0, 80);
+          // A failure the run already records (an upload/test record, a turntable step) speaks for itself.
+          const recorded = kind === "upload" ? (states[runId]?.uploads.some(upload => upload.uploadId.includes(cleanId)) ?? false)
+            : kind === "localTest" ? (states[runId]?.localTests?.some(test => test.testId.includes(cleanId)) ?? false)
             : (runs[runId]?.steps.some(step => step.key === "turntable" && step.state === "failed") ?? false);
           if (task.status === "failed" && !recorded) setActionError({ runId, kind, error: Object.assign(new Error(task.errorText ?? ""), { code: task.errorText }) });
           refresh();
@@ -183,7 +185,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
     );
   };
 
-  const act = (runId: string, kind: "bake" | "upload", work: () => Promise<unknown>) => {
+  const act = (runId: string, kind: "bake" | "upload" | "localTest", work: () => Promise<unknown>) => {
     setActionError(null);
     void work().then(accepted => { follow(runId, kind, accepted); refresh(); }, error => setActionError({ runId, kind, error }));
   };
@@ -219,7 +221,8 @@ function Album({ production, release, checksEnabled, onNavigate }: {
   const titleOf = (runId: string) => lineName(runId, list?.runs.find(item => item.runId === runId)?.sourceNames[0] ?? runs[runId]?.sources[0]?.itemName ?? "") || baseName(runId);
   const spreads: AlbumSpread[] = ids.map((runId, at) => {
     const run = runs[runId];
-    const projectGone = list?.runs.find(item => item.runId === runId)?.projectGone === true;
+    const listEntry = list?.runs.find(item => item.runId === runId);
+    const projectGone = listEntry?.projectGone === true;
     const state = states[runId] ?? null;
     const title = titleOf(runId);
     // Finished Avatars with the same name are told apart by when their line started.
@@ -245,20 +248,25 @@ function Album({ production, release, checksEnabled, onNavigate }: {
       right: live => run ? <>
         <ReleaseSheet run={run} title={title} state={state} number={at + 1} live={live} notice={live ? notice : null}
           terms={live && list && !projectGone ? <LineTerms run={run} sources={list.sources} onOpenMaterials={() => onNavigate("warehouse")} /> : null} actions={{
-          ...(projectGone ? { onNewLine: () => { requestNewProductionLine(run.sources.map(item => item.sourceId)); onNavigate("workshop"); } } : {}),
+          ...(projectGone ? {
+            onNewLine: () => { requestNewProductionLine(run.sources.map(item => item.sourceId)); onNavigate("workshop"); },
+            ...(listEntry?.recipeId ? { onRebuildRecipe: () => { requestProductionRecipe(listEntry.recipeId!); onNavigate("workshop"); } } : {}),
+          } : {}),
           busy: ownWork(runId),
           uploadBlocked: runningUpload(state) !== null || queuedFor(runId)?.operation === "amf.production.upload",
+          localTestBlocked: runningLocalTest(state) !== null || queuedFor(runId)?.operation === "amf.production.localTest",
           otherWork,
           queued: (() => { const queued = queuedFor(runId); return queued ? { operation: queued.operation, ahead: list ? queueAhead(list, queued.taskId) : 1, onRemove: () => { void gateway.task.cancel(queued.taskId).then(refresh, () => {}); } } : null; })(),
           onUpload: () => { setDialogError(null); setDialog({ runId, requestId: null }); },
-          onStop: () => { void gateway.task.cancel(run.taskId).then(refresh, () => {}); },
+          onLocalTest: () => act(runId, "localTest", () => release.localTest(runId)),
+          onStop: () => { void gateway.task.cancel(followed[runId]?.taskId ?? run.taskId).then(refresh, () => {}); },
           onCheckAgain: () => checkAgain(runId),
           onSdkFix: fixes => act(runId, "upload", () => production.sdkFix(runId, fixes)),
         }}
           avatarCheck={checksEnabled && avatarId !== null ? avatarChecks[avatarId] ?? null : null}
           {...(checksEnabled && avatarId !== null ? { onRefreshAvatarCheck: () => refreshCheck(avatarId) } : {})}
           {...(vrchat !== undefined ? { onOpenOnVrchat: (id: string) => { void vrchat.openAvatarPage(id).catch(() => {}); } } : {})} />
-        {live && error?.kind === "upload" && <ActionError error={error.error} onCheckAgain={() => checkAgain(runId)} />}
+        {live && (error?.kind === "upload" || error?.kind === "localTest") && <ActionError error={error.error} onCheckAgain={() => checkAgain(runId)} />}
       </> : <p className="vua-text-secondary">{copy.loading}</p>,
     };
   });

@@ -1,6 +1,7 @@
 import type { AmfRecipeDocument, AmfRecipeMaterialResolution } from "@vua/contracts";
 import { describe, expect, it } from "vitest";
-import { newestFirst, recipeMaterialRows, recipeProductIds, recipeReadiness } from "./recipe-cards-model.ts";
+import { fastDocumentReadiness, newestFirst, recipeMaterialRows, recipeProductIds, recipeReadiness } from "./recipe-cards-model.ts";
+import { requestProductionRecipe, takeRequestedProductionRecipe } from "./production-recipe-navigation.ts";
 
 const resolution = (materialId: string, status: AmfRecipeMaterialResolution["status"], boothProductId: string | null = null): AmfRecipeMaterialResolution =>
   ({ materialId, packageName: `${materialId}.unitypackage`, boothProductId, status, resolved: null, candidates: [], downloadNames: [] });
@@ -54,4 +55,23 @@ describe("a Recipe's material rows", () => {
 
 it("orders Recipes by their last save", () => {
   expect(newestFirst([{ updatedAt: "2026-01-01" }, { updatedAt: "2026-03-01" }]).map(item => item.updatedAt)).toEqual(["2026-03-01", "2026-01-01"]);
+});
+
+describe("fastDocumentReadiness and production recipe handoff", () => {
+  it("evaluates Recipe readiness from in-memory production sources when all digests match and defers otherwise", () => {
+    const allReady = [
+      { sourceId: "s1", itemId: "i1", name: "shader.unitypackage", sha256: "a".repeat(64) },
+      { sourceId: "s2", itemId: "i2", name: "coat.unitypackage", sha256: "b".repeat(64) },
+      { sourceId: "s3", itemId: "i3", name: "body.unitypackage", sha256: "c".repeat(64) },
+    ];
+    expect(fastDocumentReadiness(recipe, allReady)).toEqual({ kind: "ready" });
+    expect(fastDocumentReadiness(recipe, allReady.slice(0, 2))).toBeNull();
+    expect(fastDocumentReadiness(recipe, [{ sourceId: "s1", itemId: "i1", name: "shader.unitypackage" }])).toBeNull();
+  });
+
+  it("round-trips a requested production recipe ID once", () => {
+    requestProductionRecipe("recipe-alpha");
+    expect(takeRequestedProductionRecipe()).toBe("recipe-alpha");
+    expect(takeRequestedProductionRecipe()).toBeNull();
+  });
 });

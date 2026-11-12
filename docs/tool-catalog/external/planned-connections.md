@@ -1,6 +1,6 @@
 # Planned connections
 
-> Updated: 2026-11-11
+> Updated: 2026-11-12
 
 These tools and headset routes have their interface in VUA ahead of a working connection (author
 request, 2026-11-06: interface first, backend to follow). VUA describes each one, links its official
@@ -10,22 +10,22 @@ onto its backend face. Licenses and sources were rechecked on 2026-11-11.
 
 ## Tools
 
-The cards are listed in `apps/desktop/src/renderer/features/tools/planned-tools.ts`. Backend faces
-for Desktop+, fpsVR, SlimeVR Server, VRCT, VRCX and VRCS are implemented in
-[external-tool v0.4](../../protocols/external-tool-v0.4.md) and
+Remaining planned cards live in `apps/desktop/src/renderer/features/tools/planned-tools.ts` (`xsoverlay`
+and `liv`). Desktop+, fpsVR, SlimeVR Server, VRCT, VRCX and VRCS are now connected to
+[external-tool v0.4](../../protocols/external-tool-v0.4.md) (`SteamToolCard`) and
 [installer-tool v0.1](../../protocols/installer-tool-v0.1.md) +
-[deployment v0.1](../../protocols/environment-deployment-v0.1.md), ready for UI switch-over.
+[deployment v0.1](../../protocols/environment-deployment-v0.1.md) (`InstallerToolCard`).
 
 | Card | Source | License or price | Steam App ID | Connection status |
 | --- | --- | --- | --- | --- |
-| [SlimeVR Server](slimevr-server.md) | [SlimeVR-Installer](https://github.com/SlimeVR/SlimeVR-Installer) `v5.0.0` | `MIT AND Apache-2.0` (mirror-eligible with notices) | — | Backend wired (`slimevr` in deployment v0.1 + installer-tool v0.1); elevated NSIS `/S` installs SteamVR driver and Java runtime |
-| [VRCT](vrct.md) | [GitHub](https://github.com/misyaguziya/VRCT) `v3.6.1` | `MIT`, except VRCT-exclusive chat-bubble model (official GitHub release only; no mirroring) | — | Backend wired (`vrct` in deployment v0.1 + installer-tool v0.1) |
-| [VRCX](vrcx.md) | [GitHub](https://github.com/vrcx-team/VRCX) `v2026.09.16` | `MIT` (mirror-eligible with license) | — | Backend wired (`vrcx` in deployment v0.1 + installer-tool v0.1); VRCX keeps its own VRChat sign-in and database |
-| [VRCS](vrcs.md) | [GitHub](https://github.com/Dreaminko/VRCS) `0.3.7` | `AGPL-3.0` (verified 2026-11-11; official GitHub release first, source+license required if mirrored) | — | Backend wired (`vrcs` in deployment v0.1 + installer-tool v0.1) |
-| XSOverlay | Steam | Paid, Early Access | 1173510 | Pending real Steam installation verification of `installdir` and main executable |
-| Desktop+ | Steam | Free | 1494460 (`DesktopPlus`, `DesktopPlus.exe`) | Backend wired (`desktopplus` in external-tool v0.4) |
-| fpsVR | Steam | Paid | 908520 (`fpsVR`, `fpsVR.exe`) | Backend wired (`fpsvr` in external-tool v0.4) |
-| LIV | Steam | Free base application | 755540 | Pending real Steam installation verification of `installdir` and main executable |
+| [SlimeVR Server](slimevr-server.md) | [SlimeVR-Installer](https://github.com/SlimeVR/SlimeVR-Installer) `v5.0.0` | `MIT AND Apache-2.0` (mirror-eligible with notices) | — | Live (`InstallerToolCard` on `slimevr` in deployment v0.1 + installer-tool v0.1); elevated NSIS `/S` installs SteamVR driver and Java runtime |
+| [VRCT](vrct.md) | [GitHub](https://github.com/misyaguziya/VRCT) `v3.6.1` | `MIT`, except VRCT-exclusive chat-bubble model (official GitHub release only; no mirroring) | — | Live (`InstallerToolCard` on `vrct` in deployment v0.1 + installer-tool v0.1) |
+| [VRCX](vrcx.md) | [GitHub](https://github.com/vrcx-team/VRCX) `v2026.09.16` | `MIT` (mirror-eligible with license) | — | Live (`InstallerToolCard` on `vrcx` in deployment v0.1 + installer-tool v0.1); VRCX keeps its own VRChat sign-in and database |
+| [VRCS](vrcs.md) | [GitHub](https://github.com/Dreaminko/VRCS) `0.3.7` | `AGPL-3.0` (verified 2026-11-11; official GitHub release first, source+license required if mirrored) | — | Live (`InstallerToolCard` on `vrcs` in deployment v0.1 + installer-tool v0.1) |
+| XSOverlay | Steam | Paid, Early Access | 1173510 | Planned — pending real Steam installation verification of `installdir` and main executable |
+| Desktop+ | Steam | Free | 1494460 (`DesktopPlus`, `DesktopPlus.exe`) | Live (`SteamToolCard` on `desktopplus` in external-tool v0.4) |
+| fpsVR | Steam | Paid | 908520 (`fpsVR`, `fpsVR.exe`) | Live (`SteamToolCard` on `fpsvr` in external-tool v0.4) |
+| LIV | Steam | Free base application | 755540 | Planned — pending real Steam installation verification of `installdir` and main executable |
 
 A Steam card becomes live by adding its identifier to the
 [external tool connection](../../protocols/external-tool-v0.4.md) and moving it out of

@@ -27,6 +27,7 @@ import { StatusChip, WorkshopRail, type RailLine } from "./WorkshopRail.tsx";
 import { TextureMemoryCard } from "./TextureMemoryCard.tsx";
 import { OutfitRemovalCard } from "./OutfitRemovalCard.tsx";
 import { LightingCard } from "./LightingCard.tsx";
+import { AvatarOptimizerCard } from "./AvatarOptimizerCard.tsx";
 import { FaceTrackingCard, FtLockNote } from "./FaceTrackingCard.tsx";
 import { RevisionsCard } from "./RevisionsCard.tsx";
 import { FitSaveCard } from "./FitSaveCard.tsx";
@@ -125,7 +126,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [taskQueued, setTaskQueued] = useState(false);
   const [queuedAhead, setQueuedAhead] = useState(1);
-  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | "restoreRevision" | "texture_memory" | "faceTracking" | "closeEditor" | null>(null);
+  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | "restoreRevision" | "texture_memory" | "faceTracking" | "optimizer" | "closeEditor" | null>(null);
   // A project_open refusal offers saving and closing Unity; the refused action continues afterwards.
   const [closeOffer, setCloseOffer] = useState<{ readonly message: string; readonly retry: (() => void) | null } | null>(null);
   const afterClose = useRef<(() => void) | null>(null);
@@ -389,14 +390,22 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
             <Button variant="subtle" disabled={busy} data-nav-id="workshop-close-unity">{closeOffer.retry ? editorClose.actionContinue : editorClose.action}</Button>
           </Popconfirm>
         : <Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button>}>{closeOffer !== null && closeOffer.message === error ? editorClose.held : error}</Alert>}
-    {run !== null && list?.runs.find(item => item.runId === run.runId)?.projectGone ? <>
-      <header className="vua-line__header"><div className="vua-line__object"><h1 className="vua-title">{lineName(run.runId, run.sources[0]?.itemName ?? "", lineNames) || objectName}</h1></div></header>
-      <Card className="vua-line__gone" data-nav-id="workshop-project-gone">
-        <h2>{factory.projectGone.title}</h2>
-        <div className="vua-n3__actions"><Button variant="primary" data-nav-id="workshop-rebuild" onClick={() => { setSourceIds(run.sources.map(item => item.sourceId)); newPreparation(); }}>{factory.projectGone.newLine}</Button></div>
-      </Card>
-      {port && <AmfResultViews port={port} run={run}/>}
-    </> : run === null ? <>
+    {run !== null && list?.runs.find(item => item.runId === run.runId)?.projectGone ? (() => {
+      const goneEntry = list.runs.find(item => item.runId === run.runId);
+      return <>
+        <header className="vua-line__header"><div className="vua-line__object"><h1 className="vua-title">{lineName(run.runId, run.sources[0]?.itemName ?? "", lineNames) || objectName}</h1></div></header>
+        <Card className="vua-line__gone" data-nav-id="workshop-project-gone">
+          <h2>{factory.projectGone.title}</h2>
+          <div className="vua-n3__actions">
+            {goneEntry?.recipeId ? <>
+              <Button variant="primary" data-nav-id="workshop-rebuild-recipe" onClick={() => { const id = goneEntry.recipeId!; newPreparation(); openRecipe(id); }}>{factory.projectGone.rebuildRecipe}</Button>
+              <Button variant="subtle" data-nav-id="workshop-rebuild" onClick={() => { setSourceIds(run.sources.map(item => item.sourceId)); newPreparation(); }}>{factory.projectGone.newLine}</Button>
+            </> : <Button variant="primary" data-nav-id="workshop-rebuild" onClick={() => { setSourceIds(run.sources.map(item => item.sourceId)); newPreparation(); }}>{factory.projectGone.newLine}</Button>}
+          </div>
+        </Card>
+        {port && <AmfResultViews port={port} run={run}/>}
+      </>;
+    })() : run === null ? <>
       <header className="vua-line__header"><div className="vua-page__hero"><h1 className="vua-title">{factory.newLine}</h1></div><PermissionModePicker value={effective} onChoose={chooseLevel} /></header>
       {recipePreview && <Card><Button disabled={busy} onClick={() => setSharingRecipe(recipePreview.recipe.recipeId)}>{copy.shareRecipe}</Button><h2>{recipePreview.recipe.title}</h2><p>{format(copy.recipeSummary,{materials:recipePreview.recipe.materials.length,outfits:recipePreview.recipe.outfits.length})}</p>
         <details><summary>{copy.materials}</summary><ul>{recipePreview.recipe.materials.map(material => <li key={material.id}>{material.packageName}</li>)}</ul></details>
@@ -613,6 +622,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         onStarted={taskId => { setTaskId(taskId); setTaskAction("texture_memory"); }} onError={e => fail(e)}/>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <LightingCard port={port} run={run} level={level} disabled={busy}
         onStarted={taskId => { setTaskId(taskId); setTaskAction("lighting"); }} onError={e => fail(e)}/>}
+      {shown === "check" && !restorePlan && run.phase === "succeeded" && port && <AvatarOptimizerCard port={port} run={run} disabled={busy} ftLocked={ftLocked}
+        onStarted={taskId => { setTaskId(taskId); setTaskAction("optimizer"); }} onError={e => fail(e)}/>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <FitSaveCard port={port} run={run} disabled={busy} />}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && run.result?.facts?.observedSelection && <Card>
         <div className="vua-n3__toolbar"><h2>{copy.saveRecipe}</h2><Button disabled={ftLocked} onClick={() => setApplyingRecipe(true)}>{copy.applyRecipe}</Button></div>

@@ -22,6 +22,10 @@ import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
 import { contextGuideCopy } from "./context-guide-copy.ts";
 import { helpFaqCopy } from "./help-faq-copy.ts";
+import { avatarOptimizerCopy } from "./avatar-optimizer-copy.ts";
+import { guideChannelCopy } from "./guide-channel-copy.ts";
+import { recipeDraftFlowCopy } from "./recipe-draft-flow-copy.ts";
+import { installerToolCopy } from "./installer-tool-copy.ts";
 /**
  * VUA UI string table (en) — SOURCE language.
  * - This table is the structural source of truth: the widened Strings type
@@ -61,6 +65,10 @@ export const strings = {
   useTerms: useTermsCopy.en,
   environmentCards: environmentCopy["en"],
   journey: journeyCopy["en"],
+  avatarOptimizer: avatarOptimizerCopy["en"],
+  guideChannel: guideChannelCopy["en"],
+  recipeDraftFlow: recipeDraftFlowCopy["en"],
+  installerTool: installerToolCopy["en"],
   websiteTests: {
     title: "Website connectivity", test: "Test", testAll: "Test all", testing: "Testing…",
     add: "Add website", edit: "Edit website", editSite: "Edit {name}", testSite: "Test {name}",

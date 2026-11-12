@@ -11,6 +11,7 @@ import { VuaGuide } from "./VuaGuide.tsx";
 import { EncyclopediaPage } from "./EncyclopediaPage.tsx";
 import { GuideEntryButton } from "../guide/GuideEntryButton.tsx";
 import { GUIDE_TARGETS } from "../guide/guide-target.ts";
+import { LicensedEntryGuides } from "./LicensedEntryGuides.tsx";
 
 const hints = structureCopy[currentLocale].help;
 
@@ -80,6 +81,11 @@ export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeG
         <HelpRow id="help-game-assistant" icon="anim" title={copy.gameGuide} hint={hints.gameHint} onClick={openGameGuide} />
       </div>
       {openFailed ? <p role="status">{strings.helpUi.openFailed}</p> : null}
+    </section>
+    <section className="vua-help-section" aria-labelledby="help-licensed-guides-title">
+      <h2 id="help-licensed-guides-title">{strings.guideChannel.sectionTitle}</h2>
+      <p className="vua-caption vua-text-secondary">{strings.guideChannel.sectionSubtitle}</p>
+      <LicensedEntryGuides />
     </section>
   </div>;
 }

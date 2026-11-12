@@ -1,10 +1,44 @@
 import { useEffect, useRef, useState } from "react";
+import type { AmfModuleApiV01, AmfModuleSnapshotV01 } from "@vua/contracts";
 import { Icon } from "@vua/design-system";
 import { Button } from "../../components/primitives/Button.tsx";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { useAmfModule, useGateway } from "../../gateway/index.ts";
 import { strings, format, TERMS } from "../../i18n/index.ts";
 import "./file-drop.css";
+
+export function waitForAmfStartup(
+  port: Pick<AmfModuleApiV01, "snapshot" | "subscribe">,
+  initial: AmfModuleSnapshotV01,
+  timeoutMs = 15_000,
+): Promise<AmfModuleSnapshotV01> {
+  if (!initial.installed || initial.state !== "starting") return Promise.resolve(initial);
+  return new Promise(resolve => {
+    let latest = initial;
+    let settled = false;
+    let unsubscribe: (() => void) | null = null;
+    const finish = (next: AmfModuleSnapshotV01) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      unsubscribe?.();
+      resolve(next);
+    };
+    const timer = setTimeout(() => finish(latest), timeoutMs);
+    unsubscribe = port.subscribe(next => {
+      latest = next;
+      if (next.state !== "starting") finish(next);
+    });
+    if (settled) {
+      unsubscribe();
+      return;
+    }
+    void port.snapshot().then(next => {
+      latest = next;
+      if (next.state !== "starting") finish(next);
+    }).catch(() => {});
+  });
+}
 
 /** The host catches native drops; AMF owns copying and the normal task channel. */
 export function FileDropImporter({ onOpenLibrary }: { onOpenLibrary: () => void }) {
@@ -29,8 +63,11 @@ export function FileDropImporter({ onOpenLibrary }: { onOpenLibrary: () => void 
       const face = window.vua?.library;
       if (typeof face?.resolveDroppedFiles !== "function") { setPending(null); setError(copy.unavailable); setDialogOpen(true); return; }
       const snapshot = enable ? await gateway.amfModule.setEnabled(true) : null;
-      const current = snapshot?.snapshot ?? await gateway.amfModule.snapshot();
+      let current = snapshot?.snapshot ?? await gateway.amfModule.snapshot();
       if (snapshot?.outcome === "busy") { setError(copy.busy); setDialogOpen(true); return; }
+      if (!enable && current.installed && current.state === "starting") {
+        current = await waitForAmfStartup(gateway.amfModule, current);
+      }
       if (current.state !== "ready" || snapshot?.outcome === "failed") { setPending(files); setDialogOpen(true); if (enable) setError(copy.failed); return; }
       const paths = await face.resolveDroppedFiles(files);
       commandId.current ??= `whcmd-${crypto.randomUUID()}`;

@@ -120,7 +120,7 @@ export function createAmfReleasePort(client: GatewayClient): AmfReleasePort {
       return accepted(await call({ method: "amf.production.bakeTurntable", params: { schemaVersion: "0.1", runId } }), strings.releaseRoom.turntable.baking);
     },
     async localTest(runId) {
-      return accepted(await call({ method: "amf.production.localTest", params: { schemaVersion: "0.1", runId } }));
+      return accepted(await call({ method: "amf.production.localTest", params: { schemaVersion: "0.1", runId } }), strings.releaseRoom.localTest.button);
     },
     async upload(runId, confirmation) {
       if (confirmation.rightsConfirmed !== true || !isAmfAvatarName(confirmation.avatarName)) throw new Error("amf_release_confirmation_invalid");

@@ -720,7 +720,7 @@ function RecipeLibrarySection({
 export function RecipePage({ onNavigate }: { onNavigate?: (page: PageId) => void } = {}) {
   const gateway = useGateway();
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  if (!gateway.amfProduction) return <RecipeWorkspace />;
+  if (!gateway.amfProduction) return <RecipeWorkspace {...(onNavigate ? { onNavigate } : {})} />;
   const productionCopy = strings.amfProduction;
   return (
     <div className="vua-page">
@@ -740,14 +740,14 @@ export function RecipePage({ onNavigate }: { onNavigate?: (page: PageId) => void
         <Button variant="subtle" aria-expanded={workspaceOpen} aria-controls="recipe-workspace" onClick={() => setWorkspaceOpen(value => !value)}>
           {productionCopy.recipeWorkspace}
         </Button>
-        {workspaceOpen && <div id="recipe-workspace"><RecipeWorkspace /></div>}
+        {workspaceOpen && <div id="recipe-workspace"><RecipeWorkspace {...(onNavigate ? { onNavigate } : {})} /></div>}
       </section>
     </div>
   );
 }
 
 /** Selection drafts and their graph remain available separately from saved production Recipes. */
-export function RecipeWorkspace({ embedded = false }: { embedded?: boolean } = {}) {
+export function RecipeWorkspace({ embedded = false, onNavigate }: { embedded?: boolean; onNavigate?: (page: PageId) => void } = {}) {
   const gateway = useGateway();
   const isFixture = useDataSource() === "fixture";
   const [graph, setGraph] = useState<RecipeGraphView | null>(null);
@@ -1059,7 +1059,7 @@ export function RecipeWorkspace({ embedded = false }: { embedded?: boolean } = {
         </div>
       </section>
 
-      <RecipeDraftLibrary />
+      <RecipeDraftLibrary {...(onNavigate ? { onNavigate } : {})} />
 
       <Card>
         <RecipeLibrarySection

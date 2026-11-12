@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AmfProductionRun, AmfReleaseState } from "../../../gateway/index.ts";
-import { avatarTitle, cubicBezier, dragProgress, durationOf, easeInOut, easingOf, finishedRunIds, outfitLines, proposedUploadName, releaseChecks, sdkReviewView, turnCompletes, turnTo, uploadedAvatarId, viewAfter } from "./release-model.ts";
+import { avatarTitle, cubicBezier, dragProgress, durationOf, easeInOut, easingOf, finishedRunIds, outfitLines, proposedUploadName, releaseChecks, runningLocalTest, sdkReviewView, turnCompletes, turnTo, uploadedAvatarId, viewAfter } from "./release-model.ts";
 
 const run = {
   schemaVersion: "0.1", runId: "n3-a", phase: "succeeded", taskId: "t", editor: { path: "Unity.exe", version: "2022.3.22f1" }, projectRoot: "C:/w", choices: [],
@@ -43,6 +43,12 @@ describe("release room facts", () => {
       { ...upload, uploadId: "u2", state: "succeeded", blueprintId: "avtr_2" }, { ...upload, uploadId: "u1", state: "succeeded", blueprintId: "avtr_1" }] } as unknown as AmfReleaseState;
     expect(uploadedAvatarId(state)).toBe("avtr_2");
     expect(uploadedAvatarId(null)).toBeNull();
+  });
+  it("detects an active local test while ignoring finished ones", () => {
+    const base = { testId: "lt1", startedAt: "", endedAt: null, stage: "building_test_avatar", status: "", bundlePath: null, avatarFileName: null, vrchatProcessRunning: false, reason: null, detail: "", errors: [] };
+    expect(runningLocalTest({ runId: "n3-a", turntable: null, editorOpen: false, uploads: [], localTests: [{ ...base, state: "running" }] } as unknown as AmfReleaseState)?.testId).toBe("lt1");
+    expect(runningLocalTest({ runId: "n3-a", turntable: null, editorOpen: false, uploads: [], localTests: [{ ...base, state: "succeeded" }] } as unknown as AmfReleaseState)).toBeNull();
+    expect(runningLocalTest(null)).toBeNull();
   });
   it("turns one page at a time and completes a released corner past a third", () => {
     expect(turnTo(0, 1, 3)).toEqual({ from: 0, to: 1, direction: "next" });

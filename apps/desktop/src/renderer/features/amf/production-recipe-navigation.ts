@@ -1,8 +1,18 @@
-// A pending selection survives page remounts, without persisting an execution request.
+// A pending selection survives page remounts and split host/AMF bundles, without persisting an execution request.
 let requestedRecipe: string | null = null;
-export function requestProductionRecipe(recipeId: string): void { requestedRecipe = recipeId; }
+let recipePersistedHint = false;
+const recipeRequestKey = "vua-amf-production-recipe";
+export function requestProductionRecipe(recipeId: string): void {
+  requestedRecipe = recipeId; recipePersistedHint = false;
+  try { sessionStorage.setItem(recipeRequestKey, recipeId); recipePersistedHint = true; } catch { /* Keep the in-memory hint. */ }
+}
 export function takeRequestedProductionRecipe(): string | null {
-  const recipeId = requestedRecipe; requestedRecipe = null; return recipeId;
+  const recipeId = requestedRecipe, persisted = recipePersistedHint; requestedRecipe = null; recipePersistedHint = false;
+  try {
+    const stored = sessionStorage.getItem(recipeRequestKey); sessionStorage.removeItem(recipeRequestKey);
+    if (stored !== null) return stored.length > 0 && stored.length <= 160 ? stored : null;
+    return persisted ? null : recipeId;
+  } catch { return recipeId; }
 }
 
 // Home's "new line": the workshop opens on the start page instead of the last line it showed.

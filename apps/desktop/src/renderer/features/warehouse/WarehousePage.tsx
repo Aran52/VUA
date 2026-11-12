@@ -953,6 +953,10 @@ export function WarehousePage({
       setReloadKey((key) => key + 1); setDetailReloadKey((key) => key + 1);
     }
   }), []);
+  useEffect(() => window.vua?.catalogSync?.subscribeEnrichment?.(() => {
+    setReloadKey((key) => key + 1);
+    setDetailReloadKey((key) => key + 1);
+  }), []);
 
   // 详情查询
   useEffect(() => {

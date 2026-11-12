@@ -51,7 +51,7 @@ await build(mergeConfig(hostConfig, { root: desktop, configFile: false,
 writeFileSync(path.join(desktop, "dist/components/host-renderer/update-runtime.json"), JSON.stringify({ schemaVersion: "0.1", dataTrialAbi: "amf-data/0.1", build: amfBuild }) + "\n");
 }
 if (component !== "host") {
-await build({ root: desktop, configFile: false, base: "./", plugins: [sharedBindings, react()],
+await build({ root: desktop, configFile: false, publicDir: false, base: "./", plugins: [sharedBindings, react()],
   define: { ...hostConfig.define, __VUA_AMF_VERSION__: JSON.stringify(amfVersion), __VUA_AMF_BUILD__: JSON.stringify(amfBuild), "process.env.NODE_ENV": JSON.stringify("production") }, build: { outDir: "dist/components/amf-ui", emptyOutDir: true,
     lib: { entry: path.join(renderer, "features/amf/amf-entry.ts"), formats: ["es"], fileName: () => "amf-entry.js", cssFileName: "style" },
     rolldownOptions: { output: { codeSplitting: false } }, sourcemap: false } });

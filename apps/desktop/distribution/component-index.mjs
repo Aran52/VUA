@@ -38,23 +38,32 @@ function compatibility(value) {
       || value.bdlRead.some(v => typeof v !== "string" || !v.length) || new Set(value.bdlRead).size !== value.bdlRead.length
       || !value.bdlRead.includes(value.bdlWrite)) fail("invalid_component_compatibility");
 }
-export function validateIndex(index) {
+const EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+function metadataObject(value) {
+  keys(value, ["sha256", "bytes", "sources"]);
+  if (!hash(value.sha256, 32) || !integer(value.bytes, 1, MAX_METADATA_BYTES)
+      || !Array.isArray(value.sources) || !value.sources.length || value.sources.length > 4
+      || !value.sources.every(indexSource)) fail("invalid_component_manifest");
+}
+
+export function validateIndex(index, expectedSchema = "0.2") {
+  if (!["0.2", "0.3"].includes(expectedSchema)) fail("unsupported_component_feed");
   keys(index, ["schemaVersion", "product", "platform", "arch", "channel", "component", "sequence", "releases"]);
-  if (index.schemaVersion !== "0.2" || index.product !== "VUA" || index.platform !== "windows" || index.arch !== "x64"
+  if (index.schemaVersion !== expectedSchema || index.product !== "VUA" || index.platform !== "windows" || index.arch !== "x64"
       || index.channel !== "beta" || !COMPONENTS.includes(index.component) || !integer(index.sequence, 1, Number.MAX_SAFE_INTEGER)
       || !Array.isArray(index.releases) || index.releases.length > 64) fail("unsupported_component_feed");
   const versions = new Set();
+  const optionalReleaseKeys = expectedSchema === "0.3" ? ["runtimeVersion", "compressedTransfer"] : ["runtimeVersion"];
   for (const entry of index.releases) {
-    keys(entry, ["version", "build", "releaseUrl", "manifest", "compatibility", "activation"], ["runtimeVersion"]);
+    keys(entry, ["version", "build", "releaseUrl", "manifest", "compatibility", "activation"], optionalReleaseKeys);
     if (!validVersion(entry.version) || !hash(entry.build, 20) || !indexSource(entry.releaseUrl)
         || !["restart", "reload"].includes(entry.activation)) fail("invalid_component_release");
     const precedence = semver.valid(entry.version);
     if (versions.has(precedence)) fail("duplicate_component_version");
     versions.add(precedence);
-    keys(entry.manifest, ["sha256", "bytes", "sources"]);
-    if (!hash(entry.manifest.sha256, 32) || !integer(entry.manifest.bytes, 1, MAX_METADATA_BYTES)
-        || !Array.isArray(entry.manifest.sources) || !entry.manifest.sources.length || entry.manifest.sources.length > 4
-        || !entry.manifest.sources.every(indexSource)) fail("invalid_component_manifest");
+    metadataObject(entry.manifest);
+    if (Object.hasOwn(entry, "compressedTransfer")) metadataObject(entry.compressedTransfer);
     compatibility(entry.compatibility);
     if (index.component === "host") {
       if (entry.activation !== "restart" || !validVersion(entry.runtimeVersion)
@@ -62,6 +71,9 @@ export function validateIndex(index) {
     } else if (Object.hasOwn(entry, "runtimeVersion")) fail("amf_must_not_select_runtime");
   }
   return index;
+}
+export function validateIndexV03(index) {
+  return validateIndex(index, "0.3");
 }
 function publicKey(value) {
   if (!hash(value, 32)) fail("invalid_trust_key");
@@ -88,7 +100,13 @@ export function sealEnvelope(payload, schema, privateKey, trustedKey) {
   return raw;
 }
 export function verifyIndex(raw, trustedKey, component, minimumSequence = 0) {
-  const index = validateIndex(openEnvelope(raw, "0.2", trustedKey));
+  const index = validateIndex(openEnvelope(raw, "0.2", trustedKey), "0.2");
+  if (index.component !== component) fail("wrong_component_feed");
+  if (index.sequence < minimumSequence) fail("component_feed_replayed");
+  return index;
+}
+export function verifyIndexV03(raw, trustedKey, component, minimumSequence = 0) {
+  const index = validateIndex(openEnvelope(raw, "0.3", trustedKey), "0.3");
   if (index.component !== component) fail("wrong_component_feed");
   if (index.sequence < minimumSequence) fail("component_feed_replayed");
   return index;
@@ -151,15 +169,55 @@ export function bindInventory(entry, component, raw, trustedKey) {
       || (component === "host" && inventory.runtime.version !== entry.runtimeVersion)) fail("component_manifest_identity_mismatch");
   return inventory;
 }
+export function validateTransfer(value) {
+  keys(value, ["schemaVersion", "product", "platform", "arch", "component", "manifestSha256", "encoding", "pack", "files"]);
+  if (value.schemaVersion !== "0.3" || value.product !== "VUA" || value.platform !== "windows" || value.arch !== "x64"
+      || !COMPONENTS.includes(value.component) || !hash(value.manifestSha256, 32)
+      || !["zstd", "gzip"].includes(value.encoding)) fail("unsupported_component_transfer");
+  pack(value.pack);
+  if (!Array.isArray(value.files) || !value.files.length || value.files.length > 20_000) fail("invalid_component_transfer_files");
+  let offset = 0; const names = new Set();
+  for (const file of value.files) {
+    keys(file, ["path", "bytes", "sha256", "compressedOffset", "compressedBytes", "compressedSha256"]);
+    const name = typeof file.path === "string" ? file.path.replace(/[A-Z]/g, c => c.toLowerCase()) : "";
+    if (!relativeName(file.path) || names.has(name) || !integer(file.bytes, 0, 512 * 1024 ** 2)
+        || !hash(file.sha256, 32) || !integer(file.compressedOffset, 0, 2 * 1024 ** 3)
+        || !integer(file.compressedBytes, 0, 512 * 1024 ** 2) || !hash(file.compressedSha256, 32)
+        || file.compressedOffset !== offset) fail("invalid_component_transfer_file");
+    if (file.bytes === 0) {
+      if (file.compressedBytes !== 0 || file.compressedSha256 !== EMPTY_SHA256) fail("invalid_component_transfer_file");
+    } else if (file.compressedBytes === 0) fail("invalid_component_transfer_file");
+    names.add(name);
+    offset += file.compressedBytes;
+    if (offset > value.pack.bytes) fail("invalid_component_transfer_file");
+  }
+  if (offset !== value.pack.bytes) fail("incomplete_component_transfer_pack");
+  return value;
+}
+export function verifyTransfer(raw, trustedKey) {
+  return validateTransfer(openEnvelope(raw, "0.3", trustedKey));
+}
+export function bindTransfer(entry, component, inventory, raw, trustedKey) {
+  if (!entry.compressedTransfer) fail("missing_compressed_transfer");
+  if (raw.length !== entry.compressedTransfer.bytes || digest(raw) !== entry.compressedTransfer.sha256) fail("component_transfer_integrity_failed");
+  const transfer = verifyTransfer(raw, trustedKey);
+  if (transfer.component !== component || transfer.manifestSha256 !== entry.manifest.sha256) fail("component_transfer_identity_mismatch");
+  const expectedFiles = inventory[component].files;
+  if (transfer.files.length !== expectedFiles.length
+      || transfer.files.some((file, index) => file.path !== expectedFiles[index].path
+        || file.bytes !== expectedFiles[index].bytes || file.sha256 !== expectedFiles[index].sha256)) fail("component_transfer_files_mismatch");
+  return transfer;
+}
 export function appendRelease(previous, entry) {
-  validateIndex(previous);
-  validateIndex({ ...previous, releases: [entry] });
+  const expectedSchema = previous?.schemaVersion === "0.3" ? "0.3" : "0.2";
+  validateIndex(previous, expectedSchema);
+  validateIndex({ ...previous, releases: [entry] }, expectedSchema);
   const releases = [...previous.releases, entry];
   const next = { ...previous, sequence: previous.sequence + 1, releases };
   // Validate before truncation so a duplicate cannot disappear at the history boundary.
-  validateIndex({ ...next, releases: releases.slice(0, 64) });
+  validateIndex({ ...next, releases: releases.slice(0, 64) }, expectedSchema);
   if (previous.releases.some(old => semver.eq(old.version, entry.version))) fail("component_version_already_published");
   next.releases.sort((a, b) => semver.rcompare(a.version, b.version));
   next.releases = next.releases.slice(0, 64);
-  return validateIndex(next);
+  return validateIndex(next, expectedSchema);
 }

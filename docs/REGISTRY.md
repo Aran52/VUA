@@ -100,6 +100,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/website-tests-v0.1.md | 0.4 | Candidate | Environment | 2026-10-20 |
 | docs/protocols/windows-distribution-v0.1.md | 0.1 | Candidate | Integration | 2026-10-13 |
 | docs/protocols/windows-distribution-v0.2.md | 0.3 | Candidate | Integration | 2026-11-09 |
+| docs/protocols/windows-distribution-v0.3.md | 0.1 | Candidate | Integration | 2026-11-11 |
 | docs/protocols/windows-update-plans-v0.1.md | 0.1 | Candidate | Integration | 2026-10-26 |
 | docs/protocols/amf-ui-runtime-v0.1.md | 0.1 | Candidate | Integration | 2026-10-26 |
 | docs/protocols/amf-data-recovery-v0.1.md | 0.1 | Candidate | Integration | 2026-10-26 |
@@ -181,4 +182,5 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/website-tests/v0.1/ | 0.1 | Candidate | Environment | 2026-10-07 |
 | schemas/windows-distribution/v0.1/ | 0.1 | Candidate | Integration | 2026-10-13 |
 | schemas/windows-distribution/v0.2/ | 0.2 | Candidate | Integration | 2026-11-09 |
+| schemas/windows-distribution/v0.3/ | 0.3 | Candidate | Integration | 2026-11-11 |
 | schemas/windows-update-plans/v0.1/ | 0.1 | Candidate | Integration | 2026-10-26 |

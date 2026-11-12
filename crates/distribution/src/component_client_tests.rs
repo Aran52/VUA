@@ -301,7 +301,7 @@ async fn user_agent_reads_each_active_component_and_falls_back_when_installation
     assert_eq!(versions, ("0.6.7".into(), "0.1.1".into()));
     assert_eq!(
         distribution_user_agent(Some((&versions.0, &versions.1))),
-        "VUA-distribution/0.2 (host=0.6.7; amf=0.1.1)"
+        "VUA-distribution/0.3 (host=0.6.7; amf=0.1.1)"
     );
     fs::write(
         h.installation.root.join(format!("manifests/{id}.json")),
@@ -316,7 +316,7 @@ async fn user_agent_reads_each_active_component_and_falls_back_when_installation
                 .as_ref()
                 .map(|(host, amf)| (host.as_str(), amf.as_str()))
         ),
-        "VUA-distribution/0.2"
+        "VUA-distribution/0.3"
     );
 }
 
@@ -368,4 +368,271 @@ fn unsupported_abi_or_application_entries_do_not_hide_compatible_single_or_pair_
             "no_compatible_update_plan"
         );
     }
+}
+
+#[tokio::test]
+async fn installation_hardlinks_runtime_alias_and_cleans_runtime_archive_cache() {
+    let temporary = tempfile::tempdir().unwrap();
+    let input = temporary.path().join("input");
+    let (installed, raw, key) = fixture(&input);
+    let installation =
+        Installation::with_key(&temporary.path().join("installation"), true, key).unwrap();
+    installation
+        .install(&raw, &input, &mut transfer())
+        .await
+        .unwrap();
+    let runtime = installation.runtime_root(&installed).unwrap();
+    assert!(crate::paths::same_regular_file(
+        &runtime.join("electron.exe"),
+        &runtime.join("VUA.Runtime.exe"),
+    ));
+    let copy_path = temporary.path().join("separate-copy.exe");
+    fs::copy(runtime.join("electron.exe"), &copy_path).unwrap();
+    assert!(!crate::paths::same_regular_file(
+        &runtime.join("electron.exe"),
+        &copy_path,
+    ));
+    assert!(
+        !installation
+            .root
+            .join(format!("cache/{}.zip", installed.runtime.archive.sha256))
+            .exists()
+    );
+}
+
+#[tokio::test]
+async fn v03_compressed_staging_reuses_unchanged_files_prevents_downgrade_and_bounds_decompression()
+{
+    use crate::component_feed::{CompressedFileObject, CompressedTransfer, CompressionEncoding};
+    use flate2::{write::GzEncoder, Compression};
+    use std::io::Write;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let temporary = tempfile::tempdir().unwrap();
+    let input = temporary.path().join("input");
+    let (installed, raw_base, key) = fixture(&input);
+    let installation =
+        Installation::with_key(&temporary.path().join("installation"), true, key).unwrap();
+    installation
+        .install(&raw_base, &input, &mut transfer())
+        .await
+        .unwrap();
+
+    // Build an AMF update where provider exe changes (compressible payload) and other files stay unchanged.
+    let mut updated = installed.clone();
+    updated.amf.version = "0.1.1".into();
+    updated.amf.build = "c".repeat(40);
+    let changed_bytes = b"VUA-AMF-PROVIDER-EXECUTABLE-".repeat(2048);
+    let mut raw_pack = Vec::new();
+    let mut offset = 0u64;
+    let mut file_payloads = Vec::new();
+    for file in &mut updated.amf.files {
+        let content = if file.path == "provider/vua-amf-provider.exe" {
+            changed_bytes.clone()
+        } else {
+            fs::read(
+                installation
+                    .amf_root(&installed)
+                    .unwrap()
+                    .join(&file.path),
+            )
+            .unwrap()
+        };
+        file.offset = offset;
+        file.bytes = content.len() as u64;
+        file.sha256 = digest(&content);
+        offset += file.bytes;
+        raw_pack.extend_from_slice(&content);
+        file_payloads.push((file.clone(), content));
+    }
+    updated.amf.pack.bytes = raw_pack.len() as u64;
+    updated.amf.pack.sha256 = digest(&raw_pack);
+
+    for encoding in [CompressionEncoding::Zstd, CompressionEncoding::Gzip] {
+        let mut compressed_pack = Vec::new();
+        let mut compressed_files = Vec::new();
+        let mut comp_offset = 0u64;
+        for (file, content) in &file_payloads {
+            let frame = if content.is_empty() {
+                Vec::new()
+            } else {
+                match encoding {
+                    CompressionEncoding::Zstd => ruzstd::encoding::compress_to_vec(
+                        content.as_slice(),
+                        ruzstd::encoding::CompressionLevel::Fastest,
+                    ),
+                    CompressionEncoding::Gzip => {
+                        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+                        encoder.write_all(content).unwrap();
+                        encoder.finish().unwrap()
+                    }
+                }
+            };
+            let comp_len = frame.len() as u64;
+            let comp_sha = digest(&frame);
+            compressed_files.push(CompressedFileObject {
+                path: file.path.clone(),
+                bytes: file.bytes,
+                sha256: file.sha256.clone(),
+                compressed_offset: comp_offset,
+                compressed_bytes: comp_len,
+                compressed_sha256: comp_sha,
+            });
+            comp_offset += comp_len;
+            compressed_pack.extend_from_slice(&frame);
+        }
+
+        // Loopback HTTP server serving ranges from compressed_pack to test real HTTP 206 compressed staging!
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let pack_url = format!("http://127.0.0.1:{port}/object.pack");
+        let served_pack = std::sync::Arc::new(compressed_pack.clone());
+        let range_requests = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let range_requests_server = range_requests.clone();
+        let server = tokio::spawn(async move {
+            while let Ok((mut stream, _)) = listener.accept().await {
+                let pack = served_pack.clone();
+                let counter = range_requests_server.clone();
+                tokio::spawn(async move {
+                    let mut req_buf = vec![0u8; 4096];
+                    let n = stream.read(&mut req_buf).await.unwrap_or(0);
+                    let req = String::from_utf8_lossy(&req_buf[..n]);
+                    if let Some(range_line) = req
+                        .lines()
+                        .find(|line| line.to_ascii_lowercase().starts_with("range: bytes="))
+                    {
+                        counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        let spec = range_line.split('=').nth(1).unwrap().trim();
+                        let mut parts = spec.split('-');
+                        let start: usize = parts.next().unwrap().parse().unwrap();
+                        let end: usize = parts.next().unwrap().parse().unwrap();
+                        let body = &pack[start..=end];
+                        let header = format!(
+                            "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {start}-{end}/{}\r\nConnection: close\r\n\r\n",
+                            body.len(),
+                            pack.len()
+                        );
+                        let _ = stream.write_all(header.as_bytes()).await;
+                        let _ = stream.write_all(body).await;
+                    }
+                });
+            }
+        });
+
+        let mut target_manifest = updated.clone();
+        target_manifest.amf.version = match encoding {
+            CompressionEncoding::Zstd => "0.1.1".into(),
+            CompressionEncoding::Gzip => "0.1.2".into(),
+        };
+        let (raw_inventory, _) = signed(&target_manifest);
+        let transfer_doc = CompressedTransfer {
+            schema_version: "0.3".into(),
+            product: "VUA".into(),
+            platform: "windows".into(),
+            arch: "x64".into(),
+            component: ComponentKind::Amf,
+            manifest_sha256: digest(&raw_inventory),
+            encoding,
+            pack: crate::manifest::Pack {
+                bytes: compressed_pack.len() as u64,
+                sha256: digest(&compressed_pack),
+                sources: vec![pack_url],
+            },
+            files: compressed_files.clone(),
+        };
+        let staged_dir = temporary.path().join(format!("staged-{encoding:?}"));
+        let mut client = crate::transfer::Transfer::loopback(
+            std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            |_| {},
+        );
+        client
+            .component_compressed(
+                &target_manifest.amf.files,
+                &target_manifest.amf.pack,
+                &transfer_doc,
+                Some(&installation.amf_root(&installed).unwrap()),
+                &staged_dir,
+                &temporary.path().join("cache.pack"),
+                &temporary.path().join("cache.bin"),
+            )
+            .await
+            .unwrap();
+        server.abort();
+        // Only the single changed file should have been fetched over HTTP Range!
+        assert_eq!(
+            range_requests.load(std::sync::atomic::Ordering::Relaxed),
+            1
+        );
+        installation
+            .verify_files(&staged_dir, &target_manifest.amf.files)
+            .unwrap();
+
+        let changed_cf = compressed_files
+            .iter()
+            .find(|f| f.path == "provider/vua-amf-provider.exe")
+            .unwrap();
+        assert!(changed_cf.compressed_bytes < changed_cf.bytes / 4);
+        let frame_slice = &compressed_pack[changed_cf.compressed_offset as usize
+            ..(changed_cf.compressed_offset + changed_cf.compressed_bytes) as usize];
+        let out_file = temporary.path().join("decoded.bin");
+        crate::transfer::decompress_bounded(
+            frame_slice,
+            encoding,
+            changed_cf.bytes,
+            &changed_cf.sha256,
+            &out_file,
+        )
+        .unwrap();
+        assert_eq!(fs::read(&out_file).unwrap(), changed_bytes);
+
+        // Zip-bomb / length-overflow defense: claiming expected_bytes smaller than actual output aborts immediately.
+        let bomb_err = crate::transfer::decompress_bounded(
+            frame_slice,
+            encoding,
+            changed_cf.bytes - 1,
+            &changed_cf.sha256,
+            &out_file,
+        )
+        .unwrap_err();
+        assert_eq!(bomb_err.0, "unexpected_decompressed_length");
+        assert!(!out_file.exists());
+    }
+
+    // Anti-downgrade: accept v0.2 seq 1, upgrade to v0.3 seq 2, then reject v0.2 seq 3!
+    let v02_seq1 = component_index(&updated, ComponentKind::Amf, 1);
+    installation
+        .accept_component_index(ComponentKind::Amf, &v02_seq1)
+        .unwrap();
+    let mut v03_feed = index(&updated, ComponentKind::Amf, 2);
+    v03_feed.schema_version = "0.3".into();
+    let payload_v03 = serde_json::to_string(&v03_feed).unwrap();
+    let raw_v03 = serde_json::to_vec(&SignedManifest {
+        schema_version: "0.3".into(),
+        algorithm: "ed25519".into(),
+        signature: hex(&SigningKey::from_bytes(&[7; 32])
+            .sign(payload_v03.as_bytes())
+            .to_bytes()),
+        payload: payload_v03,
+    })
+    .unwrap();
+    installation
+        .accept_component_index(ComponentKind::Amf, &raw_v03)
+        .unwrap();
+    assert_eq!(
+        installation
+            .cached_component_index(ComponentKind::Amf)
+            .unwrap()
+            .unwrap()
+            .0
+            .schema_version,
+        "0.3"
+    );
+    let v02_seq3 = component_index(&updated, ComponentKind::Amf, 3);
+    assert_eq!(
+        installation
+            .accept_component_index(ComponentKind::Amf, &v02_seq3)
+            .unwrap_err()
+            .0,
+        "component_feed_downgraded"
+    );
 }

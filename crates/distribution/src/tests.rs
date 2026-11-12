@@ -149,6 +149,7 @@ fn component_index(
                 bytes: raw.len() as u64,
                 sources: vec!["https://example.test/manifest.json".into()],
             },
+            compressed_transfer: None,
             compatibility: manifest.compatibility.clone(),
             activation: if kind == ComponentKind::Host {
                 Activation::Restart

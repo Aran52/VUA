@@ -1,0 +1,343 @@
+[
+  {
+    "name": "v03-amf-index",
+    "schema": "index",
+    "component": "amf",
+    "schemaValid": true,
+    "nativeValid": true,
+    "value": {
+      "schemaVersion": "0.3",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "channel": "beta",
+      "component": "amf",
+      "sequence": 4,
+      "releases": [
+        {
+          "version": "0.3.1",
+          "build": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "releaseUrl": "https://ph-r.com/vua/components/amf/v0.3.1/",
+          "manifest": {
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 4096,
+            "sources": [
+              "https://ph-r.com/vua/updates/objects/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json"
+            ]
+          },
+          "compressedTransfer": {
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "bytes": 2048,
+            "sources": [
+              "https://ph-r.com/vua/updates/objects/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.json"
+            ]
+          },
+          "compatibility": {
+            "host": ">=1.0.0, <2.0.0",
+            "uiAbi": "amf-ui/0.1",
+            "react": "19.2.8",
+            "application": "0.1",
+            "bridge": "0.1",
+            "bdlWrite": "0.11",
+            "bdlRead": [
+              "0.10",
+              "0.11"
+            ]
+          },
+          "activation": "reload"
+        }
+      ]
+    }
+  },
+  {
+    "name": "v03-host-index",
+    "schema": "index",
+    "component": "host",
+    "schemaValid": true,
+    "nativeValid": true,
+    "value": {
+      "schemaVersion": "0.3",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "channel": "beta",
+      "component": "host",
+      "sequence": 4,
+      "releases": [
+        {
+          "version": "1.0.1",
+          "build": "dddddddddddddddddddddddddddddddddddddddd",
+          "releaseUrl": "https://ph-r.com/vua/components/host/v1.0.1/",
+          "manifest": {
+            "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "bytes": 8192,
+            "sources": [
+              "https://ph-r.com/vua/updates/objects/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.json"
+            ]
+          },
+          "compressedTransfer": {
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "bytes": 4096,
+            "sources": [
+              "https://ph-r.com/vua/updates/objects/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff.json"
+            ]
+          },
+          "compatibility": {
+            "host": ">=1.0.0, <2.0.0",
+            "uiAbi": "amf-ui/0.1",
+            "react": "19.2.8",
+            "application": "0.1",
+            "bridge": "0.1",
+            "bdlWrite": "0.11",
+            "bdlRead": [
+              "0.10",
+              "0.11"
+            ]
+          },
+          "activation": "restart",
+          "runtimeVersion": "44.9.3"
+        }
+      ]
+    }
+  },
+  {
+    "name": "v03-signed-amf-envelope",
+    "schema": "envelope",
+    "component": "amf",
+    "schemaValid": true,
+    "nativeValid": true,
+    "value": {
+      "schemaVersion": "0.3",
+      "algorithm": "ed25519",
+      "payload": "{\"schemaVersion\":\"0.3\",\"product\":\"VUA\",\"platform\":\"windows\",\"arch\":\"x64\",\"channel\":\"beta\",\"component\":\"amf\",\"sequence\":4,\"releases\":[{\"version\":\"0.3.1\",\"build\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"releaseUrl\":\"https://ph-r.com/vua/components/amf/v0.3.1/\",\"manifest\":{\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"bytes\":4096,\"sources\":[\"https://ph-r.com/vua/updates/objects/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json\"]},\"compressedTransfer\":{\"sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"bytes\":2048,\"sources\":[\"https://ph-r.com/vua/updates/objects/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.json\"]},\"compatibility\":{\"host\":\">=1.0.0, <2.0.0\",\"uiAbi\":\"amf-ui/0.1\",\"react\":\"19.2.8\",\"application\":\"0.1\",\"bridge\":\"0.1\",\"bdlWrite\":\"0.11\",\"bdlRead\":[\"0.10\",\"0.11\"]},\"activation\":\"reload\"}]}",
+      "signature": "eec93e6d057369b56f4c5e1dbdd655c88cba10f8b159b900adcc22a1c68d0a1bb427f233db3d81cad729f03f4095e1418ec66908af337f0ae544c6b78bb1e907"
+    }
+  },
+  {
+    "name": "v03-envelope-wrong-payload-version",
+    "schema": "envelope",
+    "component": "amf",
+    "schemaValid": true,
+    "nativeValid": false,
+    "value": {
+      "schemaVersion": "0.3",
+      "algorithm": "ed25519",
+      "payload": "{\"schemaVersion\":\"0.2\",\"product\":\"VUA\",\"platform\":\"windows\",\"arch\":\"x64\",\"channel\":\"beta\",\"component\":\"amf\",\"sequence\":4,\"releases\":[{\"version\":\"0.3.1\",\"build\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"releaseUrl\":\"https://ph-r.com/vua/components/amf/v0.3.1/\",\"manifest\":{\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"bytes\":4096,\"sources\":[\"https://ph-r.com/vua/updates/objects/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json\"]},\"compressedTransfer\":{\"sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"bytes\":2048,\"sources\":[\"https://ph-r.com/vua/updates/objects/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.json\"]},\"compatibility\":{\"host\":\">=1.0.0, <2.0.0\",\"uiAbi\":\"amf-ui/0.1\",\"react\":\"19.2.8\",\"application\":\"0.1\",\"bridge\":\"0.1\",\"bdlWrite\":\"0.11\",\"bdlRead\":[\"0.10\",\"0.11\"]},\"activation\":\"reload\"}]}",
+      "signature": "afbc892de60c5e11375449d60a5408bf2d215f540953687e6142c6a538abff6d1c5c0397204803bf2cfa21f6f0b93fbd02bafc495f838bb6e8047f74250c0e0f"
+    }
+  },
+  {
+    "name": "v03-index-http-transfer-rejected",
+    "schema": "index",
+    "component": "amf",
+    "schemaValid": false,
+    "nativeValid": false,
+    "value": {
+      "schemaVersion": "0.3",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "channel": "beta",
+      "component": "amf",
+      "sequence": 4,
+      "releases": [
+        {
+          "version": "0.3.1",
+          "build": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "releaseUrl": "https://ph-r.com/vua/components/amf/v0.3.1/",
+          "manifest": {
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 4096,
+            "sources": [
+              "https://ph-r.com/vua/updates/objects/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json"
+            ]
+          },
+          "compressedTransfer": {
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "bytes": 2048,
+            "sources": [
+              "http://ph-r.com/vua/updates/objects/insecure.json"
+            ]
+          },
+          "compatibility": {
+            "host": ">=1.0.0, <2.0.0",
+            "uiAbi": "amf-ui/0.1",
+            "react": "19.2.8",
+            "application": "0.1",
+            "bridge": "0.1",
+            "bdlWrite": "0.11",
+            "bdlRead": [
+              "0.10",
+              "0.11"
+            ]
+          },
+          "activation": "reload"
+        }
+      ]
+    }
+  },
+  {
+    "name": "v03-transfer-zstd",
+    "schema": "transfer",
+    "component": "amf",
+    "schemaValid": true,
+    "nativeValid": true,
+    "value": {
+      "schemaVersion": "0.3",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "component": "amf",
+      "manifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "encoding": "zstd",
+      "pack": {
+        "bytes": 120,
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "sources": [
+          "https://ph-r.com/vua/updates/objects/1111111111111111111111111111111111111111111111111111111111111111.pack"
+        ]
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "compressedOffset": 0,
+          "compressedBytes": 0,
+          "compressedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "provider/vua-amf-provider.exe",
+          "bytes": 512,
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "compressedOffset": 0,
+          "compressedBytes": 120,
+          "compressedSha256": "3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ]
+    }
+  },
+  {
+    "name": "v03-transfer-unknown-encoding",
+    "schema": "transfer",
+    "component": "amf",
+    "schemaValid": false,
+    "nativeValid": false,
+    "value": {
+      "schemaVersion": "0.3",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "component": "amf",
+      "manifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "encoding": "brotli",
+      "pack": {
+        "bytes": 120,
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "sources": [
+          "https://ph-r.com/vua/updates/objects/1111111111111111111111111111111111111111111111111111111111111111.pack"
+        ]
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "compressedOffset": 0,
+          "compressedBytes": 0,
+          "compressedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "provider/vua-amf-provider.exe",
+          "bytes": 512,
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "compressedOffset": 0,
+          "compressedBytes": 120,
+          "compressedSha256": "3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ]
+    }
+  },
+  {
+    "name": "v03-transfer-offset-gap",
+    "schema": "transfer",
+    "component": "amf",
+    "schemaValid": true,
+    "nativeValid": false,
+    "value": {
+      "schemaVersion": "0.3",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "component": "amf",
+      "manifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "encoding": "zstd",
+      "pack": {
+        "bytes": 121,
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "sources": [
+          "https://ph-r.com/vua/updates/objects/1111111111111111111111111111111111111111111111111111111111111111.pack"
+        ]
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "compressedOffset": 0,
+          "compressedBytes": 0,
+          "compressedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "provider/vua-amf-provider.exe",
+          "bytes": 512,
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "compressedOffset": 0,
+          "compressedBytes": 120,
+          "compressedSha256": "3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ]
+    }
+  },
+  {
+    "name": "v03-transfer-path-traversal",
+    "schema": "transfer",
+    "component": "amf",
+    "schemaValid": true,
+    "nativeValid": false,
+    "value": {
+      "schemaVersion": "0.3",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "component": "amf",
+      "manifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "encoding": "zstd",
+      "pack": {
+        "bytes": 120,
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "sources": [
+          "https://ph-r.com/vua/updates/objects/1111111111111111111111111111111111111111111111111111111111111111.pack"
+        ]
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "compressedOffset": 0,
+          "compressedBytes": 0,
+          "compressedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "../outside.exe",
+          "bytes": 512,
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "compressedOffset": 0,
+          "compressedBytes": 120,
+          "compressedSha256": "3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ]
+    }
+  }
+]

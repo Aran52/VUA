@@ -7,7 +7,7 @@ import {verifyInventory} from "../distribution/component-index.mjs";
 import {prepareComponentRelease, fileDigest, ownedPath} from "./prepare-component-release.mjs";
 
 /** Extract authenticated bytes, never run a published payload or forge a build receipt. */
-export function seedComponentRelease({component, baseline, packFile, previous, sequence, output, privateKey, publicKey}) {
+export function seedComponentRelease({component, baseline, packFile, previous, previousV03, sequence, output, privateKey, publicKey}) {
   const original = verifyInventory(baseline, publicKey);
   if (!["host", "amf"].includes(component)) throw Error("invalid_component_identity");
   const inventory = original[component], actual = fileDigest(packFile);
@@ -30,7 +30,7 @@ export function seedComponentRelease({component, baseline, packFile, previous, s
       } finally {fs.closeSync(target);}
       if (hash.digest("hex") !== file.sha256) throw Error("seed_file_corrupt");
     }
-    return prepareComponentRelease({component, version: inventory.version, build: inventory.build, componentRoot: temporary, baseline, previous, sequence, retainVersions: [], output, privateKey, publicKey});
+    return prepareComponentRelease({component, version: inventory.version, build: inventory.build, componentRoot: temporary, baseline, previous, previousV03, sequence, retainVersions: [], output, privateKey, publicKey});
   } finally {
     fs.closeSync(fd);
     if (path.dirname(path.resolve(temporary)) !== path.resolve(os.tmpdir()) || !path.basename(temporary).startsWith("vua-authenticated-seed-")) throw Error("unsafe_seed_cleanup");

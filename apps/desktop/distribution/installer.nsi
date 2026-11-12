@@ -1,14 +1,21 @@
 Unicode true
-!include "MUI2.nsh"
+ManifestDPIAware true
+!include "LogicLib.nsh"
 !include "x64.nsh"
 !include "WinVer.nsh"
 !include "FileFunc.nsh"
-!define MUI_ICON "${VUA_ICON}"
-!define MUI_UNICON "${VUA_ICON}"
+
+Icon "${VUA_ICON}"
+UninstallIcon "${VUA_ICON}"
+
 Var Isolated
-Name "VUA ${VERSION}"
+Var Headless
+Var UnHeadless
+
 !ifdef PREVIEW
   Name "VUA ${VERSION} — CI PREVIEW"
+!else
+  Name "VUA ${VERSION}"
 !endif
 OutFile "${OUTPUT}"
 InstallDir "$LOCALAPPDATA\Programs\VUA"
@@ -17,6 +24,13 @@ RequestExecutionLevel user
 SetCompressor /SOLID lzma
 SetCompressorDictSize 64
 BrandingText "VUA"
+
+LoadLanguageFile "${NSISDIR}\Contrib\Language files\English.nlf"
+LoadLanguageFile "${NSISDIR}\Contrib\Language files\SimpChinese.nlf"
+LoadLanguageFile "${NSISDIR}\Contrib\Language files\TradChinese.nlf"
+LoadLanguageFile "${NSISDIR}\Contrib\Language files\Japanese.nlf"
+LoadLanguageFile "${NSISDIR}\Contrib\Language files\Korean.nlf"
+
 !ifndef VERSION_NUMBER
   !define VERSION_NUMBER "${VERSION}.0"
 !endif
@@ -26,68 +40,96 @@ VIAddVersionKey /LANG=1033 "ProductVersion" "${VERSION}"
 VIAddVersionKey /LANG=1033 "FileVersion" "${VERSION}"
 VIAddVersionKey /LANG=1033 "FileDescription" "VUA Installer"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "VUA Project contributors"
-!define MUI_ABORTWARNING
-!insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_DIRECTORY
-!insertmacro MUI_PAGE_INSTFILES
-!define MUI_FINISHPAGE_RUN "$INSTDIR\VUA.exe"
-!insertmacro MUI_PAGE_FINISH
-!insertmacro MUI_UNPAGE_CONFIRM
-!insertmacro MUI_UNPAGE_INSTFILES
-!insertmacro MUI_LANGUAGE "English"
-!insertmacro MUI_LANGUAGE "SimpChinese"
-!insertmacro MUI_LANGUAGE "TradChinese"
-!insertmacro MUI_LANGUAGE "Japanese"
-!insertmacro MUI_LANGUAGE "Korean"
-LangString Failed ${LANG_ENGLISH} "Couldn't finish installing VUA. Close any running VUA tasks first, then try again or use the offline installer. Your personal data was kept safe."
-LangString Failed ${LANG_SIMPCHINESE} "安装未能完成。请先结束正在运行的 VUA 任务后再重试，或改用离线安装包。个人数据已保留。"
-LangString Failed ${LANG_TRADCHINESE} "安裝未能完成。請先結束正在執行的 VUA 工作後再重試，或改用離線安裝包。個人資料已保留。"
-LangString Failed ${LANG_JAPANESE} "インストールを完了できませんでした。実行中の VUA の処理を終えてからもう一度試すか、オフライン版インストーラーをご利用ください。個人データはそのまま保持されます。"
-LangString Failed ${LANG_KOREAN} "설치를 완료하지 못했어요. 실행 중인 VUA 작업을 먼저 마친 뒤 다시 시도하거나 오프라인 설치 파일을 사용해 보세요. 개인 데이터는 그대로 유지돼요."
-LangString RemovalFailed ${LANG_ENGLISH} "Please close VUA before uninstalling. Program files were kept in place."
-LangString RemovalFailed ${LANG_SIMPCHINESE} "卸载前请先退出 VUA。程序文件暂未改动。"
-LangString RemovalFailed ${LANG_TRADCHINESE} "解除安裝前請先關閉 VUA。程式檔案暫未變更。"
-LangString RemovalFailed ${LANG_JAPANESE} "アンインストールする前に VUA を終了してください。プログラムファイルは変更されていません。"
-LangString RemovalFailed ${LANG_KOREAN} "제거하기 전에 먼저 VUA를 종료해 주세요. 프로그램 파일은 그대로 유지되었어요."
+
 Function .onInit
+  ${If} ${Silent}
+    StrCpy $Headless 1
+  ${Else}
+    StrCpy $Headless 0
+    SetSilent silent
+  ${EndIf}
   ${GetParameters} $0
   ${GetOptions} $0 "/ISOLATED" $1
   ${IfNot} ${Errors}
     StrCpy $Isolated 1
   ${EndIf}
   ${IfNot} ${RunningX64}
-    MessageBox MB_OK|MB_ICONSTOP "VUA requires Windows x64."
-    Abort
-  ${EndIf}
-  ${IfNot} ${AtLeastWin10}
-    MessageBox MB_OK|MB_ICONSTOP "VUA requires Windows 10 or later."
-    Abort
-  ${EndIf}
-FunctionEnd
-Section "VUA"
-  InitPluginsDir
-  SetOutPath "$PLUGINSDIR\vua-input"
-  File /oname=vua-release.json "${INPUT}\vua-release.json"
-  File /oname=host.bin "${INPUT}\host.bin"
-  File /oname=amf.bin "${INPUT}\amf.bin"
-  !ifdef OFFLINE
-    File /oname=runtime.zip "${INPUT}\runtime.zip"
-  !endif
-  File /oname=vua-distribution.exe "${INPUT}\VUA.exe"
-  IfSilent silent visible
-  silent:
-    ExecWait '"$PLUGINSDIR\vua-input\vua-distribution.exe" install --root "$INSTDIR" --input "$PLUGINSDIR\vua-input" --headless' $0
-    Goto installed
-  visible:
-    ExecWait '"$PLUGINSDIR\vua-input\vua-distribution.exe" install --root "$INSTDIR" --input "$PLUGINSDIR\vua-input" --lang $LANGUAGE' $0
-  installed:
-  ${If} $0 != 0
-    IfSilent skipMessage
-    MessageBox MB_OK|MB_ICONEXCLAMATION "$(Failed)"
-    skipMessage:
+    ${If} $Headless == 0
+      MessageBox MB_OK|MB_ICONSTOP "VUA requires Windows x64."
+    ${EndIf}
     SetErrorLevel 1
     Abort
   ${EndIf}
+  ${IfNot} ${AtLeastWin10}
+    ${If} $Headless == 0
+      MessageBox MB_OK|MB_ICONSTOP "VUA requires Windows 10 or later."
+    ${EndIf}
+    SetErrorLevel 1
+    Abort
+  ${EndIf}
+FunctionEnd
+
+Function un.onInit
+  ${If} ${Silent}
+    StrCpy $UnHeadless 1
+  ${Else}
+    StrCpy $UnHeadless 0
+    SetSilent silent
+  ${EndIf}
+FunctionEnd
+
+Section "VUA"
+  InitPluginsDir
+  SetOutPath "$PLUGINSDIR\vua-input"
+  ; Extract the signed manifest and native helper first from the solid LZMA stream
+  ; so the modern native card appears immediately while larger packs unpack.
+  File /oname=vua-release.json "${INPUT}\vua-release.json"
+  File /oname=vua-distribution.exe "${INPUT}\VUA.exe"
+
+  ${If} $Headless == 1
+    File /oname=host.bin "${INPUT}\host.bin"
+    File /oname=amf.bin "${INPUT}\amf.bin"
+    !ifdef OFFLINE
+      File /oname=runtime.zip "${INPUT}\runtime.zip"
+    !endif
+    SetOutPath "$TEMP"
+    ExecWait '"$PLUGINSDIR\vua-input\vua-distribution.exe" install --root "$INSTDIR" --input "$PLUGINSDIR\vua-input" --headless' $0
+  ${Else}
+    SetOutPath "$TEMP"
+    ExecWait '"$PLUGINSDIR\vua-input\vua-distribution.exe" ui-spawn --session "$PLUGINSDIR\vua-ui" --root "$INSTDIR" --input "$PLUGINSDIR\vua-input"' $2
+    SetOutPath "$PLUGINSDIR\vua-input"
+    ${If} $2 == 0
+      IfFileExists "$PLUGINSDIR\vua-ui\cancel" cancelUnpack
+      File /oname=host.bin "${INPUT}\host.bin"
+      IfFileExists "$PLUGINSDIR\vua-ui\cancel" cancelUnpack
+      File /oname=amf.bin "${INPUT}\amf.bin"
+      !ifdef OFFLINE
+        IfFileExists "$PLUGINSDIR\vua-ui\cancel" cancelUnpack
+        File /oname=runtime.zip "${INPUT}\runtime.zip"
+      !endif
+      FileOpen $1 "$PLUGINSDIR\vua-ui\input-ready" w
+      FileWrite $1 "1"
+      FileClose $1
+      cancelUnpack:
+      SetOutPath "$TEMP"
+      ExecWait '"$PLUGINSDIR\vua-input\vua-distribution.exe" ui-wait --session "$PLUGINSDIR\vua-ui"' $0
+    ${Else}
+      File /oname=host.bin "${INPUT}\host.bin"
+      File /oname=amf.bin "${INPUT}\amf.bin"
+      !ifdef OFFLINE
+        File /oname=runtime.zip "${INPUT}\runtime.zip"
+      !endif
+      SetOutPath "$TEMP"
+      ExecWait '"$PLUGINSDIR\vua-input\vua-distribution.exe" install --root "$INSTDIR" --input "$PLUGINSDIR\vua-input"' $0
+    ${EndIf}
+  ${EndIf}
+
+  ${If} $0 != 0
+    SetOutPath "$TEMP"
+    SetErrorLevel 1
+    Abort
+  ${EndIf}
+
   SetOutPath "$INSTDIR"
   CopyFiles /SILENT "$PLUGINSDIR\vua-input\vua-distribution.exe" "$INSTDIR\VUA.exe"
   IfErrors copyFailed
@@ -96,35 +138,62 @@ Section "VUA"
     FileOpen $1 "$INSTDIR\nsis-isolated" w
     FileWrite $1 "VUA isolated installer test"
     FileClose $1
+    SetOutPath "$TEMP"
     Goto finished
   ${EndIf}
+
   SetShellVarContext current
   CreateDirectory "$SMPROGRAMS\VUA"
   CreateShortCut "$SMPROGRAMS\VUA\VUA.lnk" "$INSTDIR\VUA.exe"
   WriteRegStr HKCU "Software\VUA" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "DisplayName" "VUA"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "DisplayIcon" "$INSTDIR\VUA.exe,0"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "Publisher" "VUA Project contributors"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "UninstallString" '"$INSTDIR\Uninstall.exe"'
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "QuietUninstallString" '"$INSTDIR\Uninstall.exe" /S'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "URLInfoAbout" "https://github.com/VUA-Project/VUA"
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "NoRepair" 1
+
+  ${If} $Headless == 0
+    SetOutPath "$INSTDIR"
+    Exec '"$INSTDIR\VUA.exe"'
+  ${EndIf}
+  SetOutPath "$TEMP"
   Goto finished
+
   copyFailed:
+    SetOutPath "$TEMP"
     SetErrorLevel 1
     Abort
   finished:
 SectionEnd
+
 Section "Uninstall"
-  ExecWait '"$INSTDIR\VUA.exe" remove --root "$INSTDIR" --headless' $0
+  SetOutPath "$TEMP"
+  ${If} $UnHeadless == 1
+    ExecWait '"$INSTDIR\VUA.exe" remove --root "$INSTDIR" --headless' $0
+  ${Else}
+    IfFileExists "$INSTDIR\VUA.exe" runInteractiveRemove checkOrphanedPayload
+    runInteractiveRemove:
+      ExecWait '"$INSTDIR\VUA.exe" remove --root "$INSTDIR"' $0
+      Goto removeChecked
+    checkOrphanedPayload:
+      IfFileExists "$INSTDIR\payloads\*.*" 0 orphanCleanOk
+      StrCpy $0 1
+      Goto removeChecked
+    orphanCleanOk:
+      StrCpy $0 0
+    removeChecked:
+  ${EndIf}
+
   ${If} $0 != 0
-    IfSilent skipRemovalMessage
-    MessageBox MB_OK|MB_ICONEXCLAMATION "$(RemovalFailed)"
-    skipRemovalMessage:
     SetErrorLevel 1
     Abort
   ${EndIf}
+
   IfFileExists "$INSTDIR\nsis-isolated" skipRegistration
   SetShellVarContext current
   Delete "$SMPROGRAMS\VUA\VUA.lnk"

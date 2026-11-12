@@ -1,6 +1,6 @@
 # Component-based Windows distribution
 
-> Updated: 2026-10-13
+> Updated: 2026-11-12
 > Scope: First-party Windows x64 installation, launch and AMF updates
 
 The [product boundary](../product-boundary.md#windows-delivery-and-amf-updates-user-ruling-2026-10-11)
@@ -14,7 +14,11 @@ NSIS defaults to a per-user installation in `%LOCALAPPDATA%\Programs\VUA`. The s
 contains the host and a compatible AMF baseline. The offline installer additionally contains
 the exact Electron archive. Both use the same signed inventory and native Rust helper, with
 the Microsoft C runtime statically linked. Node.js, pnpm, a source checkout and administrator
-rights are not required for this installation. No automatic reboot is performed.
+rights are not required for this installation. No automatic reboot is performed. Interactive
+runs suppress legacy NSIS wizard dialogs and present a Per-Monitor DPI v2 native progress card
+rendered by `VUA.exe` (following the Windows dark/light theme), launching VUA once finished;
+`Uninstall.exe` uses the same native confirmation and busy-retry card, while `/S` and
+`/ISOLATED` remain headless without launching the application.
 
 | Owned program path | Contents |
 | --- | --- |

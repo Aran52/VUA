@@ -1,11 +1,23 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 use std::sync::{atomic::AtomicBool, Arc};
+
 fn main() {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().is_none_or(|arg| arg.starts_with("--")) {
         args.insert(0, "launch".into());
     }
     let cancel = Arc::new(AtomicBool::new(false));
+    #[cfg(windows)]
+    {
+        let headless = args.iter().any(|arg| arg == "--headless");
+        match args[0].as_str() {
+            "ui-spawn" => std::process::exit(gui::ui_spawn(&args)),
+            "ui-wait" => std::process::exit(gui::ui_wait(&args)),
+            "install" if !headless => std::process::exit(gui::install(args, cancel)),
+            "remove" if !headless => std::process::exit(gui::uninstall(args, cancel)),
+            _ => {}
+        }
+    }
     if !["launch", "apply-update", "install"].contains(&args[0].as_str()) {
         let request_cancel = cancel.clone();
         std::thread::spawn(move || {
@@ -21,10 +33,6 @@ fn main() {
                 }
             }
         });
-    }
-    #[cfg(windows)]
-    if args[0] == "install" && !args.iter().any(|arg| arg == "--headless") {
-        std::process::exit(gui::install(args, cancel));
     }
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -67,11 +75,12 @@ fn main() {
             .contains(&args[0].as_str())
                 && !args.iter().any(|a| a.starts_with("--vua-smoke-test="))
             {
-                gui::failure(&code);
+                gui::failure(&code, vua_distribution::commands::option(&args, "--lang"));
             }
             std::process::exit(1);
         }
     }
 }
+
 #[cfg(windows)]
 mod gui;

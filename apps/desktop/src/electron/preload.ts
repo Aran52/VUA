@@ -174,6 +174,9 @@ const api: VuaDesktopApiV7 = Object.freeze({
   toolLogos: Object.freeze({
     logo: (toolId: string) => ipcRenderer.invoke("vua:tools:logo", toolId),
   }),
+  guideContent: Object.freeze({
+    read: (id: import("@vua/contracts").GuideContentIdV01) => ipcRenderer.invoke("vua:guide-content:read", id),
+  }),
   gateway: Object.freeze({
     version: DESKTOP_GATEWAY_VERSION,
     invoke: (request: DesktopGatewayRequestV1) => ipcRenderer.invoke("vua:gateway:invoke", request),

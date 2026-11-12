@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "0.1",
+  "id": "paying-abroad",
+  "sequence": 1,
+  "version": "0.1.0",
+  "minClient": "1.0.0",
+  "sop": {
+    "title": {
+      "en": "Paying abroad on BOOTH",
+      "zh-CN": "在 BOOTH 跨境支付",
+      "zh-TW": "在 BOOTH 跨境支付",
+      "ja": "BOOTH での海外決済",
+      "ko": "BOOTH 해외 결제"
+    },
+    "appliesTo": {
+      "software": [
+        "VUA >=1.0.0"
+      ],
+      "devices": [
+        "Windows PC"
+      ],
+      "region": "outside-japan"
+    },
+    "prerequisites": [
+      {
+        "en": "An active pixiv account signed in on BOOTH."
+      }
+    ],
+    "steps": [
+      {
+        "id": "review-payment-methods",
+        "performer": "vua_opens",
+        "action": {
+          "en": "Open BOOTH's official payment guide and check currently accepted networks."
+        },
+        "expectedResult": {
+          "en": "You see the current card brands and PayPal availability stated by BOOTH."
+        },
+        "verification": {
+          "en": "Confirm your card network or PayPal account matches BOOTH's current payment page."
+        },
+        "onFailure": {
+          "en": "Check reachability with VUA's website test or review your card issuer's international payment setting."
+        },
+        "sites": [
+          "booth.pm",
+          "paypal.com"
+        ],
+        "links": [
+          {
+            "label": {
+              "en": "BOOTH payment methods",
+              "zh-CN": "BOOTH 付款方式"
+            },
+            "url": "https://booth.pm/payment"
+          }
+        ]
+      }
+    ],
+    "regionalNotes": [
+      {
+        "region": "cn-mainland",
+        "text": {
+          "en": "Cards issued in mainland China generally require an international network (such as Visa or Mastercard) or linking through PayPal where supported by BOOTH.",
+          "zh-CN": "中国大陆发行的银行卡通常需具备国际卡组织通道（如 Visa、Mastercard）或在 BOOTH 支持的范围内配合 PayPal 使用。"
+        },
+        "verification": {
+          "date": "2026-11-07",
+          "network": "Official payment documentation baseline (mainland network verification tracked separately)",
+          "cardIssuingRegion": "CN"
+        }
+      }
+    ],
+    "lastVerification": {
+      "date": "2026-11-07",
+      "environment": "Official BOOTH payment documentation review",
+      "softwareVersions": [
+        "VUA 1.0.0"
+      ]
+    },
+    "sources": [
+      {
+        "label": "BOOTH payment methods",
+        "url": "https://booth.pm/payment"
+      }
+    ]
+  },
+  "assets": {
+    "diagrams/payment-overview.svg": {
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "bytes": 2048,
+      "sources": [
+        "https://ph-r.com/vua/updates/objects/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    }
+  }
+}

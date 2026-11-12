@@ -31,7 +31,7 @@ import type {
   RemoteContentViewStateV1,
   AiConnectionLocale,
 } from "@vua/contracts";
-import { APPLICATION_CONTRACT_VERSION, DESKTOP_BROWSER_SITES_V1, desktopBrowserSite, desktopBrowserDisplayUrl, isDesktopBrowserViewportV1, accountGuideDestination, isGameWindowObservationResult, isLibraryDownloadParamsV01, isLibraryDownloadSnapshotV01, isAiUploadConfirmationV01 } from "@vua/contracts";
+import { APPLICATION_CONTRACT_VERSION, DESKTOP_BROWSER_SITES_V1, desktopBrowserSite, desktopBrowserDisplayUrl, isDesktopBrowserViewportV1, accountGuideDestination, isGameWindowObservationResult, isLibraryDownloadParamsV01, isLibraryDownloadSnapshotV01, isAiUploadConfirmationV01, isGuideContentIdV01 } from "@vua/contracts";
 import type { OrchestratorProviderV01 } from "@vua/orchestrator-provider";
 import { routeDesktopGatewayInvoke, type DesktopGatewayRouteContext } from "./gateway-router.js";
 import { vrchatSession, writeSdkSessionFile, type VrchatSessionService } from "./vrchat-session.js";
@@ -125,6 +125,7 @@ import { UpdatePlanUpdater } from "./update-plan-updater.js";
 import { AmfGenerations } from "./amf-generations.js";
 import { AmfHotUpdater } from "./amf-hot-updater.js";
 import { createToolLogos, isToolLogoId } from "./tool-logos.js";
+import { GuideContentService, resolveAllowedGuideBaseUrl } from "./guide-content.js";
 
 function localWindowWebPreferences(preload: string) {
   return {
@@ -679,6 +680,20 @@ function registerIpc(provider: ModuleProvider): void {
     assertLocalSender(senderFrameUrl(event));
     if (!isToolLogoId(id)) throw new Error("invalid tool logo request");
     return toolLogos(id);
+  });
+  const guideBaseUrlOverride = app.commandLine.hasSwitch("vua-guide-base-url")
+    ? app.commandLine.getSwitchValue("vua-guide-base-url")
+    : undefined;
+  const guideContent = new GuideContentService({
+    userDataRoot: app.getPath("userData"),
+    clientVersion: app.getVersion(),
+    baseUrl: resolveAllowedGuideBaseUrl(guideBaseUrlOverride, app.commandLine.hasSwitch("vua-smoke-test")),
+    fetchImpl: (url, init) => net.fetch(url, init),
+  });
+  ipcMain.handle("vua:guide-content:read", (event, id: unknown) => {
+    assertLocalSender(senderFrameUrl(event));
+    if (!isGuideContentIdV01(id)) throw new Error("invalid_guide_id");
+    return guideContent.read(id);
   });
   ipcMain.handle("vua:amf-module:snapshot", (event) => {
     assertLocalSender(senderFrameUrl(event));

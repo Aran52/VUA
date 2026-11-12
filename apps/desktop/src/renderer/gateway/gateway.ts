@@ -36,6 +36,8 @@ export interface VuaGateway {
   readonly componentUpdates?: import("@vua/contracts").DesktopComponentUpdatesApiV02 | undefined;
   readonly updatePlans?: import("@vua/contracts").DesktopUpdatePlansApiV01 | undefined;
   readonly amfUiRuntime?: import("@vua/contracts").DesktopAmfUiRuntimeApiV01 | undefined;
+  /** Signed entry-guide content channel (`guide-content` v0.1): on-demand Main verification with cached/bundled fallback. */
+  readonly guideContent?: import("@vua/contracts").DesktopGuideContentApiV01 | undefined;
   readonly amfModule: import("@vua/contracts").AmfModuleApiV01;
   readonly environment: EnvironmentPort;
   readonly tutorial: TutorialPort;

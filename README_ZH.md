@@ -47,7 +47,7 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 
 [v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0) 是本体的首个稳定版，随包提供独立更新的 **AMF 0.3.0 Beta**。新增素材迁移规划、制作预估和首次使用指南，修复工具详情、环境重复检测和 VN3 刷新。Windows x64 在线与离线安装包均包含 AMF。
 
-[发行说明](docs/release/v1.0.0_ZH.md)列出交付范围，以及尚待完成的实机和人工检查。发布不代表 [N1–N7 验收](docs/development-outline.md)通过。
+下方下载指向已发布的 1.0.0 版本。源码当前准备 **v1.1.0 Getting on Track**（搭档 **AMF 0.4.0 Beta**）；交付范围与待完成的实机和人工检查见 [v1.1.0 发行说明草稿](docs/release/v1.1.0_ZH.md)及已发布的 [v1.0.0 发行说明](docs/release/v1.0.0_ZH.md)。源码准备与发布均不代表 [N1–N7 验收](docs/development-outline.md)通过。
 
 ### 当前交付与开始入口
 
@@ -61,7 +61,7 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 - [文档指南](docs/README.md)——每项任务的最小阅读路径
 - [产品边界](docs/product-boundary.md)
 - [系统架构](docs/architecture/system.md)
-- [v1.0.0 发行说明](docs/release/v1.0.0_ZH.md)
+- [v1.1.0 发行说明（草稿）](docs/release/v1.1.0_ZH.md) · [v1.0.0 发行说明](docs/release/v1.0.0_ZH.md)
 - [1.0.0 最小指南（候选版，五种语言）](docs/user-guide/v1.0.0/zh-CN.md)
 - [贡献指南](CONTRIBUTING.md) · [安全策略](SECURITY.md)
 
@@ -79,6 +79,7 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 | 2026-10-17 | [发布室：60 帧转台图和托管上传](https://github.com/Aran52/VUA/pull/4) |
 | 2026-10-18 | [VN3 条款解析和按用途检查](https://github.com/Aran52/VUA/pull/31) |
 | 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)：首个带 Avatar 制作路径的版本 |
+| 2026-11-05 | [v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0)：本体首个稳定版，搭档 AMF 0.3.0 Beta |
 
 ## 许可证
 

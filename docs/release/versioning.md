@@ -1,7 +1,7 @@
 # Versioning policy
 
 > Scope: VUA product releases, tags, packages, and public contracts
-> Updated: 2026-10-30
+> Updated: 2026-11-13
 
 ## Product version
 
@@ -68,6 +68,14 @@ its migration planner, station list, prediction and VRCFury guidance add user-fa
 It requires host `>=1.0.0, <2.0.0`: it uses the freeze host's expanded intake surface, which
 0.7.0 does not serve. The installer updates the pair; later compatible AMF updates remain
 independent. The AMF UI ABI, Bridge and BDL formats keep their current versions.
+
+On 2026-11-13 the author selected **v1.1.0 Getting on Track**, incrementing the stable host's
+minor version for backward-compatible new user-facing capabilities (scenario-first Launch,
+connected Steam/installer tools, signed guide delivery, `windows-distribution v0.3` compressed
+updates, startup/footprint optimizations and the native setup card). Getting on Track names the
+Factorio achievement for building a first locomotive. AMF moves to **0.4.0 Beta** for opt-in
+Avatar Optimizer support, local SDK test builds, Recipe v0.6 management and BOOTH enrichment, and
+declares host `>=1.1.0, <2.0.0` because it calls Gateway surfaces introduced in the 1.1.0 host.
 
 Compare the release candidate with the last published release, not with an N-stage number.
 Identify the public application behavior/contracts and any stored-format compatibility changes;

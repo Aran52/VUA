@@ -49,7 +49,7 @@ AMF が管理し、無効にしてもデータは残ります。
 
 [v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0) はホスト初の安定版で、個別更新の **AMF 0.3.0 Beta** を同梱します。素材移行プランナー、制作の見積もり、初回ガイドを追加し、ツール詳細、環境確認の再利用、VN3 更新を修正しました。Windows x64 のオンライン・オフラインインストーラーを提供します。
 
-[リリースノート](docs/release/v1.0.0_JA.md)に提供範囲と未確認の実機・人手のチェックを記載しています。公開だけで [N1–N7 の受入](docs/development-outline.md)は完了しません。
+以下のダウンロードは公開済みの 1.0.0 です。現在のソースは **v1.1.0 Getting on Track**（**AMF 0.4.0 Beta** 同梱）を準備しており、提供範囲と未確認の実機・人手チェックは [v1.1.0 リリースノート（準備版）](docs/release/v1.1.0_JA.md)および公開済みの [v1.0.0 リリースノート](docs/release/v1.0.0_JA.md)に記載しています。ソース準備や公開だけで [N1–N7 の受入](docs/development-outline.md)は完了しません。
 
 ### 現在の提供状況と開始方法
 
@@ -63,7 +63,7 @@ AMF が管理し、無効にしてもデータは残ります。
 - [ドキュメントガイド](docs/README.md)——タスクごとの最小ルート
 - [プロダクト境界](docs/product-boundary.md)
 - [アーキテクチャ](docs/architecture/system.md)
-- [v1.0.0 リリースノート](docs/release/v1.0.0_JA.md)
+- [v1.1.0 リリースノート（準備版）](docs/release/v1.1.0_JA.md) · [v1.0.0 リリースノート](docs/release/v1.0.0_JA.md)
 - [1.0.0 最小ガイド（候補版、五言語）](docs/user-guide/v1.0.0/ja.md)
 - [コントリビューション](CONTRIBUTING.md) · [セキュリティポリシー](SECURITY.md)
 
@@ -81,6 +81,7 @@ AMF が管理し、無効にしてもデータは残ります。
 | 2026-10-17 | [60 フレームのターンテーブルとアップロードを備えたリリースルーム](https://github.com/Aran52/VUA/pull/4) |
 | 2026-10-18 | [VN3 規約の読み取りと用途別チェック](https://github.com/Aran52/VUA/pull/31) |
 | 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)：アバター制作の流れを含む最初のリリース |
+| 2026-11-05 | [v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0)：ホスト初の安定版リリース（AMF 0.3.0 Beta 同梱） |
 
 ## ライセンス
 

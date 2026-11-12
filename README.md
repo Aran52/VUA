@@ -49,7 +49,7 @@ Project and package management prepares the required Unity environment and depen
 
 [v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0) is the first stable host release, with independently updated **AMF 0.3.0 Beta**. It adds the material migration planner, production estimates, first-use guide and fixes for tool details, environment reuse and VN3 refresh. Online and offline Windows x64 installers include AMF.
 
-The [release notes](docs/release/v1.0.0.md) record the scope and pending real-machine and human checks. Publication does not close [N1–N7 acceptance](docs/development-outline.md).
+The download below is the published 1.0.0 release. Source now prepares **v1.1.0 Getting on Track** with **AMF 0.4.0 Beta**; the [draft v1.1.0 release notes](docs/release/v1.1.0.md) record its scope and pending author checks, alongside the published [v1.0.0 release notes](docs/release/v1.0.0.md). Source preparation and publication do not close [N1–N7 acceptance](docs/development-outline.md).
 
 ### Current delivery and starting points
 
@@ -63,7 +63,7 @@ The [release notes](docs/release/v1.0.0.md) record the scope and pending real-ma
 - [Documentation guide](docs/README.md) — the smallest route for every task
 - [Product boundary](docs/product-boundary.md)
 - [Architecture](docs/architecture/system.md)
-- [v1.0.0 release notes](docs/release/v1.0.0.md)
+- [v1.1.0 release notes (draft)](docs/release/v1.1.0.md) · [v1.0.0 release notes](docs/release/v1.0.0.md)
 - [1.0.0 minimal guide (candidate, five languages)](docs/user-guide/v1.0.0/README.md)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
@@ -81,6 +81,7 @@ Dates are the times GitHub recorded for each release and pull request.
 | 2026-10-17 | [Release room with the 60-frame turntable and managed upload](https://github.com/Aran52/VUA/pull/4) |
 | 2026-10-18 | [VN3 terms parsing and checks by use](https://github.com/Aran52/VUA/pull/31) |
 | 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0), the first release with the Avatar production path |
+| 2026-11-05 | [v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0), the first stable host release paired with AMF 0.3.0 Beta |
 
 ## License
 

@@ -165,7 +165,8 @@ fn w21v3_inspections_are_read_only_and_findings_stay_in_diagnostics() {
     ] {
         let request = read_json(name);
         assert_eq!(
-            request["dryRun"], serde_json::json!(true),
+            request["dryRun"],
+            serde_json::json!(true),
             "{name}: inspection operations are read-only"
         );
         assert!(

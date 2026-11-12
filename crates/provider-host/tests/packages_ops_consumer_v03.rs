@@ -28,8 +28,8 @@ use std::fs;
 use std::path::Path;
 
 use serde_json::{json, Value};
-use vua_orchestrator::{ProjectRef, RegisterCapabilities, VpmBackend};
 use vua_orchestrator::{AppErrorV1, ErrorCategory, PackageRequestV1};
+use vua_orchestrator::{ProjectRef, RegisterCapabilities, VpmBackend};
 
 fn read_ops_json(relative: &str) -> Value {
     // Tests run from the crate directory; the schemas live at the repo root.
@@ -86,11 +86,13 @@ impl VpmBackend for FakeRegisterBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn register_capabilities(&self) -> RegisterCapabilities {
-        RegisterCapabilities { register_local_package: true }
+        RegisterCapabilities {
+            register_local_package: true,
+        }
     }
     fn register_local_package(&self, _package_root: &Path) -> Result<(), AppErrorV1> {
         // The port fact verbatim: unit success. First registration and
@@ -139,7 +141,7 @@ impl VpmBackend for NoRegisterBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -172,48 +174,91 @@ fn ops_v03_schema_admits_positive_vectors_and_rejects_negative_ones() {
     let command = ops_command_validator();
     let result = ops_result_validator();
 
-    let positive_request = read_ops_json("schemas/packages-ops/v0.3/examples/packages-register-local-package.request.json");
-    assert!(command.is_valid(&positive_request), "{:?}", violations(&command, &positive_request));
+    let positive_request = read_ops_json(
+        "schemas/packages-ops/v0.3/examples/packages-register-local-package.request.json",
+    );
+    assert!(
+        command.is_valid(&positive_request),
+        "{:?}",
+        violations(&command, &positive_request)
+    );
 
     let positive_result = read_ops_json("schemas/packages-ops/v0.3/examples/packages-register-local-package-result-registered.result.json");
-    assert!(result.is_valid(&positive_result), "{:?}", violations(&result, &positive_result));
+    assert!(
+        result.is_valid(&positive_result),
+        "{:?}",
+        violations(&result, &positive_result)
+    );
 
     // The closed single-key params: a missing packageRoot has nothing to
     // register.
-    let missing_root = read_ops_json("schemas/packages-ops/v0.3/examples/invalid-register-missing-package-root.request.json");
-    assert!(!command.is_valid(&missing_root), "a missing packageRoot must be invalid");
+    let missing_root = read_ops_json(
+        "schemas/packages-ops/v0.3/examples/invalid-register-missing-package-root.request.json",
+    );
+    assert!(
+        !command.is_valid(&missing_root),
+        "a missing packageRoot must be invalid"
+    );
 
     // An empty packageRoot is not a path fact.
-    let empty_root = read_ops_json("schemas/packages-ops/v0.3/examples/invalid-register-empty-package-root.request.json");
-    assert!(!command.is_valid(&empty_root), "an empty packageRoot must be invalid");
+    let empty_root = read_ops_json(
+        "schemas/packages-ops/v0.3/examples/invalid-register-empty-package-root.request.json",
+    );
+    assert!(
+        !command.is_valid(&empty_root),
+        "an empty packageRoot must be invalid"
+    );
 
     // NO projectPath is taken: registration never touches a project —
     // the A3 face mutates only the backend's isolated environment.
-    let extra_param = read_ops_json("schemas/packages-ops/v0.3/examples/invalid-register-extra-param.request.json");
-    assert!(!command.is_valid(&extra_param), "an invented projectPath param must be invalid");
+    let extra_param = read_ops_json(
+        "schemas/packages-ops/v0.3/examples/invalid-register-extra-param.request.json",
+    );
+    assert!(
+        !command.is_valid(&extra_param),
+        "an invented projectPath param must be invalid"
+    );
 
     // NO digest is taken: registration has no preview to drift, and the
     // user's explicit submission IS the confirmation — a carried
     // confirmedDigest is a shape violation.
-    let carries_digest = read_ops_json("schemas/packages-ops/v0.3/examples/invalid-register-carries-digest.request.json");
-    assert!(!command.is_valid(&carries_digest), "a registration carrying a digest must be invalid");
+    let carries_digest = read_ops_json(
+        "schemas/packages-ops/v0.3/examples/invalid-register-carries-digest.request.json",
+    );
+    assert!(
+        !command.is_valid(&carries_digest),
+        "a registration carrying a digest must be invalid"
+    );
 
     // The false-assertion guard on the receipt: no first-vs-repeat fact
     // exists (AlreadyAdded collapses into success) — an invented `added`
     // boolean is invalid by schema, not merely discouraged.
-    let invented = read_ops_json("schemas/packages-ops/v0.3/examples/invalid-register-invented-field.result.json");
-    assert!(!result.is_valid(&invented), "an invented added flag on the register receipt must be invalid");
+    let invented = read_ops_json(
+        "schemas/packages-ops/v0.3/examples/invalid-register-invented-field.result.json",
+    );
+    assert!(
+        !result.is_valid(&invented),
+        "an invented added flag on the register receipt must be invalid"
+    );
 
     // Operation/kind lock: the registration task never answers kind=plan
     // (no preview arm exists on this face at all).
-    let kind_mismatch = read_ops_json("schemas/packages-ops/v0.3/examples/invalid-register-answer-plan.result.json");
-    assert!(!result.is_valid(&kind_mismatch), "registerLocalPackage must never answer kind=plan");
+    let kind_mismatch = read_ops_json(
+        "schemas/packages-ops/v0.3/examples/invalid-register-answer-plan.result.json",
+    );
+    assert!(
+        !result.is_valid(&kind_mismatch),
+        "registerLocalPackage must never answer kind=plan"
+    );
 
     // The reused-code law: the original port code travels inside detail,
     // never inside the code key — the pattern stays locked to
     // ^vua\.packages\..
     let code_outside = read_ops_json("schemas/packages-ops/v0.3/examples/invalid-register-rejected-code-outside-family.result.json");
-    assert!(!result.is_valid(&code_outside), "a non-vua.packages.* code must be invalid");
+    assert!(
+        !result.is_valid(&code_outside),
+        "a non-vua.packages.* code must be invalid"
+    );
 }
 
 #[test]
@@ -266,7 +311,8 @@ fn fake_register_backend_port_fact_projects_onto_the_registered_wire_shape() {
     // The camelCase pin: the port's package_root projects as packageRoot.
     let request = register_request();
     assert_eq!(
-        request["params"]["packageRoot"], json!(FAKE_PACKAGE_ROOT),
+        request["params"]["packageRoot"],
+        json!(FAKE_PACKAGE_ROOT),
         "the request row the receipt echoes is the camelCase word-face row"
     );
 }

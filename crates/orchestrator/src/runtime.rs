@@ -138,7 +138,11 @@ struct LaneState {
 
 impl Default for LaneState {
     fn default() -> Self {
-        Self { capacity: 1, waiting: VecDeque::new(), running: Vec::new() }
+        Self {
+            capacity: 1,
+            waiting: VecDeque::new(),
+            running: Vec::new(),
+        }
     }
 }
 
@@ -179,13 +183,21 @@ impl TaskLane {
     /// Reconfiguration requires an idle lane, so it never interrupts or reorders accepted work.
     pub fn set_capacity(&self, capacity: usize) -> Result<(), AppErrorV1> {
         if !(1..=3).contains(&capacity) {
-            return Err(AppErrorV1::new("vua.task.lane_capacity_invalid", ErrorCategory::Validation,
-                "errors.task.laneCapacityInvalid", "task-lane"));
+            return Err(AppErrorV1::new(
+                "vua.task.lane_capacity_invalid",
+                ErrorCategory::Validation,
+                "errors.task.laneCapacityInvalid",
+                "task-lane",
+            ));
         }
         let mut state = self.state();
         if !state.running.is_empty() || !state.waiting.is_empty() {
-            return Err(AppErrorV1::new("vua.task.lane_busy", ErrorCategory::Conflict,
-                "errors.task.laneBusy", "task-lane"));
+            return Err(AppErrorV1::new(
+                "vua.task.lane_busy",
+                ErrorCategory::Conflict,
+                "errors.task.laneBusy",
+                "task-lane",
+            ));
         }
         state.capacity = capacity;
         Ok(())
@@ -212,8 +224,16 @@ impl TaskLane {
         let state = self.state();
         TaskLaneSnapshot {
             capacity: state.capacity,
-            running: state.running.iter().map(|job| job.task_id.clone()).collect(),
-            waiting: state.waiting.iter().map(|job| job.task_id.clone()).collect(),
+            running: state
+                .running
+                .iter()
+                .map(|job| job.task_id.clone())
+                .collect(),
+            waiting: state
+                .waiting
+                .iter()
+                .map(|job| job.task_id.clone())
+                .collect(),
         }
     }
 
@@ -225,7 +245,10 @@ impl TaskLane {
     }
 
     fn join(&self, task_id: &str, policy: TaskLanePolicy) {
-        self.state().waiting.push_back(LaneJob { task_id: task_id.to_owned(), policy });
+        self.state().waiting.push_back(LaneJob {
+            task_id: task_id.to_owned(),
+            policy,
+        });
     }
 
     /// Waits for this task's turn. False when a cancel request came first; the task then leaves
@@ -234,17 +257,22 @@ impl TaskLane {
         loop {
             // The cancel check reads the task store; it runs without the lane lock.
             if cancelled() {
-                self.state().waiting.retain(|waiting| waiting.task_id != task_id);
+                self.state()
+                    .waiting
+                    .retain(|waiting| waiting.task_id != task_id);
                 self.shared.1.notify_all();
                 return false;
             }
             let mut state = self.state();
             // A blocked head prevents later jobs overtaking it, even with a free slot.
             let admitted = state.waiting.front().is_some_and(|head| {
-                head.task_id == task_id && state.running.len() < state.capacity
+                head.task_id == task_id
+                    && state.running.len() < state.capacity
                     && (!head.policy.exclusive || state.running.is_empty())
-                    && state.running.iter().all(|job| !job.policy.exclusive
-                        && (head.policy.key.is_none() || head.policy.key != job.policy.key))
+                    && state.running.iter().all(|job| {
+                        !job.policy.exclusive
+                            && (head.policy.key.is_none() || head.policy.key != job.policy.key)
+                    })
             });
             if admitted {
                 let head = state.waiting.pop_front().expect("head checked");
@@ -253,7 +281,11 @@ impl TaskLane {
                 self.shared.1.notify_all();
                 return true;
             }
-            let _ = self.shared.1.wait_timeout(state, LANE_CANCEL_POLL).expect("lane poisoned");
+            let _ = self
+                .shared
+                .1
+                .wait_timeout(state, LANE_CANCEL_POLL)
+                .expect("lane poisoned");
         }
     }
 
@@ -664,18 +696,38 @@ impl TaskRuntime {
     }
 
     /// Like [`Self::submit`], with FIFO admission through the lane's capacity.
-    pub fn submit_in_lane(&self, request: SubmitRequest, lane: &TaskLane) -> Result<CommandAcceptedV1, AppErrorV1> {
+    pub fn submit_in_lane(
+        &self,
+        request: SubmitRequest,
+        lane: &TaskLane,
+    ) -> Result<CommandAcceptedV1, AppErrorV1> {
         self.submit_in_lane_with_policy(request, lane, TaskLanePolicy::default())
     }
 
-    pub fn submit_in_lane_with_policy(&self, request: SubmitRequest, lane: &TaskLane, policy: TaskLanePolicy) -> Result<CommandAcceptedV1, AppErrorV1> {
+    pub fn submit_in_lane_with_policy(
+        &self,
+        request: SubmitRequest,
+        lane: &TaskLane,
+        policy: TaskLanePolicy,
+    ) -> Result<CommandAcceptedV1, AppErrorV1> {
         self.submit_inner(request, None, Some((lane, policy)))
     }
 
     /// Durable command replay shares the same acceptance and lane ordering transaction.
-    pub fn submit_idempotent_in_lane(&self, request: SubmitRequest, lane: &TaskLane, policy: TaskLanePolicy,
-        command_kind: &str, command_id: &str, fingerprint: &str) -> Result<CommandAcceptedV1, AppErrorV1> {
-        self.submit_inner(request, Some((command_kind, command_id, fingerprint)), Some((lane, policy)))
+    pub fn submit_idempotent_in_lane(
+        &self,
+        request: SubmitRequest,
+        lane: &TaskLane,
+        policy: TaskLanePolicy,
+        command_kind: &str,
+        command_id: &str,
+        fingerprint: &str,
+    ) -> Result<CommandAcceptedV1, AppErrorV1> {
+        self.submit_inner(
+            request,
+            Some((command_kind, command_id, fingerprint)),
+            Some((lane, policy)),
+        )
     }
 
     /// Atomically bind a command ID and fingerprint to durable task acceptance. Replays
@@ -813,7 +865,11 @@ impl TaskRuntime {
             correlation_id,
         ));
 
-        self.spawn_worker(task_id.clone(), request.job, lane.map(|(lane, _)| lane.clone()));
+        self.spawn_worker(
+            task_id.clone(),
+            request.job,
+            lane.map(|(lane, _)| lane.clone()),
+        );
         if let Some(timeout) = request.timeout {
             self.spawn_watchdog(task_id, timeout);
         }
@@ -824,21 +880,68 @@ impl TaskRuntime {
     /// boundary (ORC-CON-001, ORC-CON-006). Idempotent.
     /// Complete a vanished SQLite worker after explicit domain inspection.
     /// Inspection and cancellation are recorded together; no worker is resumed.
-    pub fn cancel_after_inspection(&self, task_id: &str, observed_revision: u64, result: Value) -> Result<(), AppErrorV1> {
-        let refused = || AppErrorV1::new("vua.task.inspection_conflict", ErrorCategory::Conflict, "errors.task.inspectionRequired", task_id);
-        let Some(sqlite) = &self.inner.sqlite else { return Err(refused()); };
+    pub fn cancel_after_inspection(
+        &self,
+        task_id: &str,
+        observed_revision: u64,
+        result: Value,
+    ) -> Result<(), AppErrorV1> {
+        let refused = || {
+            AppErrorV1::new(
+                "vua.task.inspection_conflict",
+                ErrorCategory::Conflict,
+                "errors.task.inspectionRequired",
+                task_id,
+            )
+        };
+        let Some(sqlite) = &self.inner.sqlite else {
+            return Err(refused());
+        };
         let mut tasks = self.inner.tasks.lock().expect("tasks poisoned");
-        let Some(record) = tasks.get_mut(task_id) else { return Err(refused()); };
-        if record.poisoned || record.recovery_disposition != TaskRecoveryDisposition::InspectRequired { return Err(refused()); }
-        let stored = sqlite.task(task_id).map_err(|error| persistence_failure(&PersistenceFailure::Sqlite(error), task_id))?.ok_or_else(refused)?;
-        if stored.state.is_terminal() || stored.revision != observed_revision { return Err(refused()); }
+        let Some(record) = tasks.get_mut(task_id) else {
+            return Err(refused());
+        };
+        if record.poisoned
+            || record.recovery_disposition != TaskRecoveryDisposition::InspectRequired
+        {
+            return Err(refused());
+        }
+        let stored = sqlite
+            .task(task_id)
+            .map_err(|error| persistence_failure(&PersistenceFailure::Sqlite(error), task_id))?
+            .ok_or_else(refused)?;
+        if stored.state.is_terminal() || stored.revision != observed_revision {
+            return Err(refused());
+        }
         let occurred_at = self.inner.clock.now_rfc3339();
-        let event = sqlite.mutate_task(task_id, observed_revision, &occurred_at, TaskMutation::Complete { state: TaskState::Cancelled, error: None, result: Some(result.clone()) })
-            .map_err(|error| persistence_failure(&PersistenceFailure::Sqlite(error), task_id))?.ok_or_else(refused)?;
-        record.state = TaskState::Cancelled; record.revision = event.revision;
-        record.cancel_requested.store(stored.cancel_requested, Ordering::SeqCst);
+        let event = sqlite
+            .mutate_task(
+                task_id,
+                observed_revision,
+                &occurred_at,
+                TaskMutation::Complete {
+                    state: TaskState::Cancelled,
+                    error: None,
+                    result: Some(result.clone()),
+                },
+            )
+            .map_err(|error| persistence_failure(&PersistenceFailure::Sqlite(error), task_id))?
+            .ok_or_else(refused)?;
+        record.state = TaskState::Cancelled;
+        record.revision = event.revision;
+        record
+            .cancel_requested
+            .store(stored.cancel_requested, Ordering::SeqCst);
         record.recovery_disposition = TaskRecoveryDisposition::None;
-        self.inner.publish(self.inner.make_event_at(task_id, event.revision, TaskEventKind::Completed, TaskState::Cancelled, result, occurred_at, stored.correlation_id));
+        self.inner.publish(self.inner.make_event_at(
+            task_id,
+            event.revision,
+            TaskEventKind::Completed,
+            TaskState::Cancelled,
+            result,
+            occurred_at,
+            stored.correlation_id,
+        ));
         Ok(())
     }
 
@@ -964,7 +1067,10 @@ impl TaskRuntime {
                         context.finish(TaskState::Cancelled, None, None);
                         return;
                     }
-                    Some(LaneTurn { lane, task_id: task_id.clone() })
+                    Some(LaneTurn {
+                        lane,
+                        task_id: task_id.clone(),
+                    })
                 }
                 None => None,
             };

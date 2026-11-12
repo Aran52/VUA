@@ -156,7 +156,8 @@ pub struct ValidationSummary {
 /// The workflow stage chain of the first production vertical use case: both
 /// material intake modes traverse the same lifecycle (the dual-channel work
 /// happens inside `execute`).
-pub const PRODUCTION_STAGES: [&str; 5] = ["inspect", "snapshot", "execute", "validate", "completed"];
+pub const PRODUCTION_STAGES: [&str; 5] =
+    ["inspect", "snapshot", "execute", "validate", "completed"];
 
 pub fn evidence_summary(record: &BuildRecordV01) -> EvidenceSummary {
     let snapshot = match &record.snapshot {
@@ -164,11 +165,18 @@ pub fn evidence_summary(record: &BuildRecordV01) -> EvidenceSummary {
             attempted: true,
             succeeded: Some(snapshot.verified),
         },
-        None => SnapshotSummary { attempted: false, succeeded: None },
+        None => SnapshotSummary {
+            attempted: false,
+            succeeded: None,
+        },
     };
     let jobs_run = record.bridge_jobs.len() as u64;
     let bridge = if record.bridge_jobs.is_empty() {
-        BridgeSummary { jobs_run: 0, all_succeeded: None, last_operation: None }
+        BridgeSummary {
+            jobs_run: 0,
+            all_succeeded: None,
+            last_operation: None,
+        }
     } else {
         let all_succeeded = record
             .bridge_jobs
@@ -186,15 +194,28 @@ pub fn evidence_summary(record: &BuildRecordV01) -> EvidenceSummary {
             published: Some(!local_vpm.archive_sha256.is_empty()),
             package_id: Some(local_vpm.package_id.clone()),
         },
-        None => LocalVpmSummary { attempted: false, published: None, package_id: None },
+        None => LocalVpmSummary {
+            attempted: false,
+            published: None,
+            package_id: None,
+        },
     };
     let validation = match &record.validation {
         Some(validation) => ValidationSummary {
-            status: if validation.unity_validated { "passed" } else { "failed" },
+            status: if validation.unity_validated {
+                "passed"
+            } else {
+                "failed"
+            },
         },
         None => ValidationSummary { status: "skipped" },
     };
-    EvidenceSummary { snapshot, bridge, local_vpm, validation }
+    EvidenceSummary {
+        snapshot,
+        bridge,
+        local_vpm,
+        validation,
+    }
 }
 
 /// The v0.2 wire projection of a stored record.

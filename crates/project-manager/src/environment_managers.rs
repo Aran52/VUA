@@ -21,15 +21,15 @@
 //! Output is the versioned `EnvironmentManagersSnapshotV01` payload, whose
 //! shape is pinned by `schemas/environment-managers/v0.1/snapshot.schema.json`.
 
+use serde::Serialize;
+use serde_json::Value;
+use std::io;
+use std::path::{Path, PathBuf};
 use vua_orchestrator::{
     classify_editor, classify_version_string, env_managers_codes, parse_editor_version, Clock,
     EditorClass, FindingSeverity, ManagerDiagnostic, ManagerPresence, VccCapability,
     VccSettingsReader, MIGRATION_SOURCES, PRODUCTION_TARGET,
 };
-use serde::Serialize;
-use serde_json::Value;
-use std::io;
-use std::path::{Path, PathBuf};
 
 pub const ENV_MANAGERS_SNAPSHOT_SCHEMA_VERSION: &str = "vua.environment-managers-snapshot/v0.1";
 
@@ -151,7 +151,10 @@ pub fn collect_environment_managers_snapshot(
 
 // --- editors ---
 
-fn collect_editors(editor_roots: &[PathBuf], diagnostics: &mut Vec<ManagerDiagnostic>) -> Vec<EditorFinding> {
+fn collect_editors(
+    editor_roots: &[PathBuf],
+    diagnostics: &mut Vec<ManagerDiagnostic>,
+) -> Vec<EditorFinding> {
     let mut editors = Vec::new();
     for root in editor_roots {
         let read_dir = match std::fs::read_dir(root) {
@@ -176,7 +179,10 @@ fn collect_editors(editor_roots: &[PathBuf], diagnostics: &mut Vec<ManagerDiagno
                 diagnostics.push(ManagerDiagnostic {
                     code: env_managers_codes::EDITOR_ENTRY_UNPARSEABLE,
                     severity: FindingSeverity::Warning,
-                    detail: format!("{}: editor directory name is not a complete version string", path.display()),
+                    detail: format!(
+                        "{}: editor directory name is not a complete version string",
+                        path.display()
+                    ),
                 });
                 continue;
             };
@@ -200,7 +206,14 @@ fn collect_editors(editor_roots: &[PathBuf], diagnostics: &mut Vec<ManagerDiagno
     };
     let version_key = |finding: &EditorFinding| {
         parse_editor_version(&finding.version)
-            .map(|parsed| (parsed.major, parsed.minor, parsed.patch, parsed.release_number))
+            .map(|parsed| {
+                (
+                    parsed.major,
+                    parsed.minor,
+                    parsed.patch,
+                    parsed.release_number,
+                )
+            })
             .unwrap_or((0, 0, 0, 0))
     };
     editors.sort_by(|left, right| {
@@ -232,7 +245,14 @@ pub fn read_vcc_settings(
         let display = path.to_string_lossy().into_owned();
         let text = match std::fs::read_to_string(path) {
             Ok(text) => text,
-            Err(error) => return vcc_read_failed(&display, env_managers_codes::VCC_SETTINGS_READ_FAILED, format!("{}: {error}", display), diagnostics),
+            Err(error) => {
+                return vcc_read_failed(
+                    &display,
+                    env_managers_codes::VCC_SETTINGS_READ_FAILED,
+                    format!("{}: {error}", display),
+                    diagnostics,
+                )
+            }
         };
         let value: Value = match serde_json::from_str(&text) {
             Ok(value) => value,
@@ -245,8 +265,12 @@ pub fn read_vcc_settings(
                 )
             }
         };
-        let user_projects =
-            string_array(value.get("userProjects"), "userProjects", &display, diagnostics);
+        let user_projects = string_array(
+            value.get("userProjects"),
+            "userProjects",
+            &display,
+            diagnostics,
+        );
         let local_project_folders = string_array(
             value.get("localProjectFolders"),
             "localProjectFolders",
@@ -393,7 +417,10 @@ fn top_level_keys(value: &Value) -> Vec<String> {
 /// the settings schema is an open spike question, so the probe reports what
 /// it sees without inventing one. Also the discovery source for the
 /// project-inspection aggregate (M6 T-A).
-pub fn read_alcom_settings(candidates: &[PathBuf], diagnostics: &mut Vec<ManagerDiagnostic>) -> AlcomCapability {
+pub fn read_alcom_settings(
+    candidates: &[PathBuf],
+    diagnostics: &mut Vec<ManagerDiagnostic>,
+) -> AlcomCapability {
     for path in candidates {
         let metadata = match std::fs::metadata(path) {
             Ok(metadata) => metadata,
@@ -492,7 +519,12 @@ fn collect_projects(
     match vcc.projects_source {
         Some("userProjects") => {
             for path in &vcc.user_projects {
-                inspect_project(path, ProjectAssociation::VccRegistered, diagnostics, &mut by_path);
+                inspect_project(
+                    path,
+                    ProjectAssociation::VccRegistered,
+                    diagnostics,
+                    &mut by_path,
+                );
             }
         }
         Some("localProjectFolders") => {
@@ -503,7 +535,12 @@ fn collect_projects(
         _ => {}
     }
     for path in &alcom.user_projects {
-        inspect_project(path, ProjectAssociation::AlcomRegistered, diagnostics, &mut by_path);
+        inspect_project(
+            path,
+            ProjectAssociation::AlcomRegistered,
+            diagnostics,
+            &mut by_path,
+        );
     }
 
     by_path
@@ -577,7 +614,10 @@ fn inspect_project(
         diagnostics.push(ManagerDiagnostic {
             code: env_managers_codes::PROJECT_MARKERS_INCOMPLETE,
             severity: FindingSeverity::Warning,
-            detail: format!("{}: missing vpm-manifest.json or a parseable ProjectVersion.txt", path),
+            detail: format!(
+                "{}: missing vpm-manifest.json or a parseable ProjectVersion.txt",
+                path
+            ),
         });
         return;
     };

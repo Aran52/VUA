@@ -121,7 +121,8 @@ impl DownloadLifecycle {
 /// Exponential backoff for starting attempt N+1 (2s, 4s, capped at 8s).
 /// The rhythm is policy, not contract; the attempt bound is the contract.
 pub fn backoff_for_attempt(next_attempt: u32) -> std::time::Duration {
-    std::time::Duration::from_secs(2u64.saturating_pow(next_attempt.saturating_sub(1))).min(std::time::Duration::from_secs(8))
+    std::time::Duration::from_secs(2u64.saturating_pow(next_attempt.saturating_sub(1)))
+        .min(std::time::Duration::from_secs(8))
 }
 
 /// AMF-side retry policy for a non-terminal lifecycle snapshot.
@@ -185,13 +186,13 @@ impl std::fmt::Display for ConsumerError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::SchemaVersion(version) => {
-                write!(formatter, "unsupported download event schema version {version}")
+                write!(
+                    formatter,
+                    "unsupported download event schema version {version}"
+                )
             }
             Self::Store(error) => write!(formatter, "{error}"),
-            Self::AlreadyTerminal {
-                download_id,
-                phase,
-            } => write!(
+            Self::AlreadyTerminal { download_id, phase } => write!(
                 formatter,
                 "download {download_id} is already terminal ({phase:?}); no event may extend it"
             ),
@@ -235,7 +236,12 @@ pub fn fold_lifecycle(
         // such a row are corruption, surfaced as an error — never folded
         // into a lie.
         if event.kind == DownloadEventKind::Completed
-            && (event.stored_path.as_deref().map(str::trim).unwrap_or("").is_empty()
+            && (event
+                .stored_path
+                .as_deref()
+                .map(str::trim)
+                .unwrap_or("")
+                .is_empty()
                 || event.received_bytes.is_none())
         {
             return Err(ConsumerError::IllegalSequence {
@@ -381,7 +387,12 @@ fn check_sequence(
     // a schema-violating delivery never reaches the fact log (the Rust
     // mirror type carries these fields as plain Options).
     if event.kind == DownloadEventKind::Completed
-        && (event.stored_path.as_deref().map(str::trim).unwrap_or("").is_empty()
+        && (event
+            .stored_path
+            .as_deref()
+            .map(str::trim)
+            .unwrap_or("")
+            .is_empty()
             || event.received_bytes.is_none())
     {
         return Err(reject(
@@ -441,7 +452,9 @@ fn check_sequence(
                     DownloadPhase::Downloading | DownloadPhase::Interrupted
                 )
             {
-                return Err(reject("completion only concludes an active or resumed transfer"));
+                return Err(reject(
+                    "completion only concludes an active or resumed transfer",
+                ));
             }
         }
         // Cancel and failure terminate from anywhere non-terminal — including
@@ -474,14 +487,11 @@ impl<'a> DownloadEventConsumer<'a> {
             return Err(ConsumerError::SchemaVersion(event.schema_version.clone()));
         }
         let mut history = self.store.download_events(&event.download_id)?;
-        if history
-            .iter()
-            .any(|stored| {
-                stored.attempt == event.attempt
-                    && stored.kind == event.kind
-                    && stored.occurred_at == event.occurred_at
-            })
-        {
+        if history.iter().any(|stored| {
+            stored.attempt == event.attempt
+                && stored.kind == event.kind
+                && stored.occurred_at == event.occurred_at
+        }) {
             // Redelivery: no new fact, return the folded state.
             let lifecycle = fold_lifecycle(&event.download_id, &history)?;
             return Ok(IngestOutcome::Duplicate { lifecycle });
@@ -525,10 +535,7 @@ impl<'a> DownloadEventConsumer<'a> {
         Ok(IngestOutcome::Recorded { lifecycle })
     }
 
-    pub fn lifecycle(
-        &self,
-        download_id: &str,
-    ) -> Result<Option<DownloadLifecycle>, ConsumerError> {
+    pub fn lifecycle(&self, download_id: &str) -> Result<Option<DownloadLifecycle>, ConsumerError> {
         let history = self.store.download_events(download_id)?;
         if history.is_empty() {
             return Ok(None);
@@ -639,11 +646,13 @@ mod tests {
     use super::*;
 
     fn examples_dir() -> std::path::PathBuf {
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/download-events/v0.1/examples")
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../schemas/download-events/v0.1/examples")
     }
 
     fn read_example(name: &str) -> DownloadEventV01 {
-        let bytes = std::fs::read(examples_dir().join(format!("{name}.json"))).expect("example must exist");
+        let bytes =
+            std::fs::read(examples_dir().join(format!("{name}.json"))).expect("example must exist");
         serde_json::from_slice(&bytes).expect("example must deserialize")
     }
 
@@ -670,10 +679,16 @@ mod tests {
     fn policy_failure_carries_no_stored_path_and_unknown_does() {
         let policy = read_example("failed-policy");
         assert_eq!(policy.failure_kind, Some(DownloadFailureKind::Policy));
-        assert_eq!(policy.stored_path, None, "policy denial happens before any file exists");
+        assert_eq!(
+            policy.stored_path, None,
+            "policy denial happens before any file exists"
+        );
         let unknown = read_example("failed-unknown");
         assert_eq!(unknown.failure_kind, Some(DownloadFailureKind::Unknown));
-        assert!(unknown.stored_path.is_some(), "partial file stays reportable");
+        assert!(
+            unknown.stored_path.is_some(),
+            "partial file stays reportable"
+        );
     }
 
     #[test]
@@ -743,9 +758,30 @@ mod tests {
             ingest_all(
                 &consumer,
                 &[
-                    event(DownloadEventKind::Started, id, 1, "2026-09-06T08:15:00.000Z"),
-                    with_received(event(DownloadEventKind::Progress, id, 1, "2026-09-06T08:15:10.000Z"), 512),
-                    with_received(event(DownloadEventKind::Completed, id, 1, "2026-09-06T08:16:00.000Z"), 1024),
+                    event(
+                        DownloadEventKind::Started,
+                        id,
+                        1,
+                        "2026-09-06T08:15:00.000Z",
+                    ),
+                    with_received(
+                        event(
+                            DownloadEventKind::Progress,
+                            id,
+                            1,
+                            "2026-09-06T08:15:10.000Z",
+                        ),
+                        512,
+                    ),
+                    with_received(
+                        event(
+                            DownloadEventKind::Completed,
+                            id,
+                            1,
+                            "2026-09-06T08:16:00.000Z",
+                        ),
+                        1024,
+                    ),
                 ],
             );
             let lifecycle = consumer.lifecycle(id).unwrap().unwrap();
@@ -763,8 +799,18 @@ mod tests {
             ingest_all(
                 &consumer,
                 &[
-                    event(DownloadEventKind::Started, id, 1, "2026-09-06T08:15:00.000Z"),
-                    event(DownloadEventKind::Interrupted, id, 1, "2026-09-06T08:15:30.000Z"),
+                    event(
+                        DownloadEventKind::Started,
+                        id,
+                        1,
+                        "2026-09-06T08:15:00.000Z",
+                    ),
+                    event(
+                        DownloadEventKind::Interrupted,
+                        id,
+                        1,
+                        "2026-09-06T08:15:30.000Z",
+                    ),
                 ],
             );
             let interrupted = consumer.lifecycle(id).unwrap().unwrap();
@@ -773,11 +819,19 @@ mod tests {
 
             ingest_all(
                 &consumer,
-                &[event(DownloadEventKind::Progress, id, 1, "2026-09-06T08:16:00.000Z")],
+                &[event(
+                    DownloadEventKind::Progress,
+                    id,
+                    1,
+                    "2026-09-06T08:16:00.000Z",
+                )],
             );
             let resumed = consumer.lifecycle(id).unwrap().unwrap();
             assert_eq!(resumed.phase, DownloadPhase::Downloading);
-            assert_eq!(resumed.attempt, 1, "resume continuation keeps the attempt counter");
+            assert_eq!(
+                resumed.attempt, 1,
+                "resume continuation keeps the attempt counter"
+            );
         }
 
         #[test]
@@ -788,13 +842,27 @@ mod tests {
             ingest_all(
                 &consumer,
                 &[
-                    event(DownloadEventKind::Started, id, 1, "2026-09-06T08:15:00.000Z"),
-                    event(DownloadEventKind::Interrupted, id, 1, "2026-09-06T08:15:30.000Z"),
+                    event(
+                        DownloadEventKind::Started,
+                        id,
+                        1,
+                        "2026-09-06T08:15:00.000Z",
+                    ),
+                    event(
+                        DownloadEventKind::Interrupted,
+                        id,
+                        1,
+                        "2026-09-06T08:15:30.000Z",
+                    ),
                 ],
             );
             // Non-resumable interruption: a fresh attempt is the only way.
-            let mut non_resumable =
-                event(DownloadEventKind::Interrupted, id, 1, "2026-09-06T08:15:31.000Z");
+            let mut non_resumable = event(
+                DownloadEventKind::Interrupted,
+                id,
+                1,
+                "2026-09-06T08:15:31.000Z",
+            );
             non_resumable.resumable = false;
             assert!(
                 matches!(
@@ -807,10 +875,30 @@ mod tests {
             ingest_all(
                 &consumer,
                 &[
-                    event(DownloadEventKind::Started, id, 2, "2026-09-06T08:16:00.000Z"),
-                    event(DownloadEventKind::Interrupted, id, 2, "2026-09-06T08:16:30.000Z"),
-                    event(DownloadEventKind::Started, id, 3, "2026-09-06T08:17:00.000Z"),
-                    event(DownloadEventKind::Interrupted, id, 3, "2026-09-06T08:17:30.000Z"),
+                    event(
+                        DownloadEventKind::Started,
+                        id,
+                        2,
+                        "2026-09-06T08:16:00.000Z",
+                    ),
+                    event(
+                        DownloadEventKind::Interrupted,
+                        id,
+                        2,
+                        "2026-09-06T08:16:30.000Z",
+                    ),
+                    event(
+                        DownloadEventKind::Started,
+                        id,
+                        3,
+                        "2026-09-06T08:17:00.000Z",
+                    ),
+                    event(
+                        DownloadEventKind::Interrupted,
+                        id,
+                        3,
+                        "2026-09-06T08:17:30.000Z",
+                    ),
                 ],
             );
             let at_bound = consumer.lifecycle(id).unwrap().unwrap();
@@ -820,7 +908,12 @@ mod tests {
                 "the frozen three-attempt bound makes the policy give up"
             );
             assert!(matches!(
-                consumer.ingest(&event(DownloadEventKind::Started, id, 4, "2026-09-06T08:18:00.000Z")),
+                consumer.ingest(&event(
+                    DownloadEventKind::Started,
+                    id,
+                    4,
+                    "2026-09-06T08:18:00.000Z"
+                )),
                 Err(ConsumerError::IllegalSequence { .. })
             ));
             assert_eq!(
@@ -835,7 +928,12 @@ mod tests {
             let store = store();
             let consumer = DownloadEventConsumer::new(&store);
             let id = "dl-dup";
-            let first = event(DownloadEventKind::Started, id, 1, "2026-09-06T08:15:00.000Z");
+            let first = event(
+                DownloadEventKind::Started,
+                id,
+                1,
+                "2026-09-06T08:15:00.000Z",
+            );
             assert!(matches!(
                 consumer.ingest(&first).unwrap(),
                 IngestOutcome::Recorded { .. }
@@ -855,14 +953,24 @@ mod tests {
             ingest_all(
                 &consumer,
                 &[
-                    event(DownloadEventKind::Started, id, 1, "2026-09-06T08:15:00.000Z"),
+                    event(
+                        DownloadEventKind::Started,
+                        id,
+                        1,
+                        "2026-09-06T08:15:00.000Z",
+                    ),
                     failure,
                 ],
             );
             let lifecycle = consumer.lifecycle(id).unwrap().unwrap();
             assert_eq!(lifecycle.phase, DownloadPhase::Failed);
             assert!(matches!(
-                consumer.ingest(&event(DownloadEventKind::Progress, id, 1, "2026-09-06T08:17:00.000Z")),
+                consumer.ingest(&event(
+                    DownloadEventKind::Progress,
+                    id,
+                    1,
+                    "2026-09-06T08:17:00.000Z"
+                )),
                 Err(ConsumerError::AlreadyTerminal { .. })
             ));
             assert_eq!(
@@ -895,29 +1003,60 @@ mod tests {
             ingest_all(
                 &consumer,
                 &[
-                    event(DownloadEventKind::Started, "dl-orphan", 1, "2026-09-06T08:15:00.000Z"),
-                    event(DownloadEventKind::Progress, "dl-orphan", 1, "2026-09-06T08:15:10.000Z"),
+                    event(
+                        DownloadEventKind::Started,
+                        "dl-orphan",
+                        1,
+                        "2026-09-06T08:15:00.000Z",
+                    ),
+                    event(
+                        DownloadEventKind::Progress,
+                        "dl-orphan",
+                        1,
+                        "2026-09-06T08:15:10.000Z",
+                    ),
                 ],
             );
             ingest_all(
                 &consumer,
                 &[
-                    event(DownloadEventKind::Started, "dl-finished", 1, "2026-09-06T08:59:00.000Z"),
-                    event(DownloadEventKind::Completed, "dl-finished", 1, "2026-09-06T09:00:00.000Z"),
+                    event(
+                        DownloadEventKind::Started,
+                        "dl-finished",
+                        1,
+                        "2026-09-06T08:59:00.000Z",
+                    ),
+                    event(
+                        DownloadEventKind::Completed,
+                        "dl-finished",
+                        1,
+                        "2026-09-06T09:00:00.000Z",
+                    ),
                 ],
             );
             consumer
-                .ingest(&event(DownloadEventKind::Cancelled, "dl-cancelled", 1, "2026-09-06T09:05:00.000Z"))
+                .ingest(&event(
+                    DownloadEventKind::Cancelled,
+                    "dl-cancelled",
+                    1,
+                    "2026-09-06T09:05:00.000Z",
+                ))
                 .unwrap();
 
             let orphans = consumer.non_terminal_downloads().unwrap();
-            let ids: Vec<_> = orphans.iter().map(|lifecycle| lifecycle.download_id.as_str()).collect();
+            let ids: Vec<_> = orphans
+                .iter()
+                .map(|lifecycle| lifecycle.download_id.as_str())
+                .collect();
             assert_eq!(
                 ids,
                 vec!["dl-finished", "dl-orphan"],
                 "every non-terminal download is an orphan candidate: TransferDone still owes AMF verification, Downloading owes the partial-file decision"
             );
-            assert_eq!(orphans[1].stored_path.as_deref(), Some("C:\\staging\\dl-orphan-1-pack.zip"));
+            assert_eq!(
+                orphans[1].stored_path.as_deref(),
+                Some("C:\\staging\\dl-orphan-1-pack.zip")
+            );
         }
 
         #[test]
@@ -944,18 +1083,38 @@ mod tests {
             let store = store();
             let consumer = DownloadEventConsumer::new(&store);
             consumer
-                .ingest(&event(DownloadEventKind::Started, "dl-x", 1, "2026-09-06T08:15:00.000Z"))
+                .ingest(&event(
+                    DownloadEventKind::Started,
+                    "dl-x",
+                    1,
+                    "2026-09-06T08:15:00.000Z",
+                ))
                 .unwrap();
             assert!(matches!(
-                consumer.ingest(&event(DownloadEventKind::Progress, "dl-x", 2, "2026-09-06T08:15:10.000Z")),
+                consumer.ingest(&event(
+                    DownloadEventKind::Progress,
+                    "dl-x",
+                    2,
+                    "2026-09-06T08:15:10.000Z"
+                )),
                 Err(ConsumerError::IllegalSequence { .. })
             ));
             assert!(matches!(
-                consumer.ingest(&event(DownloadEventKind::Progress, "dl-y", 1, "2026-09-06T08:15:11.000Z")),
+                consumer.ingest(&event(
+                    DownloadEventKind::Progress,
+                    "dl-y",
+                    1,
+                    "2026-09-06T08:15:11.000Z"
+                )),
                 Err(ConsumerError::IllegalSequence { .. })
             ));
             assert!(matches!(
-                consumer.ingest(&event(DownloadEventKind::Started, "dl-z", 2, "2026-09-06T08:15:12.000Z")),
+                consumer.ingest(&event(
+                    DownloadEventKind::Started,
+                    "dl-z",
+                    2,
+                    "2026-09-06T08:15:12.000Z"
+                )),
                 Err(ConsumerError::IllegalSequence { .. })
             ));
         }
@@ -991,18 +1150,33 @@ mod tests {
             let id = "dl-nofacts";
             ingest_all(
                 &consumer,
-                &[event(DownloadEventKind::Started, id, 1, "2026-09-06T08:15:00.000Z")],
+                &[event(
+                    DownloadEventKind::Started,
+                    id,
+                    1,
+                    "2026-09-06T08:15:00.000Z",
+                )],
             );
             // A completed event without storedPath: the sequence would be
             // legal, but the frozen wire schema requires the delivery facts.
-            let mut no_path = event(DownloadEventKind::Completed, id, 1, "2026-09-06T08:16:00.000Z");
+            let mut no_path = event(
+                DownloadEventKind::Completed,
+                id,
+                1,
+                "2026-09-06T08:16:00.000Z",
+            );
             no_path.stored_path = None;
             assert!(matches!(
                 consumer.ingest(&no_path),
                 Err(ConsumerError::IllegalSequence { .. })
             ));
             // A completed event without receivedBytes is refused too.
-            let mut no_size = event(DownloadEventKind::Completed, id, 1, "2026-09-06T08:16:01.000Z");
+            let mut no_size = event(
+                DownloadEventKind::Completed,
+                id,
+                1,
+                "2026-09-06T08:16:01.000Z",
+            );
             no_size.received_bytes = None;
             assert!(matches!(
                 consumer.ingest(&no_size),
@@ -1017,7 +1191,12 @@ mod tests {
             ingest_all(
                 &consumer,
                 &[with_received(
-                    event(DownloadEventKind::Completed, id, 1, "2026-09-06T08:16:02.000Z"),
+                    event(
+                        DownloadEventKind::Completed,
+                        id,
+                        1,
+                        "2026-09-06T08:16:02.000Z",
+                    ),
                     1024,
                 )],
             );
@@ -1030,9 +1209,19 @@ mod tests {
             let store = store();
             // Raw store appends carry no per-kind law (the consumer is the
             // gate) — this is exactly the shape a gate-hole row would have.
-            let started = event(DownloadEventKind::Started, "dl-corrupt", 1, "2026-09-06T08:15:00.000Z");
+            let started = event(
+                DownloadEventKind::Started,
+                "dl-corrupt",
+                1,
+                "2026-09-06T08:15:00.000Z",
+            );
             store.append_download_event(&started).unwrap();
-            let mut completed = event(DownloadEventKind::Completed, "dl-corrupt", 1, "2026-09-06T08:16:00.000Z");
+            let mut completed = event(
+                DownloadEventKind::Completed,
+                "dl-corrupt",
+                1,
+                "2026-09-06T08:16:00.000Z",
+            );
             completed.stored_path = None;
             store.append_download_event(&completed).unwrap();
 

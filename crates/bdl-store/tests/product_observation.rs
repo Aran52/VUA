@@ -41,7 +41,10 @@ fn observation(native_id: &str) -> ProductObservation {
         price_currency: Some("JPY".into()),
         shop_name: Some("TestShop".into()),
         shop_url: Some("https://testshop.booth.pm/".into()),
-        image_urls: vec!["https://example.com/a.png".into(), "https://example.com/b.png".into()],
+        image_urls: vec![
+            "https://example.com/a.png".into(),
+            "https://example.com/b.png".into(),
+        ],
         video_urls: Vec::new(),
         subproducts: Vec::new(),
         source_published_at: None,
@@ -70,15 +73,16 @@ fn observed_presentation_flows_to_the_card_and_detail() {
     });
     store.record_product_observation(&observed).unwrap();
 
-    let list = store
-        .catalog_list(&CatalogListParams::default())
-        .unwrap();
+    let list = store.catalog_list(&CatalogListParams::default()).unwrap();
     assert_eq!(list.total, 1);
     let card = &list.entries[0];
     assert_eq!(card.product_id, "booth:101");
     assert_eq!(card.title.as_deref(), Some("Uniform 101"));
     let price = card.price.as_ref().unwrap();
-    assert_eq!((price.amount.as_str(), price.currency.as_str()), ("1500", "JPY"));
+    assert_eq!(
+        (price.amount.as_str(), price.currency.as_str()),
+        ("1500", "JPY")
+    );
     // imageUrl is exactly imageUrls[0], and the raw word rides along.
     assert_eq!(card.image_url.as_deref(), Some("https://example.com/a.png"));
     assert_eq!(card.image_urls.len(), 2);
@@ -86,7 +90,10 @@ fn observed_presentation_flows_to_the_card_and_detail() {
         card.availability_raw.as_deref(),
         Some("https://schema.org/InStock")
     );
-    assert_eq!(card.availability_status, vua_bdl_store::AvailabilityStatus::Available);
+    assert_eq!(
+        card.availability_status,
+        vua_bdl_store::AvailabilityStatus::Available
+    );
 
     let detail = store.catalog_detail("booth:101").unwrap().unwrap().product;
     assert!(detail.adult);
@@ -110,8 +117,18 @@ fn status_turns_ok_with_the_first_write_and_the_revision_travels() {
     assert_eq!(before.health, CatalogHealth::Unknown);
     assert_eq!(before.revision.catalog_updated_seq, None);
 
-    assert_eq!(store.record_product_observation(&observation("201")).unwrap(), 1);
-    assert_eq!(store.record_product_observation(&observation("202")).unwrap(), 2);
+    assert_eq!(
+        store
+            .record_product_observation(&observation("201"))
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        store
+            .record_product_observation(&observation("202"))
+            .unwrap(),
+        2
+    );
 
     let after = store.catalog_status().unwrap();
     assert_eq!(after.health, CatalogHealth::Ok);
@@ -184,19 +201,28 @@ fn text_filter_matches_title_and_product_id_case_insensitively() {
     store.record_product_observation(&other).unwrap();
 
     let by_title = store
-        .catalog_list(&CatalogListParams { text: Some("UNIFORM".into()), ..Default::default() })
+        .catalog_list(&CatalogListParams {
+            text: Some("UNIFORM".into()),
+            ..Default::default()
+        })
         .unwrap();
     assert_eq!(by_title.total, 1);
     assert_eq!(by_title.entries[0].product_id, "booth:501");
 
     let by_id = store
-        .catalog_list(&CatalogListParams { text: Some("booth:502".into()), ..Default::default() })
+        .catalog_list(&CatalogListParams {
+            text: Some("booth:502".into()),
+            ..Default::default()
+        })
         .unwrap();
     assert_eq!(by_id.total, 1);
     assert_eq!(by_id.entries[0].product_id, "booth:502");
 
     let nothing = store
-        .catalog_list(&CatalogListParams { text: Some("wig".into()), ..Default::default() })
+        .catalog_list(&CatalogListParams {
+            text: Some("wig".into()),
+            ..Default::default()
+        })
         .unwrap();
     assert_eq!(nothing.total, 0);
 }
@@ -207,7 +233,11 @@ fn pagination_slices_after_filtering_with_the_honest_total() {
     for id in ["601", "602", "603"] {
         store.record_product_observation(&observation(id)).unwrap();
     }
-    let params = CatalogListParams { limit: 2, offset: 1, ..Default::default() };
+    let params = CatalogListParams {
+        limit: 2,
+        offset: 1,
+        ..Default::default()
+    };
     let page = store.catalog_list(&params).unwrap();
     assert_eq!(page.total, 3);
     assert_eq!(page.entries.len(), 2);
@@ -221,7 +251,9 @@ fn reobservation_merges_by_informativeness_and_bumps_the_counter() {
     // NULL(未观察)不抹除已知事实(库行再同步不再清掉商品页富化的
     // 价格/描述/画廊);非 NULL 事实照常覆盖(改名/在售态更新生效)。
     let store = BdlStore::open_in_memory().unwrap();
-    store.record_product_observation(&observation("701")).unwrap();
+    store
+        .record_product_observation(&observation("701"))
+        .unwrap();
     let mut fresh = observation("701");
     fresh.content_hash = HASH_B.into();
     fresh.title = Some("Renamed 701".into());
@@ -244,10 +276,16 @@ fn reobservation_merges_by_informativeness_and_bumps_the_counter() {
         vua_bdl_store::AvailabilityStatus::Unavailable
     );
     // NULL 不抹除:首观察带价格,再观察置空 → 保留
-    assert!(card.price.is_some(), "null observation must not erase a known price");
+    assert!(
+        card.price.is_some(),
+        "null observation must not erase a known price"
+    );
     // Only one row exists — the upsert never duplicates.
     assert_eq!(
-        store.catalog_list(&CatalogListParams::default()).unwrap().total,
+        store
+            .catalog_list(&CatalogListParams::default())
+            .unwrap()
+            .total,
         1
     );
 }
@@ -265,7 +303,10 @@ fn seed_rows_still_answer_the_honest_empty_shapes() {
     assert!(card.title.is_none());
     assert!(card.price.is_none());
     assert!(card.image_url.is_none());
-    assert_eq!(card.availability_status, vua_bdl_store::AvailabilityStatus::Unknown);
+    assert_eq!(
+        card.availability_status,
+        vua_bdl_store::AvailabilityStatus::Unknown
+    );
 }
 
 #[test]
@@ -336,8 +377,14 @@ fn the_write_face_rejects_out_of_closed_set_observations() {
 
     // Nothing was written, and the catalog stays the honest empty state.
     assert_eq!(
-        store.catalog_list(&CatalogListParams::default()).unwrap().total,
+        store
+            .catalog_list(&CatalogListParams::default())
+            .unwrap()
+            .total,
         0
     );
-    assert_eq!(store.catalog_status().unwrap().health, CatalogHealth::Unknown);
+    assert_eq!(
+        store.catalog_status().unwrap().health,
+        CatalogHealth::Unknown
+    );
 }

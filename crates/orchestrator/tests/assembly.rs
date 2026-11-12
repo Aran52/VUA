@@ -15,8 +15,7 @@ use vua_orchestrator::{
     derive_project_spec, document_digest, AssemblyConfirmation, AssemblyEngine, BridgeError,
     ChangeItemV1, ChangeKindV1, ChangePreviewV1, FixedClock, FixedIdGenerator, MemoryJournal,
     PackageRequestV1, ProjectRef, RecipeV02, SubmitRequest, TaskEventKind, TaskExit, TaskRuntime,
-    TaskState, UnityBridge, UnityCommand, UnityResult, VpmBackend,
-    VpmCapabilities,
+    TaskState, UnityBridge, UnityCommand, UnityResult, VpmBackend, VpmCapabilities,
 };
 
 // --- fixtures ---
@@ -107,10 +106,10 @@ impl UnityBridge for FakeBridge {
                     "projectFingerprint": format!("v1:fake-{call_index}")
                 }),
                 steps: Vec::new(),
-                            replayed: None,
-                            snapshot_id: None,
-                            restored_from: None,
-                            project_fingerprint_before: None,
+                replayed: None,
+                snapshot_id: None,
+                restored_from: None,
+                project_fingerprint_before: None,
             }),
         }
     }

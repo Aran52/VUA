@@ -633,10 +633,7 @@ mod tests {
         );
         fake.0.lock().unwrap().missing = true;
         assert_eq!(
-            service
-                .act(InstallerToolAction::Start, "c1")
-                .unwrap()
-                .issue,
+            service.act(InstallerToolAction::Start, "c1").unwrap().issue,
             Some("not_installed")
         );
         fake.0.lock().unwrap().missing = false;

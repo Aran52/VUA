@@ -23,8 +23,7 @@ const RESPONSE_SCHEMA: &str = "handshake-response.schema.json";
 static SEQUENCE: AtomicU32 = AtomicU32::new(0);
 
 fn frame_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../schemas/orchestrator/provider-frame-v0.1")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/orchestrator/provider-frame-v0.1")
 }
 
 fn read_json(relative: &str) -> Value {
@@ -69,7 +68,10 @@ fn run_frames(frames: &[Value]) -> Vec<Value> {
 fn handshake_schemas_and_vectors_exist_in_pairs() {
     for name in [REQUEST_SCHEMA, RESPONSE_SCHEMA] {
         let schema = read_json(name);
-        assert_eq!(schema["properties"]["frameVersion"]["const"], "0.1", "{name}");
+        assert_eq!(
+            schema["properties"]["frameVersion"]["const"], "0.1",
+            "{name}"
+        );
     }
     for name in [
         "fixtures/handshake.request.valid.json",
@@ -93,7 +95,10 @@ fn handshake_request_vectors_adhere_to_the_frozen_request_schema() {
     let schema = read_json(REQUEST_SCHEMA);
     let validator = validator(&schema);
     let valid = read_json("fixtures/handshake.request.valid.json");
-    assert!(validator.is_valid(&valid), "the positive request vector is normative");
+    assert!(
+        validator.is_valid(&valid),
+        "the positive request vector is normative"
+    );
 
     for name in [
         "fixtures/handshake.request.invalid-frame-version.json",
@@ -155,7 +160,10 @@ fn host_answers_the_valid_handshake_vector_with_a_frozen_response() {
 
     let no_downloads = read_json("fixtures/handshake.response.valid-no-downloads.json");
     assert_eq!(response["frameVersion"], no_downloads["frameVersion"]);
-    assert_eq!(response["frameId"], no_downloads["frameId"], "the response reuses the request frameId");
+    assert_eq!(
+        response["frameId"], no_downloads["frameId"],
+        "the response reuses the request frameId"
+    );
     assert_eq!(response["kind"], no_downloads["kind"]);
     assert_eq!(
         response["payload"]["contractVersion"],
@@ -166,12 +174,17 @@ fn host_answers_the_valid_handshake_vector_with_a_frozen_response() {
         no_downloads["payload"]["supportedContractVersions"]
     );
     assert_eq!(
-        response["payload"]["downloadIngest"],
-        no_downloads["payload"]["downloadIngest"],
+        response["payload"]["downloadIngest"], no_downloads["payload"]["downloadIngest"],
         "no download domain configured: the bit must be honestly false"
     );
-    assert!(!response["payload"]["providerBuildId"].as_str().unwrap().is_empty());
-    assert!(!response["payload"]["providerInstanceId"].as_str().unwrap().is_empty());
+    assert!(!response["payload"]["providerBuildId"]
+        .as_str()
+        .unwrap()
+        .is_empty());
+    assert!(!response["payload"]["providerInstanceId"]
+        .as_str()
+        .unwrap()
+        .is_empty());
 }
 
 /// Negative request vectors are answered with protocol_error — never with a

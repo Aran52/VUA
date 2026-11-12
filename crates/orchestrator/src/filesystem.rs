@@ -270,7 +270,12 @@ fn cacheable(entry: &FingerprintCacheEntry) -> bool {
 }
 
 fn hash_bytes(hex: &str) -> io::Result<[u8; 32]> {
-    let invalid = || io::Error::new(io::ErrorKind::InvalidData, "fingerprint cache hash is not hex");
+    let invalid = || {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            "fingerprint cache hash is not hex",
+        )
+    };
     let mut bytes = [0_u8; 32];
     for (index, pair) in hex.as_bytes().chunks(2).enumerate() {
         if pair.len() != 2 {
@@ -548,27 +553,36 @@ impl FileSystemSnapshotStore {
         for entry in entries.flatten() {
             let name = entry.file_name();
             let Some(name) = name.to_str() else {
-                diagnostics.push("a snapshot entry with a non-UTF-8 name was left in place".to_string());
+                diagnostics
+                    .push("a snapshot entry with a non-UTF-8 name was left in place".to_string());
                 continue;
             };
             if keep.contains(&name) {
                 continue;
             }
             if validate_identifier(name).is_err() {
-                diagnostics.push(format!("snapshot entry {name} is not a snapshot identifier; left in place"));
+                diagnostics.push(format!(
+                    "snapshot entry {name} is not a snapshot identifier; left in place"
+                ));
                 continue;
             }
             let Ok(metadata) = fs::symlink_metadata(entry.path()) else {
-                diagnostics.push(format!("snapshot entry {name} could not be inspected; left in place"));
+                diagnostics.push(format!(
+                    "snapshot entry {name} could not be inspected; left in place"
+                ));
                 continue;
             };
             if metadata.file_type().is_symlink() || !metadata.is_dir() {
-                diagnostics.push(format!("snapshot entry {name} is not a plain directory; left in place"));
+                diagnostics.push(format!(
+                    "snapshot entry {name} is not a plain directory; left in place"
+                ));
                 continue;
             }
             match remove_tree(&entry.path()) {
                 Ok(()) => diagnostics.push(format!("snapshot {name} pruned")),
-                Err(error) => diagnostics.push(format!("snapshot {name} could not be pruned: {error}")),
+                Err(error) => {
+                    diagnostics.push(format!("snapshot {name} could not be pruned: {error}"))
+                }
             }
         }
         diagnostics

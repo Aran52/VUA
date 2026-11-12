@@ -7,8 +7,8 @@
 //! empty, duration is null).
 
 use crate::material_intake::MaterialIntakePlanV01;
-use vua_orchestrator::{ExecutableRiskKind, SourceFolderInspectionV01};
 use serde::Serialize;
+use vua_orchestrator::{ExecutableRiskKind, SourceFolderInspectionV01};
 
 /// The closed finding vocabulary (production-use-case): `compat` /
 /// `missing` / `conflict`.
@@ -198,7 +198,8 @@ mod tests {
 
     #[test]
     fn inspection_document_maps_risks_to_compat_findings_and_plannability() {
-        let document = build_inspection_document("insp-1", "2026-09-06T09:00:00.000Z", &inspection(true, 1));
+        let document =
+            build_inspection_document("insp-1", "2026-09-06T09:00:00.000Z", &inspection(true, 1));
         assert_eq!(document.findings.len(), 1);
         assert_eq!(document.findings[0].kind, InspectionFindingKind::Compat);
         assert!(document.findings[0].recoverable);

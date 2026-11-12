@@ -36,7 +36,10 @@ impl fmt::Display for LibraryPageError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NotALibraryPage => {
-                write!(f, "no item-card entries, pager, or market-items container found")
+                write!(
+                    f,
+                    "no item-card entries, pager, or market-items container found"
+                )
             }
         }
     }
@@ -104,9 +107,7 @@ pub fn extract_library_page(html: &str) -> Result<LibraryPage, LibraryPageError>
     // 判别按结构存在性,不按提取结果:浏览卡内部也含 /items/ 锚点,结果判别
     // 会让行语法抢先命中浏览页并丢失 data 属性事实
     let has_browse_cards = document
-        .select(
-            &Selector::parse("li.item-card[data-product-id]").expect("static selector"),
-        )
+        .select(&Selector::parse("li.item-card[data-product-id]").expect("static selector"))
         .next()
         .is_some();
     let items = if has_browse_cards {
@@ -123,16 +124,17 @@ pub fn extract_library_page(html: &str) -> Result<LibraryPage, LibraryPageError>
         .filter(|href| !href.is_empty());
 
     if items.is_empty() && next_page_url.is_none() {
-        let shell = Selector::parse(
-            ".market-items, .pager, #js-library-search-header, a.nav-item",
-        )
-        .expect("static selector");
+        let shell = Selector::parse(".market-items, .pager, #js-library-search-header, a.nav-item")
+            .expect("static selector");
         if document.select(&shell).next().is_none() {
             return Err(LibraryPageError::NotALibraryPage);
         }
     }
 
-    Ok(LibraryPage { items, next_page_url })
+    Ok(LibraryPage {
+        items,
+        next_page_url,
+    })
 }
 
 /// Grammar A: account-library rows. One entry per unique product id; the
@@ -231,17 +233,25 @@ fn extract_library_rows(document: &Html) -> Vec<LibraryPageItem> {
         let row = element
             .ancestors()
             .find(|node| {
-                node.value()
-                    .as_element()
-                    .is_some_and(|el| el.has_class("border-b", scraper::CaseSensitivity::CaseSensitive))
+                node.value().as_element().is_some_and(|el| {
+                    el.has_class("border-b", scraper::CaseSensitivity::CaseSensitive)
+                })
             })
             .and_then(scraper::ElementRef::wrap);
         let (shop_name, shop_url) = row
             .map(|row| {
                 let shop = row.select(&shop_anchor).next();
                 (
-                    shop.and_then(|s| s.text().next().map(str::trim).filter(|t| !t.is_empty()).map(str::to_owned)),
-                    shop.and_then(|s| s.value().attr("href")).filter(|h| !h.is_empty()).map(str::to_owned),
+                    shop.and_then(|s| {
+                        s.text()
+                            .next()
+                            .map(str::trim)
+                            .filter(|t| !t.is_empty())
+                            .map(str::to_owned)
+                    }),
+                    shop.and_then(|s| s.value().attr("href"))
+                        .filter(|h| !h.is_empty())
+                        .map(str::to_owned),
                 )
             })
             .unwrap_or((None, None));
@@ -465,7 +475,10 @@ pub fn library_item_to_observation(
 }
 
 fn non_empty(value: Option<&str>) -> Option<String> {
-    value.map(str::trim).filter(|text| !text.is_empty()).map(str::to_owned)
+    value
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(str::to_owned)
 }
 
 /// Observed item URLs may be relative (`/en/items/…`); scheme-relative or
@@ -475,9 +488,7 @@ fn non_empty(value: Option<&str>) -> Option<String> {
 /// about page content.
 fn normalize_item_url(observed: Option<&str>, native_product_id: &str) -> String {
     match observed {
-        Some(url) if url.starts_with("https://") || url.starts_with("http://") => {
-            url.to_owned()
-        }
+        Some(url) if url.starts_with("https://") || url.starts_with("http://") => url.to_owned(),
         Some(path) => {
             let path = path.trim_start_matches('/');
             format!("https://booth.pm/{path}")
@@ -559,7 +570,10 @@ mod tests {
         // Missing name and price are findings, not errors.
         assert_eq!(page.items[1].name, None);
         assert_eq!(page.items[1].price_amount.as_deref(), Some("3300"));
-        assert_eq!(page.items[1].thumbnail_url.as_deref(), Some("https://booth.pximg.net/second.jpg"));
+        assert_eq!(
+            page.items[1].thumbnail_url.as_deref(),
+            Some("https://booth.pximg.net/second.jpg")
+        );
         assert_eq!(page.items[2].price_amount, None);
         assert_eq!(page.items[2].thumbnail_url, None);
     }
@@ -592,14 +606,15 @@ mod tests {
 
     #[test]
     fn duplicate_card_ids_collapse_within_a_page() {
-        let html = FIXTURE.replace(
-            r#"<li class="item-card l-card " data-product-brand="bayachao""#,
-            r#"<li class="item-card l-card " data-product-brand="sanadajp""#,
-        )
-        .replace(
-            r#"data-product-id="100200300" data-product-name="Third item">"#,
-            r#"data-product-id="1693144" data-product-name="Third item">"#,
-        );
+        let html = FIXTURE
+            .replace(
+                r#"<li class="item-card l-card " data-product-brand="bayachao""#,
+                r#"<li class="item-card l-card " data-product-brand="sanadajp""#,
+            )
+            .replace(
+                r#"data-product-id="100200300" data-product-name="Third item">"#,
+                r#"data-product-id="1693144" data-product-name="Third item">"#,
+            );
         let page = extract_library_page(&html).expect("fixture parses");
         assert_eq!(page.items.len(), 2);
     }
@@ -617,15 +632,23 @@ mod tests {
     fn observation_mapping_respects_the_write_face_closed_sets() {
         let page = extract_library_page(FIXTURE).expect("fixture parses");
         let hash = page_content_hash(FIXTURE);
-        let observation =
-            library_item_to_observation(&page.items[0], &hash, "2026-10-02T00:00:00.000Z", Some("sync-1"), Some("bought"));
+        let observation = library_item_to_observation(
+            &page.items[0],
+            &hash,
+            "2026-10-02T00:00:00.000Z",
+            Some("sync-1"),
+            Some("bought"),
+        );
 
         // Identity pair agrees; evidence fields are caller-attached.
         assert_eq!(observation.product_id, "booth:1693144");
         assert_eq!(observation.native_product_id, "1693144");
         assert_eq!(observation.content_hash, hash);
         assert_eq!(observation.observed_at, "2026-10-02T00:00:00.000Z");
-        assert_eq!(observation.processor_version, LIBRARY_PAGE_PROCESSOR_VERSION);
+        assert_eq!(
+            observation.processor_version,
+            LIBRARY_PAGE_PROCESSOR_VERSION
+        );
         assert_eq!(observation.run_id.as_deref(), Some("sync-1"));
 
         // Price pair omitted together; unobserved evidence is a gap, never
@@ -649,10 +672,7 @@ mod tests {
             vec!["https://booth.pximg.net/original.jpg".to_owned()]
         );
         assert_eq!(observation.source_locale.as_deref(), Some("en"));
-        assert_eq!(
-            observation.status,
-            ProductObservationStatus::Complete
-        );
+        assert_eq!(observation.status, ProductObservationStatus::Complete);
     }
 
     #[test]
@@ -665,12 +685,12 @@ mod tests {
             None,
             None,
         );
-        assert_eq!(
-            observation.source_url,
-            "https://booth.pm/en/items/8711621"
-        );
+        assert_eq!(observation.source_url, "https://booth.pm/en/items/8711621");
         assert_eq!(observation.title, None);
-        assert!(observation.missing_fields.iter().any(|field| field == "title"));
+        assert!(observation
+            .missing_fields
+            .iter()
+            .any(|field| field == "title"));
         assert_eq!(observation.run_id, None);
     }
 }
@@ -745,7 +765,10 @@ mod library_rows_tests {
         assert_eq!(first.native_product_id, "7463144");
         assert_eq!(first.name.as_deref(), Some("Sample outfit A"));
         assert_eq!(first.variant_name.as_deref(), Some("shop-one"));
-        assert_eq!(first.thumbnail_url.as_deref(), Some("https://booth.pximg.net/first.jpg"));
+        assert_eq!(
+            first.thumbnail_url.as_deref(),
+            Some("https://booth.pximg.net/first.jpg")
+        );
         // 库行无品牌/价格事实:留空而不是猜
         assert_eq!(first.brand, None);
         assert_eq!(first.price_amount, None);
@@ -756,12 +779,18 @@ mod library_rows_tests {
             first.downloadables,
             vec![
                 ("880001".to_owned(), "outfit_a_ver1.0.0.zip".to_owned()),
-                ("880002".to_owned(), "outfit_a_unitypackage.unitypackage".to_owned()),
+                (
+                    "880002".to_owned(),
+                    "outfit_a_unitypackage.unitypackage".to_owned()
+                ),
             ]
         );
         let second = &page.items[1];
         assert_eq!(second.native_product_id, "5511003");
-        assert_eq!(second.thumbnail_url.as_deref(), Some("https://booth.pximg.net/second.jpg"));
+        assert_eq!(
+            second.thumbnail_url.as_deref(),
+            Some("https://booth.pximg.net/second.jpg")
+        );
         // 行头为界:第二行头的文件区不串到第一行(880003 只属于 5511003)
         assert_eq!(
             second.downloadables,
@@ -771,7 +800,10 @@ mod library_rows_tests {
 
     #[test]
     fn library_rows_last_page_has_no_next() {
-        let html = ROWS.replace(r#"<li><a rel="next" class="nav-item" href="/library?page=2">2</a></li>"#, "");
+        let html = ROWS.replace(
+            r#"<li><a rel="next" class="nav-item" href="/library?page=2">2</a></li>"#,
+            "",
+        );
         let page = extract_library_page(&html).expect("rows parse");
         assert_eq!(page.next_page_url, None);
         assert_eq!(page.items.len(), 2);
@@ -779,12 +811,15 @@ mod library_rows_tests {
 
     #[test]
     fn duplicate_item_anchors_collapse_to_one_row() {
-        let html = ROWS.replace("</div>
+        let html = ROWS.replace(
+            "</div>
 </div>
-<nav>", "</div>
+<nav>",
+            "</div>
 </div>
 <a href=\"/zh-cn/items/5511003\">dup</a>
-<nav>");
+<nav>",
+        );
         let page = extract_library_page(&html).expect("rows parse");
         assert_eq!(page.items.len(), 2);
         // 标题来自首个非空锚点,重复锚点不覆盖
@@ -802,9 +837,18 @@ mod library_rows_tests {
 
     #[test]
     fn product_id_from_href_shapes() {
-        assert_eq!(product_id_from_href("https://booth.pm/zh-cn/items/7463144").as_deref(), Some("7463144"));
-        assert_eq!(product_id_from_href("/ja/items/42?x=1").as_deref(), Some("42"));
-        assert_eq!(product_id_from_href("/items/123/foo").as_deref(), Some("123"));
+        assert_eq!(
+            product_id_from_href("https://booth.pm/zh-cn/items/7463144").as_deref(),
+            Some("7463144")
+        );
+        assert_eq!(
+            product_id_from_href("/ja/items/42?x=1").as_deref(),
+            Some("42")
+        );
+        assert_eq!(
+            product_id_from_href("/items/123/foo").as_deref(),
+            Some("123")
+        );
         assert_eq!(product_id_from_href("/items/abc"), None);
         assert_eq!(product_id_from_href("https://booth.pm/library"), None);
     }
@@ -815,9 +859,18 @@ mod library_rows_tests {
             downloadable_id_from_href("https://booth.pm/downloadables/880001").as_deref(),
             Some("880001")
         );
-        assert_eq!(downloadable_id_from_href("/downloadables/42?x=1").as_deref(), Some("42"));
-        assert_eq!(downloadable_id_from_href("https://booth.pm/downloadables/abc").as_deref(), None);
-        assert_eq!(downloadable_id_from_href("https://booth.pm/items/123").as_deref(), None);
+        assert_eq!(
+            downloadable_id_from_href("/downloadables/42?x=1").as_deref(),
+            Some("42")
+        );
+        assert_eq!(
+            downloadable_id_from_href("https://booth.pm/downloadables/abc").as_deref(),
+            None
+        );
+        assert_eq!(
+            downloadable_id_from_href("https://booth.pm/items/123").as_deref(),
+            None
+        );
     }
 }
 
@@ -826,13 +879,10 @@ mod library_rows_tests {
 pub fn is_product_page(html: &str) -> bool {
     let document = Html::parse_document(html);
     document
-        .select(
-            &Selector::parse("#items[data-product-id]").expect("static selector"),
-        )
+        .select(&Selector::parse("#items[data-product-id]").expect("static selector"))
         .next()
         .is_some()
 }
-
 
 /// Trailing "(xxx)" variant marker split: "Title (めいゆん)" → ("Title",
 /// "めいゆん"). Only strips the LAST parenthetical group at the very end
@@ -867,7 +917,10 @@ fn split_trailing_variant(title: &str) -> (Option<String>, Option<String>) {
     if inner.trim().is_empty() || head.trim().is_empty() {
         return (Some(title.to_owned()), None);
     }
-    (Some(head.trim_end().to_owned()), Some(inner.trim().to_owned()))
+    (
+        Some(head.trim_end().to_owned()),
+        Some(inner.trim().to_owned()),
+    )
 }
 
 #[cfg(test)]
@@ -876,8 +929,9 @@ mod variant_split_tests {
 
     #[test]
     fn splits_trailing_variant_marker() {
-        let (title, variant) =
-            split_trailing_variant("【40複数アバター対応】ComfyHabit-コンフィハビット-【 #VRChat】 (めいゆん)");
+        let (title, variant) = split_trailing_variant(
+            "【40複数アバター対応】ComfyHabit-コンフィハビット-【 #VRChat】 (めいゆん)",
+        );
         assert_eq!(variant.as_deref(), Some("めいゆん"));
         let t = title.unwrap();
         assert!(t.starts_with("【40"));

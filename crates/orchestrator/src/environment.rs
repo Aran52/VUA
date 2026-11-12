@@ -119,7 +119,9 @@ pub fn installed_unity_editors(unity_editors_root: &Path) -> EditorInstallObserv
             return EditorInstallObservation::NotDetected;
         }
         Err(error) => {
-            return EditorInstallObservation::DetectionFailed { reason: error.to_string() };
+            return EditorInstallObservation::DetectionFailed {
+                reason: error.to_string(),
+            };
         }
     };
     let mut editors: Vec<InstalledUnityEditor> = Vec::new();
@@ -199,7 +201,11 @@ fn display_icon_executable(raw: &str) -> Option<PathBuf> {
         None => trimmed,
     };
     let without_index = match unquoted.rfind(',') {
-        Some(index) if unquoted[index + 1..].bytes().all(|byte| byte.is_ascii_digit()) => {
+        Some(index)
+            if unquoted[index + 1..]
+                .bytes()
+                .all(|byte| byte.is_ascii_digit()) =>
+        {
             &unquoted[..index]
         }
         _ => unquoted,
@@ -279,7 +285,8 @@ pub struct EnvironmentSnapshotV1 {
 /// depends on this core (proposal 004 split).
 pub mod codes {
     pub const VCC_SETTINGS_READ_FAILED: &str = "vua.env_managers.vcc_settings_read_failed";
-    pub const VCC_SETTINGS_SCHEMA_UNEXPECTED: &str = "vua.env_managers.vcc_settings_schema_unexpected";
+    pub const VCC_SETTINGS_SCHEMA_UNEXPECTED: &str =
+        "vua.env_managers.vcc_settings_schema_unexpected";
     pub const MANAGER_SETTINGS_READ_FAILED: &str = "vua.env_managers.manager_settings_read_failed";
     pub const ALCOM_PROJECTS_NOT_RECOGNIZED: &str =
         "vua.env_managers.alcom_projects_not_recognized";
@@ -396,7 +403,9 @@ impl Default for VrRuntimeRoots {
             ],
             pico: vec![
                 PathBuf::from(&program_files).join("PICO Connect"),
-                PathBuf::from(&local_app_data).join("Programs").join("PICO Connect"),
+                PathBuf::from(&local_app_data)
+                    .join("Programs")
+                    .join("PICO Connect"),
             ],
             vive: vec![PathBuf::from(&program_files).join("VIVE")],
             virtual_desktop: vec![
@@ -405,7 +414,10 @@ impl Default for VrRuntimeRoots {
             ],
             alvr: vec![PathBuf::from(&local_app_data).join("alvr")],
             pimax: vec![PathBuf::from(&program_files).join("Pimax")],
-            varjo: vec![PathBuf::from(&program_files).join("Varjo"), PathBuf::from("C:\\Varjo")],
+            varjo: vec![
+                PathBuf::from(&program_files).join("Varjo"),
+                PathBuf::from("C:\\Varjo"),
+            ],
             hp_omnicept: vec![
                 PathBuf::from(&program_files)
                     .join("HP")
@@ -482,7 +494,10 @@ impl Default for EnvironmentRoots {
                 PathBuf::from("C:\\Program Files\\Unity Hub\\Unity Hub.exe"),
             ],
             unity_hub_registry_display_icon_keys: vec![
-                (RegistryHive::CurrentUser, UNITY_HUB_UNINSTALL_SUBKEY.to_owned()),
+                (
+                    RegistryHive::CurrentUser,
+                    UNITY_HUB_UNINSTALL_SUBKEY.to_owned(),
+                ),
                 (
                     RegistryHive::LocalMachine,
                     UNITY_HUB_UNINSTALL_SUBKEY.to_owned(),
@@ -497,9 +512,7 @@ impl Default for EnvironmentRoots {
             disk_target: PathBuf::from(&user_profile),
             network_probes: vec!["vrchat.com:443".to_owned()],
             registry: Arc::new(crate::win_registry::WindowsRegistrySource),
-            steam_install_candidates: vec![PathBuf::from(
-                "C:\\Program Files (x86)\\Steam",
-            )],
+            steam_install_candidates: vec![PathBuf::from("C:\\Program Files (x86)\\Steam")],
             vr_runtime_roots: VrRuntimeRoots::default(),
             openvrpaths: vec![PathBuf::from(&local_app_data)
                 .join("openvr")
@@ -592,9 +605,13 @@ impl EnvironmentEngine {
     /// libraries without running unrelated package tools, network probes or hardware checks.
     /// The deployment adapter strengthens these presence hints before claiming readiness.
     pub fn inspect_deployment_components(&self) -> Vec<EnvironmentCheckItemV1> {
-        vec![self.check_steam(), self.check_vrchat(), self.check_steamvr(),
+        vec![
+            self.check_steam(),
+            self.check_vrchat(),
+            self.check_steamvr(),
             self.check_brand_runtime("pico_runtime", &self.roots.vr_runtime_roots.pico),
-            self.check_unity_hub()]
+            self.check_unity_hub(),
+        ]
     }
 
     /// The Unity Hub finding alone, for starting Hub before Unity work.
@@ -612,7 +629,11 @@ impl EnvironmentEngine {
         let mut install: Option<PathBuf> = self
             .roots
             .registry
-            .get_string(RegistryHive::LocalMachine, STEAM_REGISTRY_SUBKEY, "InstallPath")
+            .get_string(
+                RegistryHive::LocalMachine,
+                STEAM_REGISTRY_SUBKEY,
+                "InstallPath",
+            )
             .map(PathBuf::from)
             .filter(|path| path.is_dir());
         if install.is_none() {
@@ -625,7 +646,8 @@ impl EnvironmentEngine {
         }
         let install = install?;
         let mut library_roots = vec![install.join("steamapps").join("common")];
-        for library in parse_vdf_library_roots(&install.join("steamapps").join("libraryfolders.vdf"))
+        for library in
+            parse_vdf_library_roots(&install.join("steamapps").join("libraryfolders.vdf"))
         {
             let common = library.join("steamapps").join("common");
             if !library_roots.contains(&common) {
@@ -733,11 +755,17 @@ impl EnvironmentEngine {
         let active = self
             .roots
             .registry
-            .get_string(RegistryHive::LocalMachine, OPENXR_REGISTRY_SUBKEY, "ActiveRuntime")
+            .get_string(
+                RegistryHive::LocalMachine,
+                OPENXR_REGISTRY_SUBKEY,
+                "ActiveRuntime",
+            )
             .or_else(|| {
-                self.roots
-                    .registry
-                    .get_string(RegistryHive::CurrentUser, OPENXR_REGISTRY_SUBKEY, "ActiveRuntime")
+                self.roots.registry.get_string(
+                    RegistryHive::CurrentUser,
+                    OPENXR_REGISTRY_SUBKEY,
+                    "ActiveRuntime",
+                )
             });
         let Some(runtime_json) = active else {
             return item(
@@ -865,8 +893,8 @@ impl EnvironmentEngine {
             }
             let text =
                 std::fs::read_to_string(path).map_err(|_| error_codes::READ_FAILED.to_owned())?;
-            let value: Value = serde_json::from_str(&text)
-                .map_err(|_| error_codes::READ_FAILED.to_owned())?;
+            let value: Value =
+                serde_json::from_str(&text).map_err(|_| error_codes::READ_FAILED.to_owned())?;
             let hit = value
                 .get("external_drivers")
                 .and_then(Value::as_array)
@@ -909,18 +937,21 @@ impl EnvironmentEngine {
     /// Windows identity: product name, display version, build. Facts only;
     /// minimum-spec conclusions belong to consumers.
     fn check_windows(&self) -> EnvironmentCheckItemV1 {
-        let product = self
-            .roots
-            .registry
-            .get_string(RegistryHive::LocalMachine, WINDOWS_CURRENT_VERSION_SUBKEY, "ProductName");
-        let display_version = self
-            .roots
-            .registry
-            .get_string(RegistryHive::LocalMachine, WINDOWS_CURRENT_VERSION_SUBKEY, "DisplayVersion");
-        let build = self
-            .roots
-            .registry
-            .get_string(RegistryHive::LocalMachine, WINDOWS_CURRENT_VERSION_SUBKEY, "CurrentBuildNumber");
+        let product = self.roots.registry.get_string(
+            RegistryHive::LocalMachine,
+            WINDOWS_CURRENT_VERSION_SUBKEY,
+            "ProductName",
+        );
+        let display_version = self.roots.registry.get_string(
+            RegistryHive::LocalMachine,
+            WINDOWS_CURRENT_VERSION_SUBKEY,
+            "DisplayVersion",
+        );
+        let build = self.roots.registry.get_string(
+            RegistryHive::LocalMachine,
+            WINDOWS_CURRENT_VERSION_SUBKEY,
+            "CurrentBuildNumber",
+        );
         if product.is_none() && display_version.is_none() && build.is_none() {
             return item(
                 "windows",
@@ -948,14 +979,17 @@ impl EnvironmentEngine {
     /// (IddCx, remote-desktop mirrors) while the physical GPU sits later.
     /// Facts only — performance conclusions belong to analysis.
     fn check_gpu(&self) -> EnvironmentCheckItemV1 {
-        let gpu_slots: [&str; 10] =
-            ["0000", "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009"];
+        let gpu_slots: [&str; 10] = [
+            "0000", "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009",
+        ];
         let gpus: Vec<String> = gpu_slots
             .iter()
             .filter_map(|slot| {
-                self.roots
-                    .registry
-                    .get_string(RegistryHive::LocalMachine, &format!("{GPU_CLASS_SUBKEY}\\{slot}"), "DriverDesc")
+                self.roots.registry.get_string(
+                    RegistryHive::LocalMachine,
+                    &format!("{GPU_CLASS_SUBKEY}\\{slot}"),
+                    "DriverDesc",
+                )
             })
             .collect();
         let presence = if gpus.is_empty() {
@@ -1010,19 +1044,19 @@ impl EnvironmentEngine {
         }
         // 3. Packaged (MSIX) Hub, as installed by winget since Hub 3.22: the per-user package
         //    repository names its install root under Program Files\WindowsApps.
-        let mut packages = self
-            .roots
-            .registry
-            .subkeys(RegistryHive::CurrentUser, UNITY_HUB_PACKAGE_REPOSITORY_SUBKEY);
+        let mut packages = self.roots.registry.subkeys(
+            RegistryHive::CurrentUser,
+            UNITY_HUB_PACKAGE_REPOSITORY_SUBKEY,
+        );
         packages.retain(|name| name.starts_with(UNITY_HUB_PACKAGE_PREFIX));
         packages.sort();
         for package in packages.iter().rev() {
             let subkey = format!("{UNITY_HUB_PACKAGE_REPOSITORY_SUBKEY}\\{package}");
-            let Some(root) =
-                self.roots
-                    .registry
-                    .get_string(RegistryHive::CurrentUser, &subkey, "PackageRootFolder")
-            else {
+            let Some(root) = self.roots.registry.get_string(
+                RegistryHive::CurrentUser,
+                &subkey,
+                "PackageRootFolder",
+            ) else {
                 continue;
             };
             let exe = PathBuf::from(root).join("app").join("Unity Hub.exe");
@@ -1172,9 +1206,7 @@ impl EnvironmentEngine {
         let presence = match capability.presence {
             ManagerPresence::Found => EnvironmentPresence::Detected,
             ManagerPresence::NotFound => EnvironmentPresence::NotDetected,
-            ManagerPresence::ReadFailed => {
-                EnvironmentPresence::DetectionFailed
-            }
+            ManagerPresence::ReadFailed => EnvironmentPresence::DetectionFailed,
         };
         let error_code = capability.error_code.map(str::to_owned);
         let diagnostic_details: Vec<Value> = diagnostics

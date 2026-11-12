@@ -15,8 +15,7 @@ use tar::{Builder, Header};
 use vua_orchestrator::{
     BridgeError, BuildRecordStore, ChangePreviewV1, FileSystemSnapshotStore, FixedClock,
     MaterialEntryMode, PackageRequestV1, ProjectRef, ResultStatus, RiskDecisionChoice,
-    SourceFolderInspectionV01, UnityBridge, UnityCommand, UnityResult, VpmBackend,
-    VpmCapabilities,
+    SourceFolderInspectionV01, UnityBridge, UnityCommand, UnityResult, VpmBackend, VpmCapabilities,
 };
 use vua_unity_bridge::{
     LocalPackageIdentityStore, MaterialCancelToken, MaterialExecutionStatus, MaterialExecutor,
@@ -66,7 +65,9 @@ fn make_world(label: &str) -> (PathBuf, ProjectRef) {
     // Already-provisioned target: the standing fixtures plan and execute the
     // UNCHANGED v0.1 step set (zero-change law for provisioned projects).
     fs::write(
-        project_root.join("ProjectSettings").join("ProjectVersion.txt"),
+        project_root
+            .join("ProjectSettings")
+            .join("ProjectVersion.txt"),
         "2022.3.22f1",
     )
     .unwrap();
@@ -212,8 +213,16 @@ impl UnityBridge for FakeBridge {
             // A loadable asset plus its .meta sidecar: the validation list
             // must carry the asset but never the sidecar (review P1: meta
             // files are not loadable assets).
-            fs::write(package_dir.join("Runtime").join("Asset.prefab"), "synthetic").unwrap();
-            fs::write(package_dir.join("Runtime").join("Asset.prefab.meta"), "meta").unwrap();
+            fs::write(
+                package_dir.join("Runtime").join("Asset.prefab"),
+                "synthetic",
+            )
+            .unwrap();
+            fs::write(
+                package_dir.join("Runtime").join("Asset.prefab.meta"),
+                "meta",
+            )
+            .unwrap();
         }
         // The real Bridge materializes the extracted layout into Assets/;
         // the fake mirrors that side effect so restores are observable.
@@ -339,11 +348,17 @@ impl VpmBackend for FakeVpm {
         confirmed_digest: &str,
     ) -> Result<serde_json::Value, vua_orchestrator::AppErrorV1> {
         self.installs.fetch_add(1, Ordering::SeqCst);
-        assert_eq!(confirmed_digest, "digest-1", "apply binds the confirmed digest");
+        assert_eq!(
+            confirmed_digest, "digest-1",
+            "apply binds the confirmed digest"
+        );
         Ok(serde_json::json!({ "installed": true }))
     }
 
-    fn register_local_package(&self, _package_root: &Path) -> Result<(), vua_orchestrator::AppErrorV1> {
+    fn register_local_package(
+        &self,
+        _package_root: &Path,
+    ) -> Result<(), vua_orchestrator::AppErrorV1> {
         self.registrations.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
@@ -387,7 +402,11 @@ fn b3_exec_001_direct_mode_happy_path_and_idempotent_replay() {
     let vpm = FakeVpm::new();
     let executor = executor(&base, bridge.clone(), vpm.clone());
 
-    let confirmation = confirmation(&plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root));
+    let confirmation = confirmation(&plan(
+        MaterialEntryMode::DirectUnityPackage,
+        &source,
+        &project.root,
+    ));
     let report = executor.execute(
         &confirmation,
         &source,
@@ -414,7 +433,10 @@ fn b3_exec_001_direct_mode_happy_path_and_idempotent_replay() {
     // plan's project fingerprint and the package digests.
     assert_eq!(bridge.command_count(), 2);
     let commands = bridge.state.lock().unwrap().commands.clone();
-    assert_eq!(commands[0].operation, vua_orchestrator::UnityOperation::MaterializeExtractedPackage);
+    assert_eq!(
+        commands[0].operation,
+        vua_orchestrator::UnityOperation::MaterializeExtractedPackage
+    );
     assert_eq!(
         commands[0].expected_project_fingerprint.as_deref(),
         Some("project-fingerprint")
@@ -423,7 +445,10 @@ fn b3_exec_001_direct_mode_happy_path_and_idempotent_replay() {
         commands[0].payload.source_package_sha256.as_deref(),
         Some(inspection(&source).packages[0].sha256.as_str())
     );
-    assert_eq!(commands[1].operation, vua_orchestrator::UnityOperation::ValidateAssetPaths);
+    assert_eq!(
+        commands[1].operation,
+        vua_orchestrator::UnityOperation::ValidateAssetPaths
+    );
     assert!(commands[1].dry_run);
 
     // The receipt replays idempotently: no further Unity traffic.
@@ -486,8 +511,11 @@ fn b3_batch148_retry_attempt_salts_mutating_command_ids_against_ghost_replay() {
     let (base, project) = make_world("retry-salt");
     let source = base.join("source");
     unitypackage(&source.join("one.unitypackage"), &["Assets/One.prefab"]);
-    let confirmation =
-        confirmation(&plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root));
+    let confirmation = confirmation(&plan(
+        MaterialEntryMode::DirectUnityPackage,
+        &source,
+        &project.root,
+    ));
     // Attempt 1: import #0 succeeds (fp-1), import #1 times out → rollback.
     let bridge = FakeBridge::new(vec![
         Ok(scripted_result(Some("fp-1"))),
@@ -521,11 +549,7 @@ fn b3_batch148_retry_attempt_salts_mutating_command_ids_against_ghost_replay() {
 
     // Retry the SAME confirmation (same plan → same plan_id): attempt 2.
     let bridge_retry = FakeBridge::new(vec![]);
-    let executor_retry = executor(
-        &base,
-        bridge_retry.clone(),
-        FakeVpm::new(),
-    );
+    let executor_retry = executor(&base, bridge_retry.clone(), FakeVpm::new());
     let second = executor_retry.execute(
         &confirmation,
         &source,
@@ -548,9 +572,7 @@ fn b3_batch148_retry_attempt_salts_mutating_command_ids_against_ghost_replay() {
         .collect();
     assert_eq!(retry_import_ids.len(), 2);
     assert!(
-        retry_import_ids
-            .iter()
-            .all(|id| !first_ids.contains(id)),
+        retry_import_ids.iter().all(|id| !first_ids.contains(id)),
         "retried mutating ids must never collide with the prior attempt (ghost replay)"
     );
     for (index, id) in retry_import_ids.iter().enumerate() {
@@ -589,8 +611,11 @@ fn b3_batch148_mutating_success_without_fingerprint_fails_honestly() {
     let source = base.join("source");
     let bridge = FakeBridge::new(vec![Ok(scripted_result(None))]);
     let executor = executor(&base, bridge, FakeVpm::new());
-    let confirmation =
-        confirmation(&plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root));
+    let confirmation = confirmation(&plan(
+        MaterialEntryMode::DirectUnityPackage,
+        &source,
+        &project.root,
+    ));
 
     let report = executor.execute(
         &confirmation,
@@ -613,12 +638,14 @@ fn b3_batch148_mutating_success_without_fingerprint_fails_honestly() {
     assert_eq!(report.rollback, RollbackOutcome::Restored);
     // The receipt is still published — and records NO final fingerprint.
     let record = vua_orchestrator::BuildRecordStore::new(base.join("records"))
-        .read(report.build_record_id.as_deref().expect("receipt published"))
+        .read(
+            report
+                .build_record_id
+                .as_deref()
+                .expect("receipt published"),
+        )
         .expect("receipt readable");
-    assert_eq!(
-        record.status,
-        vua_orchestrator::BuildRecordStatus::Failed
-    );
+    assert_eq!(record.status, vua_orchestrator::BuildRecordStatus::Failed);
     assert_eq!(record.final_project_fingerprint, None);
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
@@ -668,8 +695,11 @@ fn b3_batch158_validate_success_without_loaded_asset_paths_evidence_fails_honest
             }),
         ]);
         let executor = executor(&base, bridge, FakeVpm::new());
-        let confirmation =
-            confirmation(&plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root));
+        let confirmation = confirmation(&plan(
+            MaterialEntryMode::DirectUnityPackage,
+            &source,
+            &project.root,
+        ));
 
         let report = executor.execute(
             &confirmation,
@@ -691,7 +721,12 @@ fn b3_batch158_validate_success_without_loaded_asset_paths_evidence_fails_honest
         );
         assert_eq!(report.rollback, RollbackOutcome::Restored, "{label}");
         let record = vua_orchestrator::BuildRecordStore::new(base.join("records"))
-            .read(report.build_record_id.as_deref().expect("receipt published"))
+            .read(
+                report
+                    .build_record_id
+                    .as_deref()
+                    .expect("receipt published"),
+            )
             .expect("receipt readable");
         assert_eq!(
             record.status,
@@ -730,15 +765,22 @@ fn b3_batch158_import_extractions_leave_no_residue_on_failure() {
         .join("material-staleplan-import-99");
     fs::create_dir_all(&stale).unwrap();
     fs::write(stale.join("stale.bin"), "stale").unwrap();
-    let sentinel = project.root.join(".vua").join("snapshots").join("keep-me.txt");
+    let sentinel = project
+        .root
+        .join(".vua")
+        .join("snapshots")
+        .join("keep-me.txt");
     fs::create_dir_all(sentinel.parent().unwrap()).unwrap();
     fs::write(&sentinel, "sentinel").unwrap();
 
     // The import leg times out AFTER this run's extraction has landed.
     let bridge = FakeBridge::new(vec![Err(BridgeError::TimedOut)]);
     let executor = executor(&base, bridge, FakeVpm::new());
-    let confirmation =
-        confirmation(&plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root));
+    let confirmation = confirmation(&plan(
+        MaterialEntryMode::DirectUnityPackage,
+        &source,
+        &project.root,
+    ));
 
     let report = executor.execute(
         &confirmation,
@@ -761,7 +803,12 @@ fn b3_batch158_import_extractions_leave_no_residue_on_failure() {
     );
     assert_eq!(fs::read_to_string(&sentinel).unwrap(), "sentinel");
     let record = vua_orchestrator::BuildRecordStore::new(base.join("records"))
-        .read(report.build_record_id.as_deref().expect("receipt published"))
+        .read(
+            report
+                .build_record_id
+                .as_deref()
+                .expect("receipt published"),
+        )
         .expect("receipt readable");
     assert_eq!(record.status, vua_orchestrator::BuildRecordStatus::Failed);
     if base.exists() {
@@ -787,7 +834,11 @@ fn b3_batch158_validation_evidence_carries_the_loaded_list_into_the_record() {
             ("ffffffffffffffffffffffffffffffff", "Assets/first.prefab"),
         ],
     );
-    let plan = plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root);
+    let plan = plan(
+        MaterialEntryMode::DirectUnityPackage,
+        &source,
+        &project.root,
+    );
     let bridge = FakeBridge::new(vec![]);
     let executor = executor(&base, bridge, FakeVpm::new());
 
@@ -803,12 +854,18 @@ fn b3_batch158_validation_evidence_carries_the_loaded_list_into_the_record() {
     let record = vua_orchestrator::BuildRecordStore::new(base.join("records"))
         .read(&format!("material-{}", plan.plan_id))
         .expect("receipt published");
-    let validation = record.validation.as_ref().expect("validation evidence present");
+    let validation = record
+        .validation
+        .as_ref()
+        .expect("validation evidence present");
     assert!(validation.unity_validated);
     // Ordinal-sorted, exactly as the C# handler reports it.
     assert_eq!(
         validation.expected_assets_loaded,
-        vec!["Assets/first.prefab".to_owned(), "Assets/second.prefab".to_owned()]
+        vec![
+            "Assets/first.prefab".to_owned(),
+            "Assets/second.prefab".to_owned()
+        ]
     );
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
@@ -822,7 +879,11 @@ fn b3_exec_002_source_drift_fails_before_the_first_mutation() {
     let bridge = FakeBridge::new(vec![]);
     let executor = executor(&base, bridge.clone(), FakeVpm::new());
 
-    let plan = plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root);
+    let plan = plan(
+        MaterialEntryMode::DirectUnityPackage,
+        &source,
+        &project.root,
+    );
     let confirmation = confirmation(&plan);
     // Drift: the source grows after Inspect/plan.
     unitypackage(&source.join("late.unitypackage"), &["Assets/Late.prefab"]);
@@ -837,12 +898,24 @@ fn b3_exec_002_source_drift_fails_before_the_first_mutation() {
 
     assert_eq!(report.status, MaterialExecutionStatus::Failed);
     assert!(
-        report.error_code.as_deref().unwrap_or("").contains("source_drift"),
+        report
+            .error_code
+            .as_deref()
+            .unwrap_or("")
+            .contains("source_drift"),
         "the drift code is the finding: {:?}",
         report.error_code
     );
-    assert_eq!(bridge.command_count(), 0, "no Unity command may run on drift");
-    assert_eq!(report.rollback, RollbackOutcome::NotNeeded, "nothing mutated yet");
+    assert_eq!(
+        bridge.command_count(),
+        0,
+        "no Unity command may run on drift"
+    );
+    assert_eq!(
+        report.rollback,
+        RollbackOutcome::NotNeeded,
+        "nothing mutated yet"
+    );
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
     }
@@ -855,7 +928,11 @@ fn b3_exec_003_cancellation_before_the_first_step_touches_nothing() {
     let bridge = FakeBridge::new(vec![]);
     let executor = executor(&base, bridge.clone(), FakeVpm::new());
 
-    let confirmation = confirmation(&plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root));
+    let confirmation = confirmation(&plan(
+        MaterialEntryMode::DirectUnityPackage,
+        &source,
+        &project.root,
+    ));
     let token = MaterialCancelToken::new();
     token.cancel();
     let report = executor.execute(
@@ -886,17 +963,20 @@ fn b3_exec_004_bridge_rejection_restores_the_verified_snapshot() {
         changed_paths: vec![],
         diagnostics: vec![],
         data: serde_json::json!({}),
-            steps: Vec::new(),
-            replayed: None,
-            snapshot_id: None,
-            restored_from: None,
-            project_fingerprint_before: None,
+        steps: Vec::new(),
+        replayed: None,
+        snapshot_id: None,
+        restored_from: None,
+        project_fingerprint_before: None,
     })]);
     let executor = executor(&base, bridge, FakeVpm::new());
 
-    let manifest_before =
-        fs::read_to_string(project.root.join("vpm-manifest.json")).unwrap();
-    let confirmation = confirmation(&plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root));
+    let manifest_before = fs::read_to_string(project.root.join("vpm-manifest.json")).unwrap();
+    let confirmation = confirmation(&plan(
+        MaterialEntryMode::DirectUnityPackage,
+        &source,
+        &project.root,
+    ));
     let report = executor.execute(
         &confirmation,
         &source,
@@ -906,7 +986,10 @@ fn b3_exec_004_bridge_rejection_restores_the_verified_snapshot() {
     );
 
     assert_eq!(report.status, MaterialExecutionStatus::Failed);
-    assert_eq!(report.error_code.as_deref(), Some("vua.material.bridge_rejected"));
+    assert_eq!(
+        report.error_code.as_deref(),
+        Some("vua.material.bridge_rejected")
+    );
     assert_eq!(report.rollback, RollbackOutcome::Restored);
 
     // The receipt is published for the failed run too — it is what makes a
@@ -936,7 +1019,11 @@ fn b3_exec_005_bridge_timeout_is_a_typed_failure_with_restore() {
     let bridge = FakeBridge::new(vec![Err(BridgeError::TimedOut)]);
     let executor = executor(&base, bridge, FakeVpm::new());
 
-    let confirmation = confirmation(&plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root));
+    let confirmation = confirmation(&plan(
+        MaterialEntryMode::DirectUnityPackage,
+        &source,
+        &project.root,
+    ));
     let report = executor.execute(
         &confirmation,
         &source,
@@ -946,7 +1033,10 @@ fn b3_exec_005_bridge_timeout_is_a_typed_failure_with_restore() {
     );
 
     assert_eq!(report.status, MaterialExecutionStatus::Failed);
-    assert_eq!(report.error_code.as_deref(), Some("vua.material.bridge_timeout"));
+    assert_eq!(
+        report.error_code.as_deref(),
+        Some("vua.material.bridge_timeout")
+    );
     assert_eq!(report.rollback, RollbackOutcome::Restored);
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
@@ -968,7 +1058,11 @@ fn b3_exec_006_vpm_mode_runs_the_staging_contract_and_cleans_up() {
     let bridge = FakeBridge::new(vec![]);
     let executor = executor(&base, bridge.clone(), vpm.clone());
 
-    let confirmation = confirmation(&plan(MaterialEntryMode::LocalReusableVpm, &source, &project.root));
+    let confirmation = confirmation(&plan(
+        MaterialEntryMode::LocalReusableVpm,
+        &source,
+        &project.root,
+    ));
     let report = executor.execute(
         &confirmation,
         &source,
@@ -992,13 +1086,25 @@ fn b3_exec_006_vpm_mode_runs_the_staging_contract_and_cleans_up() {
     // validation then runs against the TARGET project.
     let commands = bridge.state.lock().unwrap().commands.clone();
     assert_eq!(commands.len(), 4);
-    assert_eq!(commands[0].operation, vua_orchestrator::UnityOperation::InspectProject);
-    assert_eq!(commands[1].operation, vua_orchestrator::UnityOperation::MaterializeExtractedPackage);
-    assert_eq!(commands[2].operation, vua_orchestrator::UnityOperation::CreateLocalVpmPackage);
+    assert_eq!(
+        commands[0].operation,
+        vua_orchestrator::UnityOperation::InspectProject
+    );
+    assert_eq!(
+        commands[1].operation,
+        vua_orchestrator::UnityOperation::MaterializeExtractedPackage
+    );
+    assert_eq!(
+        commands[2].operation,
+        vua_orchestrator::UnityOperation::CreateLocalVpmPackage
+    );
     for command in &commands[..3] {
         assert!(command.project_id.ends_with("-staging"));
     }
-    assert_eq!(commands[3].operation, vua_orchestrator::UnityOperation::ValidateAssetPaths);
+    assert_eq!(
+        commands[3].operation,
+        vua_orchestrator::UnityOperation::ValidateAssetPaths
+    );
     assert_eq!(commands[3].project_id, "project");
     assert_eq!(
         commands[2].payload.staging_token.as_deref(),
@@ -1007,7 +1113,9 @@ fn b3_exec_006_vpm_mode_runs_the_staging_contract_and_cleans_up() {
     // Declared dependencies reach the Bridge payload verbatim, sorted.
     let validated = &commands[3].payload.expected_asset_paths;
     assert!(
-        validated.iter().any(|path| path.ends_with("Runtime/Asset.prefab")),
+        validated
+            .iter()
+            .any(|path| path.ends_with("Runtime/Asset.prefab")),
         "loadable assets are validated: {validated:?}"
     );
     assert!(
@@ -1029,16 +1137,22 @@ fn b3_exec_006_vpm_mode_runs_the_staging_contract_and_cleans_up() {
     );
     // The staging import chained the staging fingerprint from the inspect
     // (the fake bridge numbers its returned fingerprints fp-1, fp-2, …).
-    assert_eq!(commands[1].expected_project_fingerprint.as_deref(), Some("fp-1"));
-    assert_eq!(commands[2].expected_project_fingerprint.as_deref(), Some("fp-2"));
+    assert_eq!(
+        commands[1].expected_project_fingerprint.as_deref(),
+        Some("fp-1")
+    );
+    assert_eq!(
+        commands[2].expected_project_fingerprint.as_deref(),
+        Some("fp-2")
+    );
 
     // The package was registered and installed with the bound digest.
     assert_eq!(vpm.registrations.load(Ordering::SeqCst), 1);
     assert_eq!(vpm.installs.load(Ordering::SeqCst), 1);
 
     // The staging directory is destroyed on the success path.
-    let staging = vua_unity_bridge::staging_root(&base.join("temp"), "corr")
-        .expect("valid session id");
+    let staging =
+        vua_unity_bridge::staging_root(&base.join("temp"), "corr").expect("valid session id");
     assert!(!staging.exists(), "staging leftovers poison later runs");
 
     // The receipt carries the local VPM evidence.
@@ -1047,7 +1161,9 @@ fn b3_exec_006_vpm_mode_runs_the_staging_contract_and_cleans_up() {
         .expect("receipt published");
     let local_vpm = record.local_vpm.expect("local vpm evidence");
     assert!(
-        local_vpm.package_id.starts_with("com.ph-r.vua.local.source."),
+        local_vpm
+            .package_id
+            .starts_with("com.ph-r.vua.local.source."),
         "machine id comes from the identity store: {}",
         local_vpm.package_id
     );
@@ -1081,7 +1197,11 @@ fn b3_exec_007_failed_receipt_is_never_replayed_as_success() {
     })];
     let bridge = FakeBridge::new(rejection);
     let first_executor = executor(&base, bridge.clone(), FakeVpm::new());
-    let confirmation = confirmation(&plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root));
+    let confirmation = confirmation(&plan(
+        MaterialEntryMode::DirectUnityPackage,
+        &source,
+        &project.root,
+    ));
     let first = first_executor.execute(
         &confirmation,
         &source,
@@ -1107,15 +1227,28 @@ fn b3_exec_007_failed_receipt_is_never_replayed_as_success() {
     println!("second: {second:?}");
 
     assert_eq!(second.status, MaterialExecutionStatus::Succeeded);
-    assert!(!second.replayed, "a failed receipt must never replay as success");
+    assert!(
+        !second.replayed,
+        "a failed receipt must never replay as success"
+    );
     assert_eq!(bridge.command_count(), 2, "the retry really executed");
-    assert_ne!(second.build_record_id.as_deref(), Some(failed_record_id.as_str()));
+    assert_ne!(
+        second.build_record_id.as_deref(),
+        Some(failed_record_id.as_str())
+    );
 
     let store = vua_orchestrator::BuildRecordStore::new(base.join("records"));
-    let failed = store.read(&failed_record_id).expect("failed receipt intact");
+    let failed = store
+        .read(&failed_record_id)
+        .expect("failed receipt intact");
     assert_eq!(failed.status, vua_orchestrator::BuildRecordStatus::Failed);
-    let retried = store.read(second.build_record_id.as_deref().unwrap()).unwrap();
-    assert_eq!(retried.status, vua_orchestrator::BuildRecordStatus::Succeeded);
+    let retried = store
+        .read(second.build_record_id.as_deref().unwrap())
+        .unwrap();
+    assert_eq!(
+        retried.status,
+        vua_orchestrator::BuildRecordStatus::Succeeded
+    );
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
     }
@@ -1186,7 +1319,11 @@ fn b3_exec_007_restore_failure_still_publishes_the_receipt() {
         LocalPackageIdentityStore::new(base.join("identities.json")),
     );
 
-    let confirmation = confirmation(&plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root));
+    let confirmation = confirmation(&plan(
+        MaterialEntryMode::DirectUnityPackage,
+        &source,
+        &project.root,
+    ));
     let report = executor.execute(
         &confirmation,
         &source,
@@ -1255,11 +1392,19 @@ fn b3_exec_008_editing_the_declarations_after_planning_is_drift() {
 
     assert_eq!(report.status, MaterialExecutionStatus::Failed);
     assert!(
-        report.error_code.as_deref().unwrap_or("").contains("source_drift"),
+        report
+            .error_code
+            .as_deref()
+            .unwrap_or("")
+            .contains("source_drift"),
         "declaration edits are source drift: {:?}",
         report.error_code
     );
-    assert_eq!(bridge.command_count(), 0, "no Unity command may run on drift");
+    assert_eq!(
+        bridge.command_count(),
+        0,
+        "no Unity command may run on drift"
+    );
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
     }
@@ -1361,7 +1506,10 @@ impl VpmBackend for CreatingVpm {
         )
         .unwrap();
         fs::create_dir_all(root.join("Assets")).unwrap();
-        Ok(ProjectRef { id: name.to_owned(), root })
+        Ok(ProjectRef {
+            id: name.to_owned(),
+            root,
+        })
     }
 
     /// The batch-146 resolve leg: counted, and it drops the ordering
@@ -1447,18 +1595,16 @@ impl VpmBackend for HalfwayCreateVpm {
             "2022.3.22f1",
         )
         .unwrap();
-        Err(
-            vua_orchestrator::AppErrorV1::new(
-                "vua.vpm.template_missing",
-                vua_orchestrator::ErrorCategory::ExternalFailure,
-                "errors.vpm.templateMissing",
-                "corr",
-            )
-            .with_param(
-                "reason",
-                vua_orchestrator::ParamValue::Text("template copy failed".to_owned()),
-            ),
+        Err(vua_orchestrator::AppErrorV1::new(
+            "vua.vpm.template_missing",
+            vua_orchestrator::ErrorCategory::ExternalFailure,
+            "errors.vpm.templateMissing",
+            "corr",
         )
+        .with_param(
+            "reason",
+            vua_orchestrator::ParamValue::Text("template copy failed".to_owned()),
+        ))
     }
 }
 
@@ -1534,7 +1680,10 @@ fn b3_w25_empty_target_provisions_through_the_backend_port_before_import() {
     // the freshly created project's state is not the plan-time state.
     assert_eq!(bridge.command_count(), 3);
     let commands = bridge.state.lock().unwrap().commands.clone();
-    assert_eq!(commands[0].operation, vua_orchestrator::UnityOperation::InspectProject);
+    assert_eq!(
+        commands[0].operation,
+        vua_orchestrator::UnityOperation::InspectProject
+    );
     assert!(commands[0].dry_run);
     assert_eq!(
         commands[1].operation,
@@ -1656,7 +1805,10 @@ struct ResolveIncompleteVpm {
 
 impl ResolveIncompleteVpm {
     fn new() -> Arc<Self> {
-        Arc::new(Self { creates: AtomicUsize::new(0), resolves: AtomicUsize::new(0) })
+        Arc::new(Self {
+            creates: AtomicUsize::new(0),
+            resolves: AtomicUsize::new(0),
+        })
     }
 }
 
@@ -1715,7 +1867,10 @@ impl VpmBackend for ResolveIncompleteVpm {
             "2022.3.22f1",
         )
         .unwrap();
-        Ok(ProjectRef { id: name.to_owned(), root })
+        Ok(ProjectRef {
+            id: name.to_owned(),
+            root,
+        })
     }
 
     fn resolve_project(
@@ -1743,7 +1898,9 @@ struct NoResolveVpm {
 
 impl NoResolveVpm {
     fn new() -> Arc<Self> {
-        Arc::new(Self { creates: AtomicUsize::new(0) })
+        Arc::new(Self {
+            creates: AtomicUsize::new(0),
+        })
     }
 }
 
@@ -1802,7 +1959,10 @@ impl VpmBackend for NoResolveVpm {
             "2022.3.22f1",
         )
         .unwrap();
-        Ok(ProjectRef { id: name.to_owned(), root })
+        Ok(ProjectRef {
+            id: name.to_owned(),
+            root,
+        })
     }
     // resolve_project deliberately NOT overridden: the trait-default
     // declared-none absence arm is exactly the face under test.
@@ -1829,7 +1989,11 @@ fn b3_batch146_provisioned_target_plans_and_runs_zero_resolve_calls() {
     // provision step and the run creates AND resolves zero times — the
     // standing behavior on that path is byte-identical to pre-146 (minimal
     // blast radius).
-    let plan = plan(MaterialEntryMode::DirectUnityPackage, &source, &project.root);
+    let plan = plan(
+        MaterialEntryMode::DirectUnityPackage,
+        &source,
+        &project.root,
+    );
     assert!(!plan
         .steps
         .iter()
@@ -2047,7 +2211,10 @@ fn b3_batch150_intake_blocks_a_packages_prefixed_archive_as_a_finding() {
     fs::create_dir_all(&source).unwrap();
     guid_layout_package(
         &source.join("pack.unitypackage"),
-        &[("0123456789abcdef0123456789abcdef", "Packages/com.evil/thing.asset")],
+        &[(
+            "0123456789abcdef0123456789abcdef",
+            "Packages/com.evil/thing.asset",
+        )],
     );
 
     // 发现面呈现：检查面即如实阻断（既有 archive_invalid 族，零新码），
@@ -2082,7 +2249,10 @@ fn b3_batch150_execution_refuses_a_packages_archive_added_after_planning() {
         .unwrap();
     guid_layout_package(
         &source.join("late.unitypackage"),
-        &[("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "Packages/com.late/x.asset")],
+        &[(
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "Packages/com.late/x.asset",
+        )],
     );
 
     let bridge = FakeBridge::new(vec![]);
@@ -2167,7 +2337,13 @@ fn b3_s2_provision_cancel_between_create_and_resolve_skips_the_network_leg() {
             "corr",
         )
         .unwrap();
-    let report = executor.execute(&confirmation(&plan), &source, &empty, &base.join("artifacts"), &token);
+    let report = executor.execute(
+        &confirmation(&plan),
+        &source,
+        &empty,
+        &base.join("artifacts"),
+        &token,
+    );
 
     assert_eq!(report.status, MaterialExecutionStatus::Cancelled);
     // The observation sits between create and resolve: create happened, the
@@ -2182,7 +2358,10 @@ fn b3_s2_provision_cancel_between_create_and_resolve_skips_the_network_leg() {
     // back through the verified snapshot (empty-state quarantine semantics).
     assert_eq!(report.rollback, RollbackOutcome::Restored);
     let record = read_receipt(&base, &plan.plan_id);
-    assert_eq!(record.status, vua_orchestrator::BuildRecordStatus::Cancelled);
+    assert_eq!(
+        record.status,
+        vua_orchestrator::BuildRecordStatus::Cancelled
+    );
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
     }
@@ -2202,8 +2381,10 @@ fn b3_s2_tail_cancel_before_register_skips_registration_preview_and_apply() {
     // command is in flight — the first tail observation (before register)
     // is the next point that can see it.
     let token = MaterialCancelToken::new();
-    let bridge = FakeBridge::new(vec![])
-        .with_cancel_on(vua_orchestrator::UnityOperation::CreateLocalVpmPackage, token.clone());
+    let bridge = FakeBridge::new(vec![]).with_cancel_on(
+        vua_orchestrator::UnityOperation::CreateLocalVpmPackage,
+        token.clone(),
+    );
     let vpm = FakeVpm::new();
     let executor = executor(&base, bridge.clone(), vpm.clone());
 
@@ -2217,7 +2398,13 @@ fn b3_s2_tail_cancel_before_register_skips_registration_preview_and_apply() {
             "corr",
         )
         .unwrap();
-    let report = executor.execute(&confirmation(&plan), &source, &project, &base.join("artifacts"), &token);
+    let report = executor.execute(
+        &confirmation(&plan),
+        &source,
+        &project,
+        &base.join("artifacts"),
+        &token,
+    );
 
     assert_eq!(report.status, MaterialExecutionStatus::Cancelled);
     // Cancelled during staging: the target is never touched — registration,
@@ -2231,8 +2418,14 @@ fn b3_s2_tail_cancel_before_register_skips_registration_preview_and_apply() {
     // The standing compensation still ran against the target.
     assert_eq!(report.rollback, RollbackOutcome::Restored);
     let record = read_receipt(&base, &plan.plan_id);
-    assert_eq!(record.status, vua_orchestrator::BuildRecordStatus::Cancelled);
-    assert!(record.local_vpm.is_none(), "no install evidence when the tail never ran");
+    assert_eq!(
+        record.status,
+        vua_orchestrator::BuildRecordStatus::Cancelled
+    );
+    assert!(
+        record.local_vpm.is_none(),
+        "no install evidence when the tail never ran"
+    );
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
     }
@@ -2265,7 +2458,13 @@ fn b3_s2_tail_cancel_between_preview_and_apply_skips_the_install() {
             "corr",
         )
         .unwrap();
-    let report = executor.execute(&confirmation(&plan), &source, &project, &base.join("artifacts"), &token);
+    let report = executor.execute(
+        &confirmation(&plan),
+        &source,
+        &project,
+        &base.join("artifacts"),
+        &token,
+    );
 
     assert_eq!(report.status, MaterialExecutionStatus::Cancelled);
     // Registration and preview happened; the install itself was skipped —
@@ -2281,13 +2480,22 @@ fn b3_s2_tail_cancel_between_preview_and_apply_skips_the_install() {
     // it stays, and the receipt says Cancelled rather than pretending the
     // tail never ran.
     assert!(
-        fs::read_dir(base.join("artifacts")).unwrap().next().is_some(),
+        fs::read_dir(base.join("artifacts"))
+            .unwrap()
+            .next()
+            .is_some(),
         "the published artifact stays"
     );
     assert_eq!(report.rollback, RollbackOutcome::Restored);
     let record = read_receipt(&base, &plan.plan_id);
-    assert_eq!(record.status, vua_orchestrator::BuildRecordStatus::Cancelled);
-    assert!(record.local_vpm.is_none(), "no install evidence when the install never ran");
+    assert_eq!(
+        record.status,
+        vua_orchestrator::BuildRecordStatus::Cancelled
+    );
+    assert!(
+        record.local_vpm.is_none(),
+        "no install evidence when the install never ran"
+    );
     if base.exists() {
         fs::remove_dir_all(&base).unwrap();
     }

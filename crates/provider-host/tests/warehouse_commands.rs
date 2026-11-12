@@ -23,9 +23,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 use vua_bdl_store::{ArtifactMode, BdlStore};
-use vua_orchestrator::{
-    ResultStatus, UnityBridge, UnityCommand, UnityOperation, UnityResult,
-};
+use vua_orchestrator::{ResultStatus, UnityBridge, UnityCommand, UnityOperation, UnityResult};
 use vua_provider_host::{run_provider_host_with_services, WarehouseConfig};
 
 fn command_dir() -> PathBuf {
@@ -70,7 +68,11 @@ fn make_world(label: &str) -> World {
     fs::create_dir_all(base.join("bdl")).expect("temp layout");
     let bdl = Arc::new(BdlStore::open(base.join("bdl").join("bdl.db")).expect("BDL opens"));
     let item = bdl
-        .create_warehouse_item("vector entry", "imported_material", "2026-09-07T00:00:00.000Z")
+        .create_warehouse_item(
+            "vector entry",
+            "imported_material",
+            "2026-09-07T00:00:00.000Z",
+        )
         .expect("seed entry");
     World {
         database_path: base.join("tasks.db"),
@@ -148,7 +150,9 @@ fn reworded_result(result: &Value, warehouse_item_id: &str) -> Value {
 #[test]
 fn warehouse_commands_match_the_frozen_operation_vocabulary() {
     let schema = read_json("command.schema.json");
-    let operations = schema["properties"]["operation"]["enum"].as_array().unwrap();
+    let operations = schema["properties"]["operation"]["enum"]
+        .as_array()
+        .unwrap();
     // These are exactly the methods the host routes (warehouse_request).
     let routed = [
         json!("warehouse.setArtifactMode"),
@@ -168,7 +172,10 @@ fn set_artifact_mode_vectors_drive_the_host_and_read_back_the_effective_mode() {
 
     // The positive vector (override -> generate_vpm) must round-trip and
     // match the frozen result shape.
-    let request = reworded(&read_json("examples/warehouse-set-artifact-mode.request.json"), &world.warehouse_item_id);
+    let request = reworded(
+        &read_json("examples/warehouse-set-artifact-mode.request.json"),
+        &world.warehouse_item_id,
+    );
     let frames = run_frames(&world, "corr-mode-1", &[request]);
     assert_eq!(frames.len(), 1);
     assert_eq!(frames[0]["kind"], "response");
@@ -177,16 +184,25 @@ fn set_artifact_mode_vectors_drive_the_host_and_read_back_the_effective_mode() {
         validator.is_valid(value),
         "the host answer must match the frozen result schema: {value}"
     );
-    let expected = reworded_result(&read_json("examples/warehouse-set-artifact-mode.result.json"), &world.warehouse_item_id);
+    let expected = reworded_result(
+        &read_json("examples/warehouse-set-artifact-mode.result.json"),
+        &world.warehouse_item_id,
+    );
     assert_eq!(value, &expected);
 
     // The clear vector drops the override: the effective mode falls back to
     // the shell default and is read back from the store, never echoed.
-    let clear = reworded(&read_json("examples/warehouse-set-artifact-mode-clear.request.json"), &world.warehouse_item_id);
+    let clear = reworded(
+        &read_json("examples/warehouse-set-artifact-mode-clear.request.json"),
+        &world.warehouse_item_id,
+    );
     let frames = run_frames(&world, "corr-mode-2", &[clear]);
     let value = &frames[0]["payload"]["value"];
     assert!(validator.is_valid(value), "{value}");
-    let expected = reworded_result(&read_json("examples/warehouse-set-artifact-mode-clear.result.json"), &world.warehouse_item_id);
+    let expected = reworded_result(
+        &read_json("examples/warehouse-set-artifact-mode-clear.result.json"),
+        &world.warehouse_item_id,
+    );
     assert_eq!(value, &expected);
 }
 
@@ -197,14 +213,23 @@ fn set_artifact_mode_rejects_invalid_vocabulary_and_unknown_entries() {
 
     // A mode outside the frozen closed set is a params violation, never a
     // silent store write (invalid-mode vector, reworded entry id included).
-    let invalid = reworded(&read_json("examples/invalid-mode.json"), &world.warehouse_item_id);
+    let invalid = reworded(
+        &read_json("examples/invalid-mode.json"),
+        &world.warehouse_item_id,
+    );
     let frames = run_frames(&world, "corr-mode-invalid", &[invalid]);
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.warehouse.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.warehouse.invalid_params"
+    );
 
     // An unknown entry is the frozen validation code.
     let request = read_json("examples/warehouse-set-artifact-mode.request.json");
     let frames = run_frames(&world, "corr-mode-unknown", &[request]);
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.warehouse.entry_not_found");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.warehouse.entry_not_found"
+    );
 
     // Every error path stays an application error: it never validates as a
     // frozen result.
@@ -219,7 +244,10 @@ fn tasked_commands_submit_audited_tasks_on_the_sqlite_authority() {
     // The tasked pair shares one handler and one persistence path; the
     // delete vector needs no Unity executor, so it pins the whole acceptance
     // flow end to end. Guards fire inside the task, never at admission.
-    let request = reworded(&read_json("examples/warehouse-delete-originals.request.json"), &world.warehouse_item_id);
+    let request = reworded(
+        &read_json("examples/warehouse-delete-originals.request.json"),
+        &world.warehouse_item_id,
+    );
     let frames = run_frames(&world, "corr-delete-vector", &[request]);
     assert_eq!(frames.len(), 1);
     let value = &frames[0]["payload"]["value"];
@@ -229,7 +257,10 @@ fn tasked_commands_submit_audited_tasks_on_the_sqlite_authority() {
     );
     assert_eq!(value["operation"], "warehouse.deleteOriginals");
     assert_eq!(value["correlationId"], "corr-delete-vector");
-    let task_id = value["taskId"].as_str().expect("taskId is a string").to_owned();
+    let task_id = value["taskId"]
+        .as_str()
+        .expect("taskId is a string")
+        .to_owned();
     assert!(!task_id.is_empty());
 
     // The acceptance is durable on the SQLite task authority (task.list can
@@ -237,8 +268,12 @@ fn tasked_commands_submit_audited_tasks_on_the_sqlite_authority() {
     // state — the seeded entry has no verified generated artifact.
     let deadline = Instant::now() + Duration::from_secs(30);
     let state = loop {
-        let store = vua_orchestrator::SqliteTaskStore::open(&world.database_path).expect("store opens");
-        let task = store.task(&task_id).expect("store readable").expect("accepted task is durable");
+        let store =
+            vua_orchestrator::SqliteTaskStore::open(&world.database_path).expect("store opens");
+        let task = store
+            .task(&task_id)
+            .expect("store readable")
+            .expect("accepted task is durable");
         if task.state.is_terminal() {
             break task.state;
         }
@@ -252,11 +287,20 @@ fn tasked_commands_submit_audited_tasks_on_the_sqlite_authority() {
 #[test]
 fn generate_without_a_unity_executor_is_honestly_unavailable() {
     let world = make_world("no-executor");
-    let request = reworded(&read_json("examples/warehouse-generate-vpm.request.json"), &world.warehouse_item_id);
+    let request = reworded(
+        &read_json("examples/warehouse-generate-vpm.request.json"),
+        &world.warehouse_item_id,
+    );
     let frames = run_frames(&world, "corr-generate-unavailable", &[request]);
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.warehouse.unavailable");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.warehouse.unavailable"
+    );
     // The rest of the trio keeps working without the executor.
-    let mode = reworded(&read_json("examples/warehouse-set-artifact-mode-clear.request.json"), &world.warehouse_item_id);
+    let mode = reworded(
+        &read_json("examples/warehouse-set-artifact-mode-clear.request.json"),
+        &world.warehouse_item_id,
+    );
     let frames = run_frames(&world, "corr-mode-still-works", &[mode]);
     assert_eq!(frames[0]["payload"]["ok"], true);
 }
@@ -264,7 +308,10 @@ fn generate_without_a_unity_executor_is_honestly_unavailable() {
 #[test]
 fn warehouse_commands_are_unavailable_without_wiring() {
     let world = make_world("unwired");
-    let request = reworded(&read_json("examples/warehouse-set-artifact-mode.request.json"), &world.warehouse_item_id);
+    let request = reworded(
+        &read_json("examples/warehouse-set-artifact-mode.request.json"),
+        &world.warehouse_item_id,
+    );
     let frame = json!({
         "frameVersion": "0.1",
         "frameId": "frame-unwired",
@@ -294,7 +341,10 @@ fn warehouse_commands_are_unavailable_without_wiring() {
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.warehouse.unavailable");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.warehouse.unavailable"
+    );
 }
 
 #[test]
@@ -304,9 +354,15 @@ fn set_global_default_mode_vector_drives_the_persisted_global_level() {
 
     // Before any write the global level is not persisted: the environment
     // initial default rules, and the clear vector's read-back reports it.
-    let clear = reworded(&read_json("examples/warehouse-set-artifact-mode-clear.request.json"), &world.warehouse_item_id);
+    let clear = reworded(
+        &read_json("examples/warehouse-set-artifact-mode-clear.request.json"),
+        &world.warehouse_item_id,
+    );
     let frames = run_frames(&world, "corr-global-before", &[clear]);
-    assert_eq!(frames[0]["payload"]["value"]["effectiveMode"], "use_original_unitypackage");
+    assert_eq!(
+        frames[0]["payload"]["value"]["effectiveMode"],
+        "use_original_unitypackage"
+    );
     assert_eq!(world.bdl.global_default_mode().unwrap(), None);
 
     // The frozen positive vector drives the wire write; the acceptance is
@@ -322,19 +378,34 @@ fn set_global_default_mode_vector_drives_the_persisted_global_level() {
     let expected = read_json("examples/warehouse-set-global-default.result.json");
     assert_eq!(value, &expected);
     // The persisted fact (not an echo path) now rules the global level.
-    assert_eq!(world.bdl.global_default_mode().unwrap(), Some(ArtifactMode::GenerateVpm));
+    assert_eq!(
+        world.bdl.global_default_mode().unwrap(),
+        Some(ArtifactMode::GenerateVpm)
+    );
 
     // Two-level resolution follows the persisted global: the same clear
     // vector now reports generate_vpm for the override-less entry.
-    let clear = reworded(&read_json("examples/warehouse-set-artifact-mode-clear.request.json"), &world.warehouse_item_id);
+    let clear = reworded(
+        &read_json("examples/warehouse-set-artifact-mode-clear.request.json"),
+        &world.warehouse_item_id,
+    );
     let frames = run_frames(&world, "corr-global-after", &[clear]);
-    assert_eq!(frames[0]["payload"]["value"]["effectiveMode"], "generate_vpm");
+    assert_eq!(
+        frames[0]["payload"]["value"]["effectiveMode"],
+        "generate_vpm"
+    );
 
     // The entry level still wins over the persisted global default.
-    let mut override_request = reworded(&read_json("examples/warehouse-set-artifact-mode.request.json"), &world.warehouse_item_id);
+    let mut override_request = reworded(
+        &read_json("examples/warehouse-set-artifact-mode.request.json"),
+        &world.warehouse_item_id,
+    );
     override_request["params"]["mode"] = json!("use_original_unitypackage");
     let frames = run_frames(&world, "corr-global-entry-wins", &[override_request]);
-    assert_eq!(frames[0]["payload"]["value"]["effectiveMode"], "use_original_unitypackage");
+    assert_eq!(
+        frames[0]["payload"]["value"]["effectiveMode"],
+        "use_original_unitypackage"
+    );
 }
 
 #[test]
@@ -346,7 +417,10 @@ fn set_global_default_mode_rejects_null_missing_and_unknown_modes() {
     // always has a value, so an explicit null is a params violation.
     let null_mode = read_json("examples/invalid-global-default-mode.json");
     let frames = run_frames(&world, "corr-global-null", &[null_mode]);
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.warehouse.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.warehouse.invalid_params"
+    );
 
     // A missing mode is likewise a params violation, not a no-op.
     let frame = json!({
@@ -384,7 +458,10 @@ fn set_global_default_mode_rejects_null_missing_and_unknown_modes() {
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.warehouse.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.warehouse.invalid_params"
+    );
 
     // Nothing was persisted along the failure paths.
     assert_eq!(world.bdl.global_default_mode().unwrap(), None);
@@ -410,10 +487,7 @@ fn import_vector_drives_the_batch_import_task_and_lands_entries() {
     // The frozen request vector, reworded onto the temp folders.
     let request = read_json("examples/warehouse-import.request.json");
     let mut params = request["params"].clone();
-    params["sourceFolders"] = json!([
-        folder_a.to_string_lossy(),
-        folder_b.to_string_lossy()
-    ]);
+    params["sourceFolders"] = json!([folder_a.to_string_lossy(), folder_b.to_string_lossy()]);
     let command = json!({ "operation": "warehouse.import", "params": params });
     let frames = run_frames(&world, "corr-import-vector", &[command]);
     assert_eq!(frames.len(), 1);
@@ -424,7 +498,10 @@ fn import_vector_drives_the_batch_import_task_and_lands_entries() {
     );
     assert_eq!(value["operation"], "warehouse.import");
     assert_eq!(value["correlationId"], "corr-import-vector");
-    let task_id = value["taskId"].as_str().expect("taskId is a string").to_owned();
+    let task_id = value["taskId"]
+        .as_str()
+        .expect("taskId is a string")
+        .to_owned();
 
     // The batch-import task runs to Done on the SQLite task authority, and
     // both folders land as warehouse entries (the wire face really imports).
@@ -444,8 +521,14 @@ fn import_vector_drives_the_batch_import_task_and_lands_entries() {
         std::thread::sleep(Duration::from_millis(20));
     };
     assert_eq!(serde_json::to_value(state).unwrap(), "succeeded");
-    let cards = world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap();
-    let mut names: Vec<&str> = cards.iter().map(|card| card.display_name.as_str()).collect();
+    let cards = world
+        .bdl
+        .warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage)
+        .unwrap();
+    let mut names: Vec<&str> = cards
+        .iter()
+        .map(|card| card.display_name.as_str())
+        .collect();
     names.sort_unstable();
     // make_world seeds one fixture entry besides the two imported folders.
     assert_eq!(
@@ -466,11 +549,11 @@ fn import_negative_vectors_are_params_violations() {
         "examples/invalid-import-folders-type.json",
     ] {
         let request = read_json(name);
-        let command = json!({ "operation": "warehouse.import", "params": request["params"].clone() });
+        let command =
+            json!({ "operation": "warehouse.import", "params": request["params"].clone() });
         let frames = run_frames(&world, "req-import-invalid", &[command]);
         assert_eq!(
-            frames[0]["payload"]["error"]["code"],
-            "vua.warehouse.invalid_params",
+            frames[0]["payload"]["error"]["code"], "vua.warehouse.invalid_params",
             "{name}"
         );
     }
@@ -481,7 +564,10 @@ fn import_negative_vectors_are_params_violations() {
         "params": { "sourceFolders": ["C:/tmp/imports/pack-x"], "recursive": true }
     });
     let frames = run_frames(&world, "req-import-unknown", &[command]);
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.warehouse.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.warehouse.invalid_params"
+    );
 }
 
 // --- W20 production-use-case v0.2 first cut: the recipe document face ---
@@ -524,7 +610,6 @@ impl UnityBridge for NoBridge {
     }
 }
 
-
 fn run_recipe_frames(world: &World, request_id: &str, method: &str, params: Value) -> Vec<Value> {
     let frame = json!({
         "frameVersion": "0.1",
@@ -544,17 +629,24 @@ fn run_recipe_frames(world: &World, request_id: &str, method: &str, params: Valu
         let bridge: std::sync::Arc<dyn vua_orchestrator::UnityBridge> =
             std::sync::Arc::new(NoBridge);
         vua_provider_host::ProductionUseCaseConfig {
-            recipes: std::sync::Arc::new(vua_orchestrator::RecipeDocumentStore
-                ::new_with_system_clock(production_root.join("recipes"))),
-            plans: std::sync::Arc::new(vua_orchestrator::PlanDocumentStore
-                ::new(production_root.join("plans"))),
-            evidence: std::sync::Arc::new(vua_orchestrator::EvidenceStore
-                ::new(production_root.join("evidence"))),
-            records: std::sync::Arc::new(vua_orchestrator::RecipeRecordStore
-                ::new(production_root.join("records"))),
-        inspections: std::sync::Arc::new(vua_orchestrator::InspectionEvidenceStore
-            ::new(production_root.join("inspections"))),
-        editor_version: "2022.3.22f1".to_owned(),
+            recipes: std::sync::Arc::new(
+                vua_orchestrator::RecipeDocumentStore::new_with_system_clock(
+                    production_root.join("recipes"),
+                ),
+            ),
+            plans: std::sync::Arc::new(vua_orchestrator::PlanDocumentStore::new(
+                production_root.join("plans"),
+            )),
+            evidence: std::sync::Arc::new(vua_orchestrator::EvidenceStore::new(
+                production_root.join("evidence"),
+            )),
+            records: std::sync::Arc::new(vua_orchestrator::RecipeRecordStore::new(
+                production_root.join("records"),
+            )),
+            inspections: std::sync::Arc::new(vua_orchestrator::InspectionEvidenceStore::new(
+                production_root.join("inspections"),
+            )),
+            editor_version: "2022.3.22f1".to_owned(),
             bridge,
             editor_selection: vua_orchestrator::EditorSelection::Unavailable {
                 reason: vua_orchestrator::EditorSelectionGap::NotDetected,
@@ -566,8 +658,10 @@ fn run_recipe_frames(world: &World, request_id: &str, method: &str, params: Valu
     };
     let mut output = Vec::new();
     vua_provider_host::run_provider_host_with_services(
-        Cursor::new(format!("{frame}
-")),
+        Cursor::new(format!(
+            "{frame}
+"
+        )),
         &mut output,
         &world.database_path,
         None,
@@ -624,7 +718,10 @@ fn recipe_save_get_list_drive_the_document_store_over_the_wire() {
         "baseRevision": 5
     });
     let frames = run_recipe_frames(&world, "req-save2", "recipe.save", stale);
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.recipe.revision_conflict");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.recipe.revision_conflict"
+    );
     assert_eq!(frames[0]["payload"]["error"]["currentRevision"], 1);
 
     // Matching base bumps the revision.
@@ -642,7 +739,11 @@ fn recipe_save_get_list_drive_the_document_store_over_the_wire() {
     let frames = run_recipe_frames(&world, "req-list", "recipe.list", json!({}));
     let entries = &frames[0]["payload"]["value"]["entries"];
     assert!(
-        entries.as_array().unwrap().iter().any(|e| e["recipeId"] == *recipe_id),
+        entries
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["recipeId"] == *recipe_id),
         "{entries}"
     );
     assert_eq!(frames[0]["payload"]["value"]["total"], 1);
@@ -663,7 +764,10 @@ fn recipe_face_closed_set_and_absence_are_typed() {
             "force": true
         }),
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.recipe.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.recipe.invalid_params"
+    );
 
     // Missing baseRevision is a params violation, not an implicit create.
     let frames = run_recipe_frames(
@@ -674,7 +778,10 @@ fn recipe_face_closed_set_and_absence_are_typed() {
             "recipeDocument": {"formatVersion": "0.3", "recipeId": "r1", "revision": 1, "title": "x"}
         }),
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.recipe.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.recipe.invalid_params"
+    );
 
     // get of an absent recipe is the frozen not-found.
     let frames = run_recipe_frames(
@@ -683,7 +790,10 @@ fn recipe_face_closed_set_and_absence_are_typed() {
         "recipe.get",
         json!({ "recipeId": "019e0000-0000-7000-8000-000000000fff" }),
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.recipe.not_found");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.recipe.not_found"
+    );
 
     // Without the use-case wiring the face is honestly unavailable.
     let frame = json!({
@@ -701,8 +811,10 @@ fn recipe_face_closed_set_and_absence_are_typed() {
     });
     let mut output = Vec::new();
     run_provider_host_with_services(
-        Cursor::new(format!("{frame}
-")),
+        Cursor::new(format!(
+            "{frame}
+"
+        )),
         &mut output,
         &world.database_path,
         None,
@@ -716,7 +828,10 @@ fn recipe_face_closed_set_and_absence_are_typed() {
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.recipe.unavailable");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.recipe.unavailable"
+    );
 }
 
 fn run_plan_frames(
@@ -741,8 +856,10 @@ fn run_plan_frames(
     });
     let mut output = Vec::new();
     run_provider_host_with_services(
-        Cursor::new(format!("{frame}
-")),
+        Cursor::new(format!(
+            "{frame}
+"
+        )),
         &mut output,
         &world.database_path,
         None,
@@ -761,24 +878,31 @@ fn run_plan_frames(
 fn use_case_config(world: &World) -> vua_provider_host::ProductionUseCaseConfig {
     let production_root = world.base.join("production");
     vua_provider_host::ProductionUseCaseConfig {
-        recipes: std::sync::Arc::new(vua_orchestrator::RecipeDocumentStore
-            ::new_with_system_clock(production_root.join("recipes"))),
-        plans: std::sync::Arc::new(vua_orchestrator::PlanDocumentStore
-            ::new(production_root.join("plans"))),
-        evidence: std::sync::Arc::new(vua_orchestrator::EvidenceStore
-            ::new(production_root.join("evidence"))),
-        records: std::sync::Arc::new(vua_orchestrator::RecipeRecordStore
-            ::new(production_root.join("records"))),
-        inspections: std::sync::Arc::new(vua_orchestrator::InspectionEvidenceStore
-            ::new(production_root.join("inspections"))),
+        recipes: std::sync::Arc::new(
+            vua_orchestrator::RecipeDocumentStore::new_with_system_clock(
+                production_root.join("recipes"),
+            ),
+        ),
+        plans: std::sync::Arc::new(vua_orchestrator::PlanDocumentStore::new(
+            production_root.join("plans"),
+        )),
+        evidence: std::sync::Arc::new(vua_orchestrator::EvidenceStore::new(
+            production_root.join("evidence"),
+        )),
+        records: std::sync::Arc::new(vua_orchestrator::RecipeRecordStore::new(
+            production_root.join("records"),
+        )),
+        inspections: std::sync::Arc::new(vua_orchestrator::InspectionEvidenceStore::new(
+            production_root.join("inspections"),
+        )),
         editor_version: "2022.3.22f1".to_owned(),
         bridge: std::sync::Arc::new(NoBridge),
         editor_selection: vua_orchestrator::EditorSelection::Unavailable {
             reason: vua_orchestrator::EditorSelectionGap::NotDetected,
         },
-            project_root: world.base.join("project"),
-            handoff: None,
-            draft_exporter: None,
+        project_root: world.base.join("project"),
+        handoff: None,
+        draft_exporter: None,
     }
 }
 
@@ -815,35 +939,50 @@ fn plan_approve_flow_is_idempotent_and_read_face_carries_the_status() {
 
     // plan.get carries the draft status.
     let frames = run_plan_frames(
-        &world, config.clone(), "req-plan-get", "plan.get",
+        &world,
+        config.clone(),
+        "req-plan-get",
+        "plan.get",
         json!({ "planId": plan_id }),
     );
     assert_eq!(frames[0]["payload"]["value"]["planStatus"], "draft");
 
     // approve flips draft -> approved (the explicit user authorization act).
     let frames = run_plan_frames(
-        &world, config.clone(), "req-approve", "plan.approve",
+        &world,
+        config.clone(),
+        "req-approve",
+        "plan.approve",
         json!({ "planId": plan_id }),
     );
     assert_eq!(frames[0]["payload"]["value"]["planStatus"], "approved");
 
     // Approving again is an idempotent success.
     let frames = run_plan_frames(
-        &world, config.clone(), "req-approve-2", "plan.approve",
+        &world,
+        config.clone(),
+        "req-approve-2",
+        "plan.approve",
         json!({ "planId": plan_id }),
     );
     assert_eq!(frames[0]["payload"]["value"]["planStatus"], "approved");
 
     // plan.get now carries the approved status.
     let frames = run_plan_frames(
-        &world, config.clone(), "req-plan-get-2", "plan.get",
+        &world,
+        config.clone(),
+        "req-plan-get-2",
+        "plan.get",
         json!({ "planId": plan_id }),
     );
     assert_eq!(frames[0]["payload"]["value"]["planStatus"], "approved");
 
     // Unknown plan is the frozen not-found.
     let frames = run_plan_frames(
-        &world, config.clone(), "req-plan-miss", "plan.get",
+        &world,
+        config.clone(),
+        "req-plan-miss",
+        "plan.get",
         json!({ "planId": "019e0000-0000-7000-8000-000000000fff" }),
     );
     assert_eq!(frames[0]["payload"]["error"]["code"], "vua.plan.not_found");
@@ -851,10 +990,16 @@ fn plan_approve_flow_is_idempotent_and_read_face_carries_the_status() {
     // Superseded plans refuse approval with a typed conflict.
     config.plans.supersede(plan_id).unwrap();
     let frames = run_plan_frames(
-        &world, config, "req-approve-super", "plan.approve",
+        &world,
+        config,
+        "req-approve-super",
+        "plan.approve",
         json!({ "planId": plan_id }),
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.plan.not_approvable");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.plan.not_approvable"
+    );
 }
 
 #[test]
@@ -864,15 +1009,26 @@ fn plan_face_without_wiring_and_unknown_methods_are_typed() {
 
     // Missing planId is a params violation.
     let frames = run_plan_frames(
-        &world, use_cases.clone(), "req-plan-noid", "plan.approve", json!({}),
+        &world,
+        use_cases.clone(),
+        "req-plan-noid",
+        "plan.approve",
+        json!({}),
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.plan.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.plan.invalid_params"
+    );
 
     // plan.list is served (the identity listing over stored plans); the
     // Local Resolution executor arrives in the next cut and stays a typed
     // unavailable via recipe.resolve.
     let frames = run_plan_frames(
-        &world, use_cases, "req-plan-unwired", "plan.list", json!({}),
+        &world,
+        use_cases,
+        "req-plan-unwired",
+        "plan.list",
+        json!({}),
     );
     assert_eq!(frames[0]["payload"]["value"]["total"], 0);
     assert_eq!(frames[0]["payload"]["value"]["entries"], json!([]));
@@ -904,11 +1060,17 @@ fn record_get_reads_the_frozen_record_shape_over_the_wire() {
         "evidenceSummary": {"evidenceIds": []}
     });
     let config = use_case_config(&world);
-    config.records.publish(build_id, &document).expect("record published");
+    config
+        .records
+        .publish(build_id, &document)
+        .expect("record published");
 
     // Positive: the stored record reads back under its identity.
     let frames = run_plan_frames(
-        &world, config.clone(), "req-record-get", "record.get",
+        &world,
+        config.clone(),
+        "req-record-get",
+        "record.get",
         json!({ "buildId": build_id }),
     );
     assert_eq!(frames[0]["payload"]["value"]["buildId"], build_id);
@@ -919,14 +1081,23 @@ fn record_get_reads_the_frozen_record_shape_over_the_wire() {
 
     // Absent records are the frozen not-found.
     let frames = run_plan_frames(
-        &world, config.clone(), "req-record-miss", "record.get",
+        &world,
+        config.clone(),
+        "req-record-miss",
+        "record.get",
         json!({ "buildId": "019e0000-0000-7000-8000-000000000fff" }),
     );
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.record.not_found");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.record.not_found"
+    );
 
     // Missing buildId is a params violation.
     let frames = run_plan_frames(&world, config, "req-record-noid", "record.get", json!({}));
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.record.invalid_params");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.record.invalid_params"
+    );
 }
 
 fn run_frames_with_use_cases(
@@ -977,24 +1148,31 @@ fn resolve_flow_generates_a_draft_plan_from_imported_entries() {
     let world = make_world("resolve");
     let production_root = world.base.join("production");
     let use_cases = vua_provider_host::ProductionUseCaseConfig {
-        recipes: std::sync::Arc::new(vua_orchestrator::RecipeDocumentStore
-            ::new_with_system_clock(production_root.join("recipes"))),
-        plans: std::sync::Arc::new(vua_orchestrator::PlanDocumentStore
-            ::new(production_root.join("plans"))),
-        evidence: std::sync::Arc::new(vua_orchestrator::EvidenceStore
-            ::new(production_root.join("evidence"))),
-        records: std::sync::Arc::new(vua_orchestrator::RecipeRecordStore
-            ::new(production_root.join("records"))),
-        inspections: std::sync::Arc::new(vua_orchestrator::InspectionEvidenceStore
-            ::new(production_root.join("inspections"))),
+        recipes: std::sync::Arc::new(
+            vua_orchestrator::RecipeDocumentStore::new_with_system_clock(
+                production_root.join("recipes"),
+            ),
+        ),
+        plans: std::sync::Arc::new(vua_orchestrator::PlanDocumentStore::new(
+            production_root.join("plans"),
+        )),
+        evidence: std::sync::Arc::new(vua_orchestrator::EvidenceStore::new(
+            production_root.join("evidence"),
+        )),
+        records: std::sync::Arc::new(vua_orchestrator::RecipeRecordStore::new(
+            production_root.join("records"),
+        )),
+        inspections: std::sync::Arc::new(vua_orchestrator::InspectionEvidenceStore::new(
+            production_root.join("inspections"),
+        )),
         editor_version: "2022.3.22f1".to_owned(),
         bridge: std::sync::Arc::new(NoBridge),
         editor_selection: vua_orchestrator::EditorSelection::Unavailable {
             reason: vua_orchestrator::EditorSelectionGap::NotDetected,
         },
-            project_root: world.base.join("project"),
-            handoff: None,
-            draft_exporter: None,
+        project_root: world.base.join("project"),
+        handoff: None,
+        draft_exporter: None,
     };
     // The use-case face rides the warehouse wiring (shared task authority
     // and BDL - Local Resolution reads warehouse facts).
@@ -1021,9 +1199,7 @@ fn resolve_flow_generates_a_draft_plan_from_imported_entries() {
         auto_generate: None,
     };
     let import_runtime = vua_orchestrator::TaskRuntime::with_sqlite(
-        std::sync::Arc::new(
-            vua_orchestrator::SqliteTaskStore::open(&world.database_path).unwrap(),
-        ),
+        std::sync::Arc::new(vua_orchestrator::SqliteTaskStore::open(&world.database_path).unwrap()),
         std::sync::Arc::new(vua_orchestrator::SystemClock),
         std::sync::Arc::new(vua_orchestrator::NanosTaskIdGenerator::default()),
     )
@@ -1153,7 +1329,6 @@ fn resolve_flow_generates_a_draft_plan_from_imported_entries() {
     assert_eq!(frames[0]["payload"]["value"]["planStatus"], "approved");
 }
 
-
 // --- wt-2 batch 178 reverse-audit (BG-12 family): a FAILED BDL store read
 // is a typed store failure — never a silently substituted default (the U8
 // law: a persisted global default rules every later resolution) and never
@@ -1208,7 +1383,8 @@ fn resolve_fails_with_typed_store_failure(
         "operation": "recipe.save",
         "params": {"recipeDocument": recipe_document, "baseRevision": 0}
     });
-    let frames = run_frames_with_use_cases(world, use_cases, Some(warehouse), label, &[save_command]);
+    let frames =
+        run_frames_with_use_cases(world, use_cases, Some(warehouse), label, &[save_command]);
     assert_eq!(frames[0]["payload"]["ok"], true, "fixture recipe saves");
 
     let resolve_command = json!({
@@ -1276,7 +1452,6 @@ fn resolve_entry_detail_read_failure_is_typed_not_missing_evidence() {
     drop_bdl_table(&world, "warehouse_items");
     resolve_fails_with_typed_store_failure("resolve-entry", &world, &use_cases, &warehouse);
 }
-
 
 // --- W22 record-face closeout: job.execute writes the full Build Record ---
 
@@ -1394,8 +1569,7 @@ fn seed_imported_entries(world: &World) -> Vec<String> {
 /// Creates a fake Unity Hub editor install (`<root>/<version>/Editor`) so
 /// the environment precheck observes a Detected install.
 fn install_fake_editor(editors_root: &Path, version: &str) {
-    fs::create_dir_all(editors_root.join(version).join("Editor"))
-        .expect("fake editor layout");
+    fs::create_dir_all(editors_root.join(version).join("Editor")).expect("fake editor layout");
 }
 
 #[test]
@@ -1427,12 +1601,13 @@ fn job_execute_environment_precheck_blocks_without_a_matching_editor() {
     let task_id = approve_and_execute(&world, &use_cases, &warehouse, &plan_id);
     let task = wait_terminal(&world, &task_id);
     assert_eq!(serde_json::to_value(task.state).unwrap(), "failed");
-    let error = task.error.expect("the environment refusal is a typed error");
+    let error = task
+        .error
+        .expect("the environment refusal is a typed error");
     assert_eq!(error.code, "vua.job.environment_unmet");
     // No record exists for the refused execution (nothing executed).
-    let records = vua_orchestrator::RecipeRecordStore::new(
-        world.base.join("production").join("records"),
-    );
+    let records =
+        vua_orchestrator::RecipeRecordStore::new(world.base.join("production").join("records"));
     assert_eq!(records.list_documents().expect("records readable").len(), 0);
 }
 
@@ -1477,8 +1652,12 @@ fn job_execute_environment_precheck_passes_on_a_confirmed_matching_editor() {
 
     let task_id = approve_and_execute(&world, &use_cases, &warehouse, &plan_id);
     let task = wait_terminal(&world, &task_id);
-    assert_eq!(serde_json::to_value(task.state).unwrap(), "succeeded",
-        "a matching install satisfies the constraint: {:?}", task.error);
+    assert_eq!(
+        serde_json::to_value(task.state).unwrap(),
+        "succeeded",
+        "a matching install satisfies the constraint: {:?}",
+        task.error
+    );
 }
 
 #[test]
@@ -1534,8 +1713,12 @@ fn job_execute_pins_the_production_command_wire_schema_version_v3() {
 
     let task_id = approve_and_execute(&world, &use_cases, &warehouse, &plan_id);
     let task = wait_terminal(&world, &task_id);
-    assert_eq!(serde_json::to_value(task.state).unwrap(), "succeeded",
-        "the scripted receipt completes: {:?}", task.error);
+    assert_eq!(
+        serde_json::to_value(task.state).unwrap(),
+        "succeeded",
+        "the scripted receipt completes: {:?}",
+        task.error
+    );
 
     let commands = bridge.commands.lock().unwrap();
     let job = commands
@@ -1584,9 +1767,14 @@ fn job_execute_environment_precheck_surfaces_observation_failure_honestly() {
     let task_id = approve_and_execute(&world, &use_cases, &warehouse, &plan_id);
     let task = wait_terminal(&world, &task_id);
     assert_eq!(serde_json::to_value(task.state).unwrap(), "failed");
-    let error = task.error.expect("the observation failure is a typed error");
+    let error = task
+        .error
+        .expect("the observation failure is a typed error");
     assert_eq!(error.code, "vua.job.environment_check_failed");
-    assert!(error.recoverable, "an observation failure is retryable, not a config verdict");
+    assert!(
+        error.recoverable,
+        "an observation failure is retryable, not a config verdict"
+    );
 }
 
 #[test]
@@ -1634,8 +1822,11 @@ fn job_execute_precheck_holds_the_gate3_line_on_an_auto_selected_candidate() {
 
     let task_id = approve_and_execute(&world, &use_cases, &warehouse, &plan_id);
     let task = wait_terminal(&world, &task_id);
-    assert_eq!(serde_json::to_value(task.state).unwrap(), "failed",
-        "a detected candidate without the first-use confirmation never executes");
+    assert_eq!(
+        serde_json::to_value(task.state).unwrap(),
+        "failed",
+        "a detected candidate without the first-use confirmation never executes"
+    );
     let error = task.error.expect("the gate-3 refusal is a typed error");
     assert_eq!(error.code, "vua.job.environment_unmet");
 }
@@ -1680,8 +1871,11 @@ fn job_execute_precheck_refuses_a_confirmed_editor_that_misses_the_constraint() 
 
     let task_id = approve_and_execute(&world, &use_cases, &warehouse, &plan_id);
     let task = wait_terminal(&world, &task_id);
-    assert_eq!(serde_json::to_value(task.state).unwrap(), "failed",
-        "a confirmed off-target editor never silently executes");
+    assert_eq!(
+        serde_json::to_value(task.state).unwrap(),
+        "failed",
+        "a confirmed off-target editor never silently executes"
+    );
     let error = task.error.expect("the refusal is a typed error");
     assert_eq!(error.code, "vua.job.environment_unmet");
 }
@@ -1702,7 +1896,11 @@ fn save_and_resolve(
             "params": {"recipeDocument": recipe_document, "baseRevision": 0}
         })],
     );
-    assert_eq!(frames[0]["payload"]["ok"], true, "recipe save: {:?}", frames[0]);
+    assert_eq!(
+        frames[0]["payload"]["ok"], true,
+        "recipe save: {:?}",
+        frames[0]
+    );
 
     let frames = run_frames_with_use_cases(
         world,
@@ -1715,7 +1913,10 @@ fn save_and_resolve(
         })],
     );
     assert_eq!(frames[0]["payload"]["value"]["operation"], "recipe.resolve");
-    let task_id = frames[0]["payload"]["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = frames[0]["payload"]["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         let store = vua_orchestrator::SqliteTaskStore::open(&world.database_path).unwrap();
@@ -1780,15 +1981,28 @@ fn wait_terminal(world: &World, task_id: &str) -> vua_orchestrator::StoredTask {
 
 fn seeded_production_world(
     label: &str,
-) -> (World, vua_provider_host::ProductionUseCaseConfig, WarehouseConfig) {
+) -> (
+    World,
+    vua_provider_host::ProductionUseCaseConfig,
+    WarehouseConfig,
+) {
     let world = make_world(label);
     let production_root = world.base.join("production");
     let use_cases = vua_provider_host::ProductionUseCaseConfig {
-        recipes: Arc::new(vua_orchestrator::RecipeDocumentStore
-            ::new_with_system_clock(production_root.join("recipes"))),
-        plans: Arc::new(vua_orchestrator::PlanDocumentStore::new(production_root.join("plans"))),
-        evidence: Arc::new(vua_orchestrator::EvidenceStore::new(production_root.join("evidence"))),
-        records: Arc::new(vua_orchestrator::RecipeRecordStore::new(production_root.join("records"))),
+        recipes: Arc::new(
+            vua_orchestrator::RecipeDocumentStore::new_with_system_clock(
+                production_root.join("recipes"),
+            ),
+        ),
+        plans: Arc::new(vua_orchestrator::PlanDocumentStore::new(
+            production_root.join("plans"),
+        )),
+        evidence: Arc::new(vua_orchestrator::EvidenceStore::new(
+            production_root.join("evidence"),
+        )),
+        records: Arc::new(vua_orchestrator::RecipeRecordStore::new(
+            production_root.join("records"),
+        )),
         inspections: Arc::new(vua_orchestrator::InspectionEvidenceStore::new(
             production_root.join("inspections"),
         )),
@@ -1797,9 +2011,9 @@ fn seeded_production_world(
         editor_selection: vua_orchestrator::EditorSelection::Unavailable {
             reason: vua_orchestrator::EditorSelectionGap::NotDetected,
         },
-            project_root: world.base.join("project"),
-            handoff: None,
-            draft_exporter: None,
+        project_root: world.base.join("project"),
+        handoff: None,
+        draft_exporter: None,
     };
     let warehouse = WarehouseConfig {
         bdl: world.bdl.clone(),
@@ -1819,40 +2033,92 @@ fn changed_original_excludes_superseded_vpm_without_rewriting_prior_plan_or_reci
     let (world, use_cases, warehouse) = seeded_production_world("superseded-vpm");
     let entry_ids = seed_imported_entries(&world);
     let original = world.bdl.entry_copies(&entry_ids[0]).unwrap().remove(0);
-    let fixture: Value = serde_json::from_slice(&fs::read(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../schemas/catalog-sync/v0.3/examples/page.request.json"),
-    ).unwrap()).unwrap();
+    let fixture: Value = serde_json::from_slice(
+        &fs::read(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../schemas/catalog-sync/v0.3/examples/page.request.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
     let page = vua_acquisition::extract_library_page(
-        &fixture["params"]["html"].as_str().unwrap().replace("901", "90"),
-    ).unwrap();
+        &fixture["params"]["html"]
+            .as_str()
+            .unwrap()
+            .replace("901", "90"),
+    )
+    .unwrap();
     let now = "2026-10-08T00:00:00Z";
-    world.bdl.record_product_observation(&vua_acquisition::library_item_to_observation(
-        &page.items[0], &format!("sha256:{}", "0".repeat(64)), now, None, Some("bought"),
-    )).unwrap();
-    world.bdl.upsert_product_downloadables(
-        "booth:90", &[(901, "material-pack.unitypackage".into())], now, None, Some("bought"),
-    ).unwrap();
-    world.bdl.bind_managed_library_file(901, &original, &original.artifact_sha256, "dl-initial", now).unwrap();
+    world
+        .bdl
+        .record_product_observation(&vua_acquisition::library_item_to_observation(
+            &page.items[0],
+            &format!("sha256:{}", "0".repeat(64)),
+            now,
+            None,
+            Some("bought"),
+        ))
+        .unwrap();
+    world
+        .bdl
+        .upsert_product_downloadables(
+            "booth:90",
+            &[(901, "material-pack.unitypackage".into())],
+            now,
+            None,
+            Some("bought"),
+        )
+        .unwrap();
+    world
+        .bdl
+        .bind_managed_library_file(901, &original, &original.artifact_sha256, "dl-initial", now)
+        .unwrap();
 
     let generated_path = world.base.join("warehouse").join("synthetic-old-vpm.zip");
     let generated_bytes = b"synthetic generated package";
     fs::write(&generated_path, generated_bytes).unwrap();
-    let generated_sha = format!("sha256:{}", sha2::Sha256::digest(generated_bytes).iter().map(|byte| format!("{byte:02x}")).collect::<String>());
-    world.bdl.record_untrusted_artifact(&NewLocalArtifact {
-        artifact_sha256: generated_sha.clone(), size_bytes: generated_bytes.len() as u64,
-        suggested_file_name: Some("synthetic-old-vpm.zip".into()), download_id: None,
-        first_seen_at: now.into(),
-    }).unwrap();
+    let generated_sha = format!(
+        "sha256:{}",
+        sha2::Sha256::digest(generated_bytes)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    world
+        .bdl
+        .record_untrusted_artifact(&NewLocalArtifact {
+            artifact_sha256: generated_sha.clone(),
+            size_bytes: generated_bytes.len() as u64,
+            suggested_file_name: Some("synthetic-old-vpm.zip".into()),
+            download_id: None,
+            first_seen_at: now.into(),
+        })
+        .unwrap();
     // Synthetic inspection facts isolate resolution policy; no Unity execution is claimed.
-    for state in [ArtifactInspectionState::Inspected, ArtifactInspectionState::Admitted] {
-        world.bdl.transition_artifact(&generated_sha, state, now, None).unwrap();
+    for state in [
+        ArtifactInspectionState::Inspected,
+        ArtifactInspectionState::Admitted,
+    ] {
+        world
+            .bdl
+            .transition_artifact(&generated_sha, state, now, None)
+            .unwrap();
     }
-    world.bdl.record_artifact_copy(
-        &original.warehouse_item_id, &generated_sha, "vpm/old.zip",
-        generated_path.to_str().unwrap(), CopyRole::GeneratedVpm, now,
-    ).unwrap();
-    world.bdl.set_global_default_mode(ArtifactMode::GenerateVpm).unwrap();
+    world
+        .bdl
+        .record_artifact_copy(
+            &original.warehouse_item_id,
+            &generated_sha,
+            "vpm/old.zip",
+            generated_path.to_str().unwrap(),
+            CopyRole::GeneratedVpm,
+            now,
+        )
+        .unwrap();
+    world
+        .bdl
+        .set_global_default_mode(ArtifactMode::GenerateVpm)
+        .unwrap();
     let recipe_id = "019e0000-0000-7000-8000-000000000001";
     let recipe = json!({
         "formatVersion":"0.3", "recipeId":recipe_id, "revision":1, "title":"Synthetic versions",
@@ -1865,31 +2131,71 @@ fn changed_original_excludes_superseded_vpm_without_rewriting_prior_plan_or_reci
     let first_plan_id = first["planId"].as_str().unwrap();
     use_cases.plans.approve(first_plan_id).unwrap();
     let pinned = use_cases.plans.get(first_plan_id).unwrap().unwrap();
-    assert_eq!(pinned["jobs"][0]["inputs"]["resolvedSource"]["sourceKind"], "generated_vpm");
-    assert_eq!(pinned["jobs"][0]["inputs"]["resolvedSource"]["artifactSha256"], generated_sha);
+    assert_eq!(
+        pinned["jobs"][0]["inputs"]["resolvedSource"]["sourceKind"],
+        "generated_vpm"
+    );
+    assert_eq!(
+        pinned["jobs"][0]["inputs"]["resolvedSource"]["artifactSha256"],
+        generated_sha
+    );
 
     let new_bytes = b"changed synthetic source";
-    let new_sha = format!("sha256:{}", sha2::Sha256::digest(new_bytes).iter().map(|byte| format!("{byte:02x}")).collect::<String>());
-    world.bdl.record_untrusted_artifact(&NewLocalArtifact {
-        artifact_sha256:new_sha.clone(), size_bytes:new_bytes.len() as u64,
-        suggested_file_name:Some("material-pack.unitypackage".into()), download_id:None,
-        first_seen_at:now.into(),
-    }).unwrap();
+    let new_sha = format!(
+        "sha256:{}",
+        sha2::Sha256::digest(new_bytes)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    world
+        .bdl
+        .record_untrusted_artifact(&NewLocalArtifact {
+            artifact_sha256: new_sha.clone(),
+            size_bytes: new_bytes.len() as u64,
+            suggested_file_name: Some("material-pack.unitypackage".into()),
+            download_id: None,
+            first_seen_at: now.into(),
+        })
+        .unwrap();
     fs::write(&original.stored_path, new_bytes).unwrap();
-    world.bdl.bind_managed_library_file(901, &original, &new_sha, "dl-changed", now).unwrap();
-    let frames = run_frames_with_use_cases(&world, &use_cases, Some(&warehouse), "corr-resolve-changed", &[
-        json!({"operation":"recipe.resolve","params":{"recipeId":recipe_id}}),
-    ]);
+    world
+        .bdl
+        .bind_managed_library_file(901, &original, &new_sha, "dl-changed", now)
+        .unwrap();
+    let frames = run_frames_with_use_cases(
+        &world,
+        &use_cases,
+        Some(&warehouse),
+        "corr-resolve-changed",
+        &[json!({"operation":"recipe.resolve","params":{"recipeId":recipe_id}})],
+    );
     let task_id = frames[0]["payload"]["value"]["taskId"].as_str().unwrap();
     let completed = wait_terminal(&world, task_id);
     assert_eq!(serde_json::to_value(completed.state).unwrap(), "succeeded");
     let result = completed.result.unwrap();
-    let current = use_cases.plans.get(result["planId"].as_str().unwrap()).unwrap().unwrap();
-    assert_eq!(current["jobs"][0]["inputs"]["resolvedSource"]["sourceKind"], "original");
-    assert_eq!(current["jobs"][0]["inputs"]["resolvedSource"]["artifactSha256"], new_sha);
-    assert_eq!(current["jobs"][0]["inputs"]["resolvedSource"]["fallbackUsed"], true);
+    let current = use_cases
+        .plans
+        .get(result["planId"].as_str().unwrap())
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        current["jobs"][0]["inputs"]["resolvedSource"]["sourceKind"],
+        "original"
+    );
+    assert_eq!(
+        current["jobs"][0]["inputs"]["resolvedSource"]["artifactSha256"],
+        new_sha
+    );
+    assert_eq!(
+        current["jobs"][0]["inputs"]["resolvedSource"]["fallbackUsed"],
+        true
+    );
     assert_eq!(use_cases.plans.get(first_plan_id).unwrap().unwrap(), pinned);
-    assert_eq!(use_cases.recipes.get(recipe_id).unwrap().unwrap().recipe, recipe);
+    assert_eq!(
+        use_cases.recipes.get(recipe_id).unwrap().unwrap().recipe,
+        recipe
+    );
     assert_eq!(fs::read(generated_path).unwrap(), generated_bytes);
 }
 
@@ -1947,7 +2253,10 @@ fn job_execute_writes_the_full_schema_shaped_record() {
     assert_eq!(record["planId"], json!(plan_id));
     for digest_field in ["recipeDigest", "localResolutionDigest", "planHash"] {
         let digest = record["inputs"][digest_field].as_str().unwrap_or_else(|| {
-            panic!("inputs.{digest_field} must be a real digest: {:?}", record["inputs"])
+            panic!(
+                "inputs.{digest_field} must be a real digest: {:?}",
+                record["inputs"]
+            )
         });
         assert!(
             digest.starts_with("sha256:") && digest.len() == "sha256:".len() + 64,
@@ -1960,7 +2269,10 @@ fn job_execute_writes_the_full_schema_shaped_record() {
     assert_uuid_v7(job_id, "the recorded jobId");
     assert_eq!(jobs[0]["kind"], "install_modular_asset");
     assert_eq!(jobs[0]["status"], "succeeded");
-    assert!(jobs[0]["commandId"].as_str().expect("commandId").starts_with("job-"));
+    assert!(jobs[0]["commandId"]
+        .as_str()
+        .expect("commandId")
+        .starts_with("job-"));
     assert_eq!(jobs[0]["resolvedSourceUsed"]["sourceKind"], "original");
     assert_eq!(record["planDeviations"], json!([]));
     assert_eq!(record["recoveryPoints"], json!([]));
@@ -2040,14 +2352,28 @@ fn job_execute_records_typed_deviations_and_the_receipt_snapshot() {
         .iter()
         .map(|deviation| deviation["deviationKind"].as_str().expect("deviationKind"))
         .collect();
-    assert!(kinds.contains(&"guard_skip"), "guard skip must be typed: {deviations:?}");
-    assert!(kinds.contains(&"source_fallback"), "source fallback must be typed: {deviations:?}");
-    assert!(kinds.contains(&"partial_completion"), "the truncation must be typed: {deviations:?}");
+    assert!(
+        kinds.contains(&"guard_skip"),
+        "guard skip must be typed: {deviations:?}"
+    );
+    assert!(
+        kinds.contains(&"source_fallback"),
+        "source fallback must be typed: {deviations:?}"
+    );
+    assert!(
+        kinds.contains(&"partial_completion"),
+        "the truncation must be typed: {deviations:?}"
+    );
 
-    let recovery_points = record["recoveryPoints"].as_array().expect("recovery points");
+    let recovery_points = record["recoveryPoints"]
+        .as_array()
+        .expect("recovery points");
     assert_eq!(recovery_points.len(), 1);
     assert_eq!(recovery_points[0]["phase"], "pre_job");
-    assert_eq!(recovery_points[0]["snapshotId"], "01990000-0000-7000-8000-00000000abcd");
+    assert_eq!(
+        recovery_points[0]["snapshotId"],
+        "01990000-0000-7000-8000-00000000abcd"
+    );
 }
 
 #[test]
@@ -2094,9 +2420,8 @@ fn job_execute_enforces_the_version_lock_before_execution() {
     let error = task.error.expect("the lock refusal is a typed error");
     assert_eq!(error.code, "vua.recipe.revision_conflict");
     // No record exists for the refused execution (nothing executed).
-    let records = vua_orchestrator::RecipeRecordStore::new(
-        world.base.join("production").join("records"),
-    );
+    let records =
+        vua_orchestrator::RecipeRecordStore::new(world.base.join("production").join("records"));
     assert_eq!(records.list_documents().expect("records readable").len(), 0);
 }
 
@@ -2125,7 +2450,10 @@ fn job_execute_carries_the_resolution_evidence_chain() {
     });
     let done = save_and_resolve(&world, &use_cases, &warehouse, recipe_document);
     assert_eq!(done["missingCount"], 1);
-    assert_eq!(done["evidenceIds"].as_array().expect("evidence ids").len(), 1);
+    assert_eq!(
+        done["evidenceIds"].as_array().expect("evidence ids").len(),
+        1
+    );
     assert_eq!(done["skippedJobIds"].as_array().expect("skipped").len(), 1);
     let plan_id = done["planId"].as_str().expect("planId").to_owned();
 
@@ -2210,20 +2538,33 @@ fn import_downloads_vector_drives_the_adoption_task_over_the_wire() {
         .iter()
         .map(|value| value.as_str().expect("id string").to_owned())
         .collect();
-    assert_eq!(download_ids.len(), 2, "the vector promises a two-download batch");
+    assert_eq!(
+        download_ids.len(),
+        2,
+        "the vector promises a two-download batch"
+    );
 
     // Both deliveries exist in BDL's event log with real staging files.
     let staging_dir = world.base.join("staging");
     fs::create_dir_all(&staging_dir).expect("staging dir");
     let consumer = vua_bdl_store::download_events::DownloadEventConsumer::new(&world.bdl);
     for download_id in &download_ids {
-        stage_completed_download(&consumer, &staging_dir, download_id, b"downloaded package bytes");
+        stage_completed_download(
+            &consumer,
+            &staging_dir,
+            download_id,
+            b"downloaded package bytes",
+        );
     }
 
-    let frames = run_frames(&world, "corr-import-downloads", &[json!({
-        "operation": "warehouse.importDownloads",
-        "params": request["params"].clone(),
-    })]);
+    let frames = run_frames(
+        &world,
+        "corr-import-downloads",
+        &[json!({
+            "operation": "warehouse.importDownloads",
+            "params": request["params"].clone(),
+        })],
+    );
     let value = &frames[0]["payload"]["value"];
     assert!(
         validator.is_valid(value),
@@ -2249,7 +2590,10 @@ fn import_downloads_vector_drives_the_adoption_task_over_the_wire() {
             );
             break task.result.expect("done payload");
         }
-        assert!(Instant::now() < deadline, "the adoption task did not finish");
+        assert!(
+            Instant::now() < deadline,
+            "the adoption task did not finish"
+        );
         drop(store);
         std::thread::sleep(Duration::from_millis(20));
     };
@@ -2260,7 +2604,10 @@ fn import_downloads_vector_drives_the_adoption_task_over_the_wire() {
         .bdl
         .warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage)
         .expect("cards read");
-    let mut names: Vec<&str> = cards.iter().map(|card| card.display_name.as_str()).collect();
+    let mut names: Vec<&str> = cards
+        .iter()
+        .map(|card| card.display_name.as_str())
+        .collect();
     names.sort_unstable();
     // make_world seeds one fixture entry besides the two adopted downloads.
     // The adopter names entries after the suggested file name with the
@@ -2291,8 +2638,7 @@ fn import_downloads_negative_vectors_are_params_violations() {
         });
         let frames = run_frames(&world, "req-import-downloads-invalid", &[command]);
         assert_eq!(
-            frames[0]["payload"]["error"]["code"],
-            "vua.warehouse.invalid_params",
+            frames[0]["payload"]["error"]["code"], "vua.warehouse.invalid_params",
             "{name}"
         );
     }

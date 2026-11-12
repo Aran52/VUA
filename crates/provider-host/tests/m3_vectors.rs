@@ -17,12 +17,12 @@ use flate2::write::GzEncoder;
 use tar::{Builder, Header};
 
 use vua_orchestrator::{
-    BuildRecordStore, FixedClock, FileSystemSnapshotStore, UnityBridge, UnityCommand,
-    UnityResult, ResultStatus, VpmBackend, VpmCapabilities, PackageRequestV1, ChangePreviewV1,
-    AppErrorV1, ProjectRef,
+    AppErrorV1, BuildRecordStore, ChangePreviewV1, FileSystemSnapshotStore, FixedClock,
+    PackageRequestV1, ProjectRef, ResultStatus, UnityBridge, UnityCommand, UnityResult, VpmBackend,
+    VpmCapabilities,
 };
-use vua_unity_bridge::{LocalPackageIdentityStore, MaterialExecutor};
 use vua_provider_host::ProductionConfig;
+use vua_unity_bridge::{LocalPackageIdentityStore, MaterialExecutor};
 
 // --- fakes ---
 
@@ -40,11 +40,11 @@ impl UnityBridge for NoBridge {
             changed_paths: vec![],
             diagnostics: vec![],
             data: serde_json::json!({"projectFingerprint": "fp-vector"}),
-                steps: Vec::new(),
-                replayed: None,
-                snapshot_id: None,
-                restored_from: None,
-                project_fingerprint_before: None,
+            steps: Vec::new(),
+            replayed: None,
+            snapshot_id: None,
+            restored_from: None,
+            project_fingerprint_before: None,
         })
     }
 }
@@ -56,7 +56,10 @@ fn capability_missing(capability: &str) -> AppErrorV1 {
         "errors.vpm.capabilityMissing",
         "corr-vectors",
     )
-    .with_param("capability", vua_orchestrator::ParamValue::Text(capability.to_owned()))
+    .with_param(
+        "capability",
+        vua_orchestrator::ParamValue::Text(capability.to_owned()),
+    )
 }
 
 struct NoVpm;
@@ -71,16 +74,30 @@ impl VpmBackend for NoVpm {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
-    fn preview_install(&self, _project: &ProjectRef, _packages: &[PackageRequestV1]) -> Result<ChangePreviewV1, AppErrorV1> {
+    fn preview_install(
+        &self,
+        _project: &ProjectRef,
+        _packages: &[PackageRequestV1],
+    ) -> Result<ChangePreviewV1, AppErrorV1> {
         Err(capability_missing("preview_install"))
     }
-    fn apply_install(&self, _project: &ProjectRef, _packages: &[PackageRequestV1], _confirmed_digest: &str) -> Result<serde_json::Value, AppErrorV1> {
+    fn apply_install(
+        &self,
+        _project: &ProjectRef,
+        _packages: &[PackageRequestV1],
+        _confirmed_digest: &str,
+    ) -> Result<serde_json::Value, AppErrorV1> {
         Err(capability_missing("apply_install"))
     }
-    fn create_project(&self, _parent: &Path, _name: &str, _template: Option<&str>) -> Result<ProjectRef, AppErrorV1> {
+    fn create_project(
+        &self,
+        _parent: &Path,
+        _name: &str,
+        _template: Option<&str>,
+    ) -> Result<ProjectRef, AppErrorV1> {
         Err(capability_missing("create_project"))
     }
 }
@@ -121,7 +138,9 @@ fn frames_input(frames: Vec<serde_json::Value>) -> Paced {
         bytes.extend_from_slice(frame.to_string().as_bytes());
         bytes.push(b'\n');
     }
-    Paced { inner: std::io::Cursor::new(bytes) }
+    Paced {
+        inner: std::io::Cursor::new(bytes),
+    }
 }
 
 fn frame(id: &str, payload: serde_json::Value) -> serde_json::Value {
@@ -133,7 +152,12 @@ fn frame(id: &str, payload: serde_json::Value) -> serde_json::Value {
     })
 }
 
-fn request(request_id: &str, method: &str, command_id: &str, params: serde_json::Value) -> serde_json::Value {
+fn request(
+    request_id: &str,
+    method: &str,
+    command_id: &str,
+    params: serde_json::Value,
+) -> serde_json::Value {
     serde_json::json!({
         "contractVersion": "0.1",
         "requestId": request_id,
@@ -189,7 +213,9 @@ fn make_world(label: &str) -> World {
     let mut header = Header::new_gnu();
     header.set_size(8);
     header.set_cksum();
-    builder.append_data(&mut header, "Assets/Asset.prefab", &b"fixture!"[..]).unwrap();
+    builder
+        .append_data(&mut header, "Assets/Asset.prefab", &b"fixture!"[..])
+        .unwrap();
     builder.finish().unwrap();
 
     let project_root = base.join("target");
@@ -219,7 +245,10 @@ fn vectors_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/amf-production/v0.2/vectors")
 }
 
-fn substitute(value: &serde_json::Value, context: &serde_json::Map<String, serde_json::Value>) -> serde_json::Value {
+fn substitute(
+    value: &serde_json::Value,
+    context: &serde_json::Map<String, serde_json::Value>,
+) -> serde_json::Value {
     match value {
         serde_json::Value::String(text) => {
             if let Some(key) = text.strip_prefix('$') {
@@ -254,7 +283,10 @@ fn check_entry(value: &serde_json::Value, checks: &serde_json::Value) -> Vec<Str
                 continue;
             };
             if let Some(prefix) = expectation["startsWith"].as_str() {
-                let matches = target.as_str().map(|s| s.starts_with(prefix)).unwrap_or(false);
+                let matches = target
+                    .as_str()
+                    .map(|s| s.starts_with(prefix))
+                    .unwrap_or(false);
                 if !matches {
                     failures.push(format!("{pointer}: {target} does not start with {prefix}"));
                 }
@@ -277,7 +309,12 @@ fn check_entry(value: &serde_json::Value, checks: &serde_json::Value) -> Vec<Str
     failures
 }
 
-fn run_step(database: &Path, method: &str, command_id: &str, params: serde_json::Value) -> (bool, Option<String>, serde_json::Value) {
+fn run_step(
+    database: &Path,
+    method: &str,
+    command_id: &str,
+    params: serde_json::Value,
+) -> (bool, Option<String>, serde_json::Value) {
     let mut output_buffer = Vec::new();
     vua_provider_host::run_provider_host_with(
         frames_input(vec![frame(
@@ -321,7 +358,10 @@ fn m3_t1_fixed_vectors_run_green_against_the_provider_host() {
     let mut context: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
     context.insert("sourceFolder".into(), world.source.clone().into());
     context.insert("projectRoot".into(), world.project_root.clone().into());
-    context.insert("artifactOutputRoot".into(), world.artifact_output_root.clone().into());
+    context.insert(
+        "artifactOutputRoot".into(),
+        world.artifact_output_root.clone().into(),
+    );
     context.insert("projectId".into(), "project".into());
 
     for vector_path in vector_files {

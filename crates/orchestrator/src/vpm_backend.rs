@@ -173,7 +173,9 @@ pub struct RegisterCapabilities {
 }
 
 impl RegisterCapabilities {
-    pub const NONE: Self = Self { register_local_package: false };
+    pub const NONE: Self = Self {
+        register_local_package: false,
+    };
 }
 
 /// A4 write-face capability declaration (proposal 026 freeze batch,
@@ -226,7 +228,9 @@ pub struct RepoCatalogCapabilities {
 }
 
 impl RepoCatalogCapabilities {
-    pub const NONE: Self = Self { repo_catalog: false };
+    pub const NONE: Self = Self {
+        repo_catalog: false,
+    };
 }
 
 /// P2: one repository subscription row (proposal 025 freeze batch). The
@@ -420,7 +424,9 @@ pub struct TemplateCapabilities {
 }
 
 impl TemplateCapabilities {
-    pub const NONE: Self = Self { list_templates: false };
+    pub const NONE: Self = Self {
+        list_templates: false,
+    };
 }
 
 /// F4 write-face capability declaration (proposal 027 freeze batch,
@@ -917,10 +923,7 @@ pub trait VpmBackend: Send + Sync {
     /// The judgment reuses the packages-catalog frozen selector semantics
     /// over ONE collection load for the whole table (never per-row
     /// reloads); the error face is the frozen v0.1 face, zero new codes.
-    fn list_packages_v02(
-        &self,
-        _project: &ProjectRef,
-    ) -> Result<InstalledListingV02, AppErrorV1> {
+    fn list_packages_v02(&self, _project: &ProjectRef) -> Result<InstalledListingV02, AppErrorV1> {
         Err(unsupported("list_packages_v02"))
     }
     /// F5 (proposal 027 freeze batch): capability declaration for the
@@ -1020,4 +1023,3 @@ fn unsupported(capability: &str) -> AppErrorV1 {
     )
     .with_param("capability", ParamValue::Text(capability.to_owned()))
 }
-

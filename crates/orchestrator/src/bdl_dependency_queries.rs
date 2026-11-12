@@ -53,17 +53,15 @@ use serde::Serialize;
 use serde_json::Value;
 
 use vua_bdl_store::{
-    availability_status, BdlStore, BdlStoreError, DependencyProductRow,
-    StoredDependencyObservation,
+    availability_status, BdlStore, BdlStoreError, DependencyProductRow, StoredDependencyObservation,
 };
 
 use crate::contracts::{AppErrorV1, ErrorCategory};
 use crate::dependencies_queries::{
-    DependenciesListByProductResultV05, DependenciesLookupParams,
+    AdvisoryConfidence, DependenciesListByProductResultV05, DependenciesLookupParams,
     DependenciesLookupResultV05, DependenciesQueriesCapabilities, DependenciesQueriesPort,
-    AdvisoryConfidence, DependencyMatchV05, DependencyObservationV05,
-    DependencyProductStatus, InstallAdvisoryV05, InstallSource, ResolutionEvidenceV05,
-    ResolutionV05,
+    DependencyMatchV05, DependencyObservationV05, DependencyProductStatus, InstallAdvisoryV05,
+    InstallSource, ResolutionEvidenceV05, ResolutionV05,
 };
 
 /// The real dependencies read-model executor over one opened BDL library.
@@ -155,9 +153,7 @@ impl BdlDependencyQueries {
         };
         Ok(DependencyMatchV05 {
             product_id: row.product_id.clone(),
-            product_title: declaring
-                .as_ref()
-                .and_then(|product| product.title.clone()),
+            product_title: declaring.as_ref().and_then(|product| product.title.clone()),
             availability_raw: declaring
                 .as_ref()
                 .and_then(|product| product.availability.clone()),
@@ -231,7 +227,9 @@ impl DependenciesQueriesPort for BdlDependencyQueries {
     /// executor exists, so the served capability row and both route gates
     /// turn available.
     fn dependencies_capabilities(&self) -> DependenciesQueriesCapabilities {
-        DependenciesQueriesCapabilities { dependencies_queries: true }
+        DependenciesQueriesCapabilities {
+            dependencies_queries: true,
+        }
     }
 
     /// The suggestion face: dependency reverse lookup under matching rule
@@ -343,7 +341,10 @@ fn store_failure(_error: &BdlStoreError) -> AppErrorV1 {
 /// at read time over the verbatim stored column — the store keeps no
 /// duplicate Rust closed set, and this is not one either: it is the rule.
 fn deliberate_declaration(extraction_method: &str) -> bool {
-    matches!(extraction_method, "explicit_heading" | "one_line" | "bullet")
+    matches!(
+        extraction_method,
+        "explicit_heading" | "one_line" | "bullet"
+    )
 }
 
 /// The confidence tiers over the layout dimension only: strong =
@@ -362,11 +363,12 @@ fn confidence(extraction_method: &str) -> AdvisoryConfidence {
 /// word would be store-face drift, never a guessed member; it surfaces as
 /// the family's service code (zero new codes).
 fn closed_set_word<T: DeserializeOwned>(word: &str) -> Result<T, AppErrorV1> {
-    serde_json::from_value::<T>(Value::String(word.to_owned()))
-        .map_err(|_| store_failure(&BdlStoreError::CorruptValue {
+    serde_json::from_value::<T>(Value::String(word.to_owned())).map_err(|_| {
+        store_failure(&BdlStoreError::CorruptValue {
             field: "closed_set_word",
             value: word.to_owned(),
-        }))
+        })
+    })
 }
 
 /// The closed-set enum's frozen wire word (serde snake_case) for matching

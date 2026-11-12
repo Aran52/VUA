@@ -9,29 +9,29 @@ mod assembly;
 mod bdl_dependency_queries;
 pub mod booth_extraction;
 mod build_record;
-mod dependencies_queries;
-mod inspection_evidence;
-mod plan_documents;
-mod production_evidence;
-mod recipe_documents;
-mod recipe_records;
 mod capability;
 mod contracts;
-mod editor_targets;
+mod dependencies_queries;
 mod editor_selection;
+mod editor_targets;
 mod environment;
-pub mod network;
 pub mod external_tools;
 mod filesystem;
+mod inspection_evidence;
 mod journal;
 mod material_types;
 mod model;
+pub mod network;
 mod overlay_surface;
+mod plan_documents;
 mod process;
+mod production_evidence;
 mod project_identity;
 mod provision;
 mod recipe;
+mod recipe_documents;
 mod recipe_export;
+mod recipe_records;
 mod release_handoff;
 mod runtime;
 mod sqlite_task_store;
@@ -47,27 +47,10 @@ pub use assembly::{
     error_codes as assembly_error_codes, AssemblyConfirmation, AssemblyEngine, AssemblyOperation,
     AssemblyPlanV1, AssemblyStepV1, BridgeError, UnityBridge,
 };
+pub use bdl_dependency_queries::BdlDependencyQueries;
 pub use booth_extraction::{
-    extract_product_json, extract_product_page, ExtractedProduct, ExtractedSubproduct, ExtractionError,
-};
-pub use plan_documents::{ApproveOutcome, PlanDocumentStore, APPROVED_PLAN_SCHEMA_VERSION};
-pub use inspection_evidence::{
-    aggregate_overall_status, build_inspection_command, operation_status, producing_operations,
-    transcribe_dimension, InspectionDimension, InspectionEvidenceStore,
-    INSPECTION_EVIDENCE_SCHEMA_VERSION,
-};
-pub use recipe_records::RecipeRecordStore;
-pub use release_handoff::{
-    build_handoff_fact, build_inspection_fact, classify_handoff_record_state,
-    record_editor_version, record_project_id, resolve_handoff_editor, HandoffEditorCandidate,
-    HandoffEditorSource, HandoffEditorUnresolved, HandoffLaunch, HandoffOutcome, HandoffPortError,
-    HandoffRecordAdmission, ReleaseHandoffPort, OPEN_FOR_INSPECTION_OPERATION,
-    RELEASE_HANDOFF_SCHEMA_VERSION,
-};
-pub use recipe_documents::{RecipeDocumentStore, RecipeListEntry, RecipeSaveError, StoredRecipeDocument};
-pub use production_evidence::{
-    EvidenceKind, EvidenceResolution, EvidenceSourceRef, EvidenceStore, EvidenceSubject,
-    ProductionEvidenceV01, PRODUCTION_EVIDENCE_SCHEMA_VERSION,
+    extract_product_json, extract_product_page, ExtractedProduct, ExtractedSubproduct,
+    ExtractionError,
 };
 pub use build_record::{
     wire_v02, BridgeJobEvidenceV01, BridgeSummary, BuildRecordStatus, BuildRecordStore,
@@ -89,16 +72,16 @@ pub use dependencies_queries::{
     DependencyObservationV05, DependencyProductStatus, ExtractionMethod, InstallAdvisoryV05,
     InstallSource, ResolutionEvidenceV05, ResolutionV05, SourceSpan,
 };
-pub use bdl_dependency_queries::BdlDependencyQueries;
-pub use editor_targets::{
-    classify_editor, classify_version_string, codes as editor_target_codes, editor_version_from_path,
-    parse_editor_version, EditorClass, ParsedEditorVersion, MIGRATION_SOURCES, PRODUCTION_TARGET,
-};
 pub use editor_selection::{select_editor, EditorSelection, EditorSelectionGap};
+pub use editor_targets::{
+    classify_editor, classify_version_string, codes as editor_target_codes,
+    editor_version_from_path, parse_editor_version, EditorClass, ParsedEditorVersion,
+    MIGRATION_SOURCES, PRODUCTION_TARGET,
+};
 pub use environment::{
     codes as env_managers_codes, error_codes as env_error_codes, installed_unity_editors,
-    EditorInstallObservation, InstalledUnityEditor, EnvironmentCheckItemV1, EnvironmentEngine,
-    EnvironmentPresence, EnvironmentRoots, EnvironmentSnapshotV1, FindingSeverity,
+    EditorInstallObservation, EnvironmentCheckItemV1, EnvironmentEngine, EnvironmentPresence,
+    EnvironmentRoots, EnvironmentSnapshotV1, FindingSeverity, InstalledUnityEditor,
     ManagerDiagnostic, ManagerPresence, VccCapability, VccSettingsReader, VrRuntimeRoots, Zone,
     EMBEDDED_VRC_GET_VPM_VERSION,
 };
@@ -106,6 +89,11 @@ pub use filesystem::{
     project_tree_fingerprint, project_tree_fingerprint_cached, FileSystemProjectStore,
     FileSystemSnapshotStore, SnapshotManifestEntry, SnapshotManifestV1, VerifiedSnapshot,
     FINGERPRINT_V1_PREFIX, FINGERPRINT_V2_PREFIX,
+};
+pub use inspection_evidence::{
+    aggregate_overall_status, build_inspection_command, operation_status, producing_operations,
+    transcribe_dimension, InspectionDimension, InspectionEvidenceStore,
+    INSPECTION_EVIDENCE_SCHEMA_VERSION,
 };
 pub use journal::{
     recover_from_journal, JournalEntryKind, JournalEntryV1, JournalError, JournalPayload,
@@ -121,59 +109,76 @@ pub use overlay_surface::{
     OverlayPlanSummary, OverlayProductionCard, OverlayReadModel, OverlayRecordSummary,
     OverlayTaskCard, StoreOverlayReadModel,
 };
+pub use plan_documents::{ApproveOutcome, PlanDocumentStore, APPROVED_PLAN_SCHEMA_VERSION};
 pub use process::{
     outcome_with_exit, FakeProcessRunner, ProcessError, ProcessOutcome, ProcessRunner, ProcessSpec,
     StdProcessRunner, CREDENTIAL_ENV_REMOVALS,
 };
+pub use production_evidence::{
+    EvidenceKind, EvidenceResolution, EvidenceSourceRef, EvidenceStore, EvidenceSubject,
+    ProductionEvidenceV01, PRODUCTION_EVIDENCE_SCHEMA_VERSION,
+};
 pub use project_identity::{ProjectIdentity, ProjectIdentityError};
 pub use provision::{ProjectProvisionError, VpmProjectProvisioner};
 pub use recipe::*;
+pub use recipe_documents::{
+    RecipeDocumentStore, RecipeListEntry, RecipeSaveError, StoredRecipeDocument,
+};
 pub use recipe_export::{
     DraftDependencyV01, DraftEnvironmentV01, DraftOriginV01, MissingDimensionV01,
     OnDiskProjectDraftExporter, ProjectDraftDocumentV01, ProjectDraftExportCapabilities,
     ProjectDraftExportPort, VuaIdentityStatusV01,
 };
+pub use recipe_records::RecipeRecordStore;
+pub use release_handoff::{
+    build_handoff_fact, build_inspection_fact, classify_handoff_record_state,
+    record_editor_version, record_project_id, resolve_handoff_editor, HandoffEditorCandidate,
+    HandoffEditorSource, HandoffEditorUnresolved, HandoffLaunch, HandoffOutcome, HandoffPortError,
+    HandoffRecordAdmission, ReleaseHandoffPort, OPEN_FOR_INSPECTION_OPERATION,
+    RELEASE_HANDOFF_SCHEMA_VERSION,
+};
 pub use runtime::{
-    recovery_dispositions, SubmitRequest, TaskContext, TaskExit, TaskJob, TaskLane, TaskLanePolicy, TaskLaneSnapshot,
-    TaskRecoveryDisposition, TaskRuntime, TaskSnapshot,
+    recovery_dispositions, SubmitRequest, TaskContext, TaskExit, TaskJob, TaskLane, TaskLanePolicy,
+    TaskLaneSnapshot, TaskRecoveryDisposition, TaskRuntime, TaskSnapshot,
 };
 pub use sqlite_task_store::{
-    LegacyTaskOwner,
-    IdempotentCancellation, IdempotentTaskAcceptance, NewTask, ProjectMutationLease,
-    SqliteStoreError, SqliteTaskStore, StoredCancellationOutcome, StoredCancellationResult,
-    StoredTask, StoredTaskEvent, TaskMutation,
+    IdempotentCancellation, IdempotentTaskAcceptance, LegacyTaskOwner, NewTask,
+    ProjectMutationLease, SqliteStoreError, SqliteTaskStore, StoredCancellationOutcome,
+    StoredCancellationResult, StoredTask, StoredTaskEvent, TaskMutation,
 };
 pub use state_file::{
     StateFile, StateFileError, StateLoad, StateRecoveryReason, STATE_FILE_SCHEMA_VERSION,
 };
 pub use time::{
-    rfc3339, rfc3339_millis, rfc3339_offset_millis, Clock, FixedClock, FixedIdGenerator, NanosTaskIdGenerator,
-    SystemClock, TaskIdGenerator,
+    rfc3339, rfc3339_millis, rfc3339_offset_millis, Clock, FixedClock, FixedIdGenerator,
+    NanosTaskIdGenerator, SystemClock, TaskIdGenerator,
 };
 pub use tools::{
     registry_ids, ProbeRoot, ToolCardV1, ToolProbe, ToolRegistration, ToolsEngine, ToolsRoots,
     TOOL_REGISTRY,
 };
-pub use vpm::{fnv1a_hex, InstallConfirmation, InstallPlanV1, InstallRequest, PlanStepV1, VpmEngine};
+pub use vpm::{
+    fnv1a_hex, InstallConfirmation, InstallPlanV1, InstallRequest, PlanStepV1, VpmEngine,
+};
 pub use vpm_backend::{
     error_codes as vpm_backend_error_codes, CatalogCapabilities, CatalogVersionV01, ChangeItemV1,
-    ChangeKindV1, ChangePreviewV1, InstalledListingV02, InstalledPackageV1, InstalledPackageV02,
-    PackageCatalogV01, PackageCatalogV02, PackageRequestV1, PackageSourceV01, RegisteredProjectV1,
-    RegisterCapabilities, RepoCatalogCapabilities, RepoCatalogPackageV01, RepoCatalogRepoV01,
+    ChangeKindV1, ChangePreviewV1, InstalledListingV02, InstalledPackageV02, InstalledPackageV1,
+    PackageCatalogV01, PackageCatalogV02, PackageRequestV1, PackageSourceV01, RegisterCapabilities,
+    RegisteredProjectV1, RepoCatalogCapabilities, RepoCatalogPackageV01, RepoCatalogRepoV01,
     RepoCatalogV01, RepoInfoV01, RepoInfoV02, RepoLifecycleCapabilities, RepoRefreshOutcomeV01,
     RepoWriteCapabilities, ResolveFailureV01, ResolveReceiptV01, ResolvedPackageV01,
-    RESOLVE_RECEIPT_SCHEMA_VERSION, TemplateCapabilities, TemplateEntryV01, VpmBackend,
-    VpmCapabilities,
+    TemplateCapabilities, TemplateEntryV01, VpmBackend, VpmCapabilities,
+    RESOLVE_RECEIPT_SCHEMA_VERSION,
 };
-pub use workflow::{AvatarSetupWorkflow, WorkflowError};
 pub use win_registry::{FakeRegistrySource, RegistryHive, RegistrySource, WindowsRegistrySource};
+pub use workflow::{AvatarSetupWorkflow, WorkflowError};
 
-/// N1 deployment decisions and adapter port; independent of vendor/process types.
-pub mod deployment;
 pub mod amf_production;
 pub mod amf_recipe;
+pub mod amf_recipe_apply;
 pub mod amf_recipe_materials;
 pub mod amf_recipe_share;
-pub mod amf_recipe_apply;
+/// N1 deployment decisions and adapter port; independent of vendor/process types.
+pub mod deployment;
 pub mod scenario_environment;
 pub mod unity_license;

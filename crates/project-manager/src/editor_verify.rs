@@ -130,7 +130,10 @@ fn locate_editor_executable(input: &Path) -> Result<(PathBuf, PathBuf), (&'stati
         }
         return Err((
             codes::EXE_MISSING,
-            format!("no Unity.exe under {} (tried Editor/Unity.exe, Unity.exe)", input.display()),
+            format!(
+                "no Unity.exe under {} (tried Editor/Unity.exe, Unity.exe)",
+                input.display()
+            ),
         ));
     }
     Err((
@@ -179,7 +182,11 @@ pub fn verify_editor_path(input: &Path, reader: &dyn EditorIdentitySource) -> Ed
     };
     let parsed = raw_strings
         .iter()
-        .filter_map(|raw| version_candidates(raw).into_iter().find_map(parse_editor_version))
+        .filter_map(|raw| {
+            version_candidates(raw)
+                .into_iter()
+                .find_map(parse_editor_version)
+        })
         .next();
     match parsed {
         Some(identity) => {
@@ -378,10 +385,7 @@ mod tests {
     fn verifies_production_target_from_editor_root_layout() {
         let root = unique_temp_root("prod-root");
         touch(&root.join("Editor").join("Unity.exe"));
-        let verdict = verify_with(
-            FixedSource(Ok(vec!["2022.3.22f1".to_string()])),
-            &root,
-        );
+        let verdict = verify_with(FixedSource(Ok(vec!["2022.3.22f1".to_string()])), &root);
         match verdict {
             EditorPathVerdict::Verified(identity) => {
                 assert_eq!(identity.version, "2022.3.22f1");
@@ -391,7 +395,9 @@ mod tests {
                     vua_orchestrator::editor_target_codes::EDITOR_PRODUCTION_TARGET
                 );
                 assert!(!identity.china_distribution);
-                assert!(identity.editor_root.ends_with(&root.file_name().unwrap().to_string_lossy().to_string()));
+                assert!(identity
+                    .editor_root
+                    .ends_with(&root.file_name().unwrap().to_string_lossy().to_string()));
                 assert!(identity.exe_path.ends_with("Editor\\Unity.exe"));
             }
             other => panic!("expected verified, got {other:?}"),
@@ -424,10 +430,7 @@ mod tests {
         let root = unique_temp_root("exe-input");
         let exe = root.join("Editor").join("Unity.exe");
         touch(&exe);
-        let verdict = verify_with(
-            FixedSource(Ok(vec!["2019.4.31f1".to_string()])),
-            &exe,
-        );
+        let verdict = verify_with(FixedSource(Ok(vec!["2019.4.31f1".to_string()])), &exe);
         match verdict {
             EditorPathVerdict::Verified(identity) => {
                 assert_eq!(identity.classification, EditorClass::MigrationSource);
@@ -441,10 +444,7 @@ mod tests {
     fn china_distribution_classifies_other_with_china_diagnosis() {
         let root = unique_temp_root("china");
         touch(&root.join("Editor").join("Unity.exe"));
-        let verdict = verify_with(
-            FixedSource(Ok(vec!["2022.3.22f1c1".to_string()])),
-            &root,
-        );
+        let verdict = verify_with(FixedSource(Ok(vec!["2022.3.22f1c1".to_string()])), &root);
         match verdict {
             EditorPathVerdict::Verified(identity) => {
                 assert_eq!(identity.classification, EditorClass::OtherUnityVersion);
@@ -504,10 +504,7 @@ mod tests {
     fn unreadable_resource_refuses_identity_unreadable() {
         let root = unique_temp_root("unreadable");
         touch(&root.join("Editor").join("Unity.exe"));
-        let verdict = verify_with(
-            FixedSource(Err("resource missing".to_string())),
-            &root,
-        );
+        let verdict = verify_with(FixedSource(Err("resource missing".to_string())), &root);
         match verdict {
             EditorPathVerdict::Refused(refusal) => {
                 assert_eq!(refusal.code, codes::IDENTITY_UNREADABLE);
@@ -544,10 +541,7 @@ mod tests {
     fn tuanjie_family_identified_for_diagnostics() {
         let root = unique_temp_root("tuanjie");
         touch(&root.join("Editor").join("Unity.exe"));
-        let verdict = verify_with(
-            FixedSource(Ok(vec!["2022.3.22t1".to_string()])),
-            &root,
-        );
+        let verdict = verify_with(FixedSource(Ok(vec!["2022.3.22t1".to_string()])), &root);
         match verdict {
             EditorPathVerdict::Verified(identity) => {
                 assert_eq!(identity.classification, EditorClass::TuanjieFamily);
@@ -572,7 +566,10 @@ mod tests {
         let entries = match std::fs::read_dir(&editors_root) {
             Ok(entries) => entries,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                eprintln!("no Unity Hub editors root at {} — nothing to probe", editors_root.display());
+                eprintln!(
+                    "no Unity Hub editors root at {} — nothing to probe",
+                    editors_root.display()
+                );
                 return;
             }
             Err(error) => panic!("editors root unreadable: {error}"),
@@ -599,6 +596,9 @@ mod tests {
                 ),
             }
         }
-        eprintln!("probed {probed} real editor(s) under {}", editors_root.display());
+        eprintln!(
+            "probed {probed} real editor(s) under {}",
+            editors_root.display()
+        );
     }
 }

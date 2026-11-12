@@ -36,9 +36,7 @@ use std::fs;
 use std::path::Path;
 
 use serde_json::{json, Value};
-use vua_orchestrator::{
-    AppErrorV1, PackageRequestV1, ProjectRef, RepoInfoV02, VpmBackend,
-};
+use vua_orchestrator::{AppErrorV1, PackageRequestV1, ProjectRef, RepoInfoV02, VpmBackend};
 
 fn read_repos_json(relative: &str) -> Value {
     // Tests run from the crate directory; the schemas live at the repo root.
@@ -89,7 +87,7 @@ impl VpmBackend for FakeReposV02Backend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn repos_v02(&self) -> bool {
@@ -157,9 +155,17 @@ fn repos_v02_schema_admits_positive_vectors_and_rejects_negative_ones() {
 
     // --- the positive vectors pass their respective schema ---
     let request = example("packages-list-repos.request.json");
-    assert!(command.is_valid(&request), "{:?}", violations(&command, &request));
+    assert!(
+        command.is_valid(&request),
+        "{:?}",
+        violations(&command, &request)
+    );
     let listing = example("packages-list-repos.result.json");
-    assert!(result.is_valid(&listing), "{:?}", violations(&result, &listing));
+    assert!(
+        result.is_valid(&listing),
+        "{:?}",
+        violations(&result, &listing)
+    );
     let empty = example("packages-list-repos-empty.result.json");
     assert!(result.is_valid(&empty), "{:?}", violations(&result, &empty));
 
@@ -188,7 +194,10 @@ fn repos_v02_schema_admits_positive_vectors_and_rejects_negative_ones() {
     // document carries the v0.2 family const (the F3 increment law, the
     // c914cf2 two-independent-versions rule) ---
     assert_eq!(listing["schemaVersion"], "0.1");
-    assert_eq!(listing["result"]["schemaVersion"], "vua.packages-repos/v0.2");
+    assert_eq!(
+        listing["result"]["schemaVersion"],
+        "vua.packages-repos/v0.2"
+    );
     let v02_row_invalid_under_a_v01_family_stamp = json!({
         "schemaVersion": "0.1",
         "operation": "packages.listRepos",
@@ -238,7 +247,7 @@ fn repos_v02_negotiation_defaults_declared_and_v01_keeps_serving() {
                 list_packages: false,
                 remove_packages: false,
                 project_registry: false,
-            resolve_project: false,
+                resolve_project: false,
             }
         }
         fn preview_install(
@@ -266,7 +275,10 @@ fn repos_v02_negotiation_defaults_declared_and_v01_keeps_serving() {
         }
     }
     let bare = BareBackend;
-    assert!(!bare.repos_v02(), "the default is declared-false, never reserved");
+    assert!(
+        !bare.repos_v02(),
+        "the default is declared-false, never reserved"
+    );
     let refusal = bare
         .list_repos_v02()
         .expect_err("the defaulted method refuses");
@@ -283,7 +295,11 @@ fn fake_backend_rows_project_onto_the_v02_wire_shape() {
         "operation": "packages.listRepos",
         "params": {},
     });
-    assert!(command.is_valid(&request), "{:?}", violations(&command, &request));
+    assert!(
+        command.is_valid(&request),
+        "{:?}",
+        violations(&command, &request)
+    );
 
     let rows = FakeReposV02Backend
         .list_repos_v02()
@@ -291,7 +307,10 @@ fn fake_backend_rows_project_onto_the_v02_wire_shape() {
     assert_eq!(rows.len(), 3);
     assert!(rows[0].enabled);
     assert!(!rows[1].enabled, "the disabled row is listed, not hidden");
-    assert!(rows[2].repo_id.is_none() && rows[2].enabled, "the id-absent row is always enabled");
+    assert!(
+        rows[2].repo_id.is_none() && rows[2].enabled,
+        "the id-absent row is always enabled"
+    );
 
     let projected: Vec<Value> = rows
         .iter()
@@ -314,7 +333,11 @@ fn fake_backend_rows_project_onto_the_v02_wire_shape() {
             "repos": projected,
         },
     });
-    assert!(result.is_valid(&listing), "{:?}", violations(&result, &listing));
+    assert!(
+        result.is_valid(&listing),
+        "{:?}",
+        violations(&result, &listing)
+    );
 
     // The row key set is exactly the declared six — the frozen v0.1 five
     // facts plus the ONE new state bit, nothing invented (no health, no

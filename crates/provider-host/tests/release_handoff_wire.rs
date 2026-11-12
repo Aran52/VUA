@@ -16,8 +16,8 @@ use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use serde_json::{json, Value};
 use jsonschema::Validator;
+use serde_json::{json, Value};
 use vua_provider_host::run_provider_host_full;
 
 /// The LIVE face under test (v0.2: the U19 gate + the inspection entry).
@@ -41,11 +41,11 @@ fn read_json_at(dir: &Path, relative: &str) -> Value {
 /// compilation shape).
 fn def_validator(method_file: &str, def_name: &str) -> Validator {
     let schema = read_json_at(&schemas_dir().join("methods"), method_file);
-    let defs = schema.get("$defs").expect("method schema has $defs").clone();
-    let sub = defs
-        .get(def_name)
-        .expect("sub schema exists")
+    let defs = schema
+        .get("$defs")
+        .expect("method schema has $defs")
         .clone();
+    let sub = defs.get(def_name).expect("sub schema exists").clone();
     let combined = json!({ "allOf": [sub], "$defs": defs });
     jsonschema::validator_for(&combined).expect("sub schema compiles")
 }
@@ -137,7 +137,10 @@ fn v02_valid_vectors_pass_their_frozen_defs() {
         "release-open-for-handoff.schema.json",
         "release-openForHandoffParams",
     );
-    assert!(params_validator.is_valid(&params), "params vector must validate");
+    assert!(
+        params_validator.is_valid(&params),
+        "params vector must validate"
+    );
     let inspection_params = read_json_at(
         &schemas_dir().join("examples"),
         "release-open-for-inspection.request.json",
@@ -160,7 +163,10 @@ fn v02_valid_vectors_pass_their_frozen_defs() {
         "release-open-for-handoff.schema.json",
         "release-openForHandoffAccepted",
     );
-    assert!(accepted_validator.is_valid(&accepted), "accepted vector must validate");
+    assert!(
+        accepted_validator.is_valid(&accepted),
+        "accepted vector must validate"
+    );
     let inspection_accepted = read_json_at(
         &schemas_dir().join("examples"),
         "release-open-for-inspection.accepted.json",
@@ -316,10 +322,19 @@ fn unwired_route_answers_the_honest_absence_never_a_fabricated_acceptance() {
     let error = &payload["error"];
     assert_eq!(error["code"], json!("vua.release_handoff.unavailable"));
     assert_eq!(error["category"], json!("unavailable"));
-    assert_eq!(error["messageKey"], json!("errors.releaseHandoff.unavailable"));
+    assert_eq!(
+        error["messageKey"],
+        json!("errors.releaseHandoff.unavailable")
+    );
     // 缺席响应绝不携带任务面事实(taskId/task 字段缺位——伪造受理即撒谎)
-    assert!(payload.get("task").is_none(), "absence must not fabricate a task snapshot");
-    assert!(payload.get("schemaVersion").is_none(), "absence must not fabricate an acceptance");
+    assert!(
+        payload.get("task").is_none(),
+        "absence must not fabricate a task snapshot"
+    );
+    assert!(
+        payload.get("schemaVersion").is_none(),
+        "absence must not fabricate an acceptance"
+    );
 }
 
 #[test]
@@ -334,12 +349,23 @@ fn params_closed_set_violations_answer_validation_not_absence() {
         "release-handoff",
         json!({ "buildId": "019513e7-7a2b-7cd1-9f3a-4d8e21b90c99", "projectPath": "C:/Projects/X" }),
     );
-    assert_eq!(payload["error"]["code"], json!("vua.release_handoff.invalid_params"));
+    assert_eq!(
+        payload["error"]["code"],
+        json!("vua.release_handoff.invalid_params")
+    );
     assert_eq!(payload["error"]["category"], json!("validation"));
 
     // 缺 buildId
-    let payload = run_frame(&database, "release.openForHandoff", "release-handoff", json!({}));
-    assert_eq!(payload["error"]["code"], json!("vua.release_handoff.invalid_params"));
+    let payload = run_frame(
+        &database,
+        "release.openForHandoff",
+        "release-handoff",
+        json!({}),
+    );
+    assert_eq!(
+        payload["error"]["code"],
+        json!("vua.release_handoff.invalid_params")
+    );
 
     // 空 buildId(minLength 1)
     let payload = run_frame(
@@ -348,7 +374,10 @@ fn params_closed_set_violations_answer_validation_not_absence() {
         "release-handoff",
         json!({ "buildId": "" }),
     );
-    assert_eq!(payload["error"]["code"], json!("vua.release_handoff.invalid_params"));
+    assert_eq!(
+        payload["error"]["code"],
+        json!("vua.release_handoff.invalid_params")
+    );
 
     // buildId 非字符串
     let payload = run_frame(
@@ -357,7 +386,10 @@ fn params_closed_set_violations_answer_validation_not_absence() {
         "release-handoff",
         json!({ "buildId": 17 }),
     );
-    assert_eq!(payload["error"]["code"], json!("vua.release_handoff.invalid_params"));
+    assert_eq!(
+        payload["error"]["code"],
+        json!("vua.release_handoff.invalid_params")
+    );
 
     fs::remove_dir_all(&root).ok();
 }
@@ -375,8 +407,8 @@ use vua_orchestrator::{
     EditorSelection, HandoffLaunch, HandoffOutcome, HandoffPortError, ReleaseHandoffPort,
     UnityBridge, UnityCommand, UnityResult,
 };
-use vua_provider_host::{ProductionUseCaseConfig, WarehouseConfig};
 use vua_project_manager::{EditorPathIdentity, EditorPathVerdict};
+use vua_provider_host::{ProductionUseCaseConfig, WarehouseConfig};
 
 struct NoBridge;
 
@@ -436,10 +468,7 @@ impl FakePort {
 }
 
 impl ReleaseHandoffPort for FakePort {
-    fn open_for_handoff(
-        &self,
-        launch: &HandoffLaunch,
-    ) -> Result<HandoffOutcome, HandoffPortError> {
+    fn open_for_handoff(&self, launch: &HandoffLaunch) -> Result<HandoffOutcome, HandoffPortError> {
         *self.seen.lock().expect("lock") = Some(launch.clone());
         self.outcome.clone()
     }
@@ -477,7 +506,10 @@ fn seed_build_record(config: &ProductionUseCaseConfig, editor_version: &str) {
         "status": "succeeded",
     });
     if editor_version.is_empty() {
-        record.as_object_mut().expect("object").remove("unityEditorVersion");
+        record
+            .as_object_mut()
+            .expect("object")
+            .remove("unityEditorVersion");
     }
     config
         .records
@@ -492,9 +524,11 @@ fn handoff_config(
 ) -> ProductionUseCaseConfig {
     let production_root = root.join("production");
     ProductionUseCaseConfig {
-        recipes: Arc::new(vua_orchestrator::RecipeDocumentStore::new_with_system_clock(
-            production_root.join("recipes"),
-        )),
+        recipes: Arc::new(
+            vua_orchestrator::RecipeDocumentStore::new_with_system_clock(
+                production_root.join("recipes"),
+            ),
+        ),
         plans: Arc::new(vua_orchestrator::PlanDocumentStore::new(
             production_root.join("plans"),
         )),
@@ -744,15 +778,15 @@ fn unknown_build_id_answers_build_unknown_without_accepting_a_task() {
         json!({ "buildId": BUILD_ID }),
     );
     assert_eq!(payload["ok"], json!(false));
-    assert_eq!(payload["error"]["code"], json!("vua.release_handoff.build_unknown"));
+    assert_eq!(
+        payload["error"]["code"],
+        json!("vua.release_handoff.build_unknown")
+    );
     assert_eq!(payload["error"]["category"], json!("validation"));
     // 受理期校验失败不受理任务——库里零任务
     let store = vua_orchestrator::SqliteTaskStore::open(&database).expect("store opens");
     assert!(store.tasks().expect("tasks readable").is_empty());
-    assert!(
-        port.was_never_called(),
-        "the port is never reached"
-    );
+    assert!(port.was_never_called(), "the port is never reached");
 
     fs::remove_dir_all(&root).ok();
 }
@@ -806,7 +840,10 @@ fn wired_store_without_a_port_keeps_the_honest_absence() {
     let error = &payload["error"];
     assert_eq!(error["code"], json!("vua.release_handoff.unavailable"));
     assert_eq!(error["category"], json!("unavailable"));
-    assert_eq!(error["messageKey"], json!("errors.releaseHandoff.unavailable"));
+    assert_eq!(
+        error["messageKey"],
+        json!("errors.releaseHandoff.unavailable")
+    );
 
     fs::remove_dir_all(&root).ok();
 }
@@ -827,17 +864,16 @@ fn explicit_injection_short_circuits_and_reaches_the_port() {
     // The route resolves the explicit injection through the editor-verify
     // face; this fixture injects the verifier so identity comes from the
     // "executable" without a real PE version resource.
-    let verifier: vua_provider_host::EditorPathVerifier =
-        Arc::new(|path: &std::path::Path| {
-            EditorPathVerdict::Verified(EditorPathIdentity {
-                editor_root: "C:/Unity/2019.4.31f1".to_owned(),
-                exe_path: path.to_string_lossy().to_string(),
-                version: "2019.4.31f1".to_owned(),
-                classification: vua_orchestrator::EditorClass::MigrationSource,
-                guidance_code: "vua.env_managers.editor_migration_source",
-                china_distribution: false,
-            })
-        });
+    let verifier: vua_provider_host::EditorPathVerifier = Arc::new(|path: &std::path::Path| {
+        EditorPathVerdict::Verified(EditorPathIdentity {
+            editor_root: "C:/Unity/2019.4.31f1".to_owned(),
+            exe_path: path.to_string_lossy().to_string(),
+            version: "2019.4.31f1".to_owned(),
+            classification: vua_orchestrator::EditorClass::MigrationSource,
+            guidance_code: "vua.env_managers.editor_migration_source",
+            china_distribution: false,
+        })
+    });
 
     let frame = json!({
         "frameVersion": "0.1",
@@ -882,7 +918,11 @@ fn explicit_injection_short_circuits_and_reaches_the_port() {
         .map(|line| serde_json::from_str(line).expect("output lines are frames"))
         .collect();
     let payload = frames[0]["payload"].clone();
-    assert_eq!(payload["ok"], json!(true), "explicit injection accepts: {payload}");
+    assert_eq!(
+        payload["ok"],
+        json!(true),
+        "explicit injection accepts: {payload}"
+    );
     let task_id = payload["value"]["taskId"]
         .as_str()
         .expect("accepted")
@@ -929,7 +969,10 @@ fn the_state_gate_admits_succeeded_and_succeeded_with_warnings_only() {
             "{state} must pass the whitelist: {payload}"
         );
         assert_eq!(payload["value"]["schemaVersion"], json!("0.2"));
-        assert_eq!(payload["value"]["operation"], json!("release.openForHandoff"));
+        assert_eq!(
+            payload["value"]["operation"],
+            json!("release.openForHandoff")
+        );
         let task_id = payload["value"]["taskId"]
             .as_str()
             .expect("accepted")
@@ -939,10 +982,7 @@ fn the_state_gate_admits_succeeded_and_succeeded_with_warnings_only() {
             matches!(task.state, vua_orchestrator::TaskState::Succeeded),
             "{state} admits a task that completes via the handshake"
         );
-        assert!(
-            !port.was_never_called(),
-            "{state} reaches the port"
-        );
+        assert!(!port.was_never_called(), "{state} reaches the port");
 
         fs::remove_dir_all(&root).ok();
     }
@@ -989,7 +1029,10 @@ fn the_state_gate_blocks_failed_cancelled_rolled_back_and_recovered_with_verbati
             store.tasks().expect("tasks readable").is_empty(),
             "{state}: no task may be accepted for a blocked record"
         );
-        assert!(port.was_never_called(), "{state}: the port is never reached");
+        assert!(
+            port.was_never_called(),
+            "{state}: the port is never reached"
+        );
 
         fs::remove_dir_all(&root).ok();
     }
@@ -1059,7 +1102,10 @@ fn the_gate_sits_after_record_existence_and_before_editor_resolution() {
         "release-handoff-gate-order",
         json!({ "buildId": BUILD_ID }),
     );
-    assert_eq!(payload["error"]["code"], json!("vua.release_handoff.record_state_blocked"));
+    assert_eq!(
+        payload["error"]["code"],
+        json!("vua.release_handoff.record_state_blocked")
+    );
 
     fs::remove_dir_all(&root).ok();
 }
@@ -1097,7 +1143,10 @@ fn inspection_entry_opens_regardless_of_the_record_state() {
             json!(true),
             "the inspection entry must not be state-gated: {payload}"
         );
-        assert_eq!(payload["value"]["operation"], json!("release.openForInspection"));
+        assert_eq!(
+            payload["value"]["operation"],
+            json!("release.openForInspection")
+        );
         assert_eq!(payload["value"]["schemaVersion"], json!("0.2"));
         let task_id = payload["value"]["taskId"]
             .as_str()
@@ -1131,7 +1180,9 @@ fn inspection_completion_fact_carries_the_operation_wording_never_a_handoff_clai
         .to_owned();
     let task = wait_terminal(&database, &task_id);
     assert!(matches!(task.state, vua_orchestrator::TaskState::Succeeded));
-    let result = task.result.expect("a succeeded inspection refluxes its fact");
+    let result = task
+        .result
+        .expect("a succeeded inspection refluxes its fact");
     let inspection_fact_validator = def_validator(
         "release-open-for-inspection.schema.json",
         "release-openForInspectionFact",
@@ -1147,7 +1198,11 @@ fn inspection_completion_fact_carries_the_operation_wording_never_a_handoff_clai
     assert_eq!(result["buildId"], json!(BUILD_ID));
     assert_eq!(result["projectId"], json!(PROJECT_ID));
     let fact_object = result.as_object().expect("fact is an object");
-    assert_eq!(fact_object.len(), 6, "six-key closed set (five identity keys + operation)");
+    assert_eq!(
+        fact_object.len(),
+        6,
+        "six-key closed set (five identity keys + operation)"
+    );
     assert!(fact_object.get("uploadStatus").is_none());
     assert!(fact_object.get("upload").is_none());
 

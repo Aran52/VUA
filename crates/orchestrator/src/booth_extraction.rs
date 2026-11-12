@@ -84,7 +84,10 @@ pub struct ExtractedProduct {
 pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionError> {
     let document = Html::parse_document(html);
     let items = Selector::parse("#items").expect("static selector");
-    let root = document.select(&items).next().ok_or(ExtractionError::ProductRootMissing)?;
+    let root = document
+        .select(&items)
+        .next()
+        .ok_or(ExtractionError::ProductRootMissing)?;
     let article = Selector::parse("article").expect("static selector");
     let root_article = root.select(&article).next();
 
@@ -100,9 +103,12 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
     let source_category = root
         .value()
         .attr("data-shop-tracking-product-category")
-        .map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
         .or_else(|| {
-            let crumbs = Selector::parse("#js-item-category-breadcrumbs li").expect("static selector");
+            let crumbs =
+                Selector::parse("#js-item-category-breadcrumbs li").expect("static selector");
             let last = document
                 .select(&crumbs)
                 .map(text_of)
@@ -118,10 +124,16 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
     // Title: primary h2, JSON-LD Product.name as fallback (the
     // data-product-name attribute was observed truncated).
     let summary = Selector::parse("article .summary").expect("static selector");
-    let summary = root_article.as_ref().and_then(|article| article.select(&summary).next());
+    let summary = root_article
+        .as_ref()
+        .and_then(|article| article.select(&summary).next());
     let title_h2 = Selector::parse("h2").expect("static selector");
     let title_h2 = summary.as_ref().and_then(|summary| {
-        summary.select(&title_h2).next().map(text_of).filter(|text| !text.is_empty())
+        summary
+            .select(&title_h2)
+            .next()
+            .map(text_of)
+            .filter(|text| !text.is_empty())
     });
     let (title, title_source) = if let Some(title) = title_h2 {
         (Some(title), Some("h2"))
@@ -137,7 +149,11 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
 
     let shop_name_selector = Selector::parse("article .shop-name").expect("static selector");
     let shop_name = root_article.as_ref().and_then(|article| {
-        article.select(&shop_name_selector).next().map(text_of).filter(|text| !text.is_empty())
+        article
+            .select(&shop_name_selector)
+            .next()
+            .map(text_of)
+            .filter(|text| !text.is_empty())
     });
     if shop_name.is_none() {
         missing.push("shop_name");
@@ -182,22 +198,24 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
         .value()
         .attr("data-product-price")
         .map(str::to_owned)
-        .or_else(|| offer.as_ref().and_then(|offer| string_field(offer, &["price"])));
+        .or_else(|| {
+            offer
+                .as_ref()
+                .and_then(|offer| string_field(offer, &["price"]))
+        });
     if price_amount.is_none() {
         missing.push("single_price");
     }
-    let price_currency = offer.as_ref().and_then(|offer| string_field(offer, &["priceCurrency"]));
+    let price_currency = offer
+        .as_ref()
+        .and_then(|offer| string_field(offer, &["priceCurrency"]));
     if price_currency.is_none() {
         missing.push("price_currency");
     }
-    let availability = offer.as_ref().and_then(|offer| string_field(offer, &["availability"]))
-        .map(|value| {
-            value
-                .rsplit('/')
-                .next()
-                .unwrap_or(&value)
-                .to_owned()
-        });
+    let availability = offer
+        .as_ref()
+        .and_then(|offer| string_field(offer, &["availability"]))
+        .map(|value| value.rsplit('/').next().unwrap_or(&value).to_owned());
     if availability.is_none() {
         missing.push("availability");
     }
@@ -259,7 +277,8 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
     let mut subproducts = Vec::new();
     let mut seen_variations = Vec::new();
     if let Some(article) = root_article.as_ref() {
-        let variation_item = Selector::parse("#variations li.variation-item").expect("static selector");
+        let variation_item =
+            Selector::parse("#variations li.variation-item").expect("static selector");
         let variation_name = Selector::parse(".variation-name").expect("static selector");
         let variation_price = Selector::parse(".variation-price").expect("static selector");
         let variant_attr = Selector::parse("[data-product-variant]").expect("static selector");
@@ -272,9 +291,10 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
                 .and_then(|element| element.value().attr("data-product-variant"))
                 .map(str::to_owned);
             if variation_id.is_none() {
-                variation_id = item.select(&variant_input).next().and_then(|input| {
-                    input.value().attr("value").map(str::to_owned)
-                });
+                variation_id = item
+                    .select(&variant_input)
+                    .next()
+                    .and_then(|input| input.value().attr("value").map(str::to_owned));
             }
             if let Some(id) = &variation_id {
                 if seen_variations.iter().any(|seen| seen == id) {
@@ -291,7 +311,11 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
             let sold_out = item.value().classes().any(|class| class == "sold-out");
             subproducts.push(ExtractedSubproduct {
                 variation_id,
-                name: item.select(&variation_name).next().map(text_of).filter(|text| !text.is_empty()),
+                name: item
+                    .select(&variation_name)
+                    .next()
+                    .map(text_of)
+                    .filter(|text| !text.is_empty()),
                 price_amount,
                 price_currency,
                 availability: Some(if sold_out {
@@ -358,8 +382,7 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
     } else {
         Some(projection_parts.join(" "))
     };
-    let search_text_normalized =
-        search_text.as_ref().map(|text| normalize_search_text(text));
+    let search_text_normalized = search_text.as_ref().map(|text| normalize_search_text(text));
 
     Ok(ExtractedProduct {
         native_product_id,
@@ -396,13 +419,37 @@ fn description_text(element: ElementRef) -> String {
             Node::Text(value) => text.push_str(value),
             Node::Element(value) => {
                 let name = value.name();
-                if matches!(name, "script" | "style" | "template") { continue; }
-                if name == "br" { text.push('\n'); continue; }
-                let block = matches!(name, "p" | "div" | "section" | "li" | "ul" | "ol" | "blockquote" | "pre" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6");
+                if matches!(name, "script" | "style" | "template") {
+                    continue;
+                }
+                if name == "br" {
+                    text.push('\n');
+                    continue;
+                }
+                let block = matches!(
+                    name,
+                    "p" | "div"
+                        | "section"
+                        | "li"
+                        | "ul"
+                        | "ol"
+                        | "blockquote"
+                        | "pre"
+                        | "h1"
+                        | "h2"
+                        | "h3"
+                        | "h4"
+                        | "h5"
+                        | "h6"
+                );
                 if closing {
-                    if block && !text.ends_with("\n\n") { text.push_str("\n\n"); }
+                    if block && !text.ends_with("\n\n") {
+                        text.push_str("\n\n");
+                    }
                 } else {
-                    if block && !text.ends_with('\n') && !text.is_empty() { text.push_str("\n\n"); }
+                    if block && !text.ends_with('\n') && !text.is_empty() {
+                        text.push_str("\n\n");
+                    }
                     nodes.push((node, true));
                     nodes.extend(node.children().rev().map(|child| (child, false)));
                 }
@@ -418,10 +465,14 @@ fn normalize_description(text: &str) -> String {
     let mut lines = Vec::new();
     for line in text.lines() {
         let line = line.split_whitespace().collect::<Vec<_>>().join(" ");
-        if line.is_empty() && (lines.is_empty() || lines.last().is_some_and(String::is_empty)) { continue; }
+        if line.is_empty() && (lines.is_empty() || lines.last().is_some_and(String::is_empty)) {
+            continue;
+        }
         lines.push(line);
     }
-    if lines.last().is_some_and(String::is_empty) { lines.pop(); }
+    if lines.last().is_some_and(String::is_empty) {
+        lines.pop();
+    }
     lines.join("\n")
 }
 
@@ -465,7 +516,9 @@ fn split_price(displayed: &str) -> (Option<String>, Option<String>) {
     let head = parts.next().unwrap_or("");
     let tail = parts.next();
     match tail {
-        Some(currency) if currency.len() == 3 && currency.chars().all(|c| c.is_ascii_uppercase()) => {
+        Some(currency)
+            if currency.len() == 3 && currency.chars().all(|c| c.is_ascii_uppercase()) =>
+        {
             (Some(head.to_owned()), Some(currency.to_owned()))
         }
         _ => {
@@ -510,9 +563,9 @@ fn collect_product_values(value: &Value, products: &mut Vec<Value>) {
         Value::Object(object) => {
             let is_product = match object.get("@type") {
                 Some(Value::String(kind)) => kind == "Product",
-                Some(Value::Array(kinds)) => kinds
-                    .iter()
-                    .any(|kind| kind.as_str() == Some("Product")),
+                Some(Value::Array(kinds)) => {
+                    kinds.iter().any(|kind| kind.as_str() == Some("Product"))
+                }
                 _ => false,
             };
             if is_product {

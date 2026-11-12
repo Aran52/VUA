@@ -56,80 +56,170 @@ fn plain(text: &str, max: usize) -> bool {
     text.chars().count() <= max && !text.chars().any(char::is_control)
 }
 fn digest(text: &str) -> bool {
-    text.len() == 64 && text.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    text.len() == 64
+        && text
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 fn distinct_text(values: &[String], max: usize, count: usize) -> bool {
-    values.len() <= count && values.iter().all(|s| !s.is_empty() && plain(s, max))
-        && values.iter().collect::<std::collections::BTreeSet<_>>().len() == values.len()
+    values.len() <= count
+        && values.iter().all(|s| !s.is_empty() && plain(s, max))
+        && values
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            == values.len()
 }
 fn creator_menu(path: &str) -> bool {
     let root = path.split('/').next().unwrap_or("");
-    path.contains('/') && path.split('/').all(|s| !s.is_empty()) && plain(path, 400)
-        && !["File", "Edit", "Assets", "GameObject", "Component", "Window", "Help", "CONTEXT", "VRChat SDK"].contains(&root)
-        && !path.contains(['%', '#', '&']) && !path.contains(" _")
+    path.contains('/')
+        && path.split('/').all(|s| !s.is_empty())
+        && plain(path, 400)
+        && ![
+            "File",
+            "Edit",
+            "Assets",
+            "GameObject",
+            "Component",
+            "Window",
+            "Help",
+            "CONTEXT",
+            "VRChat SDK",
+        ]
+        .contains(&root)
+        && !path.contains(['%', '#', '&'])
+        && !path.contains(" _")
 }
 /// Validate new evidence when present; an older Bridge may omit it completely.
 pub fn validate_face_tracking(value: &serde_json::Value) -> Result<(), AppErrorV1> {
     let facts: Facts = serde_json::from_value(value.clone())
         .map_err(|_| production_error("receipt_invalid", "Invalid face tracking facts."))?;
-    let valid = facts.schema_version == "0.1" && facts.evidence == "unity_source"
-        && !facts.observed_at.is_empty() && plain(&facts.observed_at, 64)
+    let valid = facts.schema_version == "0.1"
+        && facts.evidence == "unity_source"
+        && !facts.observed_at.is_empty()
+        && plain(&facts.observed_at, 64)
         && matches!(facts.state.as_str(), "no_avatar" | "observed" | "partial")
-        && facts.runtime == "unknown" && facts.built_parameter_budget == "unknown"
+        && facts.runtime == "unknown"
+        && facts.built_parameter_budget == "unknown"
         && (!facts.truncated || facts.state != "observed")
         && (facts.expression_parameters_observed || facts.source_synced_parameter_bits == 0)
         && facts.source_synced_parameter_bits <= 65536
-        && facts.meshes.len() <= 128 && facts.meshes.iter().all(|mesh| {
-            plain(&mesh.renderer, 1024) && mesh.blend_shape_count <= 65536
+        && facts.meshes.len() <= 128
+        && facts.meshes.iter().all(|mesh| {
+            plain(&mesh.renderer, 1024)
+                && mesh.blend_shape_count <= 65536
                 && (!mesh.missing_mesh || mesh.blend_shape_count == 0)
                 && mesh.profiles.len() == 3
-                && mesh.profiles.iter().map(|p| &p.id).collect::<std::collections::BTreeSet<_>>().len() == 3
+                && mesh
+                    .profiles
+                    .iter()
+                    .map(|p| &p.id)
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .len()
+                    == 3
                 && mesh.profiles.iter().all(|profile| {
                     let count = match profile.id.as_str() {
-                        "arkit52-v1" => 52, "unified-core12-v1" | "sranipal-core12-v1" => 12, _ => 0,
+                        "arkit52-v1" => 52,
+                        "unified-core12-v1" | "sranipal-core12-v1" => 12,
+                        _ => 0,
                     };
-                    count != 0 && count == profile.reference_count && profile.matched.len() <= mesh.blend_shape_count as usize
+                    count != 0
+                        && count == profile.reference_count
+                        && profile.matched.len() <= mesh.blend_shape_count as usize
                         && distinct_text(&profile.matched, 100, count)
                 })
         })
-        && distinct_text(&facts.parameters, 256, 1024) && distinct_text(&facts.components, 256, 64)
-        && facts.patch_menus.len() <= 64 && facts.patch_menus.iter().all(|m| {
-            digest(&m.id) && !m.source_id.is_empty() && plain(&m.source_id, 100)
-                && m.script_path.starts_with("Assets/") && m.script_path.to_ascii_lowercase().ends_with(".cs") && plain(&m.script_path, 1024)
-                && !m.script_path.contains(['\\', ':']) && m.script_path.split('/').all(|s| !matches!(s, "" | "." | ".."))
+        && distinct_text(&facts.parameters, 256, 1024)
+        && distinct_text(&facts.components, 256, 64)
+        && facts.patch_menus.len() <= 64
+        && facts.patch_menus.iter().all(|m| {
+            digest(&m.id)
+                && !m.source_id.is_empty()
+                && plain(&m.source_id, 100)
+                && m.script_path.starts_with("Assets/")
+                && m.script_path.to_ascii_lowercase().ends_with(".cs")
+                && plain(&m.script_path, 1024)
+                && !m.script_path.contains(['\\', ':'])
+                && m.script_path
+                    .split('/')
+                    .all(|s| !matches!(s, "" | "." | ".."))
                 && creator_menu(&m.menu_path)
         })
-        && facts.patch_menus.iter().map(|m| &m.id).collect::<std::collections::BTreeSet<_>>().len() == facts.patch_menus.len();
+        && facts
+            .patch_menus
+            .iter()
+            .map(|m| &m.id)
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            == facts.patch_menus.len();
     // Both values are meaningful even when no recognizable FT shapes are present.
     let _manual_replay = facts.manual_replay_required;
-    if valid { Ok(()) } else { Err(production_error("receipt_invalid", "Face tracking evidence exceeds its contract.")) }
+    if valid {
+        Ok(())
+    } else {
+        Err(production_error(
+            "receipt_invalid",
+            "Face tracking evidence exceeds its contract.",
+        ))
+    }
 }
 
 pub(crate) fn manual_face_tracking(run: &ProductionRun) -> bool {
     run.result["facts"]["faceTracking"]["manualReplayRequired"] == true
-        || Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists()
+        || Path::new(&run.project_root)
+            .join("ProjectSettings/VUA.FaceTracking.json")
+            .exists()
 }
 pub(crate) fn require_replayable_face_tracking(run: &ProductionRun) -> Result<(), AppErrorV1> {
-    if manual_face_tracking(run) { Err(manual_replay_error()) } else { Ok(()) }
+    if manual_face_tracking(run) {
+        Err(manual_replay_error())
+    } else {
+        Ok(())
+    }
 }
 fn manual_replay_error() -> AppErrorV1 {
     production_error("face_tracking_manual_replay", "This line contains an opaque creator patch. Recipe saving, assembly, material replacement and version replay cannot reproduce it. Use the retained full restore point or prepare a separate line from original materials and reapply the patch.")
 }
 
 impl AmfProductionEngine {
-    pub fn face_tracking_plan(&self, run_id: &str, menu_id: &str) -> Result<serde_json::Value, AppErrorV1> {
+    pub fn face_tracking_plan(
+        &self,
+        run_id: &str,
+        menu_id: &str,
+    ) -> Result<serde_json::Value, AppErrorV1> {
         let mut run = self.get(run_id)?;
         if run.phase != "succeeded" || !still_assembled(&run) {
-            return Err(production_error("inspect_required", "Inspect a completed line before adding face tracking."));
+            return Err(production_error(
+                "inspect_required",
+                "Inspect a completed line before adding face tracking.",
+            ));
         }
         self.ensure_project_matches(&mut run)?;
         validate_face_tracking(&run.result["facts"]["faceTracking"])?;
-        let menus: Vec<FaceTrackingMenu> = serde_json::from_value(run.result["facts"]["faceTracking"]["patchMenus"].clone()).map_err(io_error)?;
-        let menu = menus.into_iter().find(|menu| menu.id == menu_id && run.sources.iter().any(|source|
-            source.source_id == menu.source_id && source.asset_paths.contains(&menu.script_path)))
-            .ok_or_else(|| production_error("face_tracking_menu_unavailable", "Select an unambiguous imported menu from the latest inspection."))?;
-        let avatar = run.result["facts"]["avatarGlobalObjectId"].as_str().filter(|id| !id.is_empty())
-            .ok_or_else(|| production_error("inspect_required", "The owned Avatar identity is missing."))?;
+        let menus: Vec<FaceTrackingMenu> =
+            serde_json::from_value(run.result["facts"]["faceTracking"]["patchMenus"].clone())
+                .map_err(io_error)?;
+        let menu = menus
+            .into_iter()
+            .find(|menu| {
+                menu.id == menu_id
+                    && run.sources.iter().any(|source| {
+                        source.source_id == menu.source_id
+                            && source.asset_paths.contains(&menu.script_path)
+                    })
+            })
+            .ok_or_else(|| {
+                production_error(
+                    "face_tracking_menu_unavailable",
+                    "Select an unambiguous imported menu from the latest inspection.",
+                )
+            })?;
+        let avatar = run.result["facts"]["avatarGlobalObjectId"]
+            .as_str()
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| {
+                production_error("inspect_required", "The owned Avatar identity is missing.")
+            })?;
         let review = serde_json::json!({
             "schemaVersion":"0.1", "runId":run.run_id, "revision":run.revision,
             "projectFingerprint":run.project_fingerprint, "unityFingerprint":run.unity_fingerprint,
@@ -139,50 +229,91 @@ impl AmfProductionEngine {
         });
         let hash = Sha256::digest(serde_json::to_vec(&review).map_err(io_error)?);
         let mut plan = review;
-        plan["planDigest"] = serde_json::json!(hash.iter().map(|b| format!("{b:02x}")).collect::<String>());
+        plan["planDigest"] =
+            serde_json::json!(hash.iter().map(|b| format!("{b:02x}")).collect::<String>());
         Ok(plan)
     }
 
-    pub fn face_tracking_patch(&self, run_id: &str, menu_id: &str, plan_digest: &str, confirmed: bool, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+    pub fn face_tracking_patch(
+        &self,
+        run_id: &str,
+        menu_id: &str,
+        plan_digest: &str,
+        confirmed: bool,
+        ctx: &TaskContext,
+    ) -> Result<(), AppErrorV1> {
         if !confirmed {
-            return Err(production_error("confirmation_required", "The player must confirm this creator code and its replay limits."));
+            return Err(production_error(
+                "confirmation_required",
+                "The player must confirm this creator code and its replay limits.",
+            ));
         }
         self.precheck_closed(run_id)?;
         let plan = self.face_tracking_plan(run_id, menu_id)?;
         if plan["planDigest"] != plan_digest {
-            return Err(production_error("plan_drift", "Review the current creator patch again."));
+            return Err(production_error(
+                "plan_drift",
+                "Review the current creator patch again.",
+            ));
         }
-        let patch = FaceTrackingPatch { menu_id: menu_id.into(),
-            avatar_global_object_id: plan["avatarGlobalObjectId"].as_str().expect("validated Avatar").into(),
-            confirm_trusted_code: true };
+        let patch = FaceTrackingPatch {
+            menu_id: menu_id.into(),
+            avatar_global_object_id: plan["avatarGlobalObjectId"]
+                .as_str()
+                .expect("validated Avatar")
+                .into(),
+            confirm_trusted_code: true,
+        };
         let mut run = self.get(run_id)?;
         let before = run.clone();
         // A copy kept from an earlier patch belongs to that patch only while its marker remains;
         // once a restore removed the marker, this patch records its own pre-patch state.
         let marked_before = manual_face_tracking(&run);
         run.task_id = ctx.task_id().into();
-        run.phase = "assembling".into(); run.error = None; run.recovery = None;
+        run.phase = "assembling".into();
+        run.error = None;
+        run.recovery = None;
         let mut snapshot = None;
         let mut revision_id = None;
         let result = (|| {
             self.step(&mut run, ctx, "snapshot", "Protect the work project")?;
             snapshot = Some(self.platform.snapshot(&run)?);
-            run.snapshot_id = snapshot.clone(); run.snapshot_selection = run.selection.clone(); run.snapshot_sources = None;
+            run.snapshot_id = snapshot.clone();
+            run.snapshot_selection = run.selection.clone();
+            run.snapshot_sources = None;
             revision_id = Some(self.record_revision(&mut run, RevisionKind::FaceTracking, false));
             self.save(&run)?;
-            self.step(&mut run, ctx, "face_tracking", "Complete the creator patch in Unity")?;
-            let receipt = self.platform.face_tracking_patch(&run, &patch, &self.watch(&run, ctx))?;
+            self.step(
+                &mut run,
+                ctx,
+                "face_tracking",
+                "Complete the creator patch in Unity",
+            )?;
+            let receipt =
+                self.platform
+                    .face_tracking_patch(&run, &patch, &self.watch(&run, ctx))?;
             if receipt.result["facts"]["faceTracking"]["manualReplayRequired"] != true {
-                return Err(production_error("receipt_invalid", "The creator session did not record its manual replay boundary."));
+                return Err(production_error(
+                    "receipt_invalid",
+                    "The creator session did not record its manual replay boundary.",
+                ));
             }
             self.step(&mut run, ctx, "inspect", "Check the patched Avatar")?;
             self.update_observations(&mut run, ctx)?;
-            if let Some(error) = ctx.cancellation_error("amf-production") { return Err(error); }
-            if !still_assembled(&run) || run.result["facts"]["avatarGlobalObjectId"] != patch.avatar_global_object_id
-                || run.result["facts"]["faceTracking"]["manualReplayRequired"] != true {
-                return Err(production_error("face_tracking_target_changed", "The patch did not retain the owned Avatar and its outfits."));
+            if let Some(error) = ctx.cancellation_error("amf-production") {
+                return Err(error);
             }
-            run.phase = "succeeded".into(); run.confirmed_digest = None;
+            if !still_assembled(&run)
+                || run.result["facts"]["avatarGlobalObjectId"] != patch.avatar_global_object_id
+                || run.result["facts"]["faceTracking"]["manualReplayRequired"] != true
+            {
+                return Err(production_error(
+                    "face_tracking_target_changed",
+                    "The patch did not retain the owned Avatar and its outfits.",
+                ));
+            }
+            run.phase = "succeeded".into();
+            run.confirmed_digest = None;
             // The first patch's pre-patch copy stays reachable while the marker exists; a later
             // patch on the same marked line keeps the earliest one.
             if run.ft_pre_patch_snapshot.is_none() || !marked_before {
@@ -192,19 +323,31 @@ impl AmfProductionEngine {
         })();
         if result.is_err() {
             if let Some(snapshot) = snapshot {
-                run.recovery = Some(if result.as_ref().is_err_and(|error| error.code == "vua.amf_production.process_cleanup_unverified") {
-                    // Do not replace files while an owned creator helper might still be writing.
-                    "restore_failed: vua.amf_production.process_cleanup_unverified".into()
-                } else { match self.platform.restore(&run, &snapshot) {
-                    Ok(()) => {
-                        run.result = before.result; run.prefabs = before.prefabs;
-                        run.unity_fingerprint = before.unity_fingerprint; run.project_fingerprint = before.project_fingerprint;
-                        run.revision = before.revision; run.fit_changes = before.fit_changes; run.observed_at = before.observed_at;
-                        if let Some(id) = revision_id { run.revisions.retain(|r| r.id != id); }
-                        "restored".into()
-                    }
-                    Err(error) => format!("restore_failed: {}", error.code),
-                } });
+                run.recovery = Some(
+                    if result.as_ref().is_err_and(|error| {
+                        error.code == "vua.amf_production.process_cleanup_unverified"
+                    }) {
+                        // Do not replace files while an owned creator helper might still be writing.
+                        "restore_failed: vua.amf_production.process_cleanup_unverified".into()
+                    } else {
+                        match self.platform.restore(&run, &snapshot) {
+                            Ok(()) => {
+                                run.result = before.result;
+                                run.prefabs = before.prefabs;
+                                run.unity_fingerprint = before.unity_fingerprint;
+                                run.project_fingerprint = before.project_fingerprint;
+                                run.revision = before.revision;
+                                run.fit_changes = before.fit_changes;
+                                run.observed_at = before.observed_at;
+                                if let Some(id) = revision_id {
+                                    run.revisions.retain(|r| r.id != id);
+                                }
+                                "restored".into()
+                            }
+                            Err(error) => format!("restore_failed: {}", error.code),
+                        }
+                    },
+                );
             }
         }
         let outcome = self.finish(&mut run, result);

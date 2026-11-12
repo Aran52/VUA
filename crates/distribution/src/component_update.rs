@@ -123,8 +123,7 @@ impl Installation {
     ) -> Result<ComponentFeed> {
         let _index = self.lock(&format!("component-index-{}.lock", kind.name()))?;
         let cached_v02 = self.cached_component_index_at(kind, &index_name_v02(kind), SCHEMA)?;
-        let cached_v03 =
-            self.cached_component_index_at(kind, &index_name_v03(kind), SCHEMA_V03)?;
+        let cached_v03 = self.cached_component_index_at(kind, &index_name_v03(kind), SCHEMA_V03)?;
         let minimum_sequence = cached_v02
             .as_ref()
             .map_or(0, |(feed, _)| feed.sequence)
@@ -261,9 +260,8 @@ impl Installation {
                     .iter()
                     .filter(|file| {
                         !roots.iter().any(|candidate| {
-                            owned_path(candidate, &file.path).is_ok_and(|path| {
-                                verified_file(&path, file.bytes, &file.sha256)
-                            })
+                            owned_path(candidate, &file.path)
+                                .is_ok_and(|path| verified_file(&path, file.bytes, &file.sha256))
                         })
                     })
                     .map(|file| file.compressed_bytes)
@@ -273,7 +271,9 @@ impl Installation {
             };
         let runtime_bytes = if kind == ComponentKind::Host {
             let runtime_root = self.runtime_root(&target)?;
-            if self.verify_files(&runtime_root, &target.runtime.files).is_ok()
+            if self
+                .verify_files(&runtime_root, &target.runtime.files)
+                .is_ok()
                 || verified_file(
                     &owned_path(
                         &self.root,

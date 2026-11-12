@@ -56,8 +56,7 @@ impl InspectionDimension {
 /// inspection operations for the rest — v1/v2 Bridges reject the new
 /// operations per the v1-rejects-v2 precedent, so the version is not a
 /// free choice).
-pub fn producing_operations()
--> [(InspectionDimension, UnityOperation, u8, &'static str); 5] {
+pub fn producing_operations() -> [(InspectionDimension, UnityOperation, u8, &'static str); 5] {
     [
         (
             InspectionDimension::Functional,
@@ -302,7 +301,10 @@ impl InspectionEvidenceStore {
         let bytes = serde_json::to_vec_pretty(document)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
         {
-            let mut output = OpenOptions::new().create_new(true).write(true).open(&temporary)?;
+            let mut output = OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&temporary)?;
             output.write_all(&bytes)?;
             output.write_all(b"\n")?;
             output.sync_all()?;
@@ -323,9 +325,11 @@ impl InspectionEvidenceStore {
     pub fn get(&self, inspection_id: &str) -> io::Result<Option<Value>> {
         let path = self.path_for(inspection_id)?;
         match fs::read(&path) {
-            Ok(bytes) => Ok(Some(serde_json::from_slice(&bytes).map_err(|error| {
-                io::Error::new(io::ErrorKind::InvalidData, error)
-            })?)),
+            Ok(bytes) => {
+                Ok(Some(serde_json::from_slice(&bytes).map_err(|error| {
+                    io::Error::new(io::ErrorKind::InvalidData, error)
+                })?))
+            }
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(error) => Err(error),
         }
@@ -442,7 +446,13 @@ mod tests {
             UnityOperation::InspectUploadReadiness,
         ]
         .iter()
-        .map(|operation| serde_json::to_value(operation).unwrap().as_str().unwrap().to_owned())
+        .map(|operation| {
+            serde_json::to_value(operation)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned()
+        })
         .collect();
         assert_eq!(
             names,
@@ -495,7 +505,11 @@ mod tests {
             ],
             "data": {}
         });
-        let dimension = transcribe_dimension(InspectionDimension::Dependencies, "bridge_typed_checks", Some(&receipt));
+        let dimension = transcribe_dimension(
+            InspectionDimension::Dependencies,
+            "bridge_typed_checks",
+            Some(&receipt),
+        );
         assert_eq!(dimension["kind"], "dependencies");
         assert_eq!(dimension["status"], "fail");
         assert_eq!(dimension["basis"], "bridge_typed_checks");
@@ -512,13 +526,21 @@ mod tests {
                 {"code": "lighting.realtime_lights_present", "severity": "warning", "message": "存在未烘焙实时光源。"}
             ]
         });
-        let lighting = transcribe_dimension(InspectionDimension::Lighting, "bridge_typed_checks", Some(&warn_receipt));
+        let lighting = transcribe_dimension(
+            InspectionDimension::Lighting,
+            "bridge_typed_checks",
+            Some(&warn_receipt),
+        );
         assert_eq!(lighting["status"], "warn");
 
         let pass_receipt = json!({"status": "succeeded", "diagnostics": [
             {"code": "validation.passed", "severity": "info", "message": "通过。"}
         ]});
-        let functional = transcribe_dimension(InspectionDimension::Functional, "bridge_typed_checks", Some(&pass_receipt));
+        let functional = transcribe_dimension(
+            InspectionDimension::Functional,
+            "bridge_typed_checks",
+            Some(&pass_receipt),
+        );
         assert_eq!(functional["status"], "pass");
     }
 
@@ -542,7 +564,11 @@ mod tests {
                 "recommendations": ["考虑 LOD"]
             }
         });
-        let dimension = transcribe_dimension(InspectionDimension::Performance, "bridge_local_estimate", Some(&receipt));
+        let dimension = transcribe_dimension(
+            InspectionDimension::Performance,
+            "bridge_local_estimate",
+            Some(&receipt),
+        );
         assert_eq!(dimension["status"], "warn");
         let check = &dimension["checks"][0];
         assert_eq!(check["metrics"]["triangles"], 92410);
@@ -558,14 +584,22 @@ mod tests {
             "diagnostics": [],
             "data": {"triangles": 100}
         });
-        let empty = transcribe_dimension(InspectionDimension::Performance, "bridge_local_estimate", Some(&bare));
+        let empty = transcribe_dimension(
+            InspectionDimension::Performance,
+            "bridge_local_estimate",
+            Some(&bare),
+        );
         assert_eq!(empty["checks"].as_array().unwrap().len(), 0);
         assert_eq!(empty["status"], "pass");
     }
 
     #[test]
     fn unobservable_operations_surface_as_unavailable_with_empty_checks() {
-        let dimension = transcribe_dimension(InspectionDimension::Performance, "bridge_local_estimate", None);
+        let dimension = transcribe_dimension(
+            InspectionDimension::Performance,
+            "bridge_local_estimate",
+            None,
+        );
         assert_eq!(dimension["status"], "unavailable");
         assert_eq!(dimension["basis"], "none");
         assert_eq!(dimension["checks"].as_array().unwrap().len(), 0);
@@ -577,12 +611,18 @@ mod tests {
         let warn = json!({"status": "warn", "basis": "bridge_typed_checks", "checks": []});
         let pass = json!({"status": "pass", "basis": "bridge_typed_checks", "checks": []});
         let fail = json!({"status": "fail", "basis": "bridge_typed_checks", "checks": []});
-        assert_eq!(aggregate_overall_status(&[pass.clone(), pass.clone()]), "pass");
+        assert_eq!(
+            aggregate_overall_status(&[pass.clone(), pass.clone()]),
+            "pass"
+        );
         assert_eq!(
             aggregate_overall_status(&[pass.clone(), unavailable.clone()]),
             "warn"
         );
-        assert_eq!(aggregate_overall_status(&[pass.clone(), warn.clone()]), "warn");
+        assert_eq!(
+            aggregate_overall_status(&[pass.clone(), warn.clone()]),
+            "warn"
+        );
         assert_eq!(aggregate_overall_status(&[warn, fail.clone()]), "fail");
         assert_eq!(aggregate_overall_status(&[unavailable, fail]), "fail");
     }
@@ -614,7 +654,10 @@ mod tests {
         let store = InspectionEvidenceStore::new(unique_root("empty"));
         assert_eq!(store.list_documents().unwrap().len(), 0);
         assert_eq!(store.list_ids().unwrap().len(), 0);
-        assert!(store.get("01982b5a-3f10-7c4e-9d2a-4b8e1f6a7c24").unwrap().is_none());
+        assert!(store
+            .get("01982b5a-3f10-7c4e-9d2a-4b8e1f6a7c24")
+            .unwrap()
+            .is_none());
     }
 
     #[test]

@@ -82,7 +82,8 @@ fn negative_vectors_are_refused_by_the_command_schema() {
 fn the_read_word_list_stays_separate_from_the_write_word_list() {
     // The write command must NOT be part of the read-face operation closed
     // set (read/write lines are separate by the 014 arbitration).
-    let write_command = read_repo_json("schemas/project-ops/v0.2/examples/project-import-copy-plan.request.json");
+    let write_command =
+        read_repo_json("schemas/project-ops/v0.2/examples/project-import-copy-plan.request.json");
     let problems = violations(&command_validator(), &write_command);
     assert!(
         !problems.is_empty(),
@@ -91,7 +92,8 @@ fn the_read_word_list_stays_separate_from_the_write_word_list() {
 
     // …and the read-face result payloads are not valid write-command
     // requests either.
-    let read_request = read_repo_json("schemas/project-inspection/v0.2/examples/project-lock-status.request.json");
+    let read_request =
+        read_repo_json("schemas/project-inspection/v0.2/examples/project-lock-status.request.json");
     let ops_validator = jsonschema::validator_for(&read_repo_json(
         "schemas/project-ops/v0.2/command.schema.json",
     ))

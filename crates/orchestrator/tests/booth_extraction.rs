@@ -92,7 +92,10 @@ fn bdl_ext_001_full_page_extracts_every_spec_field() {
 
     // The aside is not part of the product.
     assert_eq!(extracted.shop_name.as_deref(), Some("Synthetic Shop"));
-    assert_eq!(extracted.shop_url.as_deref(), Some("https://shop.synthetic.example"));
+    assert_eq!(
+        extracted.shop_url.as_deref(),
+        Some("https://shop.synthetic.example")
+    );
 
     // Adult only via the explicit badge.
     assert!(extracted.adult);
@@ -118,7 +121,10 @@ fn bdl_ext_001_full_page_extracts_every_spec_field() {
     // Videos: explicit sources and platform embeds only.
     assert_eq!(
         extracted.video_urls,
-        vec!["https://media.synthetic.example/clip.mp4", "https://www.youtube.com/embed/synthetic"]
+        vec![
+            "https://media.synthetic.example/clip.mp4",
+            "https://www.youtube.com/embed/synthetic"
+        ]
     );
 
     // Subproducts: deduped by variation id, sold-out recorded not deleted.
@@ -138,11 +144,16 @@ fn bdl_ext_001_full_page_extracts_every_spec_field() {
     let body = extracted.body_text.expect("body present");
     assert!(body.contains("Synthetic description body"));
     assert!(body.contains("Additional shop section note"));
-    assert!(!extracted.image_urls.contains(&"https://img.synthetic.example/body-unconfirmed.png".to_string()));
+    assert!(!extracted
+        .image_urls
+        .contains(&"https://img.synthetic.example/body-unconfirmed.png".to_string()));
 
     // Search projection: body, title, author, subproduct names, category —
     // normalized.
-    let projection = extracted.search_text_normalized.as_deref().expect("projection");
+    let projection = extracted
+        .search_text_normalized
+        .as_deref()
+        .expect("projection");
     assert!(projection.contains("synthetic description body"));
     assert!(projection.contains("synthetic sample avatar"));
     assert!(projection.contains("variant a"));
@@ -167,8 +178,11 @@ fn bdl_ext_002_title_and_category_fallbacks_apply_without_inference() {
     let extracted = extract_product_page(fallback_page).expect("page extracts");
     assert_eq!(extracted.title_source, Some("ld_json"));
     assert_eq!(extracted.title.as_deref(), Some("Fallback Title From LD"));
-    assert_eq!(extracted.source_category.as_deref(), Some("3D Characters"),
-        "breadcrumbs are the category fallback; the generic Top level is not chosen blindly");
+    assert_eq!(
+        extracted.source_category.as_deref(),
+        Some("3D Characters"),
+        "breadcrumbs are the category fallback; the generic Top level is not chosen blindly"
+    );
     // Everything else the fixture omits lands in missing_fields.
     for expected in [
         "likes",
@@ -194,7 +208,10 @@ fn bdl_ext_003_sparse_page_reports_honest_gaps_without_severity() {
     let sparse = r#"<html><body><div id="items" data-product-id="99990004"></div></body></html>"#;
     let extracted = extract_product_page(sparse).expect("identity present");
     assert_eq!(extracted.native_product_id, "99990004");
-    assert!(!extracted.adult, "absence of a badge is never an Adult guess");
+    assert!(
+        !extracted.adult,
+        "absence of a badge is never an Adult guess"
+    );
     assert!(extracted.missing_fields.contains(&"title"));
     assert!(extracted.missing_fields.contains(&"category"));
     assert!(extracted.missing_fields.contains(&"body"));
@@ -207,7 +224,9 @@ fn bdl_ext_004_structural_failures_are_typed_errors() {
         Err(ExtractionError::ProductRootMissing)
     );
     assert_eq!(
-        extract_product_page(r#"<html><body><div id="items"><article></article></div></body></html>"#),
+        extract_product_page(
+            r#"<html><body><div id="items"><article></article></div></body></html>"#
+        ),
         Err(ExtractionError::ProductIdMissing)
     );
 }

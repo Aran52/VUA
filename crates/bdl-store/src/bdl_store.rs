@@ -30,12 +30,12 @@
 //! (download_id, attempt, kind, occurred_at) because the port delivers
 //! at-least-once.
 
+use crate::bdl_queries::ArtifactInspectionVerdict;
 use crate::bdl_queries::{
     availability_status, CatalogDetailResult, CatalogHealth, CatalogListParams, CatalogListResult,
     CatalogPrice, CatalogProductDetail, CatalogProductSummary, CatalogRevision,
     CatalogStatusResult, CatalogSubproduct, CompletedDownloadRow,
 };
-use crate::bdl_queries::ArtifactInspectionVerdict;
 use crate::download_events::{DownloadEventKind, DownloadEventV01, DownloadFailureKind};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
@@ -45,7 +45,7 @@ use std::sync::Mutex;
 
 #[path = "managed_library_files.rs"]
 mod managed_library_files;
-pub use managed_library_files::{ManagedLibraryFile, ManagedLibraryDelivery};
+pub use managed_library_files::{ManagedLibraryDelivery, ManagedLibraryFile};
 #[path = "library_evidence.rs"]
 mod library_evidence;
 pub use library_evidence::{LibraryCopyEvidence, LibraryProductDates};
@@ -72,13 +72,15 @@ pub mod terms;
 pub const BDL_FORMAT_VERSION: &str = "0.11";
 const BDL_MIGRATION_VERSION: i64 = 12;
 const MIGRATION_001: &str = include_str!("../../../schemas/bdl/v0.1/001_initial.sql");
-const MIGRATION_002: &str = include_str!("../../../schemas/bdl/v0.2/002_dependency_observations.sql");
+const MIGRATION_002: &str =
+    include_str!("../../../schemas/bdl/v0.2/002_dependency_observations.sql");
 const MIGRATION_003: &str = include_str!("../../../schemas/bdl/v0.3/003_library_type.sql");
 const MIGRATION_004: &str = include_str!("../../../schemas/bdl/v0.3/004_variant_name.sql");
 const MIGRATION_005: &str = include_str!("../../../schemas/bdl/v0.4/005_product_downloadables.sql");
 const MIGRATION_006: &str = include_str!("../../../schemas/bdl/v0.5/006_managed_library_files.sql");
 const MIGRATION_007: &str = include_str!("../../../schemas/bdl/v0.6/007_archive_members.sql");
-const MIGRATION_008: &str = include_str!("../../../schemas/bdl/v0.7/008_library_entry_metadata.sql");
+const MIGRATION_008: &str =
+    include_str!("../../../schemas/bdl/v0.7/008_library_entry_metadata.sql");
 const MIGRATION_009: &str = include_str!("../../../schemas/bdl/v0.8/009_removed_local_entries.sql");
 const MIGRATION_010: &str = include_str!("../../../schemas/bdl/v0.9/010_removed_library_cards.sql");
 const MIGRATION_011: &str = include_str!("../../../schemas/bdl/v0.10/011_description_links.sql");
@@ -429,14 +431,9 @@ pub struct ProductObservation {
 /// identity (`booth:<digits>` with both parts agreeing), the status
 /// vocabulary, the content-hash shape, required evidence fields, and the
 /// price-pair rule (amount and currency admitted or rejected together).
-fn validate_product_observation(
-    observation: &ProductObservation,
-) -> Result<(), BdlStoreError> {
+fn validate_product_observation(observation: &ProductObservation) -> Result<(), BdlStoreError> {
     if let Some(library_type) = &observation.library_type {
-        if !matches!(
-            library_type.as_str(),
-            "bought" | "gifts" | "free_downloads"
-        ) {
+        if !matches!(library_type.as_str(), "bought" | "gifts" | "free_downloads") {
             return Err(BdlStoreError::InvalidObservation(
                 "library_type must be bought|gifts|free_downloads or null",
             ));
@@ -457,20 +454,22 @@ fn validate_product_observation(
     if observation.source_url.trim().is_empty() {
         return Err(BdlStoreError::InvalidObservation("source url"));
     }
-    let hash_ok = observation.content_hash.split_once(':').is_some_and(
-        |(algorithm, digest)| {
+    let hash_ok = observation
+        .content_hash
+        .split_once(':')
+        .is_some_and(|(algorithm, digest)| {
             algorithm == "sha256"
                 && digest.len() == 64
-                && digest.chars().all(|character| character.is_ascii_hexdigit())
-        },
-    );
+                && digest
+                    .chars()
+                    .all(|character| character.is_ascii_hexdigit())
+        });
     if !hash_ok {
         return Err(BdlStoreError::InvalidObservation(
             "content hash must be sha256:<64 hex>",
         ));
     }
-    if observation.observed_at.trim().is_empty()
-        || observation.processor_version.trim().is_empty()
+    if observation.observed_at.trim().is_empty() || observation.processor_version.trim().is_empty()
     {
         return Err(BdlStoreError::InvalidObservation(
             "observed_at and processor_version are required evidence",
@@ -510,7 +509,12 @@ fn normalized_search_text(observation: &ProductObservation) -> String {
             parts.push(name.as_str());
         }
     }
-    parts.join(" ").split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+    parts
+        .join(" ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
 }
 
 /// Parses a JSON-array text column. The write face always persists a JSON
@@ -522,10 +526,8 @@ fn parse_json_array_text(
 ) -> Result<serde_json::Value, BdlStoreError> {
     match raw {
         None => Ok(serde_json::Value::Array(Vec::new())),
-        Some(text) => serde_json::from_str(&text).map_err(|_| BdlStoreError::CorruptValue {
-            field,
-            value: text,
-        }),
+        Some(text) => serde_json::from_str(&text)
+            .map_err(|_| BdlStoreError::CorruptValue { field, value: text }),
     }
 }
 
@@ -654,12 +656,14 @@ fn parse_resolution_evidence(
 ) -> Result<Option<Vec<DependencyResolutionEvidence>>, BdlStoreError> {
     match raw {
         None => Ok(None),
-        Some(text) => serde_json::from_str(&text)
-            .map(Some)
-            .map_err(|_| BdlStoreError::CorruptValue {
-                field: "resolution_evidence",
-                value: text,
-            }),
+        Some(text) => {
+            serde_json::from_str(&text)
+                .map(Some)
+                .map_err(|_| BdlStoreError::CorruptValue {
+                    field: "resolution_evidence",
+                    value: text,
+                })
+        }
     }
 }
 
@@ -682,7 +686,7 @@ struct ObservedCard {
 impl ObservedCard {
     /// The price is admitted only as a pair; a stored row with exactly one
     /// half is a corrupt value (the write face rejects it upstream).
-        /// Q2(2026-10-03):多变体商品显示价区间——主价(最低)之外,若子品
+    /// Q2(2026-10-03):多变体商品显示价区间——主价(最低)之外,若子品
     /// 序列化 JSON 里有更高的不同金额,以最大值作区间上限(high)。
     fn price_with_range(&self) -> Result<Option<CatalogPrice>, BdlStoreError> {
         let mut price = self.as_price()?;
@@ -713,11 +717,13 @@ impl ObservedCard {
     }
 
     #[allow(clippy::needless_return)]
-fn as_price(&self) -> Result<Option<CatalogPrice>, BdlStoreError> {
+    fn as_price(&self) -> Result<Option<CatalogPrice>, BdlStoreError> {
         match (&self.price_amount, &self.price_currency) {
-            (Some(amount), Some(currency)) => {
-                Ok(Some(CatalogPrice { amount: amount.clone(), currency: currency.clone(), high: None }))
-            }
+            (Some(amount), Some(currency)) => Ok(Some(CatalogPrice {
+                amount: amount.clone(),
+                currency: currency.clone(),
+                high: None,
+            })),
             (None, None) => Ok(None),
             _ => Err(BdlStoreError::CorruptValue {
                 field: "price pair",
@@ -728,8 +734,8 @@ fn as_price(&self) -> Result<Option<CatalogPrice>, BdlStoreError> {
 
     fn as_summary(&self) -> Result<CatalogProductSummary, BdlStoreError> {
         let image_urls_value = parse_json_array_text("image_urls", self.image_urls.clone())?;
-        let image_urls: Vec<String> = serde_json::from_value(image_urls_value)
-            .map_err(|_| BdlStoreError::CorruptValue {
+        let image_urls: Vec<String> =
+            serde_json::from_value(image_urls_value).map_err(|_| BdlStoreError::CorruptValue {
                 field: "image_urls",
                 value: self.product_id.clone(),
             })?;
@@ -775,19 +781,18 @@ struct ObservedDetail {
 impl ObservedDetail {
     fn as_detail(&self, product_id: &str) -> Result<CatalogDetailResult, BdlStoreError> {
         let image_urls_value = parse_json_array_text("image_urls", self.image_urls.clone())?;
-        let image_urls: Vec<String> = serde_json::from_value(image_urls_value)
-            .map_err(|_| BdlStoreError::CorruptValue {
+        let image_urls: Vec<String> =
+            serde_json::from_value(image_urls_value).map_err(|_| BdlStoreError::CorruptValue {
                 field: "image_urls",
                 value: product_id.to_owned(),
             })?;
         let video_urls_value = parse_json_array_text("video_urls", self.video_urls.clone())?;
-        let video_urls: Vec<String> = serde_json::from_value(video_urls_value)
-            .map_err(|_| BdlStoreError::CorruptValue {
+        let video_urls: Vec<String> =
+            serde_json::from_value(video_urls_value).map_err(|_| BdlStoreError::CorruptValue {
                 field: "video_urls",
                 value: product_id.to_owned(),
             })?;
-        let subproducts_value =
-            parse_json_array_text("subproducts", self.subproducts.clone())?;
+        let subproducts_value = parse_json_array_text("subproducts", self.subproducts.clone())?;
         let subproducts = subproducts_value
             .as_array()
             .ok_or(BdlStoreError::CorruptValue {
@@ -813,14 +818,16 @@ impl ObservedDetail {
                         })
                     }
                 };
-                let availability =
-                    subproduct.get("availability").and_then(Value::as_str);
+                let availability = subproduct.get("availability").and_then(Value::as_str);
                 Ok(CatalogSubproduct {
                     variation_id: subproduct
                         .get("variation_id")
                         .and_then(Value::as_str)
                         .map(str::to_owned),
-                    name: subproduct.get("name").and_then(Value::as_str).map(str::to_owned),
+                    name: subproduct
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .map(str::to_owned),
                     price,
                     availability_raw: availability.map(str::to_owned),
                     availability_status: availability_status(availability),
@@ -893,8 +900,6 @@ pub struct StoredArtifactCopy {
     pub role: CopyRole,
     pub created_at: String,
 }
-
-
 
 /// `warehouse.listEntries` card (bdl-queries v0.3 wire shape).
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -1048,9 +1053,28 @@ impl BdlStore {
         if migration < BDL_MIGRATION_VERSION {
             // Execute the remaining frozen migrations atomically. Their guarded
             // format stamps still refuse foreign metadata instead of repairing it.
-            let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-            for (index, sql) in [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011, MIGRATION_012].iter().enumerate() {
-                if migration <= index as i64 { transaction.execute_batch(sql)?; }
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            for (index, sql) in [
+                MIGRATION_001,
+                MIGRATION_002,
+                MIGRATION_003,
+                MIGRATION_004,
+                MIGRATION_005,
+                MIGRATION_006,
+                MIGRATION_007,
+                MIGRATION_008,
+                MIGRATION_009,
+                MIGRATION_010,
+                MIGRATION_011,
+                MIGRATION_012,
+            ]
+            .iter()
+            .enumerate()
+            {
+                if migration <= index as i64 {
+                    transaction.execute_batch(sql)?;
+                }
             }
             transaction.pragma_update(None, "user_version", BDL_MIGRATION_VERSION)?;
             transaction.commit()?;
@@ -1109,8 +1133,14 @@ impl BdlStore {
                 url_chain,
                 event.suggested_file_name,
                 event.stored_path,
-                event.expected_bytes.map(|v| to_i64(v, "expected bytes")).transpose()?,
-                event.received_bytes.map(|v| to_i64(v, "received bytes")).transpose()?,
+                event
+                    .expected_bytes
+                    .map(|v| to_i64(v, "expected bytes"))
+                    .transpose()?,
+                event
+                    .received_bytes
+                    .map(|v| to_i64(v, "received bytes"))
+                    .transpose()?,
                 i64::from(event.resumable),
                 event.failure_kind.map(failure_kind_name),
                 event.occurred_at,
@@ -1171,8 +1201,8 @@ impl BdlStore {
     /// the crash-recovery path folds to find non-terminal (orphaned) work.
     pub fn download_ids(&self) -> Result<Vec<String>, BdlStoreError> {
         let connection = self.connection.lock().expect("SQLite connection poisoned");
-        let mut statement =
-            connection.prepare("SELECT DISTINCT download_id FROM download_events ORDER BY download_id")?;
+        let mut statement = connection
+            .prepare("SELECT DISTINCT download_id FROM download_events ORDER BY download_id")?;
         let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(BdlStoreError::from)
@@ -1275,12 +1305,7 @@ impl BdlStore {
                 rejection_reason = ?2,
                 inspected_at = COALESCE(?3, inspected_at)
              WHERE artifact_sha256 = ?4",
-            params![
-                to.name(),
-                rejection_reason,
-                verdict_at,
-                artifact_sha256,
-            ],
+            params![to.name(), rejection_reason, verdict_at, artifact_sha256,],
         )?;
         let stored = select_artifact(&transaction, artifact_sha256)?
             .expect("artifact row remains present after transition");
@@ -1376,9 +1401,9 @@ impl BdlStore {
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_err(|error| {
-                    BdlStoreError::Database(rusqlite::Error::ToSqlConversionFailure(
-                        Box::new(error),
-                    ))
+                    BdlStoreError::Database(rusqlite::Error::ToSqlConversionFailure(Box::new(
+                        error,
+                    )))
                 })?
                 .as_nanos()
         );
@@ -1446,9 +1471,9 @@ impl BdlStore {
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_err(|error| {
-                    BdlStoreError::Database(rusqlite::Error::ToSqlConversionFailure(
-                        Box::new(error),
-                    ))
+                    BdlStoreError::Database(rusqlite::Error::ToSqlConversionFailure(Box::new(
+                        error,
+                    )))
                 })?
                 .as_nanos()
         );
@@ -1604,9 +1629,8 @@ impl BdlStore {
     /// Returns false when the row was already gone.
     pub fn delete_artifact_copy(&self, copy_id: &str) -> Result<bool, BdlStoreError> {
         let connection = self.connection.lock().expect("SQLite connection poisoned");
-        let deleted = connection.execute("DELETE FROM artifact_copies WHERE copy_id = ?1", [
-            copy_id,
-        ])?;
+        let deleted =
+            connection.execute("DELETE FROM artifact_copies WHERE copy_id = ?1", [copy_id])?;
         Ok(deleted == 1)
     }
 
@@ -1665,7 +1689,9 @@ impl BdlStore {
         let mut artifacts = self.warehouse_artifact_refs(&connection)?;
         let mut cards = Vec::with_capacity(items.len());
         for item in items {
-            let refs = artifacts.remove(&item.warehouse_item_id).unwrap_or_default();
+            let refs = artifacts
+                .remove(&item.warehouse_item_id)
+                .unwrap_or_default();
             cards.push(warehouse_card(item, global_default, refs)?);
         }
         Ok(cards)
@@ -1686,18 +1712,19 @@ impl BdlStore {
         let consumer = crate::download_events::DownloadEventConsumer::new(self);
         let mut rows = Vec::new();
         for download_id in self.download_ids()? {
-            let completion = consumer
-                .staging_completion(&download_id)
-                .map_err(|error| match error {
-                    crate::download_events::ConsumerError::Store(store) => store,
-                    // Histories are ingest-gated: a fold failure here is
-                    // stored corruption, surfaced as such — never a silent
-                    // skip dressed as an empty list.
-                    other => BdlStoreError::CorruptValue {
-                        field: "download_events",
-                        value: other.to_string(),
-                    },
-                })?;
+            let completion =
+                consumer
+                    .staging_completion(&download_id)
+                    .map_err(|error| match error {
+                        crate::download_events::ConsumerError::Store(store) => store,
+                        // Histories are ingest-gated: a fold failure here is
+                        // stored corruption, surfaced as such — never a silent
+                        // skip dressed as an empty list.
+                        other => BdlStoreError::CorruptValue {
+                            field: "download_events",
+                            value: other.to_string(),
+                        },
+                    })?;
             let Some(completion) = completion else {
                 continue;
             };
@@ -1862,16 +1889,27 @@ impl BdlStore {
             })?
             .collect::<Result<Vec<_>, _>>()?;
         let mut artifacts = std::collections::HashMap::<String, Vec<WarehouseArtifactRef>>::new();
-        for (warehouse_item_id, relative_path, artifact_sha256, inspection_state, size_bytes, role) in rows {
-            artifacts.entry(warehouse_item_id).or_default().push(WarehouseArtifactRef {
-                relative_path,
-                artifact_sha256,
-                state: ArtifactInspectionVerdict::from_storage_state(ArtifactInspectionState::parse(
-                    &inspection_state,
-                )?),
-                size_bytes: to_u64(size_bytes, "artifact size")?,
-                role: CopyRole::parse(&role)?,
-            });
+        for (
+            warehouse_item_id,
+            relative_path,
+            artifact_sha256,
+            inspection_state,
+            size_bytes,
+            role,
+        ) in rows
+        {
+            artifacts
+                .entry(warehouse_item_id)
+                .or_default()
+                .push(WarehouseArtifactRef {
+                    relative_path,
+                    artifact_sha256,
+                    state: ArtifactInspectionVerdict::from_storage_state(
+                        ArtifactInspectionState::parse(&inspection_state)?,
+                    ),
+                    size_bytes: to_u64(size_bytes, "artifact size")?,
+                    role: CopyRole::parse(&role)?,
+                });
         }
         Ok(artifacts)
     }
@@ -1957,8 +1995,7 @@ impl BdlStore {
         )?;
         let missing_fields = serde_json::to_string(&observation.missing_fields)?;
         let mut connection = self.connection.lock().expect("SQLite connection poisoned");
-        let transaction =
-            connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         transaction.execute(
             "INSERT INTO products(
                 product_id, native_product_id, library_type, variant_name,
@@ -2040,10 +2077,26 @@ impl BdlStore {
             [&observation.product_id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )?;
         let variants: Vec<Value> = serde_json::from_str(&variants)?;
-        let mut search_parts: Vec<&str> = [title.as_deref(), description.as_deref(), shop.as_deref()].into_iter().flatten().collect();
-        search_parts.extend(variants.iter().filter_map(|variant| variant["name"].as_str()));
-        let search = search_parts.join(" ").split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase();
-        transaction.execute("UPDATE products SET search_text_normalized=?2 WHERE product_id=?1", params![observation.product_id, search])?;
+        let mut search_parts: Vec<&str> =
+            [title.as_deref(), description.as_deref(), shop.as_deref()]
+                .into_iter()
+                .flatten()
+                .collect();
+        search_parts.extend(
+            variants
+                .iter()
+                .filter_map(|variant| variant["name"].as_str()),
+        );
+        let search = search_parts
+            .join(" ")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_lowercase();
+        transaction.execute(
+            "UPDATE products SET search_text_normalized=?2 WHERE product_id=?1",
+            params![observation.product_id, search],
+        )?;
         if let Some(kind) = observation.library_type.as_deref() {
             transaction.execute(
                 "INSERT INTO product_library_memberships(product_id,library_type,first_seen_at,last_seen_at) VALUES (?1,?2,?3,?3)
@@ -2087,11 +2140,9 @@ impl BdlStore {
         &self,
         observation: &NewDependencyObservation,
     ) -> Result<StoredDependencyObservation, BdlStoreError> {
-        let resolution_evidence =
-            serialize_resolution_evidence(&observation.resolution_evidence)?;
+        let resolution_evidence = serialize_resolution_evidence(&observation.resolution_evidence)?;
         let mut connection = self.connection.lock().expect("SQLite connection poisoned");
-        let transaction =
-            connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         transaction.execute(
             "INSERT INTO dependency_observations(
                 product_id, dep_kind, dep_name, raw_quote, source_span,
@@ -2146,8 +2197,7 @@ impl BdlStore {
         }
         let evidence = serialize_resolution_evidence(resolution_evidence)?;
         let mut connection = self.connection.lock().expect("SQLite connection poisoned");
-        let transaction =
-            connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let known: bool = transaction
             .query_row(
                 "SELECT 1 FROM dependency_observations WHERE observation_id = ?1",
@@ -2444,9 +2494,7 @@ impl BdlStore {
                 // The availability filter matches the derived enum; rows
                 // with no recognizable word derive to unknown.
                 match params.availability_status {
-                    Some(expected) => {
-                        availability_status(card.availability.as_deref()) == expected
-                    }
+                    Some(expected) => availability_status(card.availability.as_deref()) == expected,
                     None => true,
                 }
             })
@@ -2554,7 +2602,10 @@ impl BdlStore {
             } else {
                 CatalogHealth::Unknown
             },
-            revision: CatalogRevision { catalog_updated_seq, dataset_revision },
+            revision: CatalogRevision {
+                catalog_updated_seq,
+                dataset_revision,
+            },
         })
     }
 }
@@ -2627,7 +2678,10 @@ fn select_download_events(
                 .map(|v| to_u64(v, "received bytes"))
                 .transpose()?,
             resumable: resumable != 0,
-            failure_kind: failure_kind.as_deref().map(parse_failure_kind).transpose()?,
+            failure_kind: failure_kind
+                .as_deref()
+                .map(parse_failure_kind)
+                .transpose()?,
             occurred_at,
         });
     }
@@ -2689,7 +2743,10 @@ fn is_sha256_identity(value: &str) -> bool {
     let Some(hex) = value.strip_prefix("sha256:") else {
         return false;
     };
-    hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    hex.len() == 64
+        && hex
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
 }
 
 fn select_dependency_observation(
@@ -2933,7 +2990,6 @@ fn to_u64(value: i64, field: &'static str) -> Result<u64, BdlStoreError> {
     })
 }
 
-
 /// 金额字符串的数值比较辅助("1,400" → 1400.0);解析失败按 0(不参与
 /// 区间比较)。展示仍用原字符串,不经数值转换。
 fn amount_as_f64(amount: &str) -> f64 {
@@ -2986,11 +3042,17 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(format, BDL_FORMAT_VERSION, "the store's own format is served");
+        assert_eq!(
+            format, BDL_FORMAT_VERSION,
+            "the store's own format is served"
+        );
         let migration: i64 = connection
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
-        assert_eq!(migration, BDL_MIGRATION_VERSION, "fresh databases execute the entire migration chain");
+        assert_eq!(
+            migration, BDL_MIGRATION_VERSION,
+            "fresh databases execute the entire migration chain"
+        );
         let dep_table: i64 = connection
             .query_row("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'dependency_observations'", [], |row| row.get(0))
             .unwrap();
@@ -3015,8 +3077,7 @@ mod tests {
         assert_eq!(second.event_id, first.event_id);
         assert_eq!(store.download_events("dl-1").unwrap().len(), 1);
 
-        let next_attempt =
-            started_event("dl-1", "2026-09-06T08:16:00.000Z");
+        let next_attempt = started_event("dl-1", "2026-09-06T08:16:00.000Z");
         let (third_outcome, _) = store.append_download_event(&next_attempt).unwrap();
         assert_eq!(third_outcome, EventAppendence::Inserted);
         assert_eq!(store.download_events("dl-1").unwrap().len(), 2);
@@ -3025,16 +3086,20 @@ mod tests {
     #[test]
     fn download_events_roundtrip_every_transport_fact() {
         let store = BdlStore::open_in_memory().unwrap();
-        store.append_download_event(&started_event("dl-1", "2026-09-06T08:15:00.000Z")).unwrap();
+        store
+            .append_download_event(&started_event("dl-1", "2026-09-06T08:15:00.000Z"))
+            .unwrap();
         let stored = &store.download_events("dl-1").unwrap()[0];
         assert_eq!(stored.kind, DownloadEventKind::Started);
         assert_eq!(stored.attempt, 1);
         assert_eq!(
             stored.url_chain.as_deref(),
-            Some(&[
-                "https://booth.example.com/download/1000001/fixture".to_string(),
-                "https://cdn.example.com/materials/pack.zip".to_string(),
-            ][..])
+            Some(
+                &[
+                    "https://booth.example.com/download/1000001/fixture".to_string(),
+                    "https://cdn.example.com/materials/pack.zip".to_string(),
+                ][..]
+            )
         );
         assert_eq!(stored.expected_bytes, Some(1024));
         assert!(stored.resumable);
@@ -3089,7 +3154,10 @@ mod tests {
             })
             .unwrap();
         assert_eq!(recording.outcome, ArtifactRecordingOutcome::Created);
-        assert_eq!(recording.artifact.inspection_state, ArtifactInspectionState::Untrusted);
+        assert_eq!(
+            recording.artifact.inspection_state,
+            ArtifactInspectionState::Untrusted
+        );
 
         // The same content sighted again (re-download) never duplicates a row.
         let again = store
@@ -3118,20 +3186,47 @@ mod tests {
                 first_seen_at: "2026-09-06T09:00:01.000Z".into(),
             })
             .unwrap_err();
-        assert!(matches!(conflicting, BdlStoreError::CorruptValue { field: "artifact size", .. }));
+        assert!(matches!(
+            conflicting,
+            BdlStoreError::CorruptValue {
+                field: "artifact size",
+                ..
+            }
+        ));
 
         store
-            .transition_artifact(SHA_A, ArtifactInspectionState::Inspected, "2026-09-06T08:16:00.000Z", None)
+            .transition_artifact(
+                SHA_A,
+                ArtifactInspectionState::Inspected,
+                "2026-09-06T08:16:00.000Z",
+                None,
+            )
             .unwrap();
         store
-            .transition_artifact(SHA_A, ArtifactInspectionState::Admitted, "2026-09-06T08:17:00.000Z", None)
+            .transition_artifact(
+                SHA_A,
+                ArtifactInspectionState::Admitted,
+                "2026-09-06T08:17:00.000Z",
+                None,
+            )
             .unwrap();
         let admitted = store.artifact(SHA_A).unwrap().unwrap();
         assert_eq!(admitted.inspection_state, ArtifactInspectionState::Admitted);
-        assert_eq!(admitted.inspected_at.as_deref(), Some("2026-09-06T08:16:00.000Z"));
+        assert_eq!(
+            admitted.inspected_at.as_deref(),
+            Some("2026-09-06T08:16:00.000Z")
+        );
         assert!(matches!(
-            store.transition_artifact(SHA_A, ArtifactInspectionState::Rejected, "2026-09-06T08:18:00.000Z", Some("late")),
-            Err(BdlStoreError::InvalidTransition { to: ArtifactInspectionState::Rejected, .. })
+            store.transition_artifact(
+                SHA_A,
+                ArtifactInspectionState::Rejected,
+                "2026-09-06T08:18:00.000Z",
+                Some("late")
+            ),
+            Err(BdlStoreError::InvalidTransition {
+                to: ArtifactInspectionState::Rejected,
+                ..
+            })
         ));
     }
 
@@ -3148,7 +3243,12 @@ mod tests {
             })
             .unwrap();
         assert!(matches!(
-            store.transition_artifact(SHA_B, ArtifactInspectionState::Rejected, "2026-09-06T08:15:01.000Z", None),
+            store.transition_artifact(
+                SHA_B,
+                ArtifactInspectionState::Rejected,
+                "2026-09-06T08:15:01.000Z",
+                None
+            ),
             Err(BdlStoreError::InvalidEvent(_))
         ));
         store
@@ -3166,7 +3266,12 @@ mod tests {
             Some("extension not in the allowed list")
         );
         assert!(matches!(
-            store.transition_artifact(SHA_B, ArtifactInspectionState::Inspected, "2026-09-06T08:16:00.000Z", None),
+            store.transition_artifact(
+                SHA_B,
+                ArtifactInspectionState::Inspected,
+                "2026-09-06T08:16:00.000Z",
+                None
+            ),
             Err(BdlStoreError::InvalidTransition { .. })
         ));
     }
@@ -3193,18 +3298,36 @@ mod tests {
         store.seed_product("booth:1000001", "1000001").unwrap();
         assert_eq!(
             store
-                .record_artifact_mapping(SHA_A, "booth:1000001", Some("2000001"), Some("download"), "2026-09-06T08:20:00.000Z")
+                .record_artifact_mapping(
+                    SHA_A,
+                    "booth:1000001",
+                    Some("2000001"),
+                    Some("download"),
+                    "2026-09-06T08:20:00.000Z"
+                )
                 .unwrap(),
             ArtifactMappingOutcome::Created
         );
         assert_eq!(
             store
-                .record_artifact_mapping(SHA_A, "booth:1000001", None, None, "2026-09-06T08:21:00.000Z")
+                .record_artifact_mapping(
+                    SHA_A,
+                    "booth:1000001",
+                    None,
+                    None,
+                    "2026-09-06T08:21:00.000Z"
+                )
                 .unwrap(),
             ArtifactMappingOutcome::Existing
         );
         assert!(matches!(
-            store.record_artifact_mapping(SHA_B, "booth:1000001", None, None, "2026-09-06T08:22:00.000Z"),
+            store.record_artifact_mapping(
+                SHA_B,
+                "booth:1000001",
+                None,
+                None,
+                "2026-09-06T08:22:00.000Z"
+            ),
             Err(BdlStoreError::UnknownArtifact(_))
         ));
     }
@@ -3213,7 +3336,11 @@ mod tests {
     fn warehouse_items_and_copies_support_the_v0_3_read_face() {
         let store = BdlStore::open_in_memory().unwrap();
         let item = store
-            .create_warehouse_item("Fixture Material Pack", "imported_material", "2026-09-06T08:20:00.000Z")
+            .create_warehouse_item(
+                "Fixture Material Pack",
+                "imported_material",
+                "2026-09-06T08:20:00.000Z",
+            )
             .unwrap();
         assert!(item.warehouse_item_id.starts_with("whi-"));
         assert_eq!(
@@ -3221,11 +3348,25 @@ mod tests {
             "the generated identity is the entry's folder name"
         );
         assert!(matches!(
-            store.record_artifact_copy(&item.warehouse_item_id, SHA_A, "original/pack.zip", "C:\\wh\\pack.zip", CopyRole::Original, "t"),
+            store.record_artifact_copy(
+                &item.warehouse_item_id,
+                SHA_A,
+                "original/pack.zip",
+                "C:\\wh\\pack.zip",
+                CopyRole::Original,
+                "t"
+            ),
             Err(BdlStoreError::UnknownArtifact(_))
         ));
         assert!(matches!(
-            store.record_artifact_copy("whi-nope", SHA_A, "original/pack.zip", "C:\\wh\\pack.zip", CopyRole::Original, "t"),
+            store.record_artifact_copy(
+                "whi-nope",
+                SHA_A,
+                "original/pack.zip",
+                "C:\\wh\\pack.zip",
+                CopyRole::Original,
+                "t"
+            ),
             Err(BdlStoreError::UnknownWarehouseItem(_))
         ));
 
@@ -3239,7 +3380,12 @@ mod tests {
             })
             .unwrap();
         store
-            .transition_artifact(SHA_A, ArtifactInspectionState::Inspected, "2026-09-06T08:21:00.000Z", None)
+            .transition_artifact(
+                SHA_A,
+                ArtifactInspectionState::Inspected,
+                "2026-09-06T08:21:00.000Z",
+                None,
+            )
             .unwrap();
         store
             .record_artifact_copy(
@@ -3252,14 +3398,29 @@ mod tests {
             )
             .unwrap();
         assert!(matches!(
-            store.record_artifact_copy(&item.warehouse_item_id, SHA_A, "original/pack.zip", "again", CopyRole::Original, "t"),
-            Err(BdlStoreError::CorruptValue { field: "artifact copy", .. })
+            store.record_artifact_copy(
+                &item.warehouse_item_id,
+                SHA_A,
+                "original/pack.zip",
+                "again",
+                CopyRole::Original,
+                "t"
+            ),
+            Err(BdlStoreError::CorruptValue {
+                field: "artifact copy",
+                ..
+            })
         ));
 
-        let cards = store.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap();
+        let cards = store
+            .warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage)
+            .unwrap();
         assert_eq!(cards.len(), 1);
         assert_eq!(cards[0].artifacts.len(), 1);
-        assert_eq!(cards[0].artifacts[0].state, ArtifactInspectionVerdict::Pending);
+        assert_eq!(
+            cards[0].artifacts[0].state,
+            ArtifactInspectionVerdict::Pending
+        );
         assert_eq!(cards[0].artifacts[0].role, CopyRole::Original);
         assert_eq!(cards[0].artifact_mode, None, "no override = follows global");
         assert_eq!(
@@ -3276,11 +3437,17 @@ mod tests {
         store
             .set_artifact_mode(&item.warehouse_item_id, Some(ArtifactMode::GenerateVpm))
             .unwrap();
-        let cards = store.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap();
+        let cards = store
+            .warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage)
+            .unwrap();
         assert_eq!(cards[0].artifact_mode, Some(ArtifactMode::GenerateVpm));
         assert_eq!(cards[0].effective_artifact_mode, ArtifactMode::GenerateVpm);
-        store.set_artifact_mode(&item.warehouse_item_id, None).unwrap();
-        let cards = store.warehouse_entry_cards(ArtifactMode::GenerateVpm).unwrap();
+        store
+            .set_artifact_mode(&item.warehouse_item_id, None)
+            .unwrap();
+        let cards = store
+            .warehouse_entry_cards(ArtifactMode::GenerateVpm)
+            .unwrap();
         assert_eq!(cards[0].artifact_mode, None);
         assert_eq!(cards[0].effective_artifact_mode, ArtifactMode::GenerateVpm);
         assert!(matches!(
@@ -3295,21 +3462,55 @@ mod tests {
             Err(BdlStoreError::UnknownWarehouseItem(_))
         ));
 
-        let detail = store.warehouse_entry_detail(&item.warehouse_item_id, ArtifactMode::UseOriginalUnitypackage).unwrap().unwrap();
+        let detail = store
+            .warehouse_entry_detail(
+                &item.warehouse_item_id,
+                ArtifactMode::UseOriginalUnitypackage,
+            )
+            .unwrap()
+            .unwrap();
         assert!(!detail.artifacts[0].source_correlated);
         store.seed_product("booth:1000001", "1000001").unwrap();
         store
-            .record_artifact_mapping(SHA_A, "booth:1000001", None, None, "2026-09-06T08:23:00.000Z")
+            .record_artifact_mapping(
+                SHA_A,
+                "booth:1000001",
+                None,
+                None,
+                "2026-09-06T08:23:00.000Z",
+            )
             .unwrap();
-        let detail = store.warehouse_entry_detail(&item.warehouse_item_id, ArtifactMode::UseOriginalUnitypackage).unwrap().unwrap();
+        let detail = store
+            .warehouse_entry_detail(
+                &item.warehouse_item_id,
+                ArtifactMode::UseOriginalUnitypackage,
+            )
+            .unwrap()
+            .unwrap();
         assert!(detail.artifacts[0].source_correlated);
-        assert_eq!(detail.artifacts[0].mapped_product_ids, vec!["booth:1000001"]);
-        assert_eq!(store.warehouse_entry_detail("whi-nope", ArtifactMode::UseOriginalUnitypackage).unwrap(), None);
+        assert_eq!(
+            detail.artifacts[0].mapped_product_ids,
+            vec!["booth:1000001"]
+        );
+        assert_eq!(
+            store
+                .warehouse_entry_detail("whi-nope", ArtifactMode::UseOriginalUnitypackage)
+                .unwrap(),
+            None
+        );
 
-        let deleted = store.delete_entry_originals(&item.warehouse_item_id).unwrap();
+        let deleted = store
+            .delete_entry_originals(&item.warehouse_item_id)
+            .unwrap();
         assert_eq!(deleted, 1);
-        let cards = store.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap();
-        assert_eq!(cards[0].artifacts.len(), 0, "generated_vpm copies would survive");
+        let cards = store
+            .warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage)
+            .unwrap();
+        assert_eq!(
+            cards[0].artifacts.len(),
+            0,
+            "generated_vpm copies would survive"
+        );
     }
 
     #[test]
@@ -3343,14 +3544,20 @@ mod tests {
         // about the entry) or panicking on a data-dependent expect.
         assert!(matches!(
             store.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage),
-            Err(BdlStoreError::CorruptValue { field: "artifact mode", .. })
+            Err(BdlStoreError::CorruptValue {
+                field: "artifact mode",
+                ..
+            })
         ));
         assert!(matches!(
             store.warehouse_entry_detail(
                 &item.warehouse_item_id,
                 ArtifactMode::UseOriginalUnitypackage,
             ),
-            Err(BdlStoreError::CorruptValue { field: "artifact mode", .. })
+            Err(BdlStoreError::CorruptValue {
+                field: "artifact mode",
+                ..
+            })
         ));
     }
 
@@ -3368,7 +3575,10 @@ mod tests {
         }
         assert!(matches!(
             store.catalog_status(),
-            Err(BdlStoreError::CorruptValue { field: "catalog_updated_seq", .. })
+            Err(BdlStoreError::CorruptValue {
+                field: "catalog_updated_seq",
+                ..
+            })
         ));
     }
 
@@ -3404,7 +3614,10 @@ mod tests {
         let error = store.list_adoptable_downloads().unwrap_err();
         assert!(matches!(
             error,
-            BdlStoreError::CorruptValue { field: "download_events", .. }
+            BdlStoreError::CorruptValue {
+                field: "download_events",
+                ..
+            }
         ));
     }
 

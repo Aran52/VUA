@@ -95,7 +95,10 @@ impl<'a> CopyVerifier<'a> {
         outcome
     }
 
-    fn parent_zip_copy(&self, copy: &LibraryCopyEvidence) -> Option<(&'a LibraryCopyEvidence, String)> {
+    fn parent_zip_copy(
+        &self,
+        copy: &LibraryCopyEvidence,
+    ) -> Option<(&'a LibraryCopyEvidence, String)> {
         let rest = copy.copy.relative_path.strip_prefix("expanded/")?;
         let (zip_copy_id, member_norm) = rest.split_once('/')?;
         let parent = self.copies_by_id.get(zip_copy_id).copied()?;
@@ -312,12 +315,10 @@ pub fn draft_materials_for_line(
             // Skip expanded/<zip_copy>/<member> duplicates when <zip_copy> exists on disk as a regular file,
             // matching NativeAmfProduction::sources() drop_expanded_duplicates behavior.
             matching.retain(|copy| {
-                verifier
-                    .parent_zip_copy(copy)
-                    .is_none_or(|(parent, _)| {
-                        !fs::symlink_metadata(&parent.copy.stored_path)
-                            .is_ok_and(|meta| meta.file_type().is_file() && !is_reparse(&meta))
-                    })
+                verifier.parent_zip_copy(copy).is_none_or(|(parent, _)| {
+                    !fs::symlink_metadata(&parent.copy.stored_path)
+                        .is_ok_and(|meta| meta.file_type().is_file() && !is_reparse(&meta))
+                })
             });
         }
 
@@ -352,8 +353,7 @@ pub fn draft_materials_for_line(
                                     let inner = archive
                                         .by_index(idx)
                                         .map_err(|_| DraftError("store_failed"))?;
-                                    let Ok(raw_member) =
-                                        inner.name().map(|name| name.into_owned())
+                                    let Ok(raw_member) = inner.name().map(|name| name.into_owned())
                                     else {
                                         saw_changed = true;
                                         continue;
@@ -365,7 +365,8 @@ pub fn draft_materials_for_line(
                                         continue;
                                     }
                                     member_found = true;
-                                    if !member_norm.to_ascii_lowercase().ends_with(".unitypackage") {
+                                    if !member_norm.to_ascii_lowercase().ends_with(".unitypackage")
+                                    {
                                         if sha256_reader(inner).ok().as_deref() == Some(identity) {
                                             saw_verified_non_package = true;
                                         } else {
@@ -464,11 +465,8 @@ pub fn draft_materials_for_line(
                         continue;
                     }
                     archive_had_package = true;
-                    let source_id = format!(
-                        "{}-{}",
-                        copy.copy.copy_id,
-                        &hash_text(&raw_member)[..24]
-                    );
+                    let source_id =
+                        format!("{}-{}", copy.copy.copy_id, &hash_text(&raw_member)[..24]);
                     upsert_source(
                         &mut sources,
                         source_id,
@@ -689,7 +687,9 @@ fn inspect_legacy_store(
                 revision: None,
                 format_version: None,
                 selections: Vec::new(),
-                unresolved_assets: vec![json!({"assetId": "document", "reason": "unparseable_document"})],
+                unresolved_assets: vec![
+                    json!({"assetId": "document", "reason": "unparseable_document"}),
+                ],
                 has_graph_settings: false,
             });
             continue;
@@ -715,9 +715,21 @@ fn inspect_legacy_store(
                 clean
             }
         };
-        let has_graph_settings = ["instances", "relations", "wardrobeGroups", "dependencies", "locked", "extensions"]
-            .iter()
-            .any(|key| stored.recipe.get(*key).is_some_and(non_empty_array_or_object));
+        let has_graph_settings = [
+            "instances",
+            "relations",
+            "wardrobeGroups",
+            "dependencies",
+            "locked",
+            "extensions",
+        ]
+        .iter()
+        .any(|key| {
+            stored
+                .recipe
+                .get(*key)
+                .is_some_and(non_empty_array_or_object)
+        });
 
         if format_version.as_deref() != Some("0.3") || revision.is_none() {
             results.push(LegacyInspection {
@@ -728,7 +740,9 @@ fn inspect_legacy_store(
                 format_version,
                 title,
                 selections: Vec::new(),
-                unresolved_assets: vec![json!({"assetId": "document", "reason": "unsupported_version"})],
+                unresolved_assets: vec![
+                    json!({"assetId": "document", "reason": "unsupported_version"}),
+                ],
                 has_graph_settings,
             });
             continue;
@@ -743,7 +757,9 @@ fn inspect_legacy_store(
                 format_version,
                 title,
                 selections: Vec::new(),
-                unresolved_assets: vec![json!({"assetId": "document", "reason": "unparseable_document"})],
+                unresolved_assets: vec![
+                    json!({"assetId": "document", "reason": "unparseable_document"}),
+                ],
                 has_graph_settings,
             });
             continue;
@@ -854,20 +870,18 @@ fn inspect_legacy_store(
                     .collect();
                 // Omit expanded/<zip_copy>/... rows when parent <zip_copy> is present in the same entry.
                 item_copies.retain(|copy| {
-                    verifier
-                        .parent_zip_copy(copy)
-                        .is_none_or(|(parent, _)| {
-                            !fs::symlink_metadata(&parent.copy.stored_path)
-                                .is_ok_and(|meta| meta.file_type().is_file() && !is_reparse(&meta))
-                        })
+                    verifier.parent_zip_copy(copy).is_none_or(|(parent, _)| {
+                        !fs::symlink_metadata(&parent.copy.stored_path)
+                            .is_ok_and(|meta| meta.file_type().is_file() && !is_reparse(&meta))
+                    })
                 });
                 if item_copies.is_empty() {
                     unresolved_assets
                         .push(json!({"assetId": asset_id, "reason": "missing_local_copy"}));
                     continue;
                 }
-                let display_name = explicit_label
-                    .unwrap_or_else(|| bounded_text(&entry_names[item_id], 512));
+                let display_name =
+                    explicit_label.unwrap_or_else(|| bounded_text(&entry_names[item_id], 512));
                 let mut verified_any = false;
                 let mut saw_changed = false;
                 for copy in item_copies {
@@ -977,8 +991,8 @@ pub fn legacy_recipe_census(
         if item.parseable {
             parseable_documents += 1;
         }
-        let existing_revision = existing_draft_state(drafts, &item.target_draft_id)?
-            .map(|(rev, _)| rev);
+        let existing_revision =
+            existing_draft_state(drafts, &item.target_draft_id)?.map(|(rev, _)| rev);
         if existing_revision.is_some() {
             migrated_drafts += 1;
         }

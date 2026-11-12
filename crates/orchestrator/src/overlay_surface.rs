@@ -23,7 +23,6 @@
 
 use serde_json::Value;
 
-
 /// The minimal read model an overlay renders for the task surface: the
 /// same durable snapshots the desktop main line already sees
 /// (`application.getSnapshot` / `task.list`), projected to the fields a
@@ -189,7 +188,11 @@ impl StoreOverlayReadModel {
         plans: std::sync::Arc<crate::PlanDocumentStore>,
         records: std::sync::Arc<crate::RecipeRecordStore>,
     ) -> Self {
-        Self { store, plans, records }
+        Self {
+            store,
+            plans,
+            records,
+        }
     }
 }
 
@@ -242,7 +245,10 @@ impl OverlayReadModel for StoreOverlayReadModel {
             .into_iter()
             .max_by(|left, right| {
                 let left_key = left.get("finishedAt").and_then(Value::as_str).unwrap_or("");
-                let right_key = right.get("finishedAt").and_then(Value::as_str).unwrap_or("");
+                let right_key = right
+                    .get("finishedAt")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
                 left_key.cmp(right_key)
             })
             .map(|document| OverlayRecordSummary {
@@ -251,7 +257,10 @@ impl OverlayReadModel for StoreOverlayReadModel {
                 status: text_of(&document, "status"),
                 finished_at: text_of(&document, "finishedAt"),
             });
-        Ok(OverlayProductionCard { current_plan, latest_record })
+        Ok(OverlayProductionCard {
+            current_plan,
+            latest_record,
+        })
     }
 
     fn download_card(&self) -> Result<OverlayDownloadCard, crate::SqliteStoreError> {
@@ -278,7 +287,9 @@ impl OverlayReadModel for StoreOverlayReadModel {
                 updated_at: task.updated_at,
             })
             .collect::<Vec<_>>();
-        Ok(OverlayDownloadCard { active_downloads: active })
+        Ok(OverlayDownloadCard {
+            active_downloads: active,
+        })
     }
 }
 
@@ -371,10 +382,7 @@ mod tests {
 
         // The projection is a pure function of the store: querying twice
         // without a mutation observes the same set (read-only discipline).
-        assert_eq!(
-            model.task_cards().unwrap(),
-            model.task_cards().unwrap()
-        );
+        assert_eq!(model.task_cards().unwrap(), model.task_cards().unwrap());
     }
 
     #[test]
@@ -467,15 +475,24 @@ mod tests {
         // are published as drafts (the store's discipline) and flipped
         // through their real lifecycle acts.
         plans
-            .publish_draft("plan-b-older", &plan_document("plan-b-older", "2026-09-12T01:00:00.000Z"))
+            .publish_draft(
+                "plan-b-older",
+                &plan_document("plan-b-older", "2026-09-12T01:00:00.000Z"),
+            )
             .unwrap();
         plans.supersede("plan-b-older").unwrap();
         plans
-            .publish_draft("plan-c-newest", &plan_document("plan-c-newest", "2026-09-12T03:00:00.000Z"))
+            .publish_draft(
+                "plan-c-newest",
+                &plan_document("plan-c-newest", "2026-09-12T03:00:00.000Z"),
+            )
             .unwrap();
         plans.approve("plan-c-newest").unwrap();
         plans
-            .publish_draft("plan-a-oldest", &plan_document("plan-a-oldest", "2026-09-12T00:00:00.000Z"))
+            .publish_draft(
+                "plan-a-oldest",
+                &plan_document("plan-a-oldest", "2026-09-12T00:00:00.000Z"),
+            )
             .unwrap();
         // Three records likewise; finishedAt — not buildId — decides.
         for (build_id, finished_at, status) in [
@@ -483,7 +500,9 @@ mod tests {
             ("build-a-newest", "2026-09-12T04:00:00.000Z", "failed"),
             ("build-m-old", "2026-09-12T00:30:00.000Z", "cancelled"),
         ] {
-            records.publish(build_id, &record_document(build_id, finished_at, status)).unwrap();
+            records
+                .publish(build_id, &record_document(build_id, finished_at, status))
+                .unwrap();
         }
 
         let model = StoreOverlayReadModel::new(store, plans, records);
@@ -509,22 +528,37 @@ mod tests {
         let database = unique_database("production-halves");
         let store = std::sync::Arc::new(crate::SqliteTaskStore::open(&database).unwrap());
         let plans = std::sync::Arc::new(crate::PlanDocumentStore::new(unique_root("halves-plans")));
-        let records = std::sync::Arc::new(crate::RecipeRecordStore::new(unique_root("halves-records")));
+        let records =
+            std::sync::Arc::new(crate::RecipeRecordStore::new(unique_root("halves-records")));
 
         // Planned but never built: the plan half fills, the record half
         // stays honestly empty.
         plans
-            .publish_draft("plan-only", &plan_document("plan-only", "2026-09-12T05:00:00.000Z"))
+            .publish_draft(
+                "plan-only",
+                &plan_document("plan-only", "2026-09-12T05:00:00.000Z"),
+            )
             .unwrap();
         let model = StoreOverlayReadModel::new(store, plans, records);
         let card = model.production_card().unwrap();
-        assert_eq!(card.current_plan.as_ref().expect("plan half").plan_id, "plan-only");
-        assert_eq!(card.latest_record, None, "no records is an honest empty half");
+        assert_eq!(
+            card.current_plan.as_ref().expect("plan half").plan_id,
+            "plan-only"
+        );
+        assert_eq!(
+            card.latest_record, None,
+            "no records is an honest empty half"
+        );
     }
 
     /// Accepts a task row directly on the store (the download face mints
     /// `dl-<downloadId>-a<attempt>` rows through the same primitive).
-    fn seed_task(store: &crate::SqliteTaskStore, task_id: &str, correlation_id: &str, occurred_at: &str) {
+    fn seed_task(
+        store: &crate::SqliteTaskStore,
+        task_id: &str,
+        correlation_id: &str,
+        occurred_at: &str,
+    ) {
         store
             .accept_task(&crate::NewTask {
                 task_id: task_id.to_owned(),
@@ -541,7 +575,9 @@ mod tests {
         let model = StoreOverlayReadModel::new(
             store,
             std::sync::Arc::new(crate::PlanDocumentStore::new(unique_root("dl-empty-plans"))),
-            std::sync::Arc::new(crate::RecipeRecordStore::new(unique_root("dl-empty-records"))),
+            std::sync::Arc::new(crate::RecipeRecordStore::new(unique_root(
+                "dl-empty-records",
+            ))),
         );
 
         // 空态即终态: nothing in flight — the honest empty card, not an
@@ -597,7 +633,10 @@ mod tests {
             (crate::TaskState::Preparing, "2026-09-12T03:05:00.000Z"),
             (crate::TaskState::Running, "2026-09-12T03:10:00.000Z"),
         ] {
-            let current = store.task("dl-019e0000-0000-7000-8000-000000000603-a1").unwrap().unwrap();
+            let current = store
+                .task("dl-019e0000-0000-7000-8000-000000000603-a1")
+                .unwrap()
+                .unwrap();
             store
                 .mutate_task(
                     &current.task_id,
@@ -610,7 +649,10 @@ mod tests {
                 )
                 .unwrap();
         }
-        let terminal = store.task("dl-019e0000-0000-7000-8000-000000000603-a1").unwrap().unwrap();
+        let terminal = store
+            .task("dl-019e0000-0000-7000-8000-000000000603-a1")
+            .unwrap()
+            .unwrap();
         store
             .mutate_task(
                 &terminal.task_id,
@@ -626,15 +668,26 @@ mod tests {
 
         let model = StoreOverlayReadModel::new(
             store,
-            std::sync::Arc::new(crate::PlanDocumentStore::new(unique_root("dl-select-plans"))),
-            std::sync::Arc::new(crate::RecipeRecordStore::new(unique_root("dl-select-records"))),
+            std::sync::Arc::new(crate::PlanDocumentStore::new(unique_root(
+                "dl-select-plans",
+            ))),
+            std::sync::Arc::new(crate::RecipeRecordStore::new(unique_root(
+                "dl-select-records",
+            ))),
         );
         let card = model.download_card().unwrap();
 
-        assert_eq!(card.active_downloads.len(), 2, "terminal attempt and foreign tasks stay out");
+        assert_eq!(
+            card.active_downloads.len(),
+            2,
+            "terminal attempt and foreign tasks stay out"
+        );
         let first = &card.active_downloads[0];
         assert_eq!(first.download_id, "019e0000-0000-7000-8000-000000000601");
-        assert_eq!(first.state, "queued", "the nine-state word passes through verbatim");
+        assert_eq!(
+            first.state, "queued",
+            "the nine-state word passes through verbatim"
+        );
         assert_eq!(first.updated_at, "2026-09-12T01:00:00.000Z");
         // Enqueue order (created_at ascending), never the id alphabet.
         assert_eq!(

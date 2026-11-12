@@ -334,7 +334,10 @@ impl Installation {
                         &compressed,
                         Some(&previous),
                         &output,
-                        &owned_path(&self.root, &format!("cache/{}.pack", compressed.pack.sha256))?,
+                        &owned_path(
+                            &self.root,
+                            &format!("cache/{}.pack", compressed.pack.sha256),
+                        )?,
                         &owned_path(&self.root, &format!("cache/{}.bin", value.pack.sha256))?,
                     )
                     .await?;

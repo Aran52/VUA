@@ -14,7 +14,7 @@ use vua_bdl_store::{
     ProductObservationStatus,
 };
 use vua_orchestrator::{
-    BdlDependencyQueries, DependenciesLookupParams, DependenciesQueriesPort, AdvisoryConfidence,
+    AdvisoryConfidence, BdlDependencyQueries, DependenciesLookupParams, DependenciesQueriesPort,
     DependencyKind, DependencyProductStatus, InstallSource,
 };
 
@@ -164,17 +164,35 @@ fn matching_rule_v1_casefold_exact_no_fuzzy_honest_empty() {
         .expect("seed product");
     store
         .record_dependency_observation(&observation(
-            "booth:111", "shader", "lilToon", "explicit_heading", "body", None, vec![],
+            "booth:111",
+            "shader",
+            "lilToon",
+            "explicit_heading",
+            "body",
+            None,
+            vec![],
         ))
         .expect("seed observation");
     store
         .record_dependency_observation(&observation(
-            "booth:222", "shader", "LILTOON", "prose", "body", None, vec![],
+            "booth:222",
+            "shader",
+            "LILTOON",
+            "prose",
+            "body",
+            None,
+            vec![],
         ))
         .expect("seed observation");
     store
         .record_dependency_observation(&observation(
-            "booth:333", "shader", "lilToonShader", "prose", "body", None, vec![],
+            "booth:333",
+            "shader",
+            "lilToonShader",
+            "prose",
+            "body",
+            None,
+            vec![],
         ))
         .expect("seed observation — a DIFFERENT nominal, never a substring hit");
 
@@ -183,7 +201,10 @@ fn matching_rule_v1_casefold_exact_no_fuzzy_honest_empty() {
         .dependencies_lookup(&lookup_params("liltoon"))
         .expect("lookup succeeds");
     assert_eq!(result.total, 2, "ASCII case-fold exact over dep_name");
-    assert_eq!(result.matches[0].product_id, "booth:111", "productId ascending");
+    assert_eq!(
+        result.matches[0].product_id, "booth:111",
+        "productId ascending"
+    );
     assert_eq!(result.matches[1].product_id, "booth:222");
     // The stored nominal is never rewritten (matching is not normalization).
     assert_eq!(result.matches[0].dep_name, "lilToon");
@@ -258,12 +279,24 @@ fn dep_kind_filter_rides_the_frozen_closed_set() {
         .expect("seed product");
     store
         .record_dependency_observation(&observation(
-            "booth:111", "shader", "lilToon", "explicit_heading", "body", None, vec![],
+            "booth:111",
+            "shader",
+            "lilToon",
+            "explicit_heading",
+            "body",
+            None,
+            vec![],
         ))
         .expect("seed observation");
     store
         .record_dependency_observation(&observation(
-            "booth:222", "tool_package", "lilToon", "explicit_heading", "body", None, vec![],
+            "booth:222",
+            "tool_package",
+            "lilToon",
+            "explicit_heading",
+            "body",
+            None,
+            vec![],
         ))
         .expect("seed observation");
     let queries = executor(&store);
@@ -368,7 +401,10 @@ fn resolved_product_id_surfaces_only_for_confirmed_resolutions() {
          only the confirmed row turns into a suggestion"
     );
     let confirmed_match = &result.matches[0];
-    let advisory = confirmed_match.advisory.as_ref().expect("confirmed + deliberate");
+    let advisory = confirmed_match
+        .advisory
+        .as_ref()
+        .expect("confirmed + deliberate");
     assert_eq!(advisory.install_source, InstallSource::BoothPage);
     assert_eq!(advisory.confidence, AdvisoryConfidence::Strong);
 }
@@ -426,14 +462,17 @@ fn advisory_double_gate_layout_dimension() {
     let result = queries
         .dependencies_lookup(&lookup_params("gatedep"))
         .expect("lookup succeeds");
-    assert_eq!(result.total, 6, "all six rows match; the ADVISORY gate filters");
+    assert_eq!(
+        result.total, 6,
+        "all six rows match; the ADVISORY gate filters"
+    );
     let expected: [Option<(&str, AdvisoryConfidence)>; 6] = [
-        Some(("booth_page", AdvisoryConfidence::Strong)),   // explicit_heading
-        Some(("booth_page", AdvisoryConfidence::Strong)),   // one_line
-        Some(("booth_page", AdvisoryConfidence::Weak)),     // bullet
-        None,                                               // prose
-        None,                                               // title
-        None,                                               // link
+        Some(("booth_page", AdvisoryConfidence::Strong)), // explicit_heading
+        Some(("booth_page", AdvisoryConfidence::Strong)), // one_line
+        Some(("booth_page", AdvisoryConfidence::Weak)),   // bullet
+        None,                                             // prose
+        None,                                             // title
+        None,                                             // link
     ];
     for (match_row, expected) in result.matches.iter().zip(expected.iter()) {
         let actual = match_row.advisory.as_ref().map(|advisory| {
@@ -444,7 +483,12 @@ fn advisory_double_gate_layout_dimension() {
             };
             (word, advisory.confidence)
         });
-        assert_eq!(actual.as_ref(), expected.as_ref(), "layout {:?}", match_row.extraction_method);
+        assert_eq!(
+            actual.as_ref(),
+            expected.as_ref(),
+            "layout {:?}",
+            match_row.extraction_method
+        );
     }
 }
 
@@ -488,7 +532,11 @@ fn install_source_derives_from_the_resolution_targets_host() {
             "https://shop.booth.pm/items/803",
         ))
         .expect("seed product");
-    for (target, _) in [("booth:801", InstallSource::BoothPage), ("booth:802", InstallSource::ExternalPage), ("booth:803", InstallSource::BoothPage)] {
+    for (target, _) in [
+        ("booth:801", InstallSource::BoothPage),
+        ("booth:802", InstallSource::ExternalPage),
+        ("booth:803", InstallSource::BoothPage),
+    ] {
         let row = store
             .record_dependency_observation(&observation(
                 "booth:111",
@@ -527,9 +575,9 @@ fn install_source_derives_from_the_resolution_targets_host() {
     assert_eq!(
         sources,
         vec![
-            InstallSource::BoothPage,     // booth.pm
-            InstallSource::ExternalPage,  // any other host
-            InstallSource::BoothPage,     // a booth.pm subdomain
+            InstallSource::BoothPage,    // booth.pm
+            InstallSource::ExternalPage, // any other host
+            InstallSource::BoothPage,    // a booth.pm subdomain
         ]
     );
     // v1 never emits vpm/unknown — the closed set's other members stay
@@ -561,7 +609,13 @@ fn list_by_product_is_the_unfiltered_clue_face() {
     // Insertion order 1: unresolved.
     store
         .record_dependency_observation(&observation(
-            "booth:555", "shader", "DepA", "bullet", "body", None, vec![],
+            "booth:555",
+            "shader",
+            "DepA",
+            "bullet",
+            "body",
+            None,
+            vec![],
         ))
         .expect("seed observation");
     // Insertion order 2: resolved UNCONFIRMED — the labeled clue.
@@ -611,7 +665,11 @@ fn list_by_product_is_the_unfiltered_clue_face() {
     let confirmed_flags: Vec<Option<bool>> = result
         .observations
         .iter()
-        .map(|row| row.resolution.as_ref().map(|resolution| resolution.confirmed))
+        .map(|row| {
+            row.resolution
+                .as_ref()
+                .map(|resolution| resolution.confirmed)
+        })
         .collect();
     assert_eq!(
         confirmed_flags,
@@ -619,11 +677,17 @@ fn list_by_product_is_the_unfiltered_clue_face() {
         "insertion order; unconfirmed clues labeled as-is, never flipped"
     );
     let clue = &result.observations[1];
-    let resolution = clue.resolution.as_ref().expect("the clue carries its resolution");
+    let resolution = clue
+        .resolution
+        .as_ref()
+        .expect("the clue carries its resolution");
     assert_eq!(resolution.product_id, "booth:999");
     assert_eq!(resolution.evidence.len(), 1);
     assert_eq!(resolution.evidence[0].link_text, "Dependency B");
-    assert_eq!(resolution.evidence[0].link_url, "https://booth.pm/ja/items/999");
+    assert_eq!(
+        resolution.evidence[0].link_url,
+        "https://booth.pm/ja/items/999"
+    );
     assert_eq!(clue.extracted_by, "synthetic-extractor");
     assert_eq!(clue.observed_at, "2026-09-22T00:00:00.000Z");
 }
@@ -642,7 +706,13 @@ fn tombstoned_declaring_products_stay_readable_on_both_faces() {
         .expect("seed tombstone");
     store
         .record_dependency_observation(&observation(
-            "booth:666", "shader", "GhostDep", "explicit_heading", "body", None, vec![],
+            "booth:666",
+            "shader",
+            "GhostDep",
+            "explicit_heading",
+            "body",
+            None,
+            vec![],
         ))
         .expect("seed observation");
     let queries = executor(&store);
@@ -650,7 +720,10 @@ fn tombstoned_declaring_products_stay_readable_on_both_faces() {
     let lookup = queries
         .dependencies_lookup(&lookup_params("ghostdep"))
         .expect("lookup succeeds");
-    assert_eq!(lookup.total, 1, "a declaration's evidentiary force does not die with its page");
+    assert_eq!(
+        lookup.total, 1,
+        "a declaration's evidentiary force does not die with its page"
+    );
     assert_eq!(lookup.matches[0].product_id, "booth:666");
     // listByProduct answers the tombstone honesty face.
     let result = queries
@@ -658,7 +731,11 @@ fn tombstoned_declaring_products_stay_readable_on_both_faces() {
         .expect("read succeeds")
         .expect("a tombstoned product is NOT refused");
     assert_eq!(result.product_status, DependencyProductStatus::Missing);
-    assert_eq!(result.observations.len(), 1, "the dead page's declarations stay readable");
+    assert_eq!(
+        result.observations.len(),
+        1,
+        "the dead page's declarations stay readable"
+    );
 }
 
 /// The status residual arm's premise, pinned: `productStatus` folds the

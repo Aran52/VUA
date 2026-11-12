@@ -23,11 +23,11 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
 use vua_orchestrator::{HandoffLaunch, HandoffOutcome, ReleaseHandoffPort};
-use vua_unity_bridge::handoff::{
-    handshake_path, DefaultEditorHandoff, EditorSpawner, FocusOutcome,
-    HandoffWait, ProcessLiveness, WindowFocus, HANDSHAKE_SCHEMA_VERSION,
-};
 use vua_provider_host::EditorHandoffAdapter;
+use vua_unity_bridge::handoff::{
+    handshake_path, DefaultEditorHandoff, EditorSpawner, FocusOutcome, HandoffWait,
+    ProcessLiveness, WindowFocus, HANDSHAKE_SCHEMA_VERSION,
+};
 
 const VALID_HANDSHAKE_JSON: &str = r#"{
     "schemaVersion": "1.0",
@@ -68,15 +68,18 @@ impl FakeSpawner {
 impl EditorSpawner for FakeSpawner {
     fn spawn(&self, executable: &Path, args: &[String]) -> std::io::Result<u32> {
         if self.fail.load(Ordering::SeqCst) {
-            return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "no editor"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "no editor",
+            ));
         }
         self.calls
             .lock()
             .expect("spawner calls")
             .push((executable.to_path_buf(), args.to_vec()));
         if let Some(root) = self.trail_on_spawn.lock().expect("trail config").clone() {
-            let mut file = std::fs::File::create(handshake_path(&root))
-                .expect("create handshake file");
+            let mut file =
+                std::fs::File::create(handshake_path(&root)).expect("create handshake file");
             file.write_all(
                 format!(
                     r#"{{"schemaVersion":"{HANDSHAKE_SCHEMA_VERSION}","pid":700,"editorVersion":"2022.3.22f1","occurredAt":"2026-09-16T05:41:00.000Z"}}"#
@@ -100,7 +103,8 @@ impl HandoffWait for ScriptedWait {
         self.now.load(Ordering::SeqCst) as u64
     }
     fn sleep(&self, duration: std::time::Duration) {
-        self.now.fetch_add(duration.as_millis() as u32, Ordering::SeqCst);
+        self.now
+            .fetch_add(duration.as_millis() as u32, Ordering::SeqCst);
     }
 }
 
@@ -110,7 +114,9 @@ struct FakeLiveness {
 
 impl FakeLiveness {
     fn all_alive() -> Self {
-        Self { dead: Mutex::new(std::collections::HashSet::new()) }
+        Self {
+            dead: Mutex::new(std::collections::HashSet::new()),
+        }
     }
     fn kill(&self, pid: u32) {
         self.dead.lock().expect("dead set").insert(pid);
@@ -133,7 +139,9 @@ struct RecordingFocus {
 impl WindowFocus for RecordingFocus {
     fn focus(&self, pid: u32) -> FocusOutcome {
         self.focused.lock().expect("focus log").push(pid);
-        FocusOutcome::Unavailable { reason: "test_disabled" }
+        FocusOutcome::Unavailable {
+            reason: "test_disabled",
+        }
     }
 }
 
@@ -159,7 +167,8 @@ impl Workspace {
     fn write_handshake(&self, json: &str) {
         let path = handshake_path(&self.root);
         let mut file = std::fs::File::create(&path).expect("create handshake file");
-        file.write_all(json.as_bytes()).expect("write handshake file");
+        file.write_all(json.as_bytes())
+            .expect("write handshake file");
     }
 }
 
@@ -196,10 +205,14 @@ fn closed_project_launches_then_arrives_and_focuses_the_trail_pid() {
     let spawner = Arc::new(FakeSpawner::new());
     // The "launched editor" finishes loading and writes its trail (pid 700).
     spawner.writes_trail_at_spawn(workspace.root.clone());
-    let focus = Arc::new(RecordingFocus { focused: Mutex::new(Vec::new()) });
+    let focus = Arc::new(RecordingFocus {
+        focused: Mutex::new(Vec::new()),
+    });
     let adapter = adapter_with(
         spawner.clone(),
-        Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         Arc::new(FakeLiveness::all_alive()),
         focus.clone(),
     );
@@ -218,7 +231,10 @@ fn closed_project_launches_then_arrives_and_focuses_the_trail_pid() {
     );
     assert_eq!(
         calls[0].1,
-        vec!["-projectPath".to_string(), workspace.root.to_string_lossy().into_owned()],
+        vec![
+            "-projectPath".to_string(),
+            workspace.root.to_string_lossy().into_owned()
+        ],
         "windowed -projectPath launch"
     );
     assert_eq!(
@@ -233,10 +249,14 @@ fn already_open_focuses_and_arrives_without_launching() {
     let workspace = Workspace::new("already-open");
     workspace.write_handshake(VALID_HANDSHAKE_JSON);
     let spawner = Arc::new(FakeSpawner::new());
-    let focus = Arc::new(RecordingFocus { focused: Mutex::new(Vec::new()) });
+    let focus = Arc::new(RecordingFocus {
+        focused: Mutex::new(Vec::new()),
+    });
     let adapter = adapter_with(
         spawner.clone(),
-        Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         Arc::new(FakeLiveness::all_alive()),
         focus.clone(),
     );
@@ -248,7 +268,11 @@ fn already_open_focuses_and_arrives_without_launching() {
     // The valid, live trail IS the completion fact (ruling 3): no second
     // editor is launched over a live session; focus is a courtesy.
     assert_eq!(outcome, HandoffOutcome::HandshakeArrived);
-    assert_eq!(spawner.launch_count(), 0, "a live session is never re-launched");
+    assert_eq!(
+        spawner.launch_count(),
+        0,
+        "a live session is never re-launched"
+    );
     assert_eq!(*focus.focused.lock().expect("focus log"), vec![4212]);
 }
 
@@ -259,9 +283,13 @@ fn launch_failure_is_the_err_class_with_the_real_cause() {
     spawner.fail.store(true, Ordering::SeqCst);
     let adapter = adapter_with(
         spawner.clone(),
-        Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         Arc::new(FakeLiveness::all_alive()),
-        Arc::new(RecordingFocus { focused: Mutex::new(Vec::new()) }),
+        Arc::new(RecordingFocus {
+            focused: Mutex::new(Vec::new()),
+        }),
     );
 
     let error = adapter
@@ -279,9 +307,13 @@ fn budget_exhausted_without_a_handshake_is_the_honest_timeout() {
     let workspace = Workspace::new("honest-timeout");
     let adapter = adapter_with(
         Arc::new(FakeSpawner::new()),
-        Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         Arc::new(FakeLiveness::all_alive()),
-        Arc::new(RecordingFocus { focused: Mutex::new(Vec::new()) }),
+        Arc::new(RecordingFocus {
+            focused: Mutex::new(Vec::new()),
+        }),
     );
 
     // No trail is ever written: the wait runs to the production default
@@ -302,9 +334,13 @@ fn probe_io_failure_is_reported_never_folded_into_the_launch_path() {
     let spawner = Arc::new(FakeSpawner::new());
     let adapter = adapter_with(
         spawner.clone(),
-        Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         Arc::new(FakeLiveness::all_alive()),
-        Arc::new(RecordingFocus { focused: Mutex::new(Vec::new()) }),
+        Arc::new(RecordingFocus {
+            focused: Mutex::new(Vec::new()),
+        }),
     );
 
     let error = adapter
@@ -330,10 +366,14 @@ fn dead_trail_routes_to_the_launch_path_and_arrives_on_the_new_trail() {
     let spawner = Arc::new(FakeSpawner::new());
     // The "launched editor" writes its own trail (pid 700, alive) on load.
     spawner.writes_trail_at_spawn(workspace.root.clone());
-    let focus = Arc::new(RecordingFocus { focused: Mutex::new(Vec::new()) });
+    let focus = Arc::new(RecordingFocus {
+        focused: Mutex::new(Vec::new()),
+    });
     let adapter = adapter_with(
         spawner.clone(),
-        Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         liveness.clone(),
         focus.clone(),
     );
@@ -343,7 +383,11 @@ fn dead_trail_routes_to_the_launch_path_and_arrives_on_the_new_trail() {
         .expect("the handoff attempt itself succeeds");
 
     assert_eq!(outcome, HandoffOutcome::HandshakeArrived);
-    assert_eq!(spawner.launch_count(), 1, "a dead trail means honestly closed: launch");
+    assert_eq!(
+        spawner.launch_count(),
+        1,
+        "a dead trail means honestly closed: launch"
+    );
     assert_eq!(
         *focus.focused.lock().expect("focus log"),
         vec![700],

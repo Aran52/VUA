@@ -165,8 +165,10 @@ mod selection_tests {
 
     #[test]
     fn the_sole_production_target_is_auto_selected() {
-        let selection =
-            select_editor(None, &detected(&["2019.4.31f1", PRODUCTION_TARGET, "2021.3.5f1"]));
+        let selection = select_editor(
+            None,
+            &detected(&["2019.4.31f1", PRODUCTION_TARGET, "2021.3.5f1"]),
+        );
         match selection {
             EditorSelection::AutoSelected { editor } => {
                 assert_eq!(editor.parsed.display, PRODUCTION_TARGET);
@@ -263,13 +265,18 @@ mod selection_tests {
         );
         assert_eq!(
             explicit.path(),
-            Some(std::path::Path::new("C:/manual/2022.3.22f1/Editor/Unity.exe"))
+            Some(std::path::Path::new(
+                "C:/manual/2022.3.22f1/Editor/Unity.exe"
+            ))
         );
         let auto = select_editor(None, &detected(&[PRODUCTION_TARGET]));
         assert_eq!(
             auto.path(),
             Some(Path::new("C:/Hub").join(PRODUCTION_TARGET).as_path())
         );
-        assert_eq!(select_editor(None, &EditorInstallObservation::NotDetected).path(), None);
+        assert_eq!(
+            select_editor(None, &EditorInstallObservation::NotDetected).path(),
+            None
+        );
     }
 }

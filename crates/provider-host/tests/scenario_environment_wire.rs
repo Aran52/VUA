@@ -15,7 +15,10 @@ fn read_v02(path: &str) -> Value {
 }
 #[test]
 fn shared_request_and_result_schema_vectors() {
-    for (dir, load) in [(root(), read as fn(&str) -> Value), (root_v02(), read_v02 as fn(&str) -> Value)] {
+    for (dir, load) in [
+        (root(), read as fn(&str) -> Value),
+        (root_v02(), read_v02 as fn(&str) -> Value),
+    ] {
         for (schema, directory) in [
             ("request.schema.json", "examples"),
             ("result.schema.json", "results"),
@@ -153,11 +156,18 @@ fn play_setups_and_sop_v02_cross_the_wire_without_services_and_reject_invalid_co
     let validator = jsonschema::validator_for(&read_v02("result.schema.json")).unwrap();
     for index in 0..5 {
         assert_eq!(reply(index)["ok"], true, "{}", reply(index));
-        assert!(validator.is_valid(&reply(index)["value"]), "{}", reply(index));
+        assert!(
+            validator.is_valid(&reply(index)["value"]),
+            "{}",
+            reply(index)
+        );
     }
     assert_eq!(reply(0)["value"]["platforms"].as_array().unwrap().len(), 3);
     assert_eq!(reply(0)["value"]["devices"].as_array().unwrap().len(), 15);
-    assert_eq!(reply(0)["value"]["connections"].as_array().unwrap().len(), 17);
+    assert_eq!(
+        reply(0)["value"]["connections"].as_array().unwrap().len(),
+        17
+    );
     assert_eq!(reply(1)["value"]["engine"]["route"], "desktop_play");
     assert_eq!(reply(2)["value"]["engine"]["route"], "pico_pcvr");
     assert_eq!(reply(3)["value"]["engine"]["kind"], "headset");

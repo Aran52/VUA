@@ -20,12 +20,11 @@ pub mod staging_scaffold;
 pub mod unity_log;
 
 pub use bridge::UnityBatchBridge;
-pub use unity_log::{UnityLogReader, UnityLogTail};
 pub use handoff::{
     handshake_path, DefaultEditorHandoff, DefaultProcessLiveness, DetachedEditorSpawner,
-    EditorHandoffPort, EditorHandshake, EditorLaunched, EditorOpenState, FocusOutcome,
-    HandoffError, HandoffWait, OsWindowFocus, ProcessLiveness, SystemWait, WindowFocus,
-    EditorSpawner, DEFAULT_HANDSHAKE_BUDGET, HANDSHAKE_POLL_INTERVAL, HANDSHAKE_SCHEMA_VERSION,
+    EditorHandoffPort, EditorHandshake, EditorLaunched, EditorOpenState, EditorSpawner,
+    FocusOutcome, HandoffError, HandoffWait, OsWindowFocus, ProcessLiveness, SystemWait,
+    WindowFocus, DEFAULT_HANDSHAKE_BUDGET, HANDSHAKE_POLL_INTERVAL, HANDSHAKE_SCHEMA_VERSION,
 };
 pub use local_vpm_artifact::{publish_local_vpm_artifact, PublishedLocalVpmArtifact};
 pub use material_exec::{
@@ -57,3 +56,4 @@ pub use production_job::{
 pub use staging_scaffold::{
     MA_STUB_ASMDEF, MA_STUB_COMPONENTS_CS, MA_STUB_PACKAGE_ID, MA_STUB_PACKAGE_JSON,
 };
+pub use unity_log::{UnityLogReader, UnityLogTail};

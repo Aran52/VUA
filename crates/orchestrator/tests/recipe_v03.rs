@@ -37,7 +37,10 @@ fn violations(validator: &Validator, instance: &Value) -> Vec<String> {
 fn positive_examples_validate_against_their_frozen_schemas() {
     for (schema_name, example_name) in [
         ("recipe.schema.json", "example.recipe.json"),
-        ("local-resolution.schema.json", "example.local-resolution.json"),
+        (
+            "local-resolution.schema.json",
+            "example.local-resolution.json",
+        ),
         ("approved-plan.schema.json", "example.approved-plan.json"),
     ] {
         let schema = read_json(schema_name);
@@ -123,12 +126,18 @@ fn execution_semantics_inputs_are_frozen_with_the_plan_schema() {
     // attach_to_bone carries its local transform.
     let attach = read_json("examples/example.plan-attach-transform.json");
     let problems = violations(&validator, &attach);
-    assert!(problems.is_empty(), "attach plan must validate: {problems:?}");
+    assert!(
+        problems.is_empty(),
+        "attach plan must validate: {problems:?}"
+    );
 
     // exclude_object with a pathHint selector.
     let exclude = read_json("examples/example.plan-exclude-pathhint.json");
     let problems = violations(&validator, &exclude);
-    assert!(problems.is_empty(), "exclude plan must validate: {problems:?}");
+    assert!(
+        problems.is_empty(),
+        "exclude plan must validate: {problems:?}"
+    );
 
     // A selector with neither catalogEntryId nor pathHint is a contract error.
     let bad_selector = read_json("examples/invalid-plan-selector-no-target.json");
@@ -151,7 +160,10 @@ fn negative_vectors_are_rejected() {
     );
     // planHash outside the sha256 vocabulary is a contract error.
     let bad_hash = read_json("examples/invalid-plan-hash.json");
-    assert!(!plan_validator.is_valid(&bad_hash), "md5 hash must not validate");
+    assert!(
+        !plan_validator.is_valid(&bad_hash),
+        "md5 hash must not validate"
+    );
     // Unknown job kind is a contract error.
     let bad_kind = read_json("examples/invalid-plan-kind.json");
     assert!(
@@ -176,7 +188,10 @@ fn plan_hash_and_resolved_source_survive_a_round_trip() {
     let text = serde_json::to_string(&example).expect("serialize");
     let parsed: Value = serde_json::from_str(&text).expect("deserialize");
     assert_eq!(parsed["planHash"], example["planHash"]);
-    assert_eq!(parsed["jobs"][0]["inputs"]["resolvedSource"], example["jobs"][0]["inputs"]["resolvedSource"]);
+    assert_eq!(
+        parsed["jobs"][0]["inputs"]["resolvedSource"],
+        example["jobs"][0]["inputs"]["resolvedSource"]
+    );
     assert_eq!(parsed["status"], "approved");
 }
 
@@ -208,15 +223,11 @@ fn build_record_carries_the_double_record_and_recovery_register() {
     assert_eq!(job["replayed"], false);
     // The recovery-point register (009 point 5): snapshotId assigned by the
     // production mechanism, phase markers, restore by reference.
-    assert_eq!(
-        example["recoveryPoints"][0]["phase"],
-        "pre_job"
-    );
+    assert_eq!(example["recoveryPoints"][0]["phase"], "pre_job");
     let recovered = read_json("examples/example.build-record.recovered.json");
     assert_eq!(recovered["status"], "recovered");
     assert_eq!(
-        recovered["recovery"]["restoredFrom"],
-        recovered["recoveryPoints"][0]["snapshotId"],
+        recovered["recovery"]["restoredFrom"], recovered["recoveryPoints"][0]["snapshotId"],
         "restore must reference a registered recovery point"
     );
     assert_eq!(recovered["recovery"]["receipt"], "restored");
@@ -251,5 +262,8 @@ fn build_record_negative_vectors_are_rejected() {
     );
     // The job kind vocabulary is closed on the record side too.
     let bad_kind = read_json("examples/invalid-record-kind.json");
-    assert!(!validator.is_valid(&bad_kind), "unknown kind must not validate");
+    assert!(
+        !validator.is_valid(&bad_kind),
+        "unknown kind must not validate"
+    );
 }

@@ -352,8 +352,7 @@ mod tests {
         // version differs from the record's — the 021 manual pick is the
         // authority and is not re-matched.
         let candidates = vec![explicit_candidate(), target_candidate("2022.3.22f1")];
-        let resolved =
-            resolve_handoff_editor(&candidates, "2022.3.22f1").expect("explicit wins");
+        let resolved = resolve_handoff_editor(&candidates, "2022.3.22f1").expect("explicit wins");
         assert_eq!(resolved.source, HandoffEditorSource::ExplicitInjection);
         assert_eq!(resolved.version, "2019.4.31f1");
     }
@@ -401,8 +400,7 @@ mod tests {
             exe_path: PathBuf::from("C:/Unity/2022.3.22f1/Editor/Unity.exe"),
             version: " 2022.3.22f1 ".to_owned(),
         }];
-        let resolved =
-            resolve_handoff_editor(&candidates, "2022.3.22f1 ").expect("trimmed match");
+        let resolved = resolve_handoff_editor(&candidates, "2022.3.22f1 ").expect("trimmed match");
         assert_eq!(resolved.version, " 2022.3.22f1 ");
     }
 
@@ -446,10 +444,19 @@ mod tests {
         keys.sort();
         assert_eq!(
             keys,
-            vec!["buildId", "editor", "occurredAt", "projectId", "schemaVersion"]
+            vec![
+                "buildId",
+                "editor",
+                "occurredAt",
+                "projectId",
+                "schemaVersion"
+            ]
         );
         assert_eq!(fact["schemaVersion"], "0.2");
-        assert_eq!(fact["editor"]["exePath"], "C:/Unity/2022.3.22f1/Editor/Unity.exe");
+        assert_eq!(
+            fact["editor"]["exePath"],
+            "C:/Unity/2022.3.22f1/Editor/Unity.exe"
+        );
         assert_eq!(fact["editor"]["version"], "2022.3.22f1");
         // Honesty rule 1/2 by shape: no upload-status-like field exists.
         assert!(object.get("uploadStatus").is_none());
@@ -605,7 +612,10 @@ mod tests {
             seen: std::sync::Mutex::new(None),
         };
         let port: Box<dyn ReleaseHandoffPort> = Box::new(port);
-        assert_eq!(port.open_for_handoff(&launch), Ok(HandoffOutcome::HandshakeArrived));
+        assert_eq!(
+            port.open_for_handoff(&launch),
+            Ok(HandoffOutcome::HandshakeArrived)
+        );
         let timeout_port: Box<dyn ReleaseHandoffPort> = Box::new(FakePort {
             outcome: Ok(HandoffOutcome::HandshakeTimeout),
             seen: std::sync::Mutex::new(None),

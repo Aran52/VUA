@@ -28,13 +28,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde_json::{json, Value};
-use vua_orchestrator::{
-    AppErrorV1, DependenciesListByProductResultV05, DependenciesLookupResultV05, DependenciesQueriesCapabilities,
-    DependenciesQueriesPort, ErrorCategory,
-};
 use vua_bdl_store::{
     ArtifactMode, BdlStore, DependencyResolutionEvidence, NewDependencyObservation,
     ProductObservation, ProductObservationStatus, BDL_QUERIES_SCHEMA_VERSION,
+};
+use vua_orchestrator::{
+    AppErrorV1, DependenciesListByProductResultV05, DependenciesLookupResultV05,
+    DependenciesQueriesCapabilities, DependenciesQueriesPort, ErrorCategory,
 };
 use vua_provider_host::{run_provider_host_full, WarehouseConfig};
 
@@ -87,7 +87,9 @@ impl FakeQueries {
 
 impl DependenciesQueriesPort for FakeQueries {
     fn dependencies_capabilities(&self) -> DependenciesQueriesCapabilities {
-        DependenciesQueriesCapabilities { dependencies_queries: self.cap }
+        DependenciesQueriesCapabilities {
+            dependencies_queries: self.cap,
+        }
     }
 
     fn dependencies_lookup(
@@ -98,7 +100,10 @@ impl DependenciesQueriesPort for FakeQueries {
             self.cap,
             "the route gate must answer the honest absence BEFORE the port"
         );
-        self.calls.lock().expect("calls poisoned").push("dependencies.lookup".into());
+        self.calls
+            .lock()
+            .expect("calls poisoned")
+            .push("dependencies.lookup".into());
         if let Some(error) = &self.failure {
             return Err(error.clone());
         }
@@ -221,7 +226,10 @@ fn warehouse_with(queries: Option<Arc<dyn DependenciesQueriesPort>>) -> Warehous
 fn expect_error(payload: &Value, code: &str, message_key: &str, category: &str) {
     assert_eq!(payload["ok"], false, "payload: {payload}");
     assert_eq!(payload["error"]["code"], code, "payload: {payload}");
-    assert_eq!(payload["error"]["messageKey"], message_key, "payload: {payload}");
+    assert_eq!(
+        payload["error"]["messageKey"], message_key,
+        "payload: {payload}"
+    );
     assert_eq!(payload["error"]["category"], category, "payload: {payload}");
 }
 
@@ -251,7 +259,10 @@ fn frozen_lookup_vector_rides_the_real_frame_loop_verbatim() {
     // The frozen REQUEST vector drives the route (its params are exactly
     // what the frozen query schema admits).
     let request = read_json("examples/dependencies-lookup.request.json");
-    assert!(query_validator().is_valid(&request), "the frozen request vector must match the frozen query schema");
+    assert!(
+        query_validator().is_valid(&request),
+        "the frozen request vector must match the frozen query schema"
+    );
     let params = request["params"].clone();
 
     let payload = run_query(&database, Some(warehouse), "dependencies.lookup", params);
@@ -264,7 +275,10 @@ fn frozen_lookup_vector_rides_the_real_frame_loop_verbatim() {
     assert_eq!(envelope["schemaVersion"], BDL_QUERIES_SCHEMA_VERSION);
     assert_eq!(envelope["schemaVersion"], "0.6");
     assert_eq!(envelope["operation"], "dependencies.lookup");
-    assert_eq!(envelope["result"], frozen["result"], "the wire facts must equal the frozen vector");
+    assert_eq!(
+        envelope["result"], frozen["result"],
+        "the wire facts must equal the frozen vector"
+    );
     assert!(
         result_validator().is_valid(envelope),
         "the wire envelope must match the frozen result schema: {envelope}"
@@ -281,16 +295,27 @@ fn frozen_list_by_product_vector_rides_the_real_frame_loop_verbatim() {
     let warehouse = warehouse_with(Some(Arc::new(fake)));
 
     let request = read_json("examples/dependencies-listbyproduct.request.json");
-    assert!(query_validator().is_valid(&request), "the frozen request vector must match the frozen query schema");
+    assert!(
+        query_validator().is_valid(&request),
+        "the frozen request vector must match the frozen query schema"
+    );
     let params = request["params"].clone();
 
-    let payload = run_query(&database, Some(warehouse), "dependencies.listByProduct", params);
+    let payload = run_query(
+        &database,
+        Some(warehouse),
+        "dependencies.listByProduct",
+        params,
+    );
     assert_eq!(payload["ok"], true, "payload: {payload}");
     let frozen = read_json("examples/dependencies-listbyproduct.result.json");
     let envelope = &payload["value"];
     assert_eq!(envelope["schemaVersion"], "0.6");
     assert_eq!(envelope["operation"], "dependencies.listByProduct");
-    assert_eq!(envelope["result"], frozen["result"], "the wire facts must equal the frozen vector");
+    assert_eq!(
+        envelope["result"], frozen["result"],
+        "the wire facts must equal the frozen vector"
+    );
     assert!(
         result_validator().is_valid(envelope),
         "the wire envelope must match the frozen result schema: {envelope}"
@@ -307,7 +332,12 @@ fn absent_port_answers_the_family_honest_absence() {
         json!({"name": "lilToon"}),
     );
     // The family's registered absence code — zero new codes.
-    expect_error(&payload, "vua.catalog.unavailable", "errors.catalog.unavailable", "unavailable");
+    expect_error(
+        &payload,
+        "vua.catalog.unavailable",
+        "errors.catalog.unavailable",
+        "unavailable",
+    );
     let _ = fs::remove_file(&database);
 }
 
@@ -320,7 +350,12 @@ fn absent_warehouse_wiring_answers_the_family_honest_absence() {
         "dependencies.listByProduct",
         json!({"productId": "booth:6584744"}),
     );
-    expect_error(&payload, "vua.catalog.unavailable", "errors.catalog.unavailable", "unavailable");
+    expect_error(
+        &payload,
+        "vua.catalog.unavailable",
+        "errors.catalog.unavailable",
+        "unavailable",
+    );
     let _ = fs::remove_file(&database);
 }
 
@@ -337,7 +372,12 @@ fn declared_none_capability_answers_the_gate_before_the_port() {
         "dependencies.lookup",
         json!({"name": "lilToon"}),
     );
-    expect_error(&payload, "vua.catalog.unavailable", "errors.catalog.unavailable", "unavailable");
+    expect_error(
+        &payload,
+        "vua.catalog.unavailable",
+        "errors.catalog.unavailable",
+        "unavailable",
+    );
     assert!(
         calls.lock().expect("calls").is_empty(),
         "the gate must answer BEFORE the port is ever called"
@@ -373,7 +413,10 @@ fn unknown_product_rides_the_catalog_not_found_semantics() {
 fn typed_refusal_rides_verbatim() {
     let database = temp_database("refusal");
     let mut fake = FakeQueries::declaring();
-    fake.lookup = Some(DependenciesLookupResultV05 { total: 0, matches: Vec::new() });
+    fake.lookup = Some(DependenciesLookupResultV05 {
+        total: 0,
+        matches: Vec::new(),
+    });
     fake.failure = Some(AppErrorV1::new(
         "vua.warehouse.store_failed",
         ErrorCategory::Internal,
@@ -402,12 +445,18 @@ fn typed_refusal_rides_verbatim() {
 #[test]
 fn frozen_negative_vectors_are_contract_errors_never_filtered_answers() {
     let negatives = [
-        ("examples/invalid-dependencies-lookup-empty-name.json", "dependencies.lookup"),
+        (
+            "examples/invalid-dependencies-lookup-empty-name.json",
+            "dependencies.lookup",
+        ),
         (
             "examples/invalid-dependencies-lookup-foreign-dep-kind.json",
             "dependencies.lookup",
         ),
-        ("examples/invalid-dependencies-lookup-fuzzy-param.json", "dependencies.lookup"),
+        (
+            "examples/invalid-dependencies-lookup-fuzzy-param.json",
+            "dependencies.lookup",
+        ),
         (
             "examples/invalid-dependencies-listbyproduct-params.json",
             "dependencies.listByProduct",
@@ -424,7 +473,12 @@ fn frozen_negative_vectors_are_contract_errors_never_filtered_answers() {
             !query_validator().is_valid(&request),
             "the frozen negative vector must stay rejected by the frozen query schema: {vector}"
         );
-        let payload = run_query(&database, Some(warehouse), method, request["params"].clone());
+        let payload = run_query(
+            &database,
+            Some(warehouse),
+            method,
+            request["params"].clone(),
+        );
         expect_error(
             &payload,
             "vua.catalog.invalid_params",
@@ -590,7 +644,9 @@ fn real_executor_answers_lookup_through_the_real_frame_loop() {
     assert_eq!(envelope["schemaVersion"], BDL_QUERIES_SCHEMA_VERSION);
     assert_eq!(envelope["schemaVersion"], "0.6");
     assert_eq!(envelope["operation"], "dependencies.lookup");
-    result_validator().validate(envelope).expect("validates the frozen result schema");
+    result_validator()
+        .validate(envelope)
+        .expect("validates the frozen result schema");
     let result = &envelope["result"];
     assert_eq!(result["total"], 1);
     let match_row = &result["matches"][0];
@@ -613,10 +669,7 @@ fn real_executor_answers_lookup_through_the_real_frame_loop() {
     let _ = fs::remove_file(&database);
 }
 
-fn product_observation(
-    product_id: &str,
-    status: ProductObservationStatus,
-) -> ProductObservation {
+fn product_observation(product_id: &str, status: ProductObservationStatus) -> ProductObservation {
     ProductObservation {
         product_id: product_id.to_owned(),
         native_product_id: product_id
@@ -625,7 +678,10 @@ fn product_observation(
             .to_owned(),
         library_type: None,
         variant_name: None,
-        source_url: format!("https://booth.pm/ja/items/{}", &product_id["booth:".len()..]),
+        source_url: format!(
+            "https://booth.pm/ja/items/{}",
+            &product_id["booth:".len()..]
+        ),
         final_url: None,
         status,
         source_locale: None,

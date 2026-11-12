@@ -302,19 +302,29 @@ pub struct CatalogListParams {
 
 impl Default for CatalogListParams {
     fn default() -> Self {
-        Self { text: None, availability_status: None, library_type: None, limit: 50, offset: 0 }
+        Self {
+            text: None,
+            availability_status: None,
+            library_type: None,
+            limit: 50,
+            offset: 0,
+        }
     }
 }
 
 impl CatalogListParams {
     pub fn from_value(value: &Value) -> Result<Self, CatalogParamsError> {
-        const KEYS: [&str; 5] = ["text", "availabilityStatus", "libraryType", "limit", "offset"];
-        let object = value
-            .as_object()
-            .ok_or(CatalogParamsError::InvalidValue {
-                key: "params",
-                reason: "expected an object".into(),
-            })?;
+        const KEYS: [&str; 5] = [
+            "text",
+            "availabilityStatus",
+            "libraryType",
+            "limit",
+            "offset",
+        ];
+        let object = value.as_object().ok_or(CatalogParamsError::InvalidValue {
+            key: "params",
+            reason: "expected an object".into(),
+        })?;
         for key in object.keys() {
             if !KEYS.contains(&key.as_str()) {
                 return Err(CatalogParamsError::UnknownKey(key.clone()));
@@ -339,13 +349,12 @@ impl CatalogListParams {
         let availability_status = match object.get("availabilityStatus") {
             None | Some(Value::Null) => None,
             Some(Value::String(raw)) => {
-                let parsed = serde_json::from_value::<AvailabilityStatus>(
-                    Value::String(raw.clone()),
-                )
-                .map_err(|_| CatalogParamsError::InvalidValue {
-                    key: "availabilityStatus",
-                    reason: format!("{raw} is outside the stable enum"),
-                })?;
+                let parsed =
+                    serde_json::from_value::<AvailabilityStatus>(Value::String(raw.clone()))
+                        .map_err(|_| CatalogParamsError::InvalidValue {
+                            key: "availabilityStatus",
+                            reason: format!("{raw} is outside the stable enum"),
+                        })?;
                 Some(parsed)
             }
             Some(_) => {
@@ -415,7 +424,13 @@ impl CatalogListParams {
                 });
             }
         };
-        Ok(Self { text, availability_status, library_type, limit, offset })
+        Ok(Self {
+            text,
+            availability_status,
+            library_type,
+            limit,
+            offset,
+        })
     }
 }
 
@@ -424,15 +439,16 @@ mod tests {
     use super::*;
 
     fn schema_dir() -> std::path::PathBuf {
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../schemas/bdl-queries/v0.3")
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/bdl-queries/v0.3")
     }
 
     #[test]
     fn operation_enum_matches_the_frozen_schema_vocabulary() {
         let bytes = std::fs::read(schema_dir().join("query.schema.json")).unwrap();
         let schema: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-        let schema_operations = schema["properties"]["operation"]["enum"].as_array().unwrap();
+        let schema_operations = schema["properties"]["operation"]["enum"]
+            .as_array()
+            .unwrap();
         let rust_operations = [
             BdlQueryOperation::CatalogList,
             BdlQueryOperation::CatalogDetail,
@@ -457,7 +473,10 @@ mod tests {
         let availability = serde_json::json!({ "text": null, "availabilityStatus": "in stock" });
         assert!(matches!(
             CatalogListParams::from_value(&availability),
-            Err(CatalogParamsError::InvalidValue { key: "availabilityStatus", .. })
+            Err(CatalogParamsError::InvalidValue {
+                key: "availabilityStatus",
+                ..
+            })
         ));
         // Range violations.
         let limit = serde_json::json!({ "limit": 201 });

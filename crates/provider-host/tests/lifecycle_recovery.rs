@@ -30,17 +30,19 @@ impl Provider {
             .expect("provider spawns");
         let reader = BufReader::new(child.stdout.take().expect("stdout"));
         let writer = BufWriter::new(child.stdin.take().expect("stdin"));
-        let mut provider = Self { child, reader, writer, next_id: 0 };
+        let mut provider = Self {
+            child,
+            reader,
+            writer,
+            next_id: 0,
+        };
         provider.expect_handshake();
         provider
     }
 
     fn read_frame(&mut self) -> Value {
         let mut line = String::new();
-        let read = self
-            .reader
-            .read_line(&mut line)
-            .expect("stdout readable");
+        let read = self.reader.read_line(&mut line).expect("stdout readable");
         assert!(read > 0, "the provider closed its stdout unexpectedly");
         serde_json::from_str(line.trim()).expect("frames are valid JSON")
     }
@@ -97,7 +99,10 @@ impl Provider {
             assert!(Instant::now() < deadline, "{method} did not answer");
             let frame = self.read_frame();
             if frame["frameId"] == frame_id {
-                assert_eq!(frame["kind"], "response", "{method} answered a response: {frame}");
+                assert_eq!(
+                    frame["kind"], "response",
+                    "{method} answered a response: {frame}"
+                );
                 return frame;
             }
         }
@@ -148,7 +153,9 @@ fn a_hard_killed_demo_task_never_keeps_reading_running_after_a_restart() {
         let deadline = Instant::now() + Duration::from_secs(15);
         loop {
             let listing = provider.request("task.list", json!({}), json!({}));
-            let tasks = listing["payload"]["value"]["tasks"].as_array().expect("tasks");
+            let tasks = listing["payload"]["value"]["tasks"]
+                .as_array()
+                .expect("tasks");
             let state = tasks
                 .iter()
                 .find(|task| task["taskId"] == json!(task_id))
@@ -169,7 +176,9 @@ fn a_hard_killed_demo_task_never_keeps_reading_running_after_a_restart() {
         // its honest post-mortem state — never `running`.
         let mut successor = Provider::spawn(&database);
         let listing = successor.request("task.list", json!({}), json!({}));
-        let tasks = listing["payload"]["value"]["tasks"].as_array().expect("tasks");
+        let tasks = listing["payload"]["value"]["tasks"]
+            .as_array()
+            .expect("tasks");
         let state = tasks
             .iter()
             .find(|task| task["taskId"] == json!(task_id))

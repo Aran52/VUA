@@ -32,8 +32,8 @@ use vua_orchestrator::{
     AppErrorV1, ErrorCategory, PackageRequestV1, ProjectRef, RegisterCapabilities, SqliteTaskStore,
     VpmBackend, VpmCapabilities,
 };
-use vua_provider_host::{run_provider_host_full, ProjectOpsConfig};
 use vua_project_manager::ManagerRoots;
+use vua_provider_host::{run_provider_host_full, ProjectOpsConfig};
 
 const GENERATED_PACKAGE_ID: &str = "com.example.generated";
 
@@ -83,7 +83,9 @@ fn seed_local_package(root: &Path) -> PathBuf {
 fn empty_ops_config() -> ProjectOpsConfig {
     ProjectOpsConfig {
         vcc_settings_candidates: Vec::new(),
-        manager_roots: ManagerRoots { alcom_settings_candidates: Vec::new() },
+        manager_roots: ManagerRoots {
+            alcom_settings_candidates: Vec::new(),
+        },
         editor_roots: Vec::new(),
     }
 }
@@ -99,7 +101,10 @@ struct FakeRegister {
 
 impl FakeRegister {
     fn wired() -> Self {
-        Self { register_cap: true, register_failure: None }
+        Self {
+            register_cap: true,
+            register_failure: None,
+        }
     }
 }
 
@@ -114,11 +119,13 @@ impl VpmBackend for FakeRegister {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn register_capabilities(&self) -> RegisterCapabilities {
-        RegisterCapabilities { register_local_package: self.register_cap }
+        RegisterCapabilities {
+            register_local_package: self.register_cap,
+        }
     }
     fn register_local_package(&self, package_root: &Path) -> Result<(), AppErrorV1> {
         if let Some(error) = &self.register_failure {
@@ -257,7 +264,10 @@ fn wait_done(database_path: &Path, task_id: &str) -> Value {
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         let store = SqliteTaskStore::open(database_path).expect("store opens");
-        let task = store.task(task_id).expect("store readable").expect("task exists");
+        let task = store
+            .task(task_id)
+            .expect("store readable")
+            .expect("task exists");
         if task.state.is_terminal() {
             assert_eq!(
                 serde_json::to_value(task.state).unwrap(),
@@ -267,7 +277,10 @@ fn wait_done(database_path: &Path, task_id: &str) -> Value {
             );
             return task.result.expect("done payload");
         }
-        assert!(Instant::now() < deadline, "the register task did not finish");
+        assert!(
+            Instant::now() < deadline,
+            "the register task did not finish"
+        );
         drop(store);
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -293,7 +306,10 @@ fn absent_register_wiring_answers_the_typed_honest_absence_and_unavailable_capab
     assert_eq!(payload["ok"], false, "absence is a typed failure");
     assert_eq!(payload["error"]["code"], "vua.packages.unavailable");
     assert_eq!(payload["error"]["category"], "unavailable");
-    assert!(payload.get("result").is_none(), "absence never fabricates a receipt");
+    assert!(
+        payload.get("result").is_none(),
+        "absence never fabricates a receipt"
+    );
 
     let row = register_ops_capability_row(&database, None);
     assert_eq!(row["availability"], "unavailable");
@@ -321,22 +337,35 @@ fn wired_register_accepts_the_task_and_the_reflux_carries_the_minimal_registered
     assert_eq!(acceptance["operation"], "packages.registerLocalPackage");
     assert_eq!(acceptance["schemaVersion"], "0.3");
     let task_id = acceptance["taskId"].as_str().expect("taskId").to_owned();
-    assert!(!acceptance["correlationId"].as_str().unwrap_or_default().is_empty());
+    assert!(!acceptance["correlationId"]
+        .as_str()
+        .unwrap_or_default()
+        .is_empty());
 
     let done = wait_done(&database, &task_id);
     assert_eq!(done["schemaVersion"], "0.3");
     assert_eq!(done["operation"], "packages.registerLocalPackage");
-    assert!(validator.is_valid(&done), "receipt must match the frozen result schema: {done}");
+    assert!(
+        validator.is_valid(&done),
+        "receipt must match the frozen result schema: {done}"
+    );
     let receipt = &done["result"];
     assert_eq!(receipt["schemaVersion"], "vua.packages-ops/v0.3");
     assert_eq!(receipt["kind"], "registered");
     // The minimal honest audit shape: the request echo and NOTHING else —
     // additionalProperties:false makes an invented fact (added flag,
     // timestamp, manifest contents) a schema violation, not a nitpick.
-    let receipt_keys: Vec<String> =
-        receipt.as_object().expect("receipt object").keys().cloned().collect();
+    let receipt_keys: Vec<String> = receipt
+        .as_object()
+        .expect("receipt object")
+        .keys()
+        .cloned()
+        .collect();
     assert_eq!(receipt_keys, vec!["schemaVersion", "kind", "packageRoot"]);
-    assert_eq!(receipt["packageRoot"], package_root.to_string_lossy().as_ref());
+    assert_eq!(
+        receipt["packageRoot"],
+        package_root.to_string_lossy().as_ref()
+    );
 
     let row = register_ops_capability_row(&database, Some(Arc::new(FakeRegister::wired())));
     assert_eq!(row["availability"], "available");
@@ -381,7 +410,10 @@ fn register_param_violations_answer_invalid_params() {
             params,
         );
         assert_eq!(payload["ok"], false, "violations are typed failures");
-        assert_eq!(payload["error"]["code"], "vua.packages.invalid_params", "{payload}");
+        assert_eq!(
+            payload["error"]["code"], "vua.packages.invalid_params",
+            "{payload}"
+        );
         assert_eq!(payload["error"]["category"], "validation");
     }
     fs::remove_dir_all(&root).ok();
@@ -397,7 +429,10 @@ fn register_without_the_capability_answers_capability_missing_and_never_reaches_
     let payload = run_frame(
         &database,
         Some(&config),
-        Some(Arc::new(FakeRegister { register_cap: false, register_failure: None })),
+        Some(Arc::new(FakeRegister {
+            register_cap: false,
+            register_failure: None,
+        })),
         "command",
         "packages.registerLocalPackage",
         register_params(&package_root),
@@ -406,11 +441,17 @@ fn register_without_the_capability_answers_capability_missing_and_never_reaches_
     // The generic capability-missing arm, answered BEFORE submit.
     assert_eq!(payload["error"]["code"], "vua.vpm.capability_missing");
     assert_eq!(payload["error"]["category"], "unavailable");
-    assert!(payload["value"].is_null(), "capability absence never reaches a task");
+    assert!(
+        payload["value"].is_null(),
+        "capability absence never reaches a task"
+    );
 
     let row = register_ops_capability_row(
         &database,
-        Some(Arc::new(FakeRegister { register_cap: false, register_failure: None })),
+        Some(Arc::new(FakeRegister {
+            register_cap: false,
+            register_failure: None,
+        })),
     );
     assert_eq!(row["availability"], "unavailable");
     fs::remove_dir_all(&root).ok();
@@ -441,10 +482,16 @@ fn register_invalid_refusal_folds_into_execution_failed_with_port_provenance() {
         "packages.registerLocalPackage",
         register_params(&package_root),
     );
-    let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = payload["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
 
     let done = wait_done(&database, &task_id);
-    assert!(validator.is_valid(&done), "the refusal is a frozen result document: {done}");
+    assert!(
+        validator.is_valid(&done),
+        "the refusal is a frozen result document: {done}"
+    );
     let rejected = &done["result"];
     assert_eq!(rejected["kind"], "rejected");
     // A3 adds NO guard: the path/shape refusal folds into the frozen
@@ -482,7 +529,10 @@ fn register_failed_refusal_folds_into_execution_failed_with_port_provenance() {
         "packages.registerLocalPackage",
         register_params(&package_root),
     );
-    let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = payload["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
 
     let done = wait_done(&database, &task_id);
     let rejected = &done["result"];
@@ -490,7 +540,10 @@ fn register_failed_refusal_folds_into_execution_failed_with_port_provenance() {
     assert_eq!(rejected["guard"], "execution_failed");
     assert_eq!(rejected["code"], "vua.packages.execution_failed");
     let detail = rejected["detail"].as_str().expect("detail");
-    assert!(detail.contains("vua.vpm.local_package_register_failed"), "{detail}");
+    assert!(
+        detail.contains("vua.vpm.local_package_register_failed"),
+        "{detail}"
+    );
     fs::remove_dir_all(&root).ok();
 }
 
@@ -512,11 +565,13 @@ fn unimplemented_register_port_capability_missing_folds_into_execution_failed() 
                 list_packages: false,
                 remove_packages: false,
                 project_registry: false,
-            resolve_project: false,
+                resolve_project: false,
             }
         }
         fn register_capabilities(&self) -> RegisterCapabilities {
-            RegisterCapabilities { register_local_package: true }
+            RegisterCapabilities {
+                register_local_package: true,
+            }
         }
         fn preview_install(
             &self,
@@ -556,7 +611,10 @@ fn unimplemented_register_port_capability_missing_folds_into_execution_failed() 
         "packages.registerLocalPackage",
         register_params(&package_root),
     );
-    let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = payload["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
 
     let done = wait_done(&database, &task_id);
     let rejected = &done["result"];
@@ -590,10 +648,19 @@ fn register_idempotence_is_one_success_fact_on_the_wire_face() {
             "packages.registerLocalPackage",
             register_params(&package_root),
         );
-        assert_eq!(payload["ok"], true, "the {round} registration accepts: {payload}");
-        let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+        assert_eq!(
+            payload["ok"], true,
+            "the {round} registration accepts: {payload}"
+        );
+        let task_id = payload["value"]["taskId"]
+            .as_str()
+            .expect("taskId")
+            .to_owned();
         let done = wait_done(&database, &task_id);
-        assert!(validator.is_valid(&done), "{round} reflux must match the frozen schema: {done}");
+        assert!(
+            validator.is_valid(&done),
+            "{round} reflux must match the frozen schema: {done}"
+        );
         assert_eq!(done["result"]["kind"], "registered", "{round}");
         receipts.push(done["result"].clone());
     }

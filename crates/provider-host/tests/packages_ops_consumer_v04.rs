@@ -31,10 +31,8 @@ use std::fs;
 use std::path::Path;
 
 use serde_json::{json, Value};
+use vua_orchestrator::{vpm_backend_error_codes, AppErrorV1, ErrorCategory, PackageRequestV1};
 use vua_orchestrator::{ProjectRef, RepoWriteCapabilities, VpmBackend};
-use vua_orchestrator::{
-    vpm_backend_error_codes, AppErrorV1, ErrorCategory, PackageRequestV1,
-};
 
 fn read_ops_json(relative: &str) -> Value {
     // Tests run from the crate directory; the schemas live at the repo root.
@@ -89,7 +87,7 @@ impl VpmBackend for FakeRepoWriteBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn repo_write_capabilities(&self) -> RepoWriteCapabilities {
@@ -149,7 +147,7 @@ impl VpmBackend for LocalOnlyRepoBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn repo_write_capabilities(&self) -> RepoWriteCapabilities {
@@ -204,7 +202,7 @@ impl VpmBackend for RefusingRepoBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn repo_write_capabilities(&self) -> RepoWriteCapabilities {
@@ -270,7 +268,11 @@ fn ops_v04_schema_admits_positive_vectors_and_rejects_negative_ones() {
 
     // --- the six positive vectors pass their respective schema ---
     let add_remote = example("repo-add-remote.request.json");
-    assert!(command.is_valid(&add_remote), "{:?}", violations(&command, &add_remote));
+    assert!(
+        command.is_valid(&add_remote),
+        "{:?}",
+        violations(&command, &add_remote)
+    );
     let add_remote_receipt = example("repo-add-remote-result-added.result.json");
     assert!(
         result.is_valid(&add_remote_receipt),
@@ -278,7 +280,11 @@ fn ops_v04_schema_admits_positive_vectors_and_rejects_negative_ones() {
         violations(&result, &add_remote_receipt)
     );
     let add_local = example("repo-add-local.request.json");
-    assert!(command.is_valid(&add_local), "{:?}", violations(&command, &add_local));
+    assert!(
+        command.is_valid(&add_local),
+        "{:?}",
+        violations(&command, &add_local)
+    );
     let add_local_receipt = example("repo-add-local-result-added.result.json");
     assert!(
         result.is_valid(&add_local_receipt),
@@ -286,7 +292,11 @@ fn ops_v04_schema_admits_positive_vectors_and_rejects_negative_ones() {
         violations(&result, &add_local_receipt)
     );
     let remove_repo = example("repo-remove.request.json");
-    assert!(command.is_valid(&remove_repo), "{:?}", violations(&command, &remove_repo));
+    assert!(
+        command.is_valid(&remove_repo),
+        "{:?}",
+        violations(&command, &remove_repo)
+    );
     let remove_receipt = example("repo-remove-result-removed.result.json");
     assert!(
         result.is_valid(&remove_receipt),
@@ -377,7 +387,7 @@ fn repo_write_capability_absence_keeps_the_declared_none_word_face() {
                 list_packages: false,
                 remove_packages: false,
                 project_registry: false,
-            resolve_project: false,
+                resolve_project: false,
             }
         }
         fn preview_install(
@@ -409,25 +419,25 @@ fn repo_write_capability_absence_keeps_the_declared_none_word_face() {
     assert_eq!(backend.name(), "no-repo-fake");
     // Declared-none: all three bits false — the honest absence the wire
     // row projects as unavailable until a real override flips it.
-    assert_eq!(backend.repo_write_capabilities(), RepoWriteCapabilities::NONE);
+    assert_eq!(
+        backend.repo_write_capabilities(),
+        RepoWriteCapabilities::NONE
+    );
 
     // The trait-default methods answer the generic capability_missing —
     // never a fabricated repo fact.
     let err = backend
         .add_remote_repo(FAKE_REMOTE_URL, FAKE_REPO_NAME)
-        .expect_err(
-        "the trait default must refuse");
+        .expect_err("the trait default must refuse");
     assert_eq!(err.code, "vua.vpm.capability_missing");
     assert_eq!(err.category, ErrorCategory::Unavailable);
     let err = backend
         .add_local_repo(Path::new(FAKE_LOCAL_PATH), FAKE_REPO_NAME)
-        .expect_err(
-        "the trait default must refuse");
+        .expect_err("the trait default must refuse");
     assert_eq!(err.code, "vua.vpm.capability_missing");
     let err = backend
         .remove_repo(FAKE_REPO_ID)
-        .expect_err(
-        "the trait default must refuse");
+        .expect_err("the trait default must refuse");
     assert_eq!(err.code, "vua.vpm.capability_missing");
 }
 
@@ -447,9 +457,15 @@ fn fake_repo_backend_port_facts_project_onto_the_a4_wire_shapes() {
         "operation": "packages.addRemoteRepo",
         "params": { "url": FAKE_REMOTE_URL, "name": FAKE_REPO_NAME },
     });
-    assert!(command.is_valid(&request), "{:?}", violations(&command, &request));
+    assert!(
+        command.is_valid(&request),
+        "{:?}",
+        violations(&command, &request)
+    );
     assert_eq!(
-        backend.add_remote_repo(FAKE_REMOTE_URL, FAKE_REPO_NAME).unwrap(),
+        backend
+            .add_remote_repo(FAKE_REMOTE_URL, FAKE_REPO_NAME)
+            .unwrap(),
         ()
     );
     let receipt = json!({
@@ -463,7 +479,11 @@ fn fake_repo_backend_port_facts_project_onto_the_a4_wire_shapes() {
             "name": FAKE_REPO_NAME,
         },
     });
-    assert!(result.is_valid(&receipt), "{:?}", violations(&result, &receipt));
+    assert!(
+        result.is_valid(&receipt),
+        "{:?}",
+        violations(&result, &receipt)
+    );
     assert_eq!(receipt["result"]["repoType"], "remote");
     assert_eq!(receipt["result"]["url"], FAKE_REMOTE_URL);
     assert_eq!(receipt["result"]["name"], FAKE_REPO_NAME);
@@ -515,7 +535,11 @@ fn fake_repo_backend_port_facts_project_onto_the_a4_wire_shapes() {
             "repoId": FAKE_REPO_ID,
         },
     });
-    assert!(result.is_valid(&removed), "{:?}", violations(&result, &removed));
+    assert!(
+        result.is_valid(&removed),
+        "{:?}",
+        violations(&result, &removed)
+    );
     let removed_keys: Vec<String> = removed["result"]
         .as_object()
         .unwrap()
@@ -566,9 +590,9 @@ fn a4_port_refusals_fold_into_execution_failed_carrying_the_original_code() {
     for (code, detail, operation) in cases {
         let backend = RefusingRepoBackend { code };
         let refusal = match operation {
-            "packages.addRemoteRepo" => {
-                backend.add_remote_repo(FAKE_REMOTE_URL, FAKE_REPO_NAME).err()
-            }
+            "packages.addRemoteRepo" => backend
+                .add_remote_repo(FAKE_REMOTE_URL, FAKE_REPO_NAME)
+                .err(),
             "packages.addLocalRepo" => backend
                 .add_local_repo(Path::new(FAKE_LOCAL_PATH), FAKE_REPO_NAME)
                 .err(),
@@ -617,13 +641,16 @@ fn repo_write_bits_are_independent_not_face_level() {
 
     let err = backend
         .add_remote_repo(FAKE_REMOTE_URL, FAKE_REPO_NAME)
-        .expect_err(
-        "an unimplemented bit must refuse");
+        .expect_err("an unimplemented bit must refuse");
     assert_eq!(err.code, "vua.vpm.capability_missing");
-    assert_eq!(backend.add_local_repo(Path::new(FAKE_LOCAL_PATH), FAKE_REPO_NAME).unwrap(), ());
+    assert_eq!(
+        backend
+            .add_local_repo(Path::new(FAKE_LOCAL_PATH), FAKE_REPO_NAME)
+            .unwrap(),
+        ()
+    );
     let err = backend
         .remove_repo(FAKE_REPO_ID)
-        .expect_err(
-        "an unimplemented bit must refuse");
+        .expect_err("an unimplemented bit must refuse");
     assert_eq!(err.code, "vua.vpm.capability_missing");
 }

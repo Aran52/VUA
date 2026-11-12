@@ -618,7 +618,9 @@ pub(crate) mod os {
         processes_matching(|name| relevant_process_name(route, name))
     }
     #[cfg(windows)]
-    pub(crate) fn processes_matching(matches: impl Fn(&str) -> bool) -> std::io::Result<Vec<ProcessIdentity>> {
+    pub(crate) fn processes_matching(
+        matches: impl Fn(&str) -> bool,
+    ) -> std::io::Result<Vec<ProcessIdentity>> {
         use windows_sys::Win32::{
             Foundation::{CloseHandle, ERROR_NO_MORE_FILES, INVALID_HANDLE_VALUE},
             System::Diagnostics::ToolHelp::{
@@ -723,7 +725,9 @@ pub(crate) mod os {
         Err(std::io::Error::other("Windows required"))
     }
     #[cfg(not(windows))]
-    pub(crate) fn processes_matching(_: impl Fn(&str) -> bool) -> std::io::Result<Vec<ProcessIdentity>> {
+    pub(crate) fn processes_matching(
+        _: impl Fn(&str) -> bool,
+    ) -> std::io::Result<Vec<ProcessIdentity>> {
         Err(std::io::Error::other("Windows required"))
     }
 }

@@ -21,6 +21,8 @@ pub const MA_STUB_PACKAGE_ID: &str = "nadena.dev.modular-avatar.core";
 /// Candidate N3 files require the real MA package. They are deliberately
 /// excluded from conversion scaffolds that use the minimal compile stub.
 pub static AMF_PRODUCTION_BRIDGE_FILES: &[(&str, &str)] = &[
+    ("Editor/Amf/AmfProductionEntryPoint.LocalTest.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.LocalTest.cs")),
+    ("Editor/Amf/AmfProductionEntryPoint.LocalTest.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.LocalTest.cs.meta")),
     ("Editor/Amf/AmfProductionEntryPoint.Close.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Close.cs")),
     ("Editor/Amf/AmfProductionEntryPoint.Close.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Close.cs.meta")),
     ("Editor/Amf/AmfFaceTracking.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfFaceTracking.cs")),

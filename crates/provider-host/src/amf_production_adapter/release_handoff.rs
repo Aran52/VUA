@@ -5,6 +5,9 @@
 use super::*;
 use std::time::{Duration, Instant};
 
+mod local_test;
+pub(super) use local_test::local_test;
+
 const REQUEST: &str = "amf-upload.json";
 const PROGRESS: &str = "amf-upload.progress.json";
 const RECEIPT: &str = "amf-upload.result.json";
@@ -32,6 +35,8 @@ pub(super) fn upload(
         .ok_or_else(|| err("result_invalid", "Result has no Avatar identity."))?;
     let project = Path::new(&run.project_root);
     let open = editor_holds_project(project);
+    ensure_sdk_idle(project)?;
+    if open { ensure_current_bridge(project)?; }
     if !open {
         refresh_bridge_package(project)?;
     }
@@ -105,7 +110,26 @@ fn read_receipt(path: &Path, run: &ProductionRun, request: &UploadRequest) -> Re
         errors: value["errors"].as_array().into_iter().flatten().filter_map(|error| error.as_str().map(str::to_owned)).take(32).collect(),
         sdk_sign_in: text("sdkSignIn").filter(|source| source == "vua_session" || source == "panel"),
         sdk_review: Some(value["sdkReview"].clone()).filter(read_review),
+        can_publish_avatars: value["canPublishAvatars"].as_bool().filter(|_| value["canPublishAvatarsObserved"] == true),
     }))
+}
+
+fn ensure_current_bridge(project: &Path) -> Result<(), AppErrorV1> {
+    let current = vua_unity_bridge::staging_scaffold::BRIDGE_PACKAGE_FILES.iter()
+        .chain(vua_unity_bridge::staging_scaffold::AMF_PRODUCTION_BRIDGE_FILES)
+        .all(|(relative, contents)| fs::read(project.join("Packages/com.ph-r.vua").join(relative))
+            .is_ok_and(|bytes| bytes == contents.as_bytes()));
+    if current { Ok(()) } else {
+        Err(err("bridge_outdated", "Close this project's Unity Editor so VUA can update its Bridge, then retry the SDK task."))
+    }
+}
+
+fn ensure_sdk_idle(project: &Path) -> Result<(), AppErrorV1> {
+    let folder = project.join(".vua/bridge");
+    if ["amf-upload.json", "amf-upload.started", "amf-test.json", "amf-test.started"].iter().any(|name| folder.join(name).exists()) {
+        return Err(err("sdk_busy", "An SDK task or its recovery is still pending in Unity. Finish or inspect that task first."));
+    }
+    Ok(())
 }
 
 /// A checked SDK review in the shape the v5 result schema gives `sdkReview`; anything else is

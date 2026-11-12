@@ -93,6 +93,8 @@ fn real_wire_lists_facts_and_rejects_mutations_sent_as_queries() {
         read("examples/invalid-upload-name.json"),
         read("examples/invalid-turntable-frame-index.json"),
         read("examples/invalid-bake-turntable-query.json"),
+        read("examples/invalid-local-test-query.json"),
+        read("examples/invalid-local-test-upload-fields.json"),
         read("examples/invalid-capacity-query.json"),
         read("examples/invalid-capacity-extra.json"),
         read("examples/invalid-capacity-missing.json"),

@@ -14,6 +14,26 @@ function client(response: () => unknown, requests: unknown[] = []): GatewayClien
 }
 
 describe("AMF release response boundary", () => {
+  it("reads local test history and distinguishes unknown eligibility from a denied upload", () => {
+    const test = { testId: "test-1", startedAt: "2026-11-08T00:00:00Z", endedAt: null,
+      state: "running", stage: "building", status: "", reason: null, detail: "", errors: [], sdkSignIn: "panel", sdkReview: null };
+    const value = { ...state, localTests: [test], uploadEligibility: { canPublish: false, observedAt: "2026-11-08T00:00:00Z" } };
+    expect(isAmfReleaseState(value, "n3-test")).toBe(true);
+    expect(isAmfReleaseState({ ...value, uploadEligibility: null }, "n3-test")).toBe(true);
+    expect(isAmfReleaseState({ ...value, localTests: [{ ...test, sdkReview: { state: "checked", platform: "pc", overall: "Good", detail: "", issues: [], stats: [] } }] }, "n3-test")).toBe(true);
+    for (const bad of [{ ...value, localTests: Array(11).fill(test) }, { ...value, localTests: [{ ...test, stage: "uploading" }] },
+      { ...value, localTests: [{ ...test, errors: [false] }] }, { ...value, localTests: [{ ...test, sdkReview: { state: "checked" } }] },
+      { ...value, uploadEligibility: { canPublish: "false", observedAt: "now" } }]) {
+      expect(isAmfReleaseState(bad, "n3-test")).toBe(false);
+    }
+  });
+  it("requests local testing with the run identity only", async () => {
+    const requests: unknown[] = [];
+    const port = createAmfReleasePort(client(() => ({ schemaVersion: "0.1", runId: "n3-test", taskId: "task-test" }), requests));
+    expect(await port.localTest("n3-test")).toEqual({ runId: "n3-test", taskId: "task-test" });
+    expect(requests[0]).toMatchObject({ method: "amf.production.localTest", params: { schemaVersion: "0.1", runId: "n3-test" } });
+    expect((requests[0] as { params: object }).params).toEqual({ schemaVersion: "0.1", runId: "n3-test" });
+  });
   it("accepts a release state with a recorded turntable and uploads", () => {
     expect(isAmfReleaseState(state, "n3-test")).toBe(true);
     expect(isAmfReleaseState({ ...state, turntable: null, uploads: [] }, "n3-test")).toBe(true);

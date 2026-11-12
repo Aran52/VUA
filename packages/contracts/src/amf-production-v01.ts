@@ -63,7 +63,7 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.getRecipe" | "amf.production.recipeSharePlan"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string } }
   | { readonly method: "amf.production.saveRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly title: string } }
   | { readonly method: "amf.production.previewImage"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly path: string } }
-  | { readonly method: "amf.production.releaseState" | "amf.production.bakeTurntable"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
+  | { readonly method: "amf.production.releaseState" | "amf.production.bakeTurntable" | "amf.production.localTest"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   | { readonly method: "amf.production.turntableFrame"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly index: number } }
   | { readonly method: "amf.production.upload"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly avatarName: string; readonly rightsConfirmed: true } }
   /** Runs the VRChat SDK's own Auto Fix for the chosen items of its Avatar check, named by the SDK's exact words. */
@@ -104,7 +104,7 @@ export type AmfRunPhaseV01 = typeof AMF_RUN_PHASES[number];
 /** Phases during which a task works on the run. */
 export const AMF_ACTIVE_PHASES: readonly AmfRunPhaseV01[] = ["preparing", "inspecting", "assembling", "restoring"];
 /** Recorded steps, in the order a production meets them. */
-export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "sdk_fix", "face_tracking", "editor_close", "outfit_removal", "lighting", "texture_memory"] as const;
+export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "local_test", "upload", "sdk_fix", "face_tracking", "editor_close", "outfit_removal", "lighting", "texture_memory"] as const;
 export type AmfStepKey = typeof AMF_STEP_KEYS[number];
 export const AMF_STEP_STATES = ["running", "succeeded", "failed", "stopped", "interrupted"] as const;
 export type AmfStepState = typeof AMF_STEP_STATES[number];
@@ -227,7 +227,7 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
       && typeof value.title === "string" && value.title.trim().length > 0 && [...value.title].length <= 120 && !/[\u0000-\u001f\u007f-\u009f]/u.test(value.title);
     case "amf.production.previewImage": return exact(value, ["schemaVersion", "runId", "path"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && text(value.path,512) && isAmfPreviewPath(value.path);
-    case "amf.production.releaseState": case "amf.production.bakeTurntable":
+    case "amf.production.releaseState": case "amf.production.bakeTurntable": case "amf.production.localTest":
       return exact(value, ["schemaVersion", "runId"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
     case "amf.production.readShareImage": return exact(value,["schemaVersion","inputId"]) && typeof value.inputId === "string" && /^input-[a-f0-9-]{36}\.bin$/u.test(value.inputId);
     case "amf.production.exportShareImage": return exact(value,["schemaVersion","runId","format","index","code"]) && runId(value.runId)

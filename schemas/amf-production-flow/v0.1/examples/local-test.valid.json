@@ -1,0 +1,5 @@
+{
+  "method": "amf.production.localTest",
+  "kind": "command",
+  "params": { "schemaVersion": "0.1", "runId": "n3-example" }
+}

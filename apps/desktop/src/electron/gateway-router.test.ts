@@ -1896,6 +1896,12 @@ describe("vrchat-session v0.1 routing (experimental VRChat sign-in)", () => {
     await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face }, `${rendererUrl}/`,
       { schemaVersion: 1, requestId: "up-1", method: "amf.production.upload", params: { schemaVersion: "0.1", runId: "n3-1", avatarName: "Meiyun", rightsConfirmed: true } });
     expect(order).toEqual(["handoff", "provider"]);
+    order.length = 0;
+    const launch = vi.fn(async () => { order.push("launch"); });
+    await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face, launchAmfEditor: launch }, `${rendererUrl}/`,
+      { schemaVersion: 1, requestId: "test-1", method: "amf.production.localTest", params: { schemaVersion: "0.1", runId: "n3-1" } });
+    expect(order).toEqual(["handoff", "provider", "launch"]);
+    expect(launch).toHaveBeenCalledWith("n3-1", "task-1");
     // Other commands never trigger the handoff.
     order.length = 0;
     await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face }, `${rendererUrl}/`,

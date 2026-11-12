@@ -102,7 +102,8 @@ export function runSummary(value: unknown): unknown {
 }
 export function releaseSummary(value: unknown): unknown {
   if (!isRecord(value)) return value;
-  return { ...pick(value, ["schemaVersion", "runId", "turntable", "editorOpen"]), uploadCount: count(value.uploads),
+  return { ...pick(value, ["schemaVersion", "runId", "turntable", "editorOpen", "uploadEligibility"]), uploadCount: count(value.uploads),
+    localTestCount: count(value.localTests), localTests: rows(value.localTests).slice(0, 3).map(test => pick(test, ["testId", "stage", "state", "startedAt", "endedAt", "reason", "sdkSignIn"])),
     uploads: rows(value.uploads).slice(0, 3).map(upload => pick(upload, ["uploadId", "stage", "state", "progress", "blueprintId", "avatarName", "startedAt", "endedAt", "reason", "firstUpload", "sdkSignIn"])) };
 }
 export function librarySummary(value: unknown, includeImages: boolean): unknown {

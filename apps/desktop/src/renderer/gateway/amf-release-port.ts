@@ -2,12 +2,25 @@ import { AMF_TURNTABLE_FRAMES, isAmfAvatarName, type AiUploadConfirmationV01, ty
 import type { GatewayClient } from "./gateway-client.ts";
 import { registerTaskIdentity } from "./task-identity.ts";
 import { strings } from "../i18n/index.ts";
+import { isAmfSdkReview, type AmfSdkReview } from "./amf-production-port.ts";
 
 export const AMF_UPLOAD_STAGES = ["starting", "sdk_panel", "sign_in", "checking", "building", "uploading", "finishing"] as const;
 export type AmfUploadStage = typeof AMF_UPLOAD_STAGES[number];
 export const AMF_UPLOAD_REASONS = ["sign_in_required", "no_publish_permission", "validation", "ownership", "agreement_declined", "build", "build_blocked",
   "upload", "thumbnail_missing", "avatar_missing", "scene_not_saved", "interrupted", "editor_unavailable", "timeout", "cancelled", "unknown"] as const;
 export type AmfUploadReason = typeof AMF_UPLOAD_REASONS[number];
+
+export const AMF_LOCAL_TEST_STAGES = ["sdk_panel", "sign_in", "building", "finishing"] as const;
+export const AMF_LOCAL_TEST_REASONS = ["sign_in_required", "validation", "build", "build_blocked", "avatar_missing", "scene_not_saved",
+  "interrupted", "editor_unavailable", "timeout", "cancelled", "platform_unsupported", "bridge_outdated", "unknown"] as const;
+export interface AmfLocalTest {
+  readonly testId: string; readonly startedAt: string; readonly endedAt: string | null;
+  readonly state: "running" | "succeeded" | "failed" | "cancelled";
+  readonly stage: typeof AMF_LOCAL_TEST_STAGES[number]; readonly status: string;
+  readonly reason: typeof AMF_LOCAL_TEST_REASONS[number] | null; readonly detail: string; readonly errors: readonly string[];
+  readonly sdkSignIn: "vua_session" | "panel" | null;
+  readonly sdkReview: AmfSdkReview | null;
+}
 
 export interface AmfUpload {
   readonly uploadId: string; readonly avatarName: string; readonly startedAt: string; readonly endedAt: string | null;
@@ -24,6 +37,8 @@ export interface AmfReleaseState {
   readonly runId: string; readonly turntable: AmfTurntable | null;
   /** Newest first. */
   readonly uploads: readonly AmfUpload[];
+  readonly localTests?: readonly AmfLocalTest[];
+  readonly uploadEligibility?: { readonly canPublish: boolean; readonly observedAt: string } | null;
   /** Unity holds the work project now; an upload then uses the scene as it is there. */
   readonly editorOpen: boolean;
 }
@@ -33,6 +48,7 @@ export interface AmfReleasePort {
   /** A `data:image/png` URL for one turntable frame. */
   turntableFrame(runId: string, index: number): Promise<string>;
   bakeTurntable(runId: string): Promise<AmfReleaseAccepted>;
+  localTest(runId: string): Promise<AmfReleaseAccepted>;
   /** Starts only with the player's own rights confirmation for this upload. */
   upload(runId: string, confirmation: AiUploadConfirmationV01): Promise<AmfReleaseAccepted>;
 }
@@ -55,7 +71,21 @@ export function isAmfReleaseState(v: unknown, runId: string): v is AmfReleaseSta
   if (!record(v) || v.schemaVersion !== "0.1" || v.runId !== runId || typeof v.editorOpen !== "boolean" || !Array.isArray(v.uploads) || v.uploads.length > 10) return false;
   const t = v.turntable;
   return (t === null || (record(t) && t.frames === AMF_TURNTABLE_FRAMES && t.size === 512 && text(t.bakedAt) && typeof t.current === "boolean"))
-    && v.uploads.every(upload);
+    && v.uploads.every(upload)
+    && (v.localTests === undefined || (Array.isArray(v.localTests) && v.localTests.length <= 10 && v.localTests.every(localTest)))
+    && (v.uploadEligibility === undefined || v.uploadEligibility === null || (record(v.uploadEligibility)
+      && typeof v.uploadEligibility.canPublish === "boolean" && text(v.uploadEligibility.observedAt)
+      && v.uploadEligibility.observedAt.length <= 64 && Number.isFinite(Date.parse(v.uploadEligibility.observedAt))));
+}
+
+function localTest(v: unknown): v is AmfLocalTest {
+  return record(v) && [v.testId, v.startedAt, v.status, v.detail].every(text) && nullableText(v.endedAt)
+    && ["running", "succeeded", "failed", "cancelled"].includes(String(v.state))
+    && (AMF_LOCAL_TEST_STAGES as readonly string[]).includes(String(v.stage))
+    && (v.reason === null || (AMF_LOCAL_TEST_REASONS as readonly string[]).includes(String(v.reason)))
+    && Array.isArray(v.errors) && v.errors.length <= 32 && v.errors.every(text)
+    && (v.sdkSignIn === null || ["panel", "vua_session"].includes(String(v.sdkSignIn)))
+    && (v.sdkReview === null || isAmfSdkReview(v.sdkReview));
 }
 
 export function createAmfReleasePort(client: GatewayClient): AmfReleasePort {
@@ -69,9 +99,9 @@ export function createAmfReleasePort(client: GatewayClient): AmfReleasePort {
     }
     return response.value;
   };
-  const accepted = (value: unknown, title: string): AmfReleaseAccepted => {
+  const accepted = (value: unknown, title?: string): AmfReleaseAccepted => {
     if (!record(value) || value.schemaVersion !== "0.1" || !text(value.runId) || !text(value.taskId) || !value.taskId) throw new Error("amf_release_receipt_invalid");
-    registerTaskIdentity(value.taskId, { title, originPage: "release", notifyOnComplete: true });
+    if (title !== undefined) registerTaskIdentity(value.taskId, { title, originPage: "release", notifyOnComplete: true });
     return { runId: value.runId, taskId: value.taskId };
   };
   return {
@@ -88,6 +118,9 @@ export function createAmfReleasePort(client: GatewayClient): AmfReleasePort {
     },
     async bakeTurntable(runId) {
       return accepted(await call({ method: "amf.production.bakeTurntable", params: { schemaVersion: "0.1", runId } }), strings.releaseRoom.turntable.baking);
+    },
+    async localTest(runId) {
+      return accepted(await call({ method: "amf.production.localTest", params: { schemaVersion: "0.1", runId } }));
     },
     async upload(runId, confirmation) {
       if (confirmation.rightsConfirmed !== true || !isAmfAvatarName(confirmation.avatarName)) throw new Error("amf_release_confirmation_invalid");

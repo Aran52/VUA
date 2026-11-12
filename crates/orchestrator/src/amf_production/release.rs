@@ -5,6 +5,9 @@
 
 use super::*;
 
+mod local_test;
+pub use local_test::*;
+
 /// Turntable frames live in this work-project folder, one subfolder per Bridge command.
 pub const TURNTABLE_ROOT: &str = ".vua/turntables";
 pub const TURNTABLE_FRAMES: u32 = 60;
@@ -79,6 +82,8 @@ pub struct ReleaseRecord {
     pub turntable: Option<Turntable>,
     #[serde(default)]
     pub uploads: Vec<UploadRecord>,
+    #[serde(default)]
+    pub local_tests: Vec<LocalTestRecord>,
 }
 
 /// One build-and-upload handed to the Editor. The rights confirmation is the player's own, given
@@ -113,6 +118,8 @@ pub struct UploadReceipt {
     /// The SDK's Avatar check read again in the Editor after the upload, so an Auto Fix the
     /// player made in the SDK panel reaches the line's facts. Only a `checked` or `partial` review.
     pub sdk_review: Option<serde_json::Value>,
+    /// Observed only after the SDK has signed in; absence never means ineligible.
+    pub can_publish_avatars: Option<bool>,
 }
 
 /// VRChat Avatar IDs: `avtr_` and a lowercase or uppercase hexadecimal UUID.
@@ -276,7 +283,9 @@ impl AmfProductionEngine {
             "current": turntable.unity_fingerprint == run.unity_fingerprint,
         }));
         let uploads = record.uploads.iter().rev().take(10).collect::<Vec<_>>();
+        let local_tests = record.local_tests.iter().rev().take(10).collect::<Vec<_>>();
         Ok(serde_json::json!({"schemaVersion":"0.1", "runId":run_id, "turntable":turntable, "uploads":uploads,
+            "localTests":local_tests, "uploadEligibility":self.upload_eligibility(),
             "editorOpen":self.platform.editor_open(Path::new(&run.project_root))}))
     }
 
@@ -349,15 +358,20 @@ impl AmfProductionEngine {
     /// The SDK uploads what the work scene holds. With Unity closed, the project must be unchanged
     /// since the run's last check; with Unity open, the scene as it is in Unity is what uploads.
     pub fn precheck_upload(&self, run_id: &str, avatar_name: &str) -> Result<(), AppErrorV1> {
-        let run = self.finished(run_id)?;
         validate_avatar_name(avatar_name)?;
+        self.precheck_local_test(run_id)
+    }
+
+    /// Local SDK tests need a finished Avatar, but no upload name, thumbnail or rights confirmation.
+    pub fn precheck_local_test(&self, run_id: &str) -> Result<(), AppErrorV1> {
+        let run = self.finished(run_id)?;
         let editor = self.platform.verify_editor(&run.editor.path)?;
         if editor.version != run.editor.version {
             return Err(production_error("editor_drift", "The selected Editor identity changed."));
         }
         let project = Path::new(&run.project_root);
         if !self.platform.editor_open(project) && !self.project_state(&run)?.0 {
-            return Err(production_error("project_drift", "The work project changed since its last check. Check it again before uploading."));
+            return Err(production_error("project_drift", "The work project changed since its last check. Check it again before building with the SDK."));
         }
         Ok(())
     }
@@ -428,6 +442,7 @@ impl AmfProductionEngine {
                 let reason = receipt.reason.filter(|reason| UPLOAD_REASONS.contains(&reason.as_str()));
                 entry.detail = bounded_text(&receipt.detail, MAX_DETAIL_CHARS);
                 entry.errors = receipt.errors.iter().take(MAX_ERRORS).map(|error| bounded_text(error, 500)).collect();
+                self.record_upload_eligibility(receipt.can_publish_avatars, ctx, &mut entry.errors);
                 entry.first_upload = Some(receipt.first_upload);
                 entry.sdk_sign_in = receipt.sdk_sign_in.filter(|source| source == "vua_session" || source == "panel");
                 match receipt.outcome.as_str() {

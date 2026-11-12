@@ -24,6 +24,8 @@ struct ReleasePlatform {
     turntable_folder: Mutex<String>,
     receipt: Mutex<Option<UploadReceipt>>,
     requests: Mutex<Vec<UploadRequest>>,
+    local_receipt: Mutex<Option<LocalTestReceipt>>,
+    local_requests: Mutex<Vec<LocalTestRequest>>,
 }
 impl ReleasePlatform {
     fn new() -> Self {
@@ -33,6 +35,8 @@ impl ReleasePlatform {
             turntable_folder: Mutex::new(".vua/turntables/cmd-2".into()),
             receipt: Mutex::new(None),
             requests: Mutex::new(Vec::new()),
+            local_receipt: Mutex::new(None),
+            local_requests: Mutex::new(Vec::new()),
         }
     }
 }
@@ -81,6 +85,13 @@ impl AmfProductionPlatform for ReleasePlatform {
         self.receipt.lock().unwrap().clone().ok_or_else(|| production_error("upload_timeout", "Unity did not answer."))
     }
     fn editor_open(&self, _: &Path) -> bool { self.editor_open.load(Ordering::SeqCst) }
+    fn local_test(&self, _: &ProductionRun, request: &LocalTestRequest, _: &TaskContext, progress: &mut dyn FnMut(UploadProgress)) -> Result<LocalTestReceipt, AppErrorV1> {
+        self.local_requests.lock().unwrap().push(request.clone());
+        for stage in ["sdk_panel", "sign_in", "building", "building", "uploading"] {
+            progress(UploadProgress { stage: stage.into(), progress: None, status: "Synthetic\u{0007} test".into() });
+        }
+        self.local_receipt.lock().unwrap().clone().ok_or_else(|| production_error("local_test_timeout", "Unity did not answer."))
+    }
 }
 
 struct Harness {
@@ -127,14 +138,24 @@ impl Harness {
             tx.send(result.as_ref().map(|_| ()).map_err(|error| error.code.clone())).unwrap();
             result.map(|()| TaskExit::Done(json!({"synthetic":true})))
         }) }).unwrap();
-        rx.recv_timeout(Duration::from_secs(5)).unwrap()
+        // This bounds the durable synthetic job, not the SDK deadline. Concurrent SQLite/file
+        // commits on hosted Windows can outlast five seconds, as in the production-flow harness.
+        rx.recv_timeout(Duration::from_secs(60)).unwrap()
     }
     fn bake(&self) -> Result<(), String> { self.job(|engine, ctx| engine.bake_turntable(RUN, ctx)) }
     fn upload(&self, name: &'static str) -> Result<(), String> { self.job(move |engine, ctx| engine.upload(RUN, name, ctx)) }
+    fn local_test(&self) -> Result<(), String> { self.job(|engine, ctx| engine.local_test(RUN, ctx)) }
+    fn local_receipt(&self, outcome: &str, reason: Option<&str>, eligibility: Option<bool>) {
+        *self.platform.local_receipt.lock().unwrap() = Some(LocalTestReceipt {
+            outcome: outcome.into(), reason: reason.map(str::to_owned), detail: "SDK\u{0000} detail".into(),
+            errors: vec!["Synthetic SDK issue".into()], can_publish_avatars: eligibility, sdk_sign_in: Some("panel".into()),
+            sdk_review: Some(json!({"state":"checked","platform":"pc","overall":"Good","detail":"","stats":[],"issues":[]})),
+        });
+    }
     fn receipt(&self, outcome: &str, blueprint: Option<&str>, reason: Option<&str>) {
         *self.platform.receipt.lock().unwrap() = Some(UploadReceipt { outcome: outcome.into(), blueprint_id: blueprint.map(str::to_owned),
             first_upload: true, reason: reason.map(str::to_owned), detail: "SDK said\u{0000} so".into(), errors: vec!["Too many materials".into()],
-            sdk_sign_in: Some("panel".into()), sdk_review: None });
+            sdk_sign_in: Some("panel".into()), sdk_review: None, can_publish_avatars: None });
     }
 }
 impl Drop for Harness {
@@ -309,4 +330,109 @@ fn the_sdk_check_read_after_an_upload_replaces_the_line_facts() {
     let run = h.engine.get(RUN).unwrap();
     assert_eq!(run.result["facts"]["sdkReview"], fixed);
     assert_eq!(run.result["facts"]["avatarGlobalObjectId"], "GlobalObjectId_V1-avatar");
+}
+
+#[test]
+fn a_visitor_local_test_keeps_the_production_result_and_records_observed_eligibility() {
+    let h = Harness::new();
+    let before = h.engine.get(RUN).unwrap();
+    assert!(h.engine.release_state(RUN).unwrap()["uploadEligibility"].is_null());
+    h.local_receipt("succeeded", None, Some(false));
+    assert_eq!(h.local_test(), Ok(()));
+    let state = h.engine.release_state(RUN).unwrap();
+    let test = &state["localTests"][0];
+    assert_eq!(test["state"], "succeeded");
+    assert_eq!(test["stage"], "finishing");
+    assert_eq!(test["detail"], "SDK detail");
+    assert_eq!(test["sdkReview"]["state"], "checked");
+    assert_eq!(state["uploadEligibility"]["canPublish"], false);
+    assert_eq!(state["uploads"], json!([]));
+    let after = h.engine.get(RUN).unwrap();
+    assert_eq!(after.phase, before.phase);
+    assert_eq!(after.result, before.result);
+    assert_eq!(after.unity_fingerprint, before.unity_fingerprint);
+    assert_eq!(after.project_fingerprint, before.project_fingerprint);
+    assert_eq!(after.steps.last().unwrap().key, "local_test");
+    let stored: serde_json::Value = serde_json::from_slice(&fs::read(h.root.join("production/upload-eligibility.json")).unwrap()).unwrap();
+    assert_eq!(stored.as_object().unwrap().len(), 3, "no account identity is persisted");
+    assert_eq!(stored["schemaVersion"], "0.1");
+
+    h.local_receipt("failed", Some("validation"), None);
+    assert!(h.local_test().is_err());
+    assert_eq!(h.engine.release_state(RUN).unwrap()["uploadEligibility"]["canPublish"], false, "no observation does not overwrite one");
+    h.receipt("succeeded", Some(AVATAR_ID), None);
+    h.platform.receipt.lock().unwrap().as_mut().unwrap().can_publish_avatars = Some(true);
+    assert_eq!(h.upload("Avatar"), Ok(()));
+    assert_eq!(h.engine.release_state(RUN).unwrap()["uploadEligibility"]["canPublish"], true, "uploads refresh the shared observation too");
+}
+
+#[test]
+fn local_test_admission_matches_upload_without_name_or_thumbnail() {
+    let h = Harness::new();
+    fs::remove_file(h.project().join(".vua/previews/cmd-0/front.png")).unwrap();
+    assert!(h.engine.precheck_local_test(RUN).is_ok());
+    fs::write(h.project().join("Assets/state"), "edited").unwrap();
+    assert_eq!(h.engine.precheck_local_test(RUN).unwrap_err().code, "vua.amf_production.project_drift");
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    assert!(h.engine.precheck_local_test(RUN).is_ok());
+    h.finished_run("ready");
+    assert_eq!(h.engine.precheck_local_test(RUN).unwrap_err().code, "vua.amf_production.result_not_ready");
+}
+
+#[test]
+fn local_test_failures_cancellation_and_timeouts_keep_the_finished_run() {
+    let h = Harness::new();
+    let original = h.engine.get(RUN).unwrap().result;
+    for (outcome, reason, code) in [("failed", "validation", "local_test_failed"), ("failed", "platform_unsupported", "local_test_failed"),
+        ("cancelled", "cancelled", "local_test_cancelled")] {
+        h.local_receipt(outcome, Some(reason), None);
+        assert_eq!(h.local_test(), Err(format!("vua.amf_production.{code}")));
+        let state = h.engine.release_state(RUN).unwrap();
+        assert_eq!(state["localTests"][0]["reason"], reason);
+        assert_eq!(state["localTests"][0]["stage"], "building", "unknown progress stages are ignored");
+        assert_eq!(h.engine.get(RUN).unwrap().result, original);
+        assert_eq!(h.engine.get(RUN).unwrap().phase, "succeeded");
+    }
+    *h.platform.local_receipt.lock().unwrap() = None;
+    assert_eq!(h.local_test(), Err("vua.amf_production.local_test_timeout".into()));
+    assert_eq!(h.engine.release_state(RUN).unwrap()["localTests"][0]["reason"], "timeout");
+}
+
+#[test]
+fn old_release_records_load_and_local_test_history_is_bounded() {
+    let h = Harness::new();
+    fs::create_dir_all(h.root.join("production/releases")).unwrap();
+    fs::write(h.root.join("production/releases").join(format!("{RUN}.json")),
+        serde_json::to_vec(&json!({"schemaVersion":"0.1","runId":RUN,"turntable":null,"uploads":[]})).unwrap()).unwrap();
+    assert!(h.engine.release_record(RUN).unwrap().local_tests.is_empty());
+    h.local_receipt("succeeded", None, None);
+    for _ in 0..23 { h.local_test().unwrap(); }
+    let record = h.engine.release_record(RUN).unwrap();
+    let state = h.engine.release_state(RUN).unwrap();
+    assert_eq!(record.local_tests.len(), 20);
+    assert_eq!(state["localTests"].as_array().unwrap().len(), 10);
+    assert_eq!(state["localTests"][0]["testId"], record.local_tests.last().unwrap().test_id);
+    fs::write(h.root.join("production/upload-eligibility.json"), b"broken").unwrap();
+    assert!(h.engine.release_state(RUN).unwrap()["uploadEligibility"].is_null());
+    fs::write(h.root.join("production/upload-eligibility.json"),
+        br#"{"schemaVersion":"0.1","canPublish":false,"observedAt":"invalid"}"#).unwrap();
+    assert!(h.engine.release_state(RUN).unwrap()["uploadEligibility"].is_null());
+}
+
+#[test]
+fn an_unwritable_eligibility_cache_does_not_lose_the_sdk_outcome() {
+    let h = Harness::new();
+    fs::create_dir_all(h.root.join("production/upload-eligibility.pending")).unwrap();
+    h.local_receipt("succeeded", None, Some(false));
+    assert_eq!(h.local_test(), Ok(()));
+    h.receipt("succeeded", Some(AVATAR_ID), None);
+    h.platform.receipt.lock().unwrap().as_mut().unwrap().can_publish_avatars = Some(true);
+    assert_eq!(h.upload("Avatar"), Ok(()));
+    let state = h.engine.release_state(RUN).unwrap();
+    for record in [&state["uploads"][0], &state["localTests"][0]] {
+        assert_eq!(record["state"], "succeeded");
+        assert!(record["errors"].as_array().unwrap().iter().any(|value| value.as_str().unwrap().contains("eligibility could not be saved")));
+    }
+    assert_eq!(state["uploads"][0]["blueprintId"], AVATAR_ID);
+    assert!(state["uploadEligibility"].is_null());
 }

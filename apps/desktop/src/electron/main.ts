@@ -645,7 +645,7 @@ function registerIpc(provider: ModuleProvider): void {
       platform: process.platform as "win32" | "darwin" | "linux",
       rendererUrl,
       resolveMaterialSource: resolveProductionContext,
-      launchAmfEditor: runId => launchAmfEditor(provider, runId),
+      launchAmfEditor: (runId, taskId) => launchAmfEditor(provider, runId, taskId),
       vrchat: vrchatRouteFace(provider),
     },
     senderFrameUrl(event),
@@ -2078,7 +2078,7 @@ app.whenReady().then(async () => {
     build: typeof __VUA_BUILD_INFO__ === "undefined" ? (await import("../../scripts/build-info.mjs")).buildInfo : __VUA_BUILD_INFO__,
     invoke: request => routeDesktopGatewayInvoke({ provider: provider!, productVersion: app.getVersion(),
       platform: process.platform as "win32" | "darwin" | "linux", rendererUrl,
-      resolveMaterialSource: resolveProductionContext, launchAmfEditor: runId => launchAmfEditor(provider!, runId),
+      resolveMaterialSource: resolveProductionContext, launchAmfEditor: (runId, taskId) => launchAmfEditor(provider!, runId, taskId),
       vrchat: vrchatRouteFace(provider!) },
       mainWindow?.webContents.getURL() ?? "", request),
   });

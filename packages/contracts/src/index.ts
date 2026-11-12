@@ -30,6 +30,7 @@ export * from "./website-test.js";
 export * from "./account-guide.js";
 export * from "./play-session.js";
 export * from "./external-tool.js";
+export * from "./installer-tool.js";
 export * from "./manager-apps.js";
 export * from "./amf-module.js";
 export * from "./desktop-distribution.js";

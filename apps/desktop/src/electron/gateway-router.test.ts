@@ -38,6 +38,10 @@ describe("Electron Desktop Gateway routing", () => {
     invoke.mockClear();
     const rejected = await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, { ...request, params: { ...request.params, executable: "cmd.exe" } });
     expect(rejected).toMatchObject({ ok: false, error: { code: "invalid_request" } }); expect(invoke).not.toHaveBeenCalled();
+    await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, { schemaVersion: 1, requestId: "inst-q", method: "tools.observeInstaller", params: { toolId: "vrct" } });
+    expect(invoke).toHaveBeenLastCalledWith(expect.objectContaining({ method: "tools.observeInstaller", kind: "query", params: { toolId: "vrct" } }));
+    await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, { schemaVersion: 1, requestId: "inst-c", method: "tools.actInstaller", params: { toolId: "vrct", action: "start", commandId: "inst-once" } });
+    expect(invoke).toHaveBeenLastCalledWith(expect.objectContaining({ method: "tools.actInstaller", kind: "command", commandId: "inst-once", params: { toolId: "vrct", action: "start" } }));
   });
   it("routes scoped play commands without accepting native paths or renderer command text", async () => {
     const provider = new MockOrchestratorProviderV01(); await provider.start(); const invoke = vi.spyOn(provider, "invoke");

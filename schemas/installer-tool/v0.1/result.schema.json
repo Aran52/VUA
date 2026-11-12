@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.vua.local/installer-tool/v0.1/result.schema.json",
+  "title": "Official-installer tool launch and observation v0.1 Candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "installerTool"
+  ],
+  "properties": {
+    "installerTool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "toolId",
+        "capturedAt",
+        "presence",
+        "location",
+        "version",
+        "running",
+        "canStop",
+        "activity",
+        "issue"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "vua.installer-tool/v0.1"
+        },
+        "toolId": {
+          "enum": [
+            "slimevr",
+            "vrct",
+            "vrcx",
+            "vrcs"
+          ]
+        },
+        "capturedAt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "presence": {
+          "enum": [
+            "installed",
+            "missing",
+            "incomplete",
+            "unknown"
+          ]
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        },
+        "running": {
+          "type": "boolean"
+        },
+        "canStop": {
+          "type": "boolean"
+        },
+        "activity": {
+          "enum": [
+            "idle",
+            "starting",
+            "stopping"
+          ]
+        },
+        "issue": {
+          "enum": [
+            null,
+            "not_installed",
+            "handoff_failed",
+            "start_timeout",
+            "close_failed",
+            "close_timeout"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "canStop": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "running": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "activity": {
+                "const": "stopping"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "canStop": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "activity": {
+                "const": "starting"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "running": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

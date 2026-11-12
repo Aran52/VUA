@@ -1,8 +1,8 @@
-import type { DeploymentIntent, DeploymentPlan, DeploymentProgress, TaskSnapshotV01 } from "@vua/contracts";
+import type { DeploymentIntent, DeploymentPlan, DeploymentProgress, TaskSnapshotV01, ToolDeploymentIntent, ToolDeploymentPlan } from "@vua/contracts";
 import type { NetworkIntent, NetworkReport } from "@vua/contracts";
 import type { WebsiteObservation } from "@vua/contracts";
 import type { PlayRoute, PlaySession } from "@vua/contracts";
-import type { ExternalToolAction, ExternalToolId, ExternalToolSnapshot } from "@vua/contracts";
+import type { ExternalToolAction, ExternalToolId, ExternalToolSnapshot, InstallerToolAction, InstallerToolId, InstallerToolSnapshot } from "@vua/contracts";
 import type { CheckZone, DeployerView, VersionTrack } from "../features/deployer/deployer-model.ts";
 import type { FixPlanV1 } from "../features/deployer/fix-plan-model.ts";
 import type { CapabilityReport, Unsubscribe } from "./types.ts";
@@ -29,7 +29,8 @@ export interface EnvironmentView {
 export interface DeploymentPort {
   capability(): Promise<CapabilityReport>;
   plan(intent: DeploymentIntent): Promise<DeploymentPlan>;
-  execute(plan: DeploymentPlan, commandId: string): Promise<string>;
+  plan(intent: ToolDeploymentIntent): Promise<ToolDeploymentPlan>;
+  execute(plan: DeploymentPlan | ToolDeploymentPlan, commandId: string): Promise<string>;
   status(taskId: string): Promise<TaskSnapshotV01>;
   cancel(taskId: string, revision: number): Promise<void>;
   /** Live step facts; task.get remains authoritative for final/cancellation/recovery state. */
@@ -40,6 +41,7 @@ export interface EnvironmentPort {
   readonly scenarios?: import("./scenario-environment-port.ts").ScenarioEnvironmentPort;
   readonly unityLicense?: import("./unity-license-port.ts").UnityLicensePort;
   readonly tools?: { observe(toolId: ExternalToolId): Promise<ExternalToolSnapshot>; act(toolId: ExternalToolId, action: ExternalToolAction, commandId: string): Promise<ExternalToolSnapshot> };
+  readonly installerTools?: { observe(toolId: InstallerToolId): Promise<InstallerToolSnapshot>; act(toolId: InstallerToolId, action: InstallerToolAction, commandId: string): Promise<InstallerToolSnapshot> };
   readonly play?: PlayPort;
   readonly managers?: import("./creator-inventory-port.ts").CreatorInventoryPort;
   readonly network?: NetworkPort;

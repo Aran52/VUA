@@ -38,6 +38,8 @@ impl DeploymentAdapter for CheckOnly {
 fn intent(purposes: Vec<DeploymentPurpose>) -> DeploymentIntent {
     DeploymentIntent {
         purposes,
+        tools: Vec::new(),
+        reinstall_tools: Vec::new(),
         editor_root: r"C:\Editors".into(),
         use_mirrors: true,
         pico_region: None,

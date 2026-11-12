@@ -2,7 +2,11 @@
 use crate::provider_host::{application_error, application_success, FrameOutcome};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use vua_orchestrator::external_tools::{steam_tool_spec, ToolAction, ToolService};
+use vua_orchestrator::external_tools::{
+    installer_tool_spec, steam_tool_spec, InstallerToolAction, InstallerToolService, ToolAction,
+    ToolService,
+};
+
 pub(crate) fn request(
     services: Option<&HashMap<&'static str, ToolService>>,
     request: &Value,
@@ -88,5 +92,92 @@ pub(crate) fn request(
         }
         Err("invalid_command") => error("vua.external_tool.invalid_command", "validation"),
         Err(_) => error("vua.external_tool.unavailable", "unavailable"),
+    }
+}
+
+pub(crate) fn installer_request(
+    services: Option<&HashMap<&'static str, InstallerToolService>>,
+    request: &Value,
+    id: &str,
+    correlation: &str,
+) -> FrameOutcome {
+    let command = request["method"] == "tools.actInstaller";
+    let keys = if command {
+        vec![
+            "contractVersion",
+            "requestId",
+            "correlationId",
+            "kind",
+            "method",
+            "params",
+            "commandId",
+        ]
+    } else {
+        vec![
+            "contractVersion",
+            "requestId",
+            "correlationId",
+            "kind",
+            "method",
+            "params",
+        ]
+    };
+    let action = request["params"]["action"]
+        .as_str()
+        .and_then(InstallerToolAction::parse);
+    let command_id = request["commandId"].as_str().unwrap_or("");
+    let valid = request
+        .as_object()
+        .is_some_and(|o| o.len() == keys.len() && keys.iter().all(|k| o.contains_key(*k)))
+        && request["contractVersion"] == "0.1"
+        && request["kind"] == if command { "command" } else { "query" }
+        && ["requestId", "correlationId"]
+            .iter()
+            .all(|k| request[*k].as_str().is_some_and(|v| !v.is_empty()))
+        && request["params"]
+            .as_object()
+            .is_some_and(|p| p.len() == if command { 2 } else { 1 })
+        && request["params"]["toolId"]
+            .as_str()
+            .is_some_and(|tool_id| installer_tool_spec(tool_id).is_some())
+        && (!command
+            || (action.is_some()
+                && !command_id.is_empty()
+                && command_id.len() <= 128
+                && command_id
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || b"_.:-".contains(&c))));
+    let error = |code, category| {
+        FrameOutcome::Response(application_error(
+            id,
+            correlation,
+            code,
+            "errors.externalTool.unavailable",
+            category,
+        ))
+    };
+    if !valid {
+        return error("vua.installer_tool.invalid_params", "validation");
+    }
+    let Some(services) = services else {
+        return error("vua.installer_tool.unavailable", "unavailable");
+    };
+    let Some(service) = request["params"]["toolId"]
+        .as_str()
+        .and_then(|tool_id| services.get(tool_id))
+    else {
+        return error("vua.installer_tool.unavailable", "unavailable");
+    };
+    let result = if command {
+        service.act(action.unwrap(), command_id)
+    } else {
+        service.observe()
+    };
+    match result {
+        Ok(snapshot) => {
+            FrameOutcome::Response(application_success(id, json!({"installerTool":snapshot})))
+        }
+        Err("invalid_command") => error("vua.installer_tool.invalid_command", "validation"),
+        Err(_) => error("vua.installer_tool.unavailable", "unavailable"),
     }
 }

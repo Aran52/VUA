@@ -1,4 +1,4 @@
-import { isDeploymentParams, type DeploymentIntent, type DeploymentPurpose } from "./environment-deployment.js";
+import { isDeploymentIntent, type DeploymentIntent, type DeploymentPurpose } from "./environment-deployment.js";
 import type { PlayRoute } from "./play-session.js";
 
 export const SCENARIO_ENVIRONMENT_SCHEMA = "vua.scenario-environment/v0.1" as const;
@@ -194,7 +194,7 @@ export function isScenarioEnvironmentParams(method: unknown, v: unknown): boolea
     return false;
   }
   if (method === "environment.checkScenarioEnvironment") {
-    return exact(v, ["schemaVersion", "intent"]) && v.schemaVersion === "0.1" && isDeploymentParams({ intent: v.intent }, false);
+    return exact(v, ["schemaVersion", "intent"]) && v.schemaVersion === "0.1" && isDeploymentIntent(v.intent);
   }
   return false;
 }
@@ -253,7 +253,7 @@ export function isPlayScenarioSopV02(v: unknown): v is PlayScenarioSopV02 {
 
 export function isScenarioEnvironmentCheck(v: unknown): v is ScenarioEnvironmentCheck {
   if (!record(v) || !exact(v, ["schemaVersion", "intent", "observations", "softwareReady", "licenseState", "performed", "nextAction", "installationStarted"])
-    || v.schemaVersion !== SCENARIO_ENVIRONMENT_SCHEMA || !isDeploymentParams({ intent: v.intent }, false) || !Array.isArray(v.observations)) return false;
+    || v.schemaVersion !== SCENARIO_ENVIRONMENT_SCHEMA || !isDeploymentIntent(v.intent) || !Array.isArray(v.observations)) return false;
   const required = scenarioRequiredComponents((v.intent as DeploymentIntent).purposes);
   return v.observations.length === required.length && v.observations.every((x, i) => record(x) && exact(x, ["component", "presence", "location", "version"]) && x.component === required[i]
     && ["verified", "missing", "unsuitable", "detection_failed"].includes(String(x.presence)) && (x.location === null || typeof x.location === "string") && (x.version === null || typeof x.version === "string"))

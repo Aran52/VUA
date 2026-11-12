@@ -1,0 +1,247 @@
+{
+  "requests": [
+    {
+      "name": "observe-slimevr",
+      "valid": true,
+      "value": {
+        "contractVersion": "0.1",
+        "requestId": "r-1",
+        "correlationId": "c-1",
+        "kind": "query",
+        "method": "tools.observeInstaller",
+        "params": {
+          "toolId": "slimevr"
+        }
+      }
+    },
+    {
+      "name": "observe-vrct",
+      "valid": true,
+      "value": {
+        "contractVersion": "0.1",
+        "requestId": "r-2",
+        "correlationId": "c-2",
+        "kind": "query",
+        "method": "tools.observeInstaller",
+        "params": {
+          "toolId": "vrct"
+        }
+      }
+    },
+    {
+      "name": "observe-vrcx",
+      "valid": true,
+      "value": {
+        "contractVersion": "0.1",
+        "requestId": "r-3",
+        "correlationId": "c-3",
+        "kind": "query",
+        "method": "tools.observeInstaller",
+        "params": {
+          "toolId": "vrcx"
+        }
+      }
+    },
+    {
+      "name": "observe-vrcs",
+      "valid": true,
+      "value": {
+        "contractVersion": "0.1",
+        "requestId": "r-4",
+        "correlationId": "c-4",
+        "kind": "query",
+        "method": "tools.observeInstaller",
+        "params": {
+          "toolId": "vrcs"
+        }
+      }
+    },
+    {
+      "name": "start-vrct",
+      "valid": true,
+      "value": {
+        "contractVersion": "0.1",
+        "requestId": "r-5",
+        "correlationId": "c-5",
+        "kind": "command",
+        "method": "tools.actInstaller",
+        "params": {
+          "toolId": "vrct",
+          "action": "start"
+        },
+        "commandId": "cmd-start-vrct"
+      }
+    },
+    {
+      "name": "stop-vrcx",
+      "valid": true,
+      "value": {
+        "contractVersion": "0.1",
+        "requestId": "r-6",
+        "correlationId": "c-6",
+        "kind": "command",
+        "method": "tools.actInstaller",
+        "params": {
+          "toolId": "vrcx",
+          "action": "stop"
+        },
+        "commandId": "cmd-stop-vrcx"
+      }
+    },
+    {
+      "name": "cancel-vrcs",
+      "valid": true,
+      "value": {
+        "contractVersion": "0.1",
+        "requestId": "r-7",
+        "correlationId": "c-7",
+        "kind": "command",
+        "method": "tools.actInstaller",
+        "params": {
+          "toolId": "vrcs",
+          "action": "cancel"
+        },
+        "commandId": "cmd-cancel-vrcs"
+      }
+    },
+    {
+      "name": "reject-steam-tool-on-installer-face",
+      "valid": false,
+      "value": {
+        "contractVersion": "0.1",
+        "requestId": "r-8",
+        "correlationId": "c-8",
+        "kind": "query",
+        "method": "tools.observeInstaller",
+        "params": {
+          "toolId": "vrcft"
+        }
+      }
+    },
+    {
+      "name": "reject-install-action-on-launch-face",
+      "valid": false,
+      "value": {
+        "contractVersion": "0.1",
+        "requestId": "r-9",
+        "correlationId": "c-9",
+        "kind": "command",
+        "method": "tools.actInstaller",
+        "params": {
+          "toolId": "vrct",
+          "action": "install"
+        },
+        "commandId": "cmd-bad"
+      }
+    },
+    {
+      "name": "reject-custom-executable",
+      "valid": false,
+      "value": {
+        "contractVersion": "0.1",
+        "requestId": "r-10",
+        "correlationId": "c-10",
+        "kind": "command",
+        "method": "tools.actInstaller",
+        "params": {
+          "toolId": "slimevr",
+          "action": "start",
+          "executable": "cmd.exe"
+        },
+        "commandId": "cmd-bad-exe"
+      }
+    }
+  ],
+  "results": [
+    {
+      "name": "installed-vrct",
+      "valid": true,
+      "value": {
+        "installerTool": {
+          "schemaVersion": "vua.installer-tool/v0.1",
+          "toolId": "vrct",
+          "capturedAt": "2026-11-11T00:00:00Z",
+          "presence": "installed",
+          "location": "C:\\Users\\Synthetic\\AppData\\Local\\VRCT\\VRCT.exe",
+          "version": "3.6.1",
+          "running": false,
+          "canStop": false,
+          "activity": "idle",
+          "issue": null
+        }
+      }
+    },
+    {
+      "name": "owned-running-vrcx",
+      "valid": true,
+      "value": {
+        "installerTool": {
+          "schemaVersion": "vua.installer-tool/v0.1",
+          "toolId": "vrcx",
+          "capturedAt": "2026-11-11T00:00:00Z",
+          "presence": "installed",
+          "location": "C:\\Users\\Synthetic\\AppData\\Local\\Programs\\VRCX\\VRCX.exe",
+          "version": "2026.09.16",
+          "running": true,
+          "canStop": true,
+          "activity": "stopping",
+          "issue": null
+        }
+      }
+    },
+    {
+      "name": "missing-vrcs",
+      "valid": true,
+      "value": {
+        "installerTool": {
+          "schemaVersion": "vua.installer-tool/v0.1",
+          "toolId": "vrcs",
+          "capturedAt": "2026-11-11T00:00:00Z",
+          "presence": "missing",
+          "location": null,
+          "version": null,
+          "running": false,
+          "canStop": false,
+          "activity": "idle",
+          "issue": "not_installed"
+        }
+      }
+    },
+    {
+      "name": "reject-can-stop-without-running",
+      "valid": false,
+      "value": {
+        "installerTool": {
+          "schemaVersion": "vua.installer-tool/v0.1",
+          "toolId": "slimevr",
+          "capturedAt": "2026-11-11T00:00:00Z",
+          "presence": "installed",
+          "location": "C:\\Program Files (x86)\\SlimeVR Server\\SlimeVR.exe",
+          "version": "5.0.0",
+          "running": false,
+          "canStop": true,
+          "activity": "idle",
+          "issue": null
+        }
+      }
+    },
+    {
+      "name": "reject-unknown-tool",
+      "valid": false,
+      "value": {
+        "installerTool": {
+          "schemaVersion": "vua.installer-tool/v0.1",
+          "toolId": "vrcft",
+          "capturedAt": "2026-11-11T00:00:00Z",
+          "presence": "installed",
+          "location": "C:\\Synthetic\\VRCFT.exe",
+          "version": "1.0.0",
+          "running": false,
+          "canStop": false,
+          "activity": "idle",
+          "issue": null
+        }
+      }
+    }
+  ]
+}

@@ -112,10 +112,41 @@ pub enum DeploymentPurpose {
     QuestAvatar,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InstallerToolId {
+    Slimevr,
+    Vrct,
+    Vrcx,
+    Vrcs,
+}
+
+impl InstallerToolId {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Slimevr => "slimevr",
+            Self::Vrct => "vrct",
+            Self::Vrcx => "vrcx",
+            Self::Vrcs => "vrcs",
+        }
+    }
+
+    pub fn official_url(self) -> &'static str {
+        crate::external_tools::installer_tool_spec(self.as_str())
+            .expect("pinned installer tool spec")
+            .official_url
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DeploymentIntent {
+    #[serde(default)]
     pub purposes: Vec<DeploymentPurpose>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tools: Vec<InstallerToolId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reinstall_tools: Vec<InstallerToolId>,
     /// An absolute Editor installation root, not a command or executable supplied by UI.
     pub editor_root: String,
     /// Desktop preference; omission from an older request keeps mirrors enabled.
@@ -132,7 +163,23 @@ pub struct DeploymentIntent {
 
 impl DeploymentIntent {
     pub fn validate(&self) -> Result<(), &'static str> {
-        if self.purposes.is_empty() || self.purposes.len() > 4 {
+        if (self.purposes.is_empty() && self.tools.is_empty())
+            || self.purposes.len() > 4
+            || self.tools.len() > 4
+            || self.reinstall_tools.len() > 4
+        {
+            return Err("vua.deployment.invalid_intent");
+        }
+        let mut unique_tools = self.tools.clone();
+        unique_tools.sort();
+        unique_tools.dedup();
+        let mut unique_reinstall = self.reinstall_tools.clone();
+        unique_reinstall.sort();
+        unique_reinstall.dedup();
+        if unique_tools.len() != self.tools.len()
+            || unique_reinstall.len() != self.reinstall_tools.len()
+            || self.reinstall_tools.iter().any(|t| !self.tools.contains(t))
+        {
             return Err("vua.deployment.invalid_intent");
         }
         let mut unique = self.purposes.clone();
@@ -217,6 +264,7 @@ pub enum DeploymentAction {
     /// adapter; unlike the Unity actions they need no pre-existing installer identity.
     InstallSteam,
     InstallPicoRuntime,
+    InstallOfficialTool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -339,6 +387,16 @@ pub trait DeploymentAdapter: Send + Sync {
         confirmed: Option<&DeploymentInstaller>,
         report: &mut DeploymentReporter<'_>,
     ) -> Result<(), &'static str>;
+
+    fn install_step(
+        &self,
+        intent: &DeploymentIntent,
+        step: &DeploymentStep,
+        confirmed: Option<&DeploymentInstaller>,
+        report: &mut DeploymentReporter<'_>,
+    ) -> Result<(), &'static str> {
+        self.install(intent, step.action, confirmed, report)
+    }
 }
 
 pub fn plan_deployment(
@@ -486,6 +544,34 @@ pub fn plan_deployment_with_region(
     // not make an unchanged plan stale. Canonical purpose ordering avoids incidental drift.
     let mut normalized = intent.clone();
     normalized.purposes.sort();
+    normalized.tools.sort();
+    normalized.reinstall_tools.sort();
+    for tool in &normalized.tools {
+        let component = tool.as_str();
+        if facts.iter().filter(|f| f.component == component).count() > 1 {
+            return Err("vua.deployment.ambiguous_observation");
+        }
+        let fact = facts.iter().find(|f| f.component == component);
+        let reason = fact.map_or(DeploymentPresence::DetectionFailed, |f| f.presence);
+        let action = match reason {
+            DeploymentPresence::DetectionFailed | DeploymentPresence::Unsuitable => {
+                DeploymentAction::Inspect
+            }
+            DeploymentPresence::Verified if normalized.reinstall_tools.contains(tool) => {
+                DeploymentAction::InstallOfficialTool
+            }
+            DeploymentPresence::Verified => DeploymentAction::Retain,
+            DeploymentPresence::Missing => DeploymentAction::InstallOfficialTool,
+        };
+        steps.push(DeploymentStep {
+            component: component.into(),
+            action,
+            reason,
+            location: fact.and_then(|f| f.location.clone()),
+            version: fact.and_then(|f| f.version.clone()),
+            official_url: Some(tool.official_url().into()),
+        });
+    }
     let bytes = serde_json::to_vec(&(&normalized, &steps, &installer, &download_policy))
         .expect("plain deployment values serialize");
     let digest = Sha256::digest(bytes)
@@ -604,6 +690,8 @@ impl DeploymentService {
         }
         let mut intent = intent;
         intent.purposes.sort();
+        intent.tools.sort();
+        intent.reinstall_tools.sort();
         let adapter = self.adapter.clone();
         let active = self.active.clone();
         let confirmed = digest.to_owned();
@@ -645,7 +733,7 @@ impl DeploymentService {
                                 ),
                                 _ => fresh.installer.as_ref(),
                             };
-                            let result = adapter.install(&intent, action, confirmed, &mut |activity| {
+                            let result = adapter.install_step(&intent, step, confirmed, &mut |activity| {
                                 if ctx.check_cancel() { return Err("vua.deployment.cancelled"); }
                                 if matches!(activity.phase, DeploymentPhase::SourceFailed) {
                                     source_failures.push(serde_json::to_value(&activity).expect("activity serializes"));
@@ -681,7 +769,9 @@ impl DeploymentService {
                     if ctx.check_cancel() { return Ok(TaskExit::Cancelled); }
                     ctx.emit_progress(progress(step, index + 1, fresh.steps.len(), "verified"));
                 }
-                let after = observed_plan(adapter.as_ref(), &intent).map_err(|e| deployment_error(e, &correlation))?;
+                let mut verify_intent = intent.clone();
+                verify_intent.reinstall_tools.clear();
+                let after = observed_plan(adapter.as_ref(), &verify_intent).map_err(|e| deployment_error(e, &correlation))?;
                 if !after.prerequisites_ready { return Err(deployment_error("vua.deployment.verification_failed", &correlation)); }
                 Ok(TaskExit::Done(serde_json::json!({"schemaVersion": DEPLOYMENT_SCHEMA,
                     "operation": "environment.executeDeployment", "outcome": "prerequisites_verified",

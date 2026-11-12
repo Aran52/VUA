@@ -184,7 +184,8 @@ const sopFor = (selection: { scenario: string; connection?: string }) => ({
   steps: ["check", "install", "steam-account", "launch", "vrchat-account"].map((id, index) => ({ id, title: id, explanation: id, expectedResult: id, automatic: index < 2 })),
   performed: "sop_only", nextAction: "check_environment", licenseRequiredFor: "none",
 });
-const toolConnection = (toolId: string) => ({ toolConnection: { schemaVersion: "vua.external-tool/v0.3", toolId, capturedAt: now(), presence: envMissing ? "missing" : ["vrcft", "space", "chilloutvr", "vrchat", "steamvr"].includes(toolId) ? "installed" : "missing", steamReady: !envMissing, buildId: null, running: false, canStop: false, activity: "idle", issue: null } });
+const toolConnection = (toolId: string) => ({ toolConnection: { schemaVersion: "vua.external-tool/v0.4", toolId, capturedAt: now(), presence: envMissing ? "missing" : ["vrcft", "space", "chilloutvr", "vrchat", "steamvr"].includes(toolId) ? "installed" : "missing", steamReady: !envMissing, buildId: null, running: false, canStop: false, activity: "idle", issue: null } });
+const installerTool = (toolId: string) => ({ installerTool: { schemaVersion: "vua.installer-tool/v0.1", toolId, capturedAt: now(), presence: envMissing ? "missing" : ["vrct", "vrcx"].includes(toolId) ? "installed" : "missing", location: !envMissing && ["vrct", "vrcx"].includes(toolId) ? `C:/Synthetic/${toolId}.exe` : null, version: !envMissing && ["vrct", "vrcx"].includes(toolId) ? "synthetic" : null, running: false, canStop: false, activity: "idle", issue: null } });
 
 const unknownMethods = new Set<string>();
 /* The AMF module's one lane: its slow reads hold up every other AMF request behind them. */
@@ -279,6 +280,7 @@ async function reply(method: string, input: Record<string, any>): Promise<unknow
     case "project.listProjects": return { operation: method, result: { projects: [] } };
     case "inspection.list": return { operation: method, result: { items: [] } };
     case "tools.observeConnection": return toolConnection(input.toolId);
+    case "tools.observeInstaller": return installerTool(input.toolId);
     default:
       if (!unknownMethods.has(method)) { unknownMethods.add(method); console.info("[shell-review] no synthetic reply for", method, input); }
       return null;

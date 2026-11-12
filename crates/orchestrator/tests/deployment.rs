@@ -14,10 +14,77 @@ use vua_orchestrator::{
 fn intent(purposes: Vec<DeploymentPurpose>) -> DeploymentIntent {
     DeploymentIntent {
         purposes,
+        tools: Vec::new(),
+        reinstall_tools: Vec::new(),
         editor_root: r"C:\VUA Test\Editors".into(),
         use_mirrors: true,
         pico_region: Some(PicoInstallRegion::ChinaMainland),
     }
+}
+
+#[test]
+fn official_installer_tools_plan_and_reinstall_without_changing_purpose_only_digests() {
+    let base = intent(vec![DeploymentPurpose::DesktopPlay]);
+    let purpose_only = plan_deployment(&base, &ready_play(), None).unwrap();
+    assert!(!serde_json::to_string(&purpose_only.intent)
+        .unwrap()
+        .contains("tools"));
+
+    let tool_intent = DeploymentIntent {
+        purposes: Vec::new(),
+        tools: vec![InstallerToolId::Vrcs, InstallerToolId::Vrct],
+        reinstall_tools: Vec::new(),
+        editor_root: r"C:\VUA Test\Editors".into(),
+        use_mirrors: true,
+        pico_region: None,
+    };
+    let tool_plan = plan_deployment(
+        &tool_intent,
+        &[
+            fact("vrct", DeploymentPresence::Verified),
+            fact("vrcs", DeploymentPresence::Missing),
+        ],
+        None,
+    )
+    .unwrap();
+    assert_eq!(
+        tool_plan.intent.tools,
+        vec![InstallerToolId::Vrct, InstallerToolId::Vrcs]
+    );
+    assert_eq!(tool_plan.steps.len(), 2);
+    assert_eq!(tool_plan.steps[0].component, "vrct");
+    assert_eq!(tool_plan.steps[0].action, DeploymentAction::Retain);
+    assert_eq!(tool_plan.steps[1].component, "vrcs");
+    assert_eq!(
+        tool_plan.steps[1].action,
+        DeploymentAction::InstallOfficialTool
+    );
+
+    // Reinstall of a verified tool plans InstallOfficialTool and still verifies readiness afterward.
+    let reinstall_intent = DeploymentIntent {
+        reinstall_tools: vec![InstallerToolId::Vrct],
+        tools: vec![InstallerToolId::Vrct],
+        ..tool_intent
+    };
+    let reinstall_plan = plan_deployment(
+        &reinstall_intent,
+        &[fact("vrct", DeploymentPresence::Verified)],
+        None,
+    )
+    .unwrap();
+    assert_eq!(
+        reinstall_plan.steps[0].action,
+        DeploymentAction::InstallOfficialTool
+    );
+    assert!(!reinstall_plan.prerequisites_ready);
+
+    // Invalid: reinstall_tools must be a subset of tools.
+    let invalid = DeploymentIntent {
+        tools: vec![InstallerToolId::Vrct],
+        reinstall_tools: vec![InstallerToolId::Vrcx],
+        ..reinstall_intent
+    };
+    assert_eq!(invalid.validate(), Err("vua.deployment.invalid_intent"));
 }
 
 #[test]

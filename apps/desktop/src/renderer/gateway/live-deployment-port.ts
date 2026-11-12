@@ -65,9 +65,10 @@ export function createLiveDeploymentPort(client: GatewayClient): DeploymentPort 
       });
       if (!result.ok || !isDeploymentAccepted(result.value)) throw new Error("deployment_not_accepted");
       const purposes = plan.intent.purposes ?? [];
+      const toolsOnly = purposes.length === 0 && "tools" in plan.intent && plan.intent.tools.length > 0;
       registerTaskIdentity(result.value.taskId, {
         title: strings.deployment.title,
-        originPage: purposes.some(p => p === "pc_avatar" || p === "quest_avatar") ? "env-create" : "env-play",
+        originPage: toolsOnly ? "tools-discover" : purposes.some(p => p === "pc_avatar" || p === "quest_avatar") ? "env-create" : "env-play",
       });
       return result.value.taskId;
     },

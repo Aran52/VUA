@@ -141,9 +141,11 @@ export function publishComponentRelease(prepared, webRoot, publicKey, options = 
     const live = ownedPath(webRoot, options.candidate ? `updates/candidates/${record.component}.json` : channelPath);
     const formal = ownedPath(webRoot, channelPath);
     const previous = fs.existsSync(formal) ? read(webRoot, channelPath) : null;
+    const existingFormalV03 = fs.existsSync(ownedPath(webRoot, channelPathV03));
+    if (!hasV03 && existingFormalV03) throw Error("publication_v03_required");
     const liveV03 = hasV03 ? ownedPath(webRoot, options.candidate ? `updates/v0.3/candidates/${record.component}.json` : channelPathV03) : null;
     const formalV03 = hasV03 ? ownedPath(webRoot, channelPathV03) : null;
-    const previousV03 = hasV03 && fs.existsSync(formalV03) ? read(webRoot, channelPathV03) : null;
+    const previousV03 = hasV03 && existingFormalV03 ? read(webRoot, channelPathV03) : null;
 
     const alreadyCommittedV02 = fs.existsSync(live) && digest(fs.readFileSync(live)) === digest(rawIndex);
     const alreadyCommittedV03 = !hasV03 || (fs.existsSync(liveV03) && digest(fs.readFileSync(liveV03)) === digest(rawIndexV03));

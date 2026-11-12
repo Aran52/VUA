@@ -88,8 +88,11 @@ export function GatewayProvider({
 
   const amfReady = views?.amfModule.state === "ready";
   useEffect(() => {
-    if (!amfReady) return;
     let active = true;
+    void gateway.task.snapshot().then(task => {
+      if (active) setViews(prev => prev ? { ...prev, task } : prev);
+    }).catch(() => {});
+    if (!amfReady) return () => { active = false; };
     // Optional-domain loading cannot prevent the host from mounting.
     void Promise.all([gateway.modelProduction.snapshot(), gateway.acquire.snapshot(), gateway.packages.snapshot()])
       .then(([modelProduction, acquire, packages]) => {

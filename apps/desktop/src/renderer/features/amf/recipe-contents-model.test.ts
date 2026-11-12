@@ -7,7 +7,8 @@ it("reads v0.4 and v0.5 source identities without treating a package name as a B
   for(const version of ["0.4","0.5"]){const declaration=sample(version);const rows=recipeProducts(declaration.recipe,declaration.sources);expect(rows.every(row=>/^booth:[1-9][0-9]*$/u.test(row.productId??""))).toBe(true);expect(recipeProducts(declaration.recipe,{}).every(row=>row.productId===null)).toBe(true);}
 });
 it("counts actual switch and object settings while reading old missing adjustments",()=>{
-  const recipe=sample("0.5").recipe;const {adjustments:_adjustments,...plain}=recipe;expect(recipeSettings(plain).lighting).toBe(0);expect(recipeSettings(plain).fits).toBe(0);
+  const recipe=sample("0.5").recipe;const {adjustments:_adjustments,...plain}=recipe;expect(recipeSettings(plain).lighting).toBe(0);expect(recipeSettings(plain).fits).toBe(0);expect(recipeSettings(plain).optimizer).toBe(0);
+  expect(recipeSettings({...plain,adjustments:{lighting:[],sdkFixes:[],optimizer:true}}).optimizer).toBe(1);
   expect(recipeSettings({...plain,outfits:recipe.outfits.map(row=>({...row,toggleName:""}))}).switches).toBe(0);
   expect(recipeSettings(recipe).bindings).toBe(recipe.outfits.length);
 });

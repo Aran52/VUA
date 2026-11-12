@@ -127,6 +127,17 @@ export class RemoteContentManager {
     return this.#createView(url);
   }
 
+  /** Navigate the currently visible embedded browser view if one is mounted; otherwise let Main fall back to the OS browser. */
+  navigateVisibleView(url: string): boolean {
+    if (this.#disposed || this.#hostWindow === null || this.#hostWindow.isDestroyed()) return false;
+    for (const managed of this.#views.values()) {
+      if (!managed.visible || managed.view.webContents.isDestroyed()) continue;
+      void managed.view.webContents.loadURL(url).catch(() => { /* did-fail-load owns the visible failure. */ });
+      return true;
+    }
+    return false;
+  }
+
   #siteTabCount(): number { return [...this.#views.values()].filter(view => view.siteBrowser).length; }
 
   #createView(url: string, siteBrowser = false): RemoteContentViewStateV1 {

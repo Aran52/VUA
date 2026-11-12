@@ -574,7 +574,7 @@ function vrchatRouteFace(host: ModuleProvider): NonNullable<DesktopGatewayRouteC
 }
 
 function registerIpc(provider: ModuleProvider): void {
-  registerRecipeSharing({provider,root:amfDataRoot,assertReady:assertAmfReady,assertSender:event=>assertLocalSender(senderFrameUrl(event)),window:()=>mainWindow});
+  const recipeSharingIpc = registerRecipeSharing({provider,root:amfDataRoot,assertReady:assertAmfReady,assertSender:event=>assertLocalSender(senderFrameUrl(event)),window:()=>mainWindow});
   // Pairing and approval are restricted to the local Main frame; overlays and
   // embedded websites cannot read a token or approve an Agent's proposed write.
   const assertAiSender = (event: Electron.IpcMainInvokeEvent) => {
@@ -1128,11 +1128,15 @@ function registerIpc(provider: ModuleProvider): void {
     }));
     assertAmfReady();
     // A folder already contains its explicitly dropped descendants; copy them once.
-    return sources.filter(source => !sources.some(parent => {
+    const filtered = sources.filter(source => !sources.some(parent => {
       if (!parent.directory || parent === source) return false;
       const relative = path.relative(parent.value, source.value);
       return relative !== "" && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
-    })).map(source => source.value);
+    }));
+    if (filtered.length === 1 && !filtered[0]!.directory && /\.(png|jpe?g|gif|webp)$/iu.test(filtered[0]!.value)) {
+      if (await recipeSharingIpc.tryQueueDroppedImage(filtered[0]!.value)) return [];
+    }
+    return filtered.map(source => source.value);
   });
   ipcMain.handle("vua:desktop-browser:open", async (event, siteId: unknown) => {
     assertBrowserSender(event);
@@ -1215,7 +1219,8 @@ function registerIpc(provider: ModuleProvider): void {
   ipcMain.handle("vua:remote-content:sign-in-hint", (event) => {
     assertLocalSender(senderFrameUrl(event));
     assertAmfReady();
-    return remoteContent!.signInHint();
+    if (remoteContent === null) return "unknown";
+    return remoteContent.signInHint();
   });
   // 真实登录判定(2026-10-05,登录浏览器轮询用):抓一次已购库首页按内容
   // 识别登录页——与同步启动门同一判据;探测异常恒 false,不冒充已登录。
@@ -1898,9 +1903,8 @@ async function createWindow(): Promise<void> {
   installLocalContentNavigationPolicy(mainWindow.webContents, {
     rendererUrl,
     allowedOrigins: ["https://booth.pm"],
-    // 延迟读取模块变量:弹窗发生时 remoteContent 已随窗口创建
     navigateCurrentView: (url) => {
-      remoteContent?.openAfterConfirmation(url);
+      if (!remoteContent?.navigateVisibleView(url)) void shell.openExternal(url);
     },
     openExternal: (url) => void shell.openExternal(url),
     confirmNavigation,
@@ -2119,7 +2123,9 @@ app.whenReady().then(async () => {
   });
   if (!dataTrialValid) provider.refuseDataTrial();
   else provider.setDataTrial(dataTrialPending);
+  let moduleEventSeq = 0;
   provider.subscribeModule(snapshot => {
+    const seq = ++moduleEventSeq;
     if (snapshot.state !== "ready") {
       catalogEnricher?.pause();
       for (const request of catalogProductRequests) request.abort();
@@ -2128,6 +2134,7 @@ app.whenReady().then(async () => {
       if (snapshot.state === "ready") await ensureAmfShell();
       else if (snapshot.state === "absent") { disposeAmfShell?.(); disposeAmfShell = null; }
       else deactivateImageCache();
+      if (seq !== moduleEventSeq) return;
       packagedSmoke?.observeAmfReadiness(snapshot.state, provider?.amfReady() === true, disposeAmfShell !== null);
       for (const window of BrowserWindow.getAllWindows()) {
         if (!window.isDestroyed() && isAllowedLocalSender(window.webContents.getURL(), rendererUrl)) window.webContents.send("vua:amf-module:changed", snapshot);

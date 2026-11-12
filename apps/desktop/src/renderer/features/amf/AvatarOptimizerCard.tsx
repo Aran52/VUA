@@ -65,8 +65,13 @@ export function AvatarOptimizerCard({ port, run, disabled, ftLocked, onStarted, 
   const [updating, setUpdating] = useState(false);
   const enabled = run.optimizer?.enabled === true;
   const report = run.result?.facts?.optimizerReport ?? run.optimizer?.report ?? null;
-  const oscWarning = (run.result?.facts?.optimizerWarnings?.includes("osc_gimmick_possible") ?? false)
-    || run.result?.facts?.faceTracking !== undefined;
+  const ft = run.result?.facts?.faceTracking;
+  const activeFt = ft !== undefined && (
+    ft.manualReplayRequired
+    || ft.parameters.length > 0
+    || ft.components.some(component => component !== "" && !component.startsWith("nadena.dev.modular_avatar."))
+  );
+  const oscWarning = (run.result?.facts?.optimizerWarnings?.includes("osc_gimmick_possible") ?? false) || activeFt;
 
   const toggle = async () => {
     if (updating || disabled || ftLocked) return;

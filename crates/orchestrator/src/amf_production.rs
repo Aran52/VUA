@@ -678,7 +678,16 @@ pub fn validate_optimizer_facts(
 }
 
 pub(crate) fn sync_optimizer_warnings(run: &mut ProductionRun) {
-    let enabled = run.optimizer.as_ref().is_some_and(|state| state.enabled);
+    let scene_reported_warning = run.result["facts"]["optimizerWarnings"]
+        .as_array()
+        .is_some_and(|list| {
+            list.iter()
+                .any(|v| v.as_str() == Some("osc_gimmick_possible"))
+        });
+    let enabled = match &run.optimizer {
+        Some(state) => state.enabled,
+        None => scene_reported_warning,
+    };
     let ft_active = {
         let ft = &run.result["facts"]["faceTracking"];
         ft["manualReplayRequired"].as_bool() == Some(true)
@@ -2572,16 +2581,14 @@ impl AmfProductionEngine {
         run.confirmed_digest = Some(digest.into());
         let mut snapshot = None;
         let mut revision_id = None;
-        // A rebuild replaces the observed facts before assembly; a restore brings these back with the files.
-        let observed_before = rebuild.then(|| {
-            (
-                run.prefabs.clone(),
-                run.result.clone(),
-                run.unity_fingerprint.clone(),
-                run.project_fingerprint.clone(),
-                previous_optimizer.clone(),
-            )
-        });
+        // A restore brings the observed facts and optimizer state back with the snapshot files.
+        let observed_before = Some((
+            run.prefabs.clone(),
+            run.result.clone(),
+            run.unity_fingerprint.clone(),
+            run.project_fingerprint.clone(),
+            previous_optimizer.clone(),
+        ));
         let result = (|| {
             self.step(&mut run, ctx, "snapshot", "Protect the prepared project")?;
             snapshot = Some(self.platform.snapshot(&run)?);
@@ -2683,6 +2690,19 @@ impl AmfProductionEngine {
                         "The observed Avatar does not match the reviewed Recipe outcome.",
                     ));
                 }
+            }
+            let previous_avatar = run.result["facts"]["avatarGlobalObjectId"]
+                .as_str()
+                .unwrap_or("")
+                .to_owned();
+            let next_avatar = observed.result["facts"]["avatarGlobalObjectId"]
+                .as_str()
+                .unwrap_or("");
+            if target.as_ref().is_some_and(|t| t.new_avatar_key.is_some())
+                || (!previous_avatar.is_empty() && previous_avatar != next_avatar)
+                || run.result["facts"].get("observedSelection").is_none()
+            {
+                run.optimizer = None;
             }
             run.result = observed.result;
             run.unity_fingerprint = observed.unity_fingerprint;

@@ -57,10 +57,10 @@ its official link and return once installed.
 ## 5. Start an outfit build
 
 Open your base avatar in the library, choose **Use as Avatar**, pick one compatible outfit, and
-start the build. The Workshop creates a separate working Unity project so your original
-`.unitypackage` files stay untouched. Keep the default **Ask before changes** mode selected for
-this walkthrough. If an item doesn't show up as selectable, make sure its local files have finished
-importing first.
+click **Start the line**. The Workshop creates a separate working Unity project so your original
+`.unitypackage` files stay untouched. Keep the default **Manual review** (*Asks before each action
+and plan*) mode selected for this walkthrough. If an item doesn't show up as selectable, make sure
+its local files have finished importing first.
 
 ![Choose materials for a new line](images/en/materials-start.png)
 

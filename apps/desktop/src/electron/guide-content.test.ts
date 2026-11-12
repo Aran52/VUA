@@ -73,9 +73,23 @@ describe("guide-content v0.1 channel", () => {
     ) as { publicKey: string };
     expect(DEFAULT_GUIDE_TRUST_PUBLIC_KEY_HEX).toBe(trustJson.publicKey);
 
+    const locales = ["en", "zh-CN", "zh-TW", "ja", "ko"] as const;
     for (const id of GUIDE_CONTENT_IDS) {
-      expect(isGuideContentPayloadV01(BUNDLED_GUIDE_CONTENT[id]), id).toBe(true);
-      expect(BUNDLED_GUIDE_CONTENT[id].id).toBe(id);
+      const guide = BUNDLED_GUIDE_CONTENT[id];
+      expect(isGuideContentPayloadV01(guide), id).toBe(true);
+      expect(guide.id).toBe(id);
+      for (const locale of locales) {
+        expect(guide.sop.title[locale]?.trim().length, `${id}.title.${locale}`).toBeGreaterThan(0);
+        for (const step of guide.sop.steps) {
+          expect(step.action[locale]?.trim().length, `${id}.${step.id}.action.${locale}`).toBeGreaterThan(0);
+          expect(step.expectedResult[locale]?.trim().length, `${id}.${step.id}.expectedResult.${locale}`).toBeGreaterThan(0);
+          expect(step.verification[locale]?.trim().length, `${id}.${step.id}.verification.${locale}`).toBeGreaterThan(0);
+          expect(step.onFailure[locale]?.trim().length, `${id}.${step.id}.onFailure.${locale}`).toBeGreaterThan(0);
+          for (const link of step.links ?? []) {
+            expect(link.label[locale]?.trim().length, `${id}.${step.id}.link.${locale}`).toBeGreaterThan(0);
+          }
+        }
+      }
     }
   });
 

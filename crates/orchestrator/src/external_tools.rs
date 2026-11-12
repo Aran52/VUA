@@ -676,6 +676,22 @@ mod tests {
         assert_eq!(second.observe().unwrap().activity, "starting");
         assert_eq!(second.observe().unwrap().tool_id, "space");
     }
+
+    #[test]
+    fn mixed_separator_windows_paths_match_nested_tool_executables() {
+        assert!(super::same_path(
+            std::path::Path::new(r"C:\Steam\steamapps\common\SteamVR/bin/win64/vrstartup.exe"),
+            std::path::Path::new(r"C:\Steam\steamapps\common\SteamVR\bin\win64\vrstartup.exe"),
+        ));
+        assert!(super::same_path(
+            std::path::Path::new(
+                r"\\?\C:\Steam\steamapps\common\OVR Toolkit\Launcher/OVR Toolkit Launcher.exe"
+            ),
+            std::path::Path::new(
+                r"c:\steam\steamapps\common\ovr toolkit\launcher\ovr toolkit launcher.exe"
+            ),
+        ));
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ToolAction {
@@ -741,9 +757,18 @@ pub struct ToolService {
     close_wait: Duration,
     reinstall_wait: Duration,
 }
+fn normalize_compare_path(path: &std::path::Path) -> String {
+    let raw = path.to_string_lossy();
+    let stripped = raw.strip_prefix(r"\\?\").unwrap_or(&raw);
+    let mut normalized = stripped.replace('/', "\\");
+    while normalized.len() > 3 && normalized.ends_with('\\') {
+        normalized.pop();
+    }
+    normalized
+}
+
 fn same_path(a: &std::path::Path, b: &std::path::Path) -> bool {
-    a.to_string_lossy()
-        .eq_ignore_ascii_case(&b.to_string_lossy())
+    normalize_compare_path(a).eq_ignore_ascii_case(&normalize_compare_path(b))
 }
 impl ToolService {
     pub fn new(

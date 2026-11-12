@@ -469,12 +469,13 @@ function RecipeDetails({ graph, saved, rows, plan, sources, pictures, onSelect, 
     <h3>{format(copy.packages, { count: parts.package.length })}</h3>
     <div className="vua-control__parts">{parts.package.map(node => <PartButton key={node.id} node={node} onSelect={onSelect}
       detail={[recipe.packages[node.packageId!], others(node)].filter(Boolean).join(" · ")}/>)}</div>
-    {settings.fits + settings.lighting + settings.sdkFixes > 0 ? <>
+    {settings.fits + settings.lighting + settings.sdkFixes + settings.optimizer > 0 ? <>
       <h3>{copy.adjustments}</h3>
       <p className="vua-caption vua-text-secondary">{[
         settings.fits > 0 ? format(copy.adjustFits, { count: settings.fits }) : null,
         settings.lighting > 0 ? format(copy.adjustLighting, { count: settings.lighting }) : null,
         settings.sdkFixes > 0 ? format(copy.adjustFixes, { count: settings.sdkFixes }) : null,
+        settings.optimizer > 0 ? copy.adjustOptimizer : null,
       ].filter(Boolean).join(" · ")}</p>
     </> : null}
   </div>;

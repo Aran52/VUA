@@ -33,10 +33,10 @@ export function ModulesPage({ onOpen, embedded = false, activationSwitch = false
         <div className="vua-page__actions"><h2 className="vua-title">{text("amf")}</h2><Badge tone={snapshot.state === "ready" ? "success" : snapshot.state === "failed" ? "warning" : "neutral"}>{text(snapshot.state)}</Badge></div>
         {activationSwitch ? <label className="vua-settings-toggle"><input type="checkbox" role="switch" data-nav-id="toggle-amf" checked={snapshot.installed} disabled={changing || snapshot.state === "starting" || snapshot.state === "stopping"} onChange={event => void change(event.target.checked)} />{text("enable")}</label> : null}
         <div className="vua-page__actions">
-          {snapshot.state === "ready" ? <Button variant="primary" data-nav-id="open-amf" onClick={onOpen}>{text("open")}</Button> : !activationSwitch || snapshot.state === "failed" ? <Button variant="primary" data-nav-id="enable-amf" disabled={changing || snapshot.state === "starting" || snapshot.state === "stopping"} onClick={() => void change(true)}>{changing ? text("wait") : snapshot.installed ? text("retry") : text("enable")}</Button> : null}
+          {snapshot.state === "ready" ? <Button variant="primary" data-nav-id="open-amf" onClick={onOpen}>{text("open")}</Button> : !activationSwitch || snapshot.state === "failed" ? <Button variant="primary" data-nav-id="enable-amf" disabled={changing || snapshot.state === "starting" || snapshot.state === "stopping"} onClick={() => void change(true)}>{changing ? text("wait") : snapshot.state === "starting" ? text("starting") : snapshot.state === "stopping" ? text("stopping") : snapshot.installed ? text("retry") : text("enable")}</Button> : null}
           {snapshot.installed && !activationSwitch ? <Popconfirm title={text("disableConfirm")} description={text("retained")} confirmLabel={text("disable")} cancelLabel={strings.common.cancel}
             onConfirm={() => void change(false)}>
-            <Button variant="subtle" data-nav-id="disable-amf" disabled={changing || snapshot.state === "starting"}>{text("disable")}</Button>
+            <Button variant="subtle" data-nav-id="disable-amf" disabled={changing || snapshot.state === "starting" || snapshot.state === "stopping"}>{text("disable")}</Button>
           </Popconfirm> : null}
         </div>
         {activationSwitch && snapshot.installed ? <p className="vua-caption vua-text-secondary">{text("retained")}</p> : null}

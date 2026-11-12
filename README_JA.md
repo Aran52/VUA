@@ -60,7 +60,7 @@ AMF が管理し、無効にしてもデータは残ります。
 
 ## ドキュメント
 
-- [ドキュメントガイド](docs/README.md)——タスクごとの最小ルート
+- [ドキュメントガイド](docs/README.md) — タスクごとの最小ルート
 - [プロダクト境界](docs/product-boundary.md)
 - [アーキテクチャ](docs/architecture/system.md)
 - [v1.1.0 リリースノート（準備版）](docs/release/v1.1.0_JA.md) · [v1.0.0 リリースノート](docs/release/v1.0.0_JA.md)

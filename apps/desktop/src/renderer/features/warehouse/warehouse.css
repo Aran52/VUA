@@ -535,8 +535,6 @@
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  max-height: 240px;
-  overflow-y: auto;
 }
 
 .vua-warehouse-detail__source-url {

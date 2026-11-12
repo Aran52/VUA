@@ -350,6 +350,7 @@ impl WindowState {
                 let ready = dir.join("input-ready");
                 let failed = dir.join("input-failed");
                 let external_cancel = dir.join("cancel");
+                let unpack_deadline = Instant::now() + Duration::from_secs(600);
                 while !ready.exists() {
                     if cancel.load(Ordering::Relaxed) || external_cancel.exists() {
                         let _ = fs::write(&external_cancel, b"1");
@@ -358,7 +359,7 @@ impl WindowState {
                         post_update();
                         return;
                     }
-                    if failed.exists() {
+                    if failed.exists() || Instant::now() >= unpack_deadline {
                         shared.lock().expect("worker state").outcome =
                             Some(WorkerOutcome::Failed("incomplete_release_pack".into()));
                         post_update();
@@ -1004,10 +1005,19 @@ unsafe extern "system" fn wndproc(hwnd: HWND, message: u32, w: WPARAM, l: LPARAM
                     .iter()
                     .position(|&(_, enabled, rect)| enabled && rect.contains(x, y))
                 {
+                    state.hovered_idx = Some(idx);
                     state.pressed_idx = Some(idx);
                     state.focused_idx = Some(idx);
                     unsafe {
                         SetCapture(hwnd);
+                        InvalidateRect(hwnd, ptr::null(), 0);
+                    }
+                }
+                return 0;
+            }
+            WM_CAPTURECHANGED => {
+                if state.pressed_idx.take().is_some() {
+                    unsafe {
                         InvalidateRect(hwnd, ptr::null(), 0);
                     }
                 }
@@ -1078,11 +1088,20 @@ unsafe extern "system" fn wndproc(hwnd: HWND, message: u32, w: WPARAM, l: LPARAM
                             .get(idx)
                             .and_then(|&(act, en, _)| en.then_some(act))
                     } else if vk == VK_RETURN {
-                        // Enter defaults to Retry or Close on static error/failure cards, never auto-confirms destructive Uninstall without focus
-                        state.layout.buttons.iter().find_map(|&(act, en, _)| {
-                            (en && matches!(act, ButtonAction::Retry | ButtonAction::Close))
-                                .then_some(act)
-                        })
+                        // Enter defaults to Retry (primary on error cards) or Close (primary on failure card),
+                        // and never auto-confirms destructive Uninstall without explicit focus.
+                        state
+                            .layout
+                            .buttons
+                            .iter()
+                            .find_map(|&(act, en, _)| {
+                                (en && act == ButtonAction::Retry).then_some(act)
+                            })
+                            .or_else(|| {
+                                state.layout.buttons.iter().find_map(|&(act, en, _)| {
+                                    (en && act == ButtonAction::Close).then_some(act)
+                                })
+                            })
                     } else {
                         None
                     };
@@ -1332,19 +1351,26 @@ pub fn ui_spawn(args: &[String]) -> i32 {
     let _ = fs::write(session.join("worker.pid"), child.id().to_string());
 
     let spawned_marker = session.join("spawned");
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let deadline = Instant::now() + Duration::from_secs(15);
     while Instant::now() < deadline {
         if spawned_marker.exists() {
             return 0;
         }
         if matches!(child.try_wait(), Ok(Some(_)) | Err(_)) {
-            return if spawned_marker.exists() { 0 } else { 1 };
+            if spawned_marker.exists() {
+                return 0;
+            }
+            let _ = fs::remove_file(session.join("worker.pid"));
+            return 1;
         }
         std::thread::sleep(Duration::from_millis(15));
     }
     if spawned_marker.exists() {
         0
     } else {
+        let _ = child.kill();
+        let _ = child.wait();
+        let _ = fs::remove_file(session.join("worker.pid"));
         1
     }
 }

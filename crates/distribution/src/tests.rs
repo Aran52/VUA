@@ -1245,3 +1245,80 @@ async fn running_installation_and_incompatible_data_block_changes() {
     );
     assert_eq!(installation.snapshot().unwrap().amf_version, "0.1.0");
 }
+
+#[tokio::test]
+async fn install_reconciles_stale_activation_journal_pending_state_and_cached_archives() {
+    let temp = tempfile::tempdir().unwrap();
+    let input_v1 = temp.path().join("input-v1");
+    let (mut manifest_v1, raw_v1, key) = fixture(&input_v1);
+    let installation = Installation::with_key(&temp.path().join("installed"), true, key).unwrap();
+    installation
+        .install(&raw_v1, &input_v1, &mut transfer())
+        .await
+        .unwrap();
+
+    // Simulate an unacknowledged component activation journal + stale pending/cache files
+    let active_v1 = installation.active().unwrap();
+    manifest_v1.amf.version = "0.1.1".into();
+    let (raw_mid, _) = signed(&manifest_v1);
+    let (id_mid, _) = installation.store_manifest(&raw_mid).unwrap();
+    let mut next_mid = active_v1.clone();
+    next_mid.amf_manifest = id_mid;
+    fs::create_dir_all(installation.root.join("updates-v02")).unwrap();
+    fs::write(
+        installation.root.join("updates-v02/activation.json"),
+        serde_json::to_vec(&serde_json::json!({
+            "schemaVersion": "0.2",
+            "before": active_v1,
+            "next": next_mid,
+            "state": "verifying"
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    fs::write(installation.root.join("pending.json"), b"{}").unwrap();
+    fs::write(
+        installation.root.join("updates-v02/amf-pending.json"),
+        b"{}",
+    )
+    .unwrap();
+    fs::write(installation.root.join("cache/orphaned-v1.zip"), b"stale").unwrap();
+    fs::write(installation.root.join("cache/orphaned-v1.part"), b"stale").unwrap();
+
+    // Upgrade via installer to 0.6.8 / AMF 0.1.2
+    let mut manifest_v2 = manifest_v1.clone();
+    manifest_v2.release_version = "0.6.8".into();
+    manifest_v2.host.version = "0.6.8".into();
+    manifest_v2.amf.version = "0.1.2".into();
+    let (raw_v2, _) = signed(&manifest_v2);
+    installation
+        .install(&raw_v2, &input_v1, &mut transfer())
+        .await
+        .unwrap();
+
+    assert!(!installation.recover_component_activation().unwrap());
+    assert_eq!(
+        installation.data_trial_status(temp.path()).unwrap()["pending"],
+        false
+    );
+    assert!(!installation.root.join("pending.json").exists());
+    assert!(!installation
+        .root
+        .join("updates-v02/activation.json")
+        .exists());
+    assert!(!installation
+        .root
+        .join("updates-v02/amf-pending.json")
+        .exists());
+    assert!(!installation.root.join("cache/orphaned-v1.zip").exists());
+    assert!(!installation.root.join("cache/orphaned-v1.part").exists());
+
+    // Simulate an interrupted atomic write remnant and verify remove() sweeps it
+    fs::write(
+        installation.root.join("active.json.pending-999"),
+        b"partial",
+    )
+    .unwrap();
+    installation.remove().unwrap();
+    assert!(!installation.root.join("active.json.pending-999").exists());
+}

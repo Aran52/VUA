@@ -122,7 +122,8 @@ function Album({ production, release, checksEnabled, onNavigate }: {
   const [starting, setStarting] = useState(false);
   const [actionError, setActionError] = useState<{ runId: string; kind: "bake" | "upload" | "localTest"; error: unknown } | null>(null);
   const otherWork = list?.busy ?? false;
-  const queuedFor = (runId: string) => list?.queue.find(item => item.runId === runId) ?? null;
+  const queuedItemsFor = (runId: string) => list?.queue.filter(item => item.runId === runId) ?? [];
+  const queuedFor = (runId: string) => queuedItemsFor(runId)[0] ?? null;
   const ownWork = (runId: string) => { const run = runs[runId]; const state = states[runId] ?? null; return (run !== undefined && runBusy(run)) || queuedFor(runId) !== null || runningUpload(state) !== null || runningLocalTest(state) !== null; };
   // Work started here, followed until it ends: one that waited and then could not start shows why.
   const [followed, setFollowed] = useState<Readonly<Record<string, { taskId: string; kind: "bake" | "upload" | "localTest" }>>>({});
@@ -253,13 +254,13 @@ function Album({ production, release, checksEnabled, onNavigate }: {
             ...(listEntry?.recipeId ? { onRebuildRecipe: () => { requestProductionRecipe(listEntry.recipeId!); onNavigate("workshop"); } } : {}),
           } : {}),
           busy: ownWork(runId),
-          uploadBlocked: runningUpload(state) !== null || queuedFor(runId)?.operation === "amf.production.upload",
-          localTestBlocked: runningLocalTest(state) !== null || queuedFor(runId)?.operation === "amf.production.localTest",
+          uploadBlocked: runningUpload(state) !== null || queuedItemsFor(runId).some(item => item.operation === "amf.production.upload"),
+          localTestBlocked: runningLocalTest(state) !== null || queuedItemsFor(runId).some(item => item.operation === "amf.production.localTest"),
           otherWork,
           queued: (() => { const queued = queuedFor(runId); return queued ? { operation: queued.operation, ahead: list ? queueAhead(list, queued.taskId) : 1, onRemove: () => { void gateway.task.cancel(queued.taskId).then(refresh, () => {}); } } : null; })(),
           onUpload: () => { setDialogError(null); setDialog({ runId, requestId: null }); },
           onLocalTest: () => act(runId, "localTest", () => release.localTest(runId)),
-          onStop: () => { void gateway.task.cancel(followed[runId]?.taskId ?? run.taskId).then(refresh, () => {}); },
+          onStop: () => { const targetTaskId = followed[runId]?.taskId ?? list?.running.find(item => item.runId === runId)?.taskId ?? run.taskId; void gateway.task.cancel(targetTaskId).then(refresh, () => {}); },
           onCheckAgain: () => checkAgain(runId),
           onSdkFix: fixes => act(runId, "upload", () => production.sdkFix(runId, fixes)),
         }}

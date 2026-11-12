@@ -359,10 +359,52 @@ impl Installation {
             host_manifest: id,
             amf_manifest: amf_id,
         };
+        if let Ok(Some(journal)) = self.activation_journal() {
+            if journal.state == "healthy" {
+                let _ = self.commit_data_recovery(&journal.before, &journal.next);
+            } else if journal.state != "recovered" {
+                let _ = self.recover_data_recovery(&journal.before, &journal.next);
+            }
+        }
         if let Some(old) = previous.filter(|old| old != &next) {
             atomic_json(&self.root.join("previous.json"), &old)?;
         }
         atomic_json(&self.root.join("active.json"), &next)?;
+        for stale in [
+            "pending.json",
+            "updates-v02/hot-intent.json",
+            "updates-v02/host-pending.json",
+            "updates-v02/amf-pending.json",
+            "updates-v02/pair-plan.json",
+            "updates-v02/data-intent.json",
+            "updates-v02/activation.json",
+        ] {
+            if let Ok(path) = owned_path(&self.root, stale) {
+                if path.exists() {
+                    let _ = fs::remove_file(path);
+                }
+            }
+        }
+        if let Ok(cache_dir) = owned_path(&self.root, "cache") {
+            if let Ok(entries) = fs::read_dir(cache_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file()
+                        && path
+                            .extension()
+                            .and_then(|ext| ext.to_str())
+                            .is_some_and(|ext| {
+                                matches!(
+                                    ext.to_ascii_lowercase().as_str(),
+                                    "zip" | "bin" | "pack" | "part"
+                                )
+                            })
+                    {
+                        let _ = fs::remove_file(path);
+                    }
+                }
+            }
+        }
         if self.prune_unreferenced().is_err() {
             transfer.progress("cleanup-later", 0, 1);
         }
@@ -730,6 +772,17 @@ impl Installation {
             let path = owned_path(&self.root, name)?;
             if path.exists() {
                 fs::remove_file(path)?;
+            }
+        }
+        if let Ok(entries) = fs::read_dir(&self.root) {
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                if name.to_string_lossy().contains(".pending-") {
+                    let path = entry.path();
+                    if path.is_file() {
+                        let _ = fs::remove_file(path);
+                    }
+                }
             }
         }
         Ok(())

@@ -77,13 +77,17 @@ export function StepRows({ rows }: { rows: readonly { readonly id: string; reado
 }
 
 /** Through Steam: the next step comes from the platform's state on this computer. */
-export function GuidedFlow({ setup, toolId, detected, onStep }: { setup: PlaySetup; toolId: ExternalToolId; detected: readonly string[]; onStep: (step: PlayFlowStep) => void }) {
+export function GuidedFlow({ setup, toolId, detected, refreshToken = 0, onStep }: { setup: PlaySetup; toolId: ExternalToolId; detected: readonly string[]; refreshToken?: number; onStep: (step: PlayFlowStep) => void }) {
   const copy = playSetupCopy[currentLocale];
   const flow = playFlowCopy[currentLocale];
   const tools = strings.toolConnection;
   const name = PLATFORM_NAMES[setup.platform];
   const { sop, catalog } = usePlayScenarioSop(setup);
   const live = useToolConnection(toolId);
+  const liveRefresh = live.refresh;
+  useEffect(() => {
+    if (refreshToken > 0) void liveRefresh();
+  }, [refreshToken, liveRefresh]);
   const s = live.snapshot;
   const state = deriveToolCardState(live);
   const act = () => {

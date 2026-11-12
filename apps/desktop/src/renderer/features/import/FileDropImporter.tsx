@@ -70,6 +70,7 @@ export function FileDropImporter({ onOpenLibrary }: { onOpenLibrary: () => void 
       }
       if (current.state !== "ready" || snapshot?.outcome === "failed") { setPending(files); setDialogOpen(true); if (enable) setError(copy.failed); return; }
       const paths = await face.resolveDroppedFiles(files);
+      if (paths.length === 0) { commandId.current = null; setPending(null); setDialogOpen(false); return; }
       commandId.current ??= `whcmd-${crypto.randomUUID()}`;
       const outcome = await gateway.warehouseCommands.importPaths(paths, { commandId: commandId.current });
       if (!outcome.ok || !("accepted" in outcome)) { setPending(files); setError(copy.failed); setDialogOpen(true); return; }
@@ -93,12 +94,15 @@ export function FileDropImporter({ onOpenLibrary }: { onOpenLibrary: () => void 
   useEffect(() => {
     let depth = 0;
     const nativeFiles = (event: DragEvent) => event.dataTransfer?.types.includes("Files") === true;
+    const ignoredTarget = (event: DragEvent) => event.target instanceof Element && event.target.closest("[data-share-drop],input,textarea") !== null;
     const enter = (event: DragEvent) => {
       if (!nativeFiles(event)) return;
+      if (ignoredTarget(event)) { depth = 0; setDragging(false); return; }
       event.preventDefault(); depth++; setDragging(true);
     };
     const over = (event: DragEvent) => {
       if (!nativeFiles(event)) return;
+      if (ignoredTarget(event)) { depth = 0; setDragging(false); return; }
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = busy.current ? "none" : "copy";
     };
@@ -108,9 +112,13 @@ export function FileDropImporter({ onOpenLibrary }: { onOpenLibrary: () => void 
     };
     const drop = (event: DragEvent) => {
       if (!nativeFiles(event)) return;
-      event.preventDefault(); event.stopPropagation(); depth = 0; setDragging(false);
+      if (ignoredTarget(event)) { depth = 0; setDragging(false); return; }
       // Read before DataTransfer's protected store closes; no File contents leave VUA.
       const files = Array.from(event.dataTransfer?.files ?? []);
+      if (event.target instanceof Element && event.target.closest(".vua-control") !== null && files.length === 1 && /\.(png|jpe?g|gif|webp)$/iu.test(files[0]!.name)) {
+        depth = 0; setDragging(false); return;
+      }
+      event.preventDefault(); event.stopPropagation(); depth = 0; setDragging(false);
       if (files.length > 0) beginRef.current(files);
     };
     const reset = () => { depth = 0; setDragging(false); };

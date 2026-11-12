@@ -245,6 +245,7 @@ pub struct DibSurface {
     pixels: *mut u32,
     pub width: i32,
     pub height: i32,
+    cached_fonts: Option<((Lang, u32), FontSet)>,
 }
 
 impl DibSurface {
@@ -283,8 +284,25 @@ impl DibSurface {
                 pixels: bits.cast::<u32>(),
                 width,
                 height,
+                cached_fonts: None,
             })
         }
+    }
+
+    fn fonts(&mut self, lang: Lang, dpi: u32, scale: f32) -> FontSetHandles {
+        let key = (lang, dpi);
+        let rebuild = self
+            .cached_fonts
+            .as_ref()
+            .is_none_or(|(cached_key, _)| *cached_key != key);
+        if rebuild {
+            self.cached_fonts = Some((key, FontSet::create(lang.font_family(), scale)));
+        }
+        self.cached_fonts
+            .as_ref()
+            .expect("cached fonts")
+            .1
+            .handles()
     }
 
     pub fn ensure_size(&mut self, width: i32, height: i32) {
@@ -487,7 +505,8 @@ fn blend_pixel(dst: u32, src: Rgb, alpha: f32) -> u32 {
     )
 }
 
-struct FontSet {
+#[derive(Clone, Copy)]
+struct FontSetHandles {
     title: HFONT,
     subtitle: HFONT,
     body_medium: HFONT,
@@ -497,21 +516,35 @@ struct FontSet {
     button_regular: HFONT,
 }
 
+struct FontSet {
+    handles: FontSetHandles,
+}
+
 impl FontSet {
     fn create(family: &str, scale: f32) -> Self {
         Self {
-            title: make_font(family, (18.0 * scale).round() as i32, FW_SEMIBOLD as i32),
-            subtitle: make_font(family, (13.0 * scale).round() as i32, FW_NORMAL as i32),
-            body_medium: make_font(family, (12.5 * scale).round() as i32, FW_MEDIUM as i32),
-            body_regular: make_font(family, (12.5 * scale).round() as i32, FW_NORMAL as i32),
-            badge: make_font(
-                "Segoe UI",
-                (11.5 * scale).round() as i32,
-                FW_SEMIBOLD as i32,
-            ),
-            button_semibold: make_font(family, (13.0 * scale).round() as i32, FW_SEMIBOLD as i32),
-            button_regular: make_font(family, (13.0 * scale).round() as i32, FW_MEDIUM as i32),
+            handles: FontSetHandles {
+                title: make_font(family, (18.0 * scale).round() as i32, FW_SEMIBOLD as i32),
+                subtitle: make_font(family, (13.0 * scale).round() as i32, FW_NORMAL as i32),
+                body_medium: make_font(family, (12.5 * scale).round() as i32, FW_MEDIUM as i32),
+                body_regular: make_font(family, (12.5 * scale).round() as i32, FW_NORMAL as i32),
+                badge: make_font(
+                    "Segoe UI",
+                    (11.5 * scale).round() as i32,
+                    FW_SEMIBOLD as i32,
+                ),
+                button_semibold: make_font(
+                    family,
+                    (13.0 * scale).round() as i32,
+                    FW_SEMIBOLD as i32,
+                ),
+                button_regular: make_font(family, (13.0 * scale).round() as i32, FW_MEDIUM as i32),
+            },
         }
+    }
+
+    fn handles(&self) -> FontSetHandles {
+        self.handles
     }
 }
 
@@ -519,13 +552,13 @@ impl Drop for FontSet {
     fn drop(&mut self) {
         unsafe {
             for f in [
-                self.title,
-                self.subtitle,
-                self.body_medium,
-                self.body_regular,
-                self.badge,
-                self.button_semibold,
-                self.button_regular,
+                self.handles.title,
+                self.handles.subtitle,
+                self.handles.body_medium,
+                self.handles.body_regular,
+                self.handles.badge,
+                self.handles.button_semibold,
+                self.handles.button_regular,
             ] {
                 if !f.is_null() {
                     DeleteObject(f as HGDIOBJ);
@@ -612,7 +645,7 @@ pub fn render_card(
     let px = |dp: f32| -> i32 { (dp * scale).round() as i32 };
     let border_px = scale.max(1.0);
     let pal = &model.palette;
-    let fonts = FontSet::create(model.lang.font_family(), scale);
+    let fonts = surface.fonts(model.lang, dpi.max(96), scale);
 
     // 1. Background + subtle purple glow
     surface.fill_background(pal.canvas, pal.glow, pal.glow_alpha, scale);

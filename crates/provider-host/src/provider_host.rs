@@ -1,6 +1,8 @@
 //! Transport adapter for the supervised Orchestrator Provider process.
 mod read_queries;
 
+mod catalog_enrichment;
+
 static COMPONENT_BUILD_ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 pub fn amf_build_identity(version: &str, build: Option<&str>) -> String {
     format!("amf/{version}@{}", build.unwrap_or("unknown"))
@@ -1857,6 +1859,9 @@ fn served_capabilities(state: &HostState) -> Value {
         {"operationId": "library.downloadStatus", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "library.list", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "catalog.searchProducts", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "catalog.enrichmentQueue", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "catalog.beginEnrichment", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "catalog.observeProduct", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "library.importFolders", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "library.entryMetadata", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "library.updateEntryMetadata", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
@@ -5710,6 +5715,9 @@ fn catalog_request(
         ));
     };
     match method {
+        "catalog.enrichmentQueue" | "catalog.beginEnrichment" | "catalog.observeProduct" => {
+            catalog_enrichment::request(&warehouse, method, request, request_id, correlation_id)
+        }
         "catalog.beginLibrarySync" | "catalog.finishLibrarySync" | "catalog.librarySyncStatus" => {
             catalog_sync_run_request(state, warehouse, method, request, request_id, correlation_id)
         }
@@ -6504,47 +6512,7 @@ fn product_page_observation(
         Some(raw) => Some(raw.to_owned()),
         None => warehouse.bdl.library_type_of(&native_product_id),
     };
-    let subproducts = extracted
-        .subproducts
-        .iter()
-        .map(|sub| vua_bdl_store::bdl_store::SubproductObservation {
-            variation_id: sub.variation_id.clone(),
-            name: sub.name.clone(),
-            price_amount: sub.price_amount.clone(),
-            price_currency: sub.price_currency.clone(),
-            availability: Some(sub.availability.clone()),
-        })
-        .collect();
-    let page_hash = vua_acquisition::library_page::page_content_hash(html);
-    Ok(vua_bdl_store::bdl_store::ProductObservation {
-        product_id: format!("booth:{native_product_id}"),
-        native_product_id,
-        library_type,
-        variant_name: None,
-        source_url: format!("https://booth.pm/en/items/{}", extract_product_page(html)?.native_product_id),
-        final_url: None,
-        status: vua_bdl_store::bdl_store::ProductObservationStatus::Complete,
-        source_locale: None,
-        source_category: extracted.source_category,
-        title: extracted.title,
-        description: extracted.body_text,
-        age_restriction: None,
-        adult: extracted.adult,
-        availability: extracted.availability,
-        price_amount: extracted.price_amount,
-        price_currency: extracted.price_currency,
-        shop_name: extracted.shop_name,
-        shop_url: extracted.shop_url,
-        image_urls: extracted.image_urls,
-        video_urls: extracted.video_urls,
-        subproducts,
-        source_published_at: extracted.published_date_raw,
-        content_hash: page_hash,
-        observed_at: chrono_now_rfc3339(),
-        run_id: None,
-        processor_version: "catalog-sync/0.2-product".to_owned(),
-        missing_fields: extracted.missing_fields.into_iter().map(str::to_owned).collect(),
-    })
+    Ok(catalog_enrichment::product_observation(extracted, html, library_type))
 }
 
 fn chrono_now_rfc3339() -> String {

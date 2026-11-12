@@ -29,6 +29,7 @@ import type { LibraryPendingRemovalsParamsV01, LibraryPendingRemovalsV01, Librar
 import type { RecipeDraftSelectionStatusV01 } from "./recipe-selection-draft-v01.js";
 
 import { isBoothSearchParamsV01, type BoothSearchParamsV01, type BoothSearchResultV01 } from "./booth-search-v01.js";
+import { isCatalogEnrichmentParamsV01, type CatalogEnrichmentQueueV01, type CatalogEnrichmentBeginV01, type CatalogProductObservationV01, type CatalogEnrichmentResultV01 } from "./catalog-enrichment-v01.js";
 export const APPLICATION_CONTRACT_VERSION = "0.1" as const;
 
 export type ApplicationContractVersion = typeof APPLICATION_CONTRACT_VERSION;
@@ -2015,6 +2016,11 @@ export interface CatalogSyncStatusQueryV03 extends ApplicationRequestBaseV01 {
 }
 // Public-search parsing is a separate, read-only face, with no account membership write.
 export interface BoothSearchQueryV01 extends ApplicationRequestBaseV01 { readonly kind: "query"; readonly method: "catalog.searchProducts"; readonly params: BoothSearchParamsV01 }
+export type CatalogEnrichmentRequestV01 = ApplicationRequestBaseV01 & (
+  | { readonly kind: "query"; readonly method: "catalog.enrichmentQueue"; readonly params: CatalogEnrichmentQueueV01 }
+  | { readonly kind: "command"; readonly commandId: string; readonly method: "catalog.beginEnrichment"; readonly params: CatalogEnrichmentBeginV01 }
+  | { readonly kind: "command"; readonly commandId: string; readonly method: "catalog.observeProduct"; readonly params: CatalogProductObservationV01 }
+);
 export type LibraryDownloadCommandV01 = ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string } & (
   | { readonly method: "library.beginDownload"; readonly params: LibraryDownloadBeginV01 }
   | { readonly method: "library.observeDownload"; readonly params: LibraryDownloadObservationV01 }
@@ -2898,6 +2904,7 @@ export type ApplicationRequestV01 =
   | CatalogSyncControlCommandV03
   | CatalogSyncStatusQueryV03
   | BoothSearchQueryV01
+  | CatalogEnrichmentRequestV01
   | LibraryDownloadCommandV01
   | LibraryDownloadQueryV01
   | LibraryViewQueryV01
@@ -3069,6 +3076,7 @@ export type ApplicationSuccessValueV01 =
   | CatalogDetailResultV03
   | CatalogStatusResultV03
   | BoothSearchResultV01
+  | CatalogEnrichmentResultV01
   | WarehouseListEntriesResultV03
   | WarehouseEntryDetailResultV03
   | DownloadsListCompletedResultV04
@@ -3819,6 +3827,12 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
   if (value.method === "library.list" || value.method === "library.productFiles") {
     return value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
       && (isLibraryViewParamsV01(value.method, value.params) || value.method === "library.list" && (isLibraryListParamsV02(value.params) || isLibraryListParamsV03(value.params)));
+  }
+  if (value.method === "catalog.enrichmentQueue" || value.method === "catalog.beginEnrichment" || value.method === "catalog.observeProduct") {
+    const query = value.method === "catalog.enrichmentQueue";
+    return value.kind === (query ? "query" : "command")
+      && hasExactKeys(value, query ? ["contractVersion", "requestId", "correlationId", "kind", "method", "params"] : ["contractVersion", "requestId", "correlationId", "kind", "method", "commandId", "params"])
+      && (query || isIdentifier(value.commandId)) && isCatalogEnrichmentParamsV01(value.method, value.params);
   }
   if (value.method === "catalog.searchProducts") {
     return value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])

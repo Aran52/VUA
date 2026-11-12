@@ -571,6 +571,19 @@ User-adopted implementation boundary (2026-09-29), informed by the
 - State clearly that VUA has no VRChat Inc. affiliation or endorsement. Do not infer approval from
   the continued existence of VRCX or other tools, or promise blanket policy compliance.
 
+## BOOTH library enrichment (user ruling, 2026-11-10)
+
+The author permits the public BOOTH product JSON representation and bounded background
+reads of products already present in the player's own account library. This is an explicit
+exception for product metadata, not an assertion that BOOTH documents or guarantees this
+interface. JSON parsing falls back to the ordinary product page when the representation is
+unavailable or unrecognized. Unknown facts remain unknown; access controls are respected.
+
+The [catalog-enrichment contract](protocols/catalog-enrichment-v0.1.md) owns the single-reader,
+five-second spacing, 60-product launch limit, seven-day retry interval and failure stops.
+Sessions and observations stay local. Enrichment does not enumerate unrelated pages, acquire
+materials, infer ownership, or follow description links. Disabling AMF or quitting stops reads.
+
 ## Update-distribution request statistics (user ruling, 2026-11-07)
 
 Update checks and downloads can contact ph-r.com, GitHub and configured mirrors. The distribution

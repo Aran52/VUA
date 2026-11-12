@@ -63,6 +63,9 @@ pub use library_records::{RemoveLocalEntries, RemovedLocalEntries};
 mod library_cards;
 pub use library_cards::{LibraryCardTarget, RemoveLibraryCards};
 
+#[path = "catalog_enrichment.rs"]
+mod catalog_enrichment;
+
 #[path = "terms.rs"]
 pub mod terms;
 
@@ -411,7 +414,7 @@ pub struct ProductObservation {
     pub video_urls: Vec<String>,
     pub subproducts: Vec<SubproductObservation>,
     pub source_published_at: Option<String>,
-    /// `sha256:<hex>` of the observed HTML.
+    /// `sha256:<hex>` of the observed HTML or product JSON.
     pub content_hash: String,
     /// Pipeline observation time (RFC 3339 string), never a BOOTH publish
     /// time.
@@ -507,7 +510,7 @@ fn normalized_search_text(observation: &ProductObservation) -> String {
             parts.push(name.as_str());
         }
     }
-    parts.join(" ").to_lowercase()
+    parts.join(" ").split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
 }
 
 /// Parses a JSON-array text column. The write face always persists a JSON
@@ -2030,6 +2033,17 @@ impl BdlStore {
                 observation.variant_name,
             ],
         )?;
+        // Index the merged row, not just this possibly sparse observation. Null
+        // fields retained by COALESCE must remain searchable after enrichment.
+        let (title, description, shop, variants): (Option<String>, Option<String>, Option<String>, String) = transaction.query_row(
+            "SELECT title,description,shop_name,COALESCE(subproducts,'[]') FROM products WHERE product_id=?1",
+            [&observation.product_id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )?;
+        let variants: Vec<Value> = serde_json::from_str(&variants)?;
+        let mut search_parts: Vec<&str> = [title.as_deref(), description.as_deref(), shop.as_deref()].into_iter().flatten().collect();
+        search_parts.extend(variants.iter().filter_map(|variant| variant["name"].as_str()));
+        let search = search_parts.join(" ").split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase();
+        transaction.execute("UPDATE products SET search_text_normalized=?2 WHERE product_id=?1", params![observation.product_id, search])?;
         if let Some(kind) = observation.library_type.as_deref() {
             transaction.execute(
                 "INSERT INTO product_library_memberships(product_id,library_type,first_seen_at,last_seen_at) VALUES (?1,?2,?3,?3)

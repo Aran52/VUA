@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vua-project.github.io/schemas/catalog-enrichment/v0.1/response.schema.json",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "productIds"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "productIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^booth:[0-9]{1,20}$"
+          },
+          "maxItems": 60,
+          "uniqueItems": true
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "productId",
+        "claimed"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "productId": {
+          "type": "string",
+          "pattern": "^booth:[0-9]{1,20}$"
+        },
+        "claimed": {
+          "type": "boolean"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "productId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "productId": {
+          "type": "string",
+          "pattern": "^booth:[0-9]{1,20}$"
+        }
+      }
+    }
+  ]
+}

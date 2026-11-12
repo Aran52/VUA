@@ -128,10 +128,10 @@ fn bdl_ext_001_full_page_extracts_every_spec_field() {
     assert_eq!(a.name.as_deref(), Some("Variant A"));
     assert_eq!(a.price_amount.as_deref(), Some("1,500"));
     assert_eq!(a.price_currency.as_deref(), Some("JPY"));
-    assert_eq!(a.availability, "available");
+    assert_eq!(a.availability.as_deref(), Some("available"));
     let b = &extracted.subproducts[1];
     assert_eq!(b.variation_id.as_deref(), Some("555002"));
-    assert_eq!(b.availability, "sold_out");
+    assert_eq!(b.availability.as_deref(), Some("sold_out"));
 
     // Body: description plus shop section, appended in DOM order; the
     // unconfirmed body image is excluded.

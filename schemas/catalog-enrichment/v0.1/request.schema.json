@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vua-project.github.io/schemas/catalog-enrichment/v0.1/request.schema.json",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractVersion",
+        "requestId",
+        "correlationId",
+        "kind",
+        "method",
+        "params"
+      ],
+      "properties": {
+        "contractVersion": {
+          "const": "0.1"
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "correlationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "query"
+        },
+        "method": {
+          "const": "catalog.enrichmentQueue"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "limit"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractVersion",
+        "requestId",
+        "correlationId",
+        "kind",
+        "method",
+        "commandId",
+        "params"
+      ],
+      "properties": {
+        "contractVersion": {
+          "const": "0.1"
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "correlationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "command"
+        },
+        "method": {
+          "const": "catalog.beginEnrichment"
+        },
+        "commandId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "productId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "productId": {
+              "type": "string",
+              "pattern": "^booth:[0-9]{1,20}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractVersion",
+        "requestId",
+        "correlationId",
+        "kind",
+        "method",
+        "commandId",
+        "params"
+      ],
+      "properties": {
+        "contractVersion": {
+          "const": "0.1"
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "correlationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "command"
+        },
+        "method": {
+          "const": "catalog.observeProduct"
+        },
+        "commandId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "productId",
+            "format",
+            "sourceUrl",
+            "body",
+            "fetchedAt"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "productId": {
+              "type": "string",
+              "pattern": "^booth:[0-9]{1,20}$"
+            },
+            "format": {
+              "enum": [
+                "json",
+                "html"
+              ]
+            },
+            "sourceUrl": {
+              "type": "string",
+              "pattern": "^https://booth\\.pm/(ja|en|ko|zh-cn|zh-tw)/items/[0-9]{1,20}(\\.json)?$"
+            },
+            "body": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 5000000
+            },
+            "fetchedAt": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "format": {
+                    "const": "json"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "sourceUrl": {
+                    "pattern": "\\.json$"
+                  }
+                }
+              },
+              "else": {
+                "properties": {
+                  "sourceUrl": {
+                    "pattern": "[0-9]$"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

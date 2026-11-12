@@ -18,6 +18,9 @@ use serde_json::{json, Value};
 use vua_bdl_store::{ArtifactMode, BdlStore};
 use vua_provider_host::{run_provider_host_with_services, WarehouseConfig};
 
+#[path = "catalog_sync_wire_v01/enrichment.rs"]
+mod enrichment_v01;
+
 mod orders_v01 {
     use super::*;
 
@@ -240,7 +243,7 @@ fn run_frames(world: &World, requests: &[Value]) -> Vec<Value> {
         .iter()
         .enumerate()
         .map(|(index, request)| {
-            let is_query = matches!(request["method"].as_str(), Some("library.list" | "catalog.librarySyncStatus" | "catalog.list" | "catalog.status" | "catalog.detail" | "dependencies.listByProduct"));
+            let is_query = matches!(request["method"].as_str(), Some("library.list" | "catalog.librarySyncStatus" | "catalog.enrichmentQueue" | "catalog.list" | "catalog.status" | "catalog.detail" | "dependencies.listByProduct"));
             let mut payload = json!({
                 "contractVersion": "0.1", "requestId": format!("req-{index}"), "correlationId": format!("corr-{index}"),
                 "kind": if is_query { "query" } else { "command" }, "method": request["method"], "params": request["params"],

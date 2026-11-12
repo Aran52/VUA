@@ -4,6 +4,7 @@ export * from "./amf-recommendation.js";
 export * from "./amf-recipe-v05.js";
 export * from "./catalog-sync.js";
 export * from "./catalog-sync-v03.js";
+export * from "./catalog-enrichment-v01.js";
 export * from "./catalog-orders.js";
 export * from "./library-download-v01.js";
 export * from "./booth-search-v01.js";

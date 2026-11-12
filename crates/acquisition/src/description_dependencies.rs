@@ -82,6 +82,19 @@ pub fn record_description_dependencies(
     Ok(())
 }
 
+/// Public JSON carries plain description text, not named HTML anchors. Keep
+/// URL relationships and terms links without inventing dependency names/types.
+pub fn record_description_text_dependencies(
+    store: &BdlStore, text: &str, source_product_id: &str, page_hash: &str, observed_at: &str,
+) -> Result<(), BdlStoreError> {
+    let links = crate::terms_links::description_text_links(text);
+    let mut targets: Vec<_> = links.iter().filter_map(|link| booth_product_id(&link.source_url))
+        .filter(|target| target != source_product_id).collect();
+    targets.sort(); targets.dedup();
+    store.record_description_links(source_product_id, &targets, page_hash, observed_at)?;
+    store.record_terms_links(source_product_id, &links, observed_at)
+}
+
 pub(crate) fn booth_product_id(href: &str) -> Option<String> {
     let href = href.trim();
     let (host, path) = if href.starts_with('/') && !href.starts_with("//") { ("booth.pm", href.strip_prefix('/')?) }

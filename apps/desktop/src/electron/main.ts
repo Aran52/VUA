@@ -1,4 +1,6 @@
 import { recipeTransferText } from "./amf-recipe-transfer.js";
+import { createCatalogEnricher, readCatalogProduct, type CatalogEnricher, type CatalogProductReader } from "./catalog-enrich.js";
+import { isCatalogProductIdV01, isCatalogEnrichmentQueueResultV01, isCatalogEnrichmentBeginResultV01 } from "@vua/contracts";
 import { registerRecipeSharing, queueShareLink } from "./recipe-share-ipc.js";
 import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
 import { quitStrings, runningTaskCount } from "./quit-guard.js";
@@ -262,6 +264,59 @@ let downloadPort: DownloadPort | null = null;
 let silentDownloadQueue: ReturnType<typeof createSilentDownloadQueue> | null = null;
 // 账号库同步当前运行(N5 S1):单并发守卫的持有位;结果落 provider 任务面
 let catalogSyncRun: CatalogSyncRun | null = null;
+let catalogEnricher: CatalogEnricher | null = null;
+let catalogProductReads = 0;
+let catalogSearchRunning = false;
+const catalogProductRequests = new Set<AbortController>();
+
+const catalogRequestBase = () => ({ contractVersion: APPLICATION_CONTRACT_VERSION,
+  requestId: crypto.randomUUID(), correlationId: crypto.randomUUID() } as const);
+function catalogProductReader(): CatalogProductReader {
+  return {
+    fetch: (url, signal) => {
+      if (remoteContent === null || !provider?.amfReady()) return Promise.reject(new Error("catalog_unavailable"));
+      return remoteContent.fetchWithSession(url, signal);
+    },
+    observe: async params => {
+      if (!provider?.amfReady()) throw new Error("catalog_unavailable");
+      return provider.invoke({ ...catalogRequestBase(), kind: "command", commandId: crypto.randomUUID(), method: "catalog.observeProduct", params });
+    },
+    observeLegacyHtml: async params => {
+      if (!provider?.amfReady() || params.format !== "html") return false;
+      const response = await provider.invoke({ ...catalogRequestBase(), kind: "command", commandId: crypto.randomUUID(), method: "catalog.ingestLibraryPage",
+        params: { schemaVersion: "0.2", sourceUrl: params.sourceUrl, html: params.body, fetchedAt: params.fetchedAt } });
+      return response.ok && "upsertedCount" in response.value && response.value.upsertedCount === 1
+        && "parsedCount" in response.value && response.value.parsedCount === 1;
+    },
+  };
+}
+function ensureCatalogEnricher(): void {
+  catalogEnricher ??= createCatalogEnricher({
+    canRun: () => !shutdownStarted && provider?.amfReady() === true && remoteContent !== null
+      && catalogSyncRun === null && catalogProductReads === 0 && !catalogSearchRunning && (silentDownloadQueue?.pending() ?? 0) === 0
+      && downloadPort?.hasActiveTransfers() !== true && amfIngestSink?.pending() !== true,
+    queue: async limit => {
+      if (!provider?.amfReady()) throw new Error("catalog_unavailable");
+      const response = await provider.invoke({ ...catalogRequestBase(), kind: "query", method: "catalog.enrichmentQueue", params: { schemaVersion: "0.1", limit } });
+      if (!response.ok || !isCatalogEnrichmentQueueResultV01(response.value)) throw new Error("catalog_enrichment_unavailable");
+      return response.value.productIds;
+    },
+    claim: async productId => {
+      if (!provider?.amfReady()) throw new Error("catalog_unavailable");
+      const response = await provider.invoke({ ...catalogRequestBase(), kind: "command", commandId: crypto.randomUUID(), method: "catalog.beginEnrichment", params: { schemaVersion: "0.1", productId } });
+      if (!response.ok || !isCatalogEnrichmentBeginResultV01(response.value) || response.value.productId !== productId) throw new Error("catalog_enrichment_unavailable");
+      return response.value.claimed;
+    },
+    read: (productId, signal, beforeRead) => readCatalogProduct(productId, catalogProductReader(), signal, beforeRead),
+    refreshed: updated => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed() && isAllowedLocalSender(window.webContents.getURL(), rendererUrl))
+          window.webContents.send("vua:catalog-sync:enriched", { schemaVersion: "0.1", updated });
+      }
+    },
+  });
+  catalogEnricher.scheduleIdle();
+}
 // 最近一次同步运行的终态事实(任务前失败可见性,真机 2026-10-05):首页就
 // 失败的运行在 provider 侧不产生任务,通知中心/任务轮询永远等不到——此处
 // 记下终态码,probe 面据此让渲染层把「已开始」翻成失败提示
@@ -1233,9 +1288,14 @@ function registerIpc(provider: ModuleProvider): void {
             : { ok: false as const, error: { code: response.error.code } },
         );
     };
+    catalogEnricher?.pause();
     const run = startCatalogSync(
       {
-        fetch: (url, signal) => content.fetchWithSession(url, signal),
+        fetch: async (url, signal) => {
+          catalogEnricher?.noteRead();
+          try { return await content.fetchWithSession(url, signal); }
+          finally { catalogEnricher?.noteRead(); }
+        },
         begin: (params) => invokeCatalogSync({ method: "catalog.beginLibrarySync", params }),
         invoke: (params) => invokeCatalogSync({ method: "catalog.ingestLibraryPage", params }),
         finish: (params) => invokeCatalogSync({ method: "catalog.finishLibrarySync", params }),
@@ -1258,6 +1318,8 @@ function registerIpc(provider: ModuleProvider): void {
     );
     void run.result.finally(() => {
       if (catalogSyncRun === run) catalogSyncRun = null;
+      if (catalogSyncLastTerminal?.runId === run.runId && catalogSyncLastTerminal.code === null)
+        void catalogEnricher?.afterSync();
     });
     await run.ready;
     return { status: "started", runId: run.runId };
@@ -1291,6 +1353,7 @@ function registerIpc(provider: ModuleProvider): void {
       if (!isLibraryDownloadSnapshotV01(response.value) || response.value.batchId !== batchId || response.value.state !== "running"
         || response.value.productId !== beginParams.productId || response.value.files.length !== beginParams.downloadableIds.length
         || response.value.files.some((file) => !beginParams.downloadableIds.includes(file.downloadableId))) throw new Error("library download receipt unconfirmed");
+      catalogEnricher?.pause();
       const accepted = queue.enqueue({ batchId, productId: response.value.productId, downloadableIds: response.value.files.map((file) => file.downloadableId) });
       if (accepted === 0) {
         for (const file of response.value.files) {
@@ -1324,58 +1387,49 @@ function registerIpc(provider: ModuleProvider): void {
       assertLocalSender(senderFrameUrl(event));
       assertAmfReady();
       if (remoteContent === null) throw new Error("remote content is unavailable");
-      if (typeof productId !== "string" || !/^booth:[0-9]+$/.test(productId)) {
+      if (!isCatalogProductIdV01(productId)) {
         throw new Error("invalid product id");
       }
-      const nativeId = productId.slice("booth:".length);
-      const url = `https://booth.pm/zh-cn/items/${nativeId}`;
-      const providerRef = provider;
-      if (providerRef === null) return { ok: false };
+      catalogProductReads += 1;
+      const abort = new AbortController(); catalogProductRequests.add(abort);
+      catalogEnricher?.pause();
+      catalogEnricher?.noteRead();
       try {
-        const outcome = await remoteContent.fetchWithSession(url, AbortSignal.timeout(30_000));
-        const finalPage = new URL(outcome.finalUrl);
-        if (outcome.status !== 200 || finalPage.protocol !== "https:"
-          || !(finalPage.hostname === "booth.pm" || finalPage.hostname.endsWith(".booth.pm"))
-          || /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?items\/([0-9]+)\/?$/i.exec(finalPage.pathname)?.[1] !== nativeId) return { ok: false };
-        const result = await providerRef
-          .invoke({
-            contractVersion: APPLICATION_CONTRACT_VERSION,
-            requestId: crypto.randomUUID(),
-            correlationId: crypto.randomUUID(),
-            commandId: crypto.randomUUID(),
-            kind: "command",
-            method: "catalog.ingestLibraryPage",
-            params: {
-              schemaVersion: "0.2",
-              sourceUrl: url,
-              html: outcome.body,
-              fetchedAt: new Date().toISOString(),
-            },
-          })
-          .then((r) => (r.ok ? { ok: true as const } : { ok: false as const }));
-        return result;
+        return { ok: await readCatalogProduct(productId, catalogProductReader(), AbortSignal.any([abort.signal, AbortSignal.timeout(60_000)])) === "updated" };
       } catch {
         return { ok: false };
+      } finally {
+        catalogProductReads -= 1;
+        catalogProductRequests.delete(abort);
+        catalogEnricher?.noteRead();
+        catalogEnricher?.scheduleIdle();
       }
     },
   );
 
-  let searchRunning = false;
   let lastSearchAt = 0;
   ipcMain.handle("vua:catalog-sync:search-products", async (event, query: unknown) => {
     assertLocalSender(senderFrameUrl(event)); assertAmfReady();
     const remote = remoteContent; const current = provider;
-    if (remote === null || current === null || searchRunning) throw new Error("search_unavailable");
-    searchRunning = true;
+    if (remote === null || current === null || catalogSearchRunning) throw new Error("search_unavailable");
+    catalogSearchRunning = true;
+    catalogEnricher?.pause();
     try {
       const wait = 1500 - (Date.now() - lastSearchAt);
       if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
       assertAmfReady(); lastSearchAt = Date.now();
+      catalogEnricher?.noteRead();
       return await searchPublicBoothProducts(query, {
-        fetch: url => remote.fetchWithSession(url, AbortSignal.timeout(30_000)),
+        fetch: async url => {
+          try { return await remote.fetchWithSession(url, AbortSignal.timeout(30_000)); }
+          finally { catalogEnricher?.noteRead(); }
+        },
         parse: params => current.invoke({ contractVersion: APPLICATION_CONTRACT_VERSION, requestId: crypto.randomUUID(), correlationId: crypto.randomUUID(), kind: "query", method: "catalog.searchProducts", params }),
       });
-    } finally { searchRunning = false; }
+    } finally {
+      catalogSearchRunning = false;
+      catalogEnricher?.scheduleIdle();
+    }
   });
   ipcMain.handle("vua:silent-download:control", (event, batchId: unknown, paused: unknown) => {
     assertLocalSender(senderFrameUrl(event)); assertAmfReady();
@@ -1920,6 +1974,7 @@ async function ensureAmfShell(): Promise<void> {
     amfIngestSink = ingestSink;
     const downloadSink = {
       emit: (event: DownloadEventV01): void => {
+        catalogEnricher?.pause();
         silentDownloadQueue?.notifyTransport(event);
         if (provider?.amfReady() === true) ingestSink.emit(event);
         else {
@@ -1978,12 +2033,16 @@ async function ensureAmfShell(): Promise<void> {
       confirmNavigation,
       willDownload: (event, item, webContents) => {
         if (!provider?.amfReady()) { event.preventDefault(); return; }
+        catalogEnricher?.pause();
         downloadPort?.handleWillDownload(event, item, webContents);
       },
     });
     remoteContent.setHostWindow(mainWindow);
     remoteContent.setSuspended(pendingNavConfirms.size > 0);
+    ensureCatalogEnricher();
     disposeAmfShell = () => {
+      catalogEnricher?.pause();
+      for (const request of catalogProductRequests) request.abort();
       catalogSyncRun?.stop(); catalogSyncRun = null;
       remoteContent?.dispose(); remoteContent = null;
       ingestSink.dispose(); amfIngestSink = null; silentDownloadQueue?.dispose(); silentDownloadQueue = null;
@@ -2046,6 +2105,10 @@ app.whenReady().then(async () => {
   if (!dataTrialValid) provider.refuseDataTrial();
   else provider.setDataTrial(dataTrialPending);
   provider.subscribeModule(snapshot => {
+    if (snapshot.state !== "ready") {
+      catalogEnricher?.pause();
+      for (const request of catalogProductRequests) request.abort();
+    }
     void (async () => {
       if (snapshot.state === "ready") await ensureAmfShell();
       else if (snapshot.state === "absent") { disposeAmfShell?.(); disposeAmfShell = null; }
@@ -2157,6 +2220,8 @@ app.on("before-quit", (event) => {
     return;
   }
   systemUsage.stop();
+  catalogEnricher?.dispose();
+  for (const request of catalogProductRequests) request.abort();
   stopGameGuideFollowTimer();
   vrchatService?.clearSdkHandoffs();
   void aiTools?.dispose();

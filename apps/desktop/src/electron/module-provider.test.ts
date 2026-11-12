@@ -27,7 +27,7 @@ class Port extends MockOrchestratorProviderV01 {
   crash() { this.failed = true; for (const listener of this.lifecycleListeners) listener(this.status()); }
 }
 
-function setup(options: { enabled?: boolean; factory?: () => OrchestratorProviderV01; shellBusy?: () => boolean; expectedAmfBuild?: () => string } = {}) {
+function setup(options: { enabled?: boolean; deferInitialAmf?: boolean; factory?: () => OrchestratorProviderV01; shellBusy?: () => boolean; expectedAmfBuild?: () => string } = {}) {
   const host = new Port({ capabilities: [
     { operationId: "environment.getSnapshot", availability: "available" },
     { operationId: "production.recipes", availability: "unavailable" },
@@ -39,6 +39,7 @@ function setup(options: { enabled?: boolean; factory?: () => OrchestratorProvide
   const saved: boolean[] = [];
   let activations = 0;
   const provider = new ModuleProvider({ host, enabled: options.enabled ?? false,
+    ...(options.deferInitialAmf ? { deferInitialAmf: true } : {}),
     createAmf: () => { activations += 1; return options.factory?.() ?? amf; },
     persist: enabled => saved.push(enabled), ...(options.shellBusy ? { shellBusy: options.shellBusy } : {}),
     ...(options.expectedAmfBuild ? { expectedAmfBuild: options.expectedAmfBuild } : {}) });
@@ -46,6 +47,21 @@ function setup(options: { enabled?: boolean; factory?: () => OrchestratorProvide
 }
 
 describe("host / optional AMF process boundary", () => {
+  it("defers initial AMF process creation until requested while reporting starting", async () => {
+    const { provider, activations, host } = setup({ enabled: true, deferInitialAmf: true });
+    await provider.start();
+    expect(host.status().state).toBe("ready");
+    expect(activations()).toBe(0);
+    expect(provider.moduleSnapshot().state).toBe("starting");
+    expect(provider.amfReady()).toBe(false);
+    provider.startInitialAmf();
+    await vi.waitFor(() => expect(provider.amfReady()).toBe(true));
+    expect(activations()).toBe(1);
+    expect(provider.moduleSnapshot().state).toBe("ready");
+    provider.startInitialAmf();
+    expect(activations()).toBe(1);
+    await provider.prepareShutdown({ timeoutMs: 100 });
+  });
   it("does not construct AMF or open its data after invalid profile admission", async () => {
     const { provider, activations, host } = setup({ enabled: true }); provider.refuseDataTrial();
     await provider.start();

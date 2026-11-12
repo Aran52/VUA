@@ -128,7 +128,7 @@ async function run() {
       const rejected = await splash.webContents.executeJavaScript('window.vua.startup.complete().then(()=>false,()=>true)');
       assert(rejected, "The splash cannot announce main-frame readiness");
     }
-    await waitFor(firstUseNotice, "first-use notice");
+    await waitFor(firstUseNotice, "first-use notice", 30_000);
     assert(!await js('!!document.querySelector(".vua-tour")'), "The notice waits for an explicit entry choice");
     assert(await js('document.querySelectorAll("[data-first-use-part]").length===5 && document.querySelectorAll(".vua-onboarding button").length===2 && !document.querySelector(".vua-onboarding select, .vua-onboarding input")'), "Five notice parts including update disclosure and two choices replace the language question");
     assert(await js('document.querySelector("[data-first-use-part=source]").textContent.includes("Apache 2.0") && document.querySelector("[data-first-use-part=licenses] a").href.endsWith("/THIRD_PARTY_NOTICES.md")'), "The first-use notice links its free source and third-party licenses");
@@ -226,7 +226,7 @@ async function run() {
       await waitFor(home, "completed tour remains closed");
       assert(await js('!document.querySelector(".vua-tour") && !document.querySelector(".vua-onboarding") && document.documentElement.dataset.effects==="off"'), "Returning profiles keep resource saving without repeating onboarding");
       const staticSplash = new BrowserWindow({ width: 480, height: 320, show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
-      await staticSplash.loadFile(path.join(desktop, "dist/renderer/index.html"), { query: { surface: "splash" } });
+      await staticSplash.loadFile(path.join(desktop, "dist/renderer/splash.html"), { query: { surface: "splash" } });
       assert(await staticSplash.webContents.executeJavaScript('document.querySelector(".vua-boot-splash__surface").hasAttribute("data-static") && getComputedStyle(document.querySelector(".vua-boot-splash__loader")).animationName==="none"'), "Resource saving keeps startup monochrome and static with a visible loader");
       await capture(staticSplash, "splash-static");
       staticSplash.destroy();

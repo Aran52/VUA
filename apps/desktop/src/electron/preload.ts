@@ -141,7 +141,14 @@ const api: VuaDesktopApiV7 = Object.freeze({
   }),
   startup: Object.freeze({
     systemLanguages: Object.freeze(systemLanguages),
-    complete: () => ipcRenderer.invoke("vua:startup:complete"),
+    complete: () => {
+      let flattened = false;
+      try {
+        flattened = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          || window.localStorage.getItem("vua-effects") === "off";
+      } catch { /* Restricted storage keeps normal timing. */ }
+      return ipcRenderer.invoke("vua:startup:complete", flattened);
+    },
   }),
   amfModule: Object.freeze({
     snapshot: () => ipcRenderer.invoke("vua:amf-module:snapshot"),

@@ -168,16 +168,77 @@ let mainWindow: BrowserWindow | null = null;
 let aiTools: AiToolsServer | null = null;
 /** Experimental VRChat sign-in (vrchat-session v0.1), held by Electron Main. */
 let vrchatService: VrchatSessionService | null = null;
+const SPLASH_VISIBLE_MS = 1_760;
+const SPLASH_FLATTENED_HOLD_MS = 320;
 let startupWindow: BrowserWindow | null = null;
+let startupWindowCreatedAt: number | null = null;
+let startupWindowShownAt: number | null = null;
 let startupFallback: ReturnType<typeof setTimeout> | null = null;
+let startupHoldTimer: ReturnType<typeof setTimeout> | null = null;
+let startupCompletion: Promise<void> | null = null;
 
-function completeStartup(): void {
-  if (startupWindow === null) return;
+function finalizeStartupHandoff(): void {
+  if (startupHoldTimer !== null) clearTimeout(startupHoldTimer);
+  startupHoldTimer = null;
   if (startupFallback !== null) clearTimeout(startupFallback);
   startupFallback = null;
-  if (mainWindow !== null && !mainWindow.isDestroyed()) mainWindow.show();
-  if (!startupWindow.isDestroyed()) startupWindow.destroy();
+  if (startupWindow === null) return;
+  const splash = startupWindow;
   startupWindow = null;
+  const revealMain = () => {
+    if (mainWindow !== null && !mainWindow.isDestroyed()) mainWindow.show();
+    if (!splash.isDestroyed()) splash.destroy();
+  };
+  if (mainWindow !== null && !mainWindow.isDestroyed() && mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.once("did-finish-load", revealMain);
+  } else {
+    revealMain();
+  }
+}
+
+function completeStartup(flattened = false): Promise<void> {
+  const splash = startupWindow;
+  if (splash === null) return Promise.resolve();
+  if (startupCompletion !== null) return startupCompletion;
+  if (startupFallback !== null) clearTimeout(startupFallback);
+  startupFallback = null;
+  const budgetMs = flattened ? SPLASH_FLATTENED_HOLD_MS : SPLASH_VISIBLE_MS;
+  startupCompletion = new Promise<void>(resolve => {
+    const scheduleFromAnchor = () => {
+      if (startupWindow === null) {
+        startupCompletion = null;
+        resolve();
+        return;
+      }
+      const anchor = startupWindowShownAt ?? startupWindowCreatedAt ?? performance.now();
+      const remainingMs = Math.max(0, Math.ceil(budgetMs - (performance.now() - anchor)));
+      if (remainingMs === 0) {
+        startupCompletion = null;
+        finalizeStartupHandoff();
+        resolve();
+        return;
+      }
+      startupHoldTimer = setTimeout(() => {
+        startupCompletion = null;
+        finalizeStartupHandoff();
+        resolve();
+      }, remainingMs);
+    };
+    if (startupWindowShownAt !== null || splash.isDestroyed()) {
+      scheduleFromAnchor();
+    } else {
+      let settled = false;
+      const onceShown = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(waitCap);
+        scheduleFromAnchor();
+      };
+      const waitCap = setTimeout(onceShown, 300);
+      splash.once("ready-to-show", onceShown);
+    }
+  });
+  return startupCompletion;
 }
 let systemTray: ReturnType<typeof createVuaTray> | null = null;
 let shellListening = false;
@@ -781,10 +842,10 @@ function registerIpc(provider: ModuleProvider): void {
     return createFsDirectory(parentPath, name);
   });
 
-  ipcMain.handle("vua:startup:complete", event => {
+  ipcMain.handle("vua:startup:complete", (event, flattened: unknown) => {
     assertLocalSender(senderFrameUrl(event));
     if (mainWindow === null || event.sender !== mainWindow.webContents || event.senderFrame !== event.sender.mainFrame) throw new Error("startup completion requires the main frame");
-    completeStartup();
+    return completeStartup(flattened === true);
   });
   ipcMain.handle("vua:window:minimize", (event) => {
     assertLocalSender(senderFrameUrl(event));
@@ -1775,10 +1836,10 @@ async function createWindow(): Promise<void> {
     openExternal: (url) => void shell.openExternal(url),
     confirmNavigation,
   });
+  const openedWithoutSplash = startupWindow === null;
   mainWindow.once("ready-to-show", () => {
-    if (!packagedSmoke && startupWindow === null) mainWindow?.show();
+    if (!packagedSmoke && openedWithoutSplash) mainWindow?.show();
   });
-  if (startupWindow !== null) startupFallback = setTimeout(completeStartup, 8_000);
 
   if (provider?.amfReady()) await ensureAmfShell();
   mainWindow.on("resize", () => { remoteContent?.refreshBounds(); knowledgeBrowser?.refreshBounds(); });
@@ -1810,6 +1871,9 @@ async function createWindow(): Promise<void> {
     startupWindow = null;
     if (startupFallback !== null) clearTimeout(startupFallback);
     startupFallback = null;
+    if (startupHoldTimer !== null) clearTimeout(startupHoldTimer);
+    startupHoldTimer = null;
+    startupCompletion = null;
   });
 
   if (rendererUrl) await mainWindow.loadURL(rendererUrl);
@@ -1937,10 +2001,12 @@ app.whenReady().then(async () => {
   installImageCacheProtocol();
   installPermissionDenyPolicy(session.defaultSession);
   if (!packagedSmoke) {
-    startupWindow = await createStartupWindow({
+    startupWindowCreatedAt = performance.now();
+    startupWindow = createStartupWindow({
       ...(rendererUrl ? { rendererUrl } : {}),
-      rendererFile: path.join(__dirname, "../renderer/index.html"),
+      rendererFile: path.join(__dirname, "../renderer/splash.html"),
       preferences: localWindowWebPreferences(path.join(__dirname, "preload.js")),
+      onShown: () => { startupWindowShownAt ??= performance.now(); },
     });
     startupWindow.on("close", () => app.quit());
   }
@@ -1963,6 +2029,7 @@ app.whenReady().then(async () => {
   provider = new ModuleProvider({
     host: createDesktopOrchestratorProvider(resolveProviderEndpoint()),
     enabled: amfRegistry.registration.enabled,
+    deferInitialAmf: true,
     persist: enabled => amfRegistry!.save(enabled),
     expectedAmfBuild: () => {
       const generation = amfGenerations.backend;
@@ -1989,14 +2056,6 @@ app.whenReady().then(async () => {
       }
     })().catch(error => console.error("[vua] AMF shell unavailable:", error));
   });
-  try {
-    await provider.start();
-  } catch (error) {
-    /* 启动韧性(2026-09-26):Provider 起不来(如端口被僵尸实例占用)不再
-     * 带走主窗口——历史症状是"启动器打印版本号后永远无窗口"。窗口照常
-     * 开,Gateway 调用经既有拒绝路径如实呈现不可用,恢复手段=重启应用。 */
-    console.error("[vua] provider start failed; main window still opens:", error);
-  }
   provider.subscribe((event) => {
     if (event.kind === "task.cancellationRequested" && event.taskId === catalogSyncRun?.runId) {
       catalogSyncRun.stop();
@@ -2026,10 +2085,21 @@ app.whenReady().then(async () => {
   aiTools.subscribe(snapshot => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("vua:ai-tools:changed", snapshot);
   });
+  vrchatService = vrchatSession({ directory: app.getPath("userData"), version: app.getVersion(), secrets: safeStorage, openExternal: url => shell.openExternal(url) });
   registerIpc(provider);
   systemUsage.start(desktopRuntime.providerExecutable);
-  vrchatService = vrchatSession({ directory: app.getPath("userData"), version: app.getVersion(), secrets: safeStorage, openExternal: url => shell.openExternal(url) });
-  await createWindow();
+  /* 启动韧性(2026-09-26)+启动并行(2026-11-11):IPC 先注册,宿主后端与主窗口并行启动,
+   * 握手在途调用由 SupervisedProcessProviderV01 排队;Provider 慢或失败不再阻塞开窗,
+   * AMF 进程创建推迟到主窗口加载完成之后。 */
+  const hostStart = provider.start().catch((error: unknown) => {
+    console.error("[vua] provider start failed; main window still opens:", error);
+  });
+  const windowReady = createWindow();
+  await Promise.allSettled([windowReady, hostStart]);
+  if (startupWindow !== null && startupCompletion === null && startupFallback === null) {
+    startupFallback = setTimeout(() => { void completeStartup(false); }, 8_000);
+  }
+  provider.startInitialAmf();
   if (!packagedSmoke && aiTools.initiallyEnabled) await aiTools.setEnabled(true);
   // 启动会话检查(尽力而为):VRChat 结束的会话在此被发现;记住的密码可续登
   if (!packagedSmoke) void vrchatService.refresh().catch(() => {});

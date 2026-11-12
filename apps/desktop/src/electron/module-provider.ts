@@ -28,6 +28,7 @@ interface Options {
   readonly persist: (enabled: boolean) => void;
   readonly shellBusy?: () => boolean;
   readonly expectedAmfBuild?: () => string | undefined;
+  readonly deferInitialAmf?: boolean;
 }
 export interface AmfReplacement {
   activate(): Promise<void>;
@@ -49,6 +50,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   #amf: OrchestratorProviderV01 | undefined;
   #amfUnsubscribes: ProviderUnsubscribe[] = [];
   #enabled: boolean;
+  #amfDeferred: boolean;
   #changing = false;
   #unhealthy = false;
   #mutations = 0;
@@ -62,6 +64,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
 
   constructor(private readonly options: Options) {
     this.#enabled = options.enabled;
+    this.#amfDeferred = Boolean(options.deferInitialAmf && options.enabled);
     options.host.subscribe(event => this.#forward(event, "host"));
   }
 
@@ -69,16 +72,23 @@ export class ModuleProvider implements OrchestratorProviderV01 {
 
   async start(): Promise<ProviderHandshakeV01> {
     const handshake = await this.options.host.start();
-    if (this.#enabled) void this.#startAmf();
+    if (this.#enabled && !this.#amfDeferred) void this.#startAmf();
     // The host handshake describes the host. AMF download readiness is queried
     // separately, and can change without restarting the host.
     return handshake;
   }
 
+  startInitialAmf(): void {
+    if (!this.#amfDeferred) return;
+    this.#amfDeferred = false;
+    if (this.#enabled && !this.#changing && this.#shutdown.length === 0) void this.#startAmf();
+    else this.#publishModule();
+  }
+
   moduleSnapshot(): AmfModuleSnapshotV01 {
     const state = this.#amf?.status().state;
     return { schemaVersion: "0.1", moduleId: "amf", installed: this.#enabled,
-      state: !this.#enabled ? "absent" : this.#unhealthy ? "failed" : this.#dataTrial ? "starting" : state === "ready" ? "ready" : state === "starting" ? "starting" : state === "stopping" ? "stopping" : "failed" };
+      state: !this.#enabled ? "absent" : this.#unhealthy ? "failed" : (this.#dataTrial || this.#amfDeferred) ? "starting" : state === "ready" ? "ready" : state === "starting" ? "starting" : state === "stopping" ? "stopping" : "failed" };
   }
 
   setDataTrial(pending: boolean): void {
@@ -105,6 +115,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
       }
       if (previous?.waitForExit && !(await previous.waitForExit(5_000))) return "busy";
       this.#detachAmf();
+      this.#amfDeferred = false;
       activated = true; await transaction.activate();
       this.#unhealthy = false;
       if (this.#enabled) {
@@ -156,6 +167,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
       if (enabled) {
         this.options.persist(true);
         this.#enabled = true;
+        this.#amfDeferred = false;
         await this.#startAmf();
         return result(!this.#unhealthy && this.#amf?.status().state === "ready" ? "updated" : "failed");
       }
@@ -171,6 +183,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
       }
       this.options.persist(false);
       this.#enabled = false;
+      this.#amfDeferred = false;
       this.#detachAmf();
       return result("updated");
     } catch {
@@ -345,6 +358,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   }
 
   async prepareShutdown(request: { readonly timeoutMs: number }): Promise<ProviderShutdownResultV01> {
+    this.#amfDeferred = false;
     this.#shutdown = [this.#amf, this.options.host].filter((item): item is OrchestratorProviderV01 => item?.status().state === "ready" || item?.status().state === "stopping");
     const results: ProviderShutdownResultV01[] = [];
     for (const provider of this.#shutdown) results.push(provider.status().state === "stopping"

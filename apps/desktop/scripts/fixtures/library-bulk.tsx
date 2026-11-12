@@ -99,10 +99,17 @@ async function openMenu(card: HTMLElement, expectedLabel: string) {
   await until(() => [...document.querySelectorAll('[role="menu"] button')].some(node => node.textContent?.trim() === expectedLabel), `context menu offers ${expectedLabel}`);
 }
 async function menu() {
-  const card = cards()[0]!; card.focus({ preventScroll: true });
-  card.dispatchEvent(new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true, cancelable: true }));
-  await until(() => cards().length === 3 && cards().every(node => node.dataset.selected === "true"), "all visible cards are selected before opening the bulk menu");
-  await openMenu(card, copy.cardMenu.deleteLocal);
+  await until(() => !document.querySelector('[role="dialog"], [aria-modal="true"]'), "dialogs closed");
+  if (document.activeElement instanceof HTMLElement && document.activeElement.matches("input, textarea, select")) document.activeElement.blur();
+  await until(() => {
+    const all = cards();
+    if (all.length < 2) return false;
+    if (all.every(node => node.dataset.selected === "true")) return true;
+    all[0]!.focus({ preventScroll: true });
+    all[0]!.dispatchEvent(new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true, cancelable: true }));
+    return all.every(node => node.dataset.selected === "true");
+  }, "all cards selected");
+  await openMenu(cards()[0]!, copy.cardMenu.deleteLocal);
 }
 async function closeDialog() { document.querySelector<HTMLButtonElement>('[role="dialog"] button[aria-label]')!.click(); await until(() => !document.querySelector('[role="dialog"]'), "dialog closes"); }
 let generation = 0;

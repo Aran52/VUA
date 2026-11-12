@@ -21,7 +21,7 @@ try {
     resolve: { alias: { "@vua/contracts": path.resolve(root, "../../packages/contracts/src/index.ts") } },
     cacheDir: path.join(os.tmpdir(), "vua-network-ui-vite"),
     server: { host: "127.0.0.1", port: 0, watch: { ignored: ["**/out/**"] } },
-    optimizeDeps: { force: true, entries: ["scripts/fixtures/network-check.tsx"], include: ["react", "react-dom/client", "@vua/contracts"] } });
+    optimizeDeps: { force: true, entries: ["scripts/fixtures/network-check.tsx"], include: ["react", "react-dom/client", "react/jsx-dev-runtime", "@vua/contracts"] } });
   server.middlewares.use(async (req, res, next) => {
     if (!req.url?.startsWith("/__network")) return next();
     res.setHeader("Content-Type", "text/html");

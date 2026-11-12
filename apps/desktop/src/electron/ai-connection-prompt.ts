@@ -1,16 +1,16 @@
 import type { AiConnectionLocale } from "@vua/contracts";
 
 const introductions: Record<AiConnectionLocale, string> = {
-  "zh-CN": `请协助我使用这台电脑上的 VUA。VUA 是 Windows 上的 VRChat 情景安装、管理和启动器，提供电脑屏幕游玩、PICO 串流、外部工具连接，以及可单独停用的 AMF 素材与改模模块。
-先假定我不懂 Unity、运行时或 MCP。每一步都用简单的话说明：刚才发生了什么，下一步做什么，完成后会看到什么。一次只让我处理当前需要的一步。`,
-  "zh-TW": `請協助我使用這臺電腦上的 VUA。VUA 是 Windows 上的 VRChat 情景安裝、管理和啟動器，提供電腦螢幕遊玩、PICO 串流、外部工具連線，以及可單獨停用的 AMF 素材與改模模組。
-先假定我不懂 Unity、執行時或 MCP。每一步都用簡單的話說明：剛才發生了什麼，下一步做什麼，完成後會看到什麼。一次只讓我處理目前需要的一步。`,
-  en: `Help me use VUA on this computer. VUA is a Windows VRChat scenario installer, manager and launcher. It supports desktop play, PICO streaming, external-tool connections, and a separately enabled AMF material/Avatar production module.
-Assume I do not understand Unity, runtimes or MCP. Explain what just happened, what to do next, and what I should see afterwards. Guide me through one necessary step at a time.`,
-  ja: `この PC の VUA を使う手伝いをしてください。VUA は Windows 向けの VRChat シナリオのインストール・管理・起動ツールです。デスクトップでのプレイ、PICO ストリーミング、外部ツールとの接続、個別に有効化できる AMF 素材・アバター制作モジュールを提供します。
-Unity、ランタイム、MCP を知らない初心者として案内してください。何が起きたか、次に何をするか、終わると何が見えるかを、必要な一歩ずつ説明してください。`,
-  ko: `이 컴퓨터의 VUA 사용을 도와주세요. VUA는 Windows용 VRChat 시나리오 설치·관리·실행 도구입니다. 데스크톱 플레이, PICO 스트리밍, 외부 도구 연결, 별도로 활성화하는 AMF 소재·아바타 제작 모듈을 제공합니다.
-Unity, 런타임, MCP를 모르는 초보자로 생각해주세요. 방금 일어난 일, 다음에 할 일, 완료 후 보일 결과를 필요한 한 단계씩 쉬운 말로 설명해주세요.`,
+  "zh-CN": `请协助我使用这台电脑上的 VUA。VUA 是一款面向 Windows 的 VRChat 环境配置、管理与启动工具，支持键鼠桌面游玩、VR 头显串流、外部工具连接，以及可按需启用的 AMF 素材管理与 Avatar 改模模块。
+请默认我不熟悉 Unity、底层运行环境或 MCP 协议。每次只用通俗易懂的话告诉我三件事：刚才发生了什么、接下来点哪里、完成后应该看到什么；一次只带我做当前必要的一步。`,
+  "zh-TW": `請協助我使用這台電腦上的 VUA。VUA 是一款面向 Windows 的 VRChat 環境設定、管理與啟動工具，支援鍵鼠桌面遊玩、VR 頭顯串流、外部工具連接，以及可依需求啟用的 AMF 素材管理與 Avatar 改模模組。
+請先假設我不熟悉 Unity、執行環境或 MCP 協定。每一步都用白話清楚說明：剛才發生了什麼、下一步怎麼做、完成後會看到什麼；一次只帶我處理目前必要的一步。`,
+  en: `Help me use VUA on this PC. VUA is a Windows app for setting up, managing, and launching VRChat — covering desktop play, PC VR streaming, companion tools, and an optional AMF module for managing materials and assembling Avatars.
+Assume I'm new to Unity, VR runtimes, and MCP. Explain in plain words what just happened, what I need to do next, and what I should expect to see — guiding me through one step at a time.`,
+  ja: `この PC の VUA を使うサポートをお願いします。VUA は Windows 向けの VRChat 環境セットアップ・管理・起動アプリで、デスクトップモード、PC VR ストリーミング、外部ツール連携、そして必要に応じて有効化できる AMF 素材管理・アバター改変モジュールを備えています。
+Unity や VR ランタイム、MCP に詳しくない前提で案内してください。今何が起きたか、次に何をすればいいか、完了するとどうなるかをわかりやすい言葉で伝え、一度にひとつずつ順番に進めてください。`,
+  ko: `이 PC에서 VUA를 사용하는 것을 도와주세요. VUA는 Windows용 VRChat 환경 설정·관리·실행 앱으로, 데스크톱 플레이, PC VR 스트리밍, 외부 보조 도구 연동, 그리고 필요할 때 켜서 쓰는 AMF 소재 관리·아바타 개변 모듈을 제공해요.
+제가 Unity나 VR 런타임, MCP를 잘 모르는 초보자라고 생각하고 안내해 주세요. 방금 무엇이 진행되었는지, 다음에 무엇을 하면 되는지, 끝나면 어떤 화면이 보이는지 쉬운 말로 한 번에 한 단계씩만 알려 주세요.`,
 };
 
 /** Pairing details are shown/copied only on the local connection page, never logged. */

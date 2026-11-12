@@ -17,7 +17,7 @@ async function main() {
     output = await mkdtemp(path.join(os.tmpdir(), "vua-library-bulk-"));
     const profile = path.join(output, "isolated-profile"); await mkdir(profile); app.setPath("userData", profile);
     await app.whenReady();
-    server = await createServer({ configFile: false, appType: "custom", root, cacheDir: path.join(output, "vite-cache"), plugins: [react()], server: { host: "127.0.0.1", port: 0 }, optimizeDeps: { force: true, include: ["react", "react-dom/client", "@vua/contracts"] } });
+    server = await createServer({ configFile: false, appType: "custom", root, cacheDir: path.join(output, "vite-cache"), plugins: [react()], resolve: { alias: { "@vua/contracts": path.resolve(root, "../../packages/contracts/src/index.ts") } }, server: { host: "127.0.0.1", port: 0 }, optimizeDeps: { force: true, entries: [corners ? "scripts/fixtures/library-corners.tsx" : "scripts/fixtures/library-bulk.tsx"], include: ["react", "react-dom/client", "react/jsx-dev-runtime", "@vua/contracts"] } });
     server.middlewares.use(async (req, res, next) => {
       if (!req.url?.startsWith("/__library-bulk")) return next();
       const locale = new URL(req.url, "http://localhost").searchParams.get("locale") ?? "en";

@@ -15,7 +15,7 @@ export function queueShareLink(value: string): boolean {
   pending={input:value};announce();return true;
 }
 
-export function registerRecipeSharing(options:{provider:ModuleProvider;root:()=>string;assertReady:()=>void;assertSender:(event:Electron.IpcMainInvokeEvent)=>void;window:()=>BrowserWindow|null}): void {
+export function registerRecipeSharing(options:{provider:ModuleProvider;root:()=>string;assertReady:()=>void;assertSender:(event:Electron.IpcMainInvokeEvent)=>void;window:()=>BrowserWindow|null}): { tryQueueDroppedImage(file: string): Promise<boolean> } {
   windowForShare=options.window;
   const clients=new Map<string,{client:RecipeShareClient;io:RecipeShareIO}>();
   const services=()=>{
@@ -45,7 +45,7 @@ export function registerRecipeSharing(options:{provider:ModuleProvider;root:()=>
   ipcMain.handle("vua:share:queue-image",async(event,files:unknown)=>{
     options.assertSender(event);
     try {check(event);if(!Array.isArray(files)||files.length!==1||typeof files[0]!=="string")throw new Error("share_image_invalid");pending={received:await services().io.readImage(files[0])};}
-    catch(error){const message=error instanceof Error?error.message:"";pending={error:/^share_[a-z_]+$/u.test(message)?message:"share_image_invalid"};}
+    catch(error){const message=error instanceof Error?error.message:"";pending={error:/^share_[a-z_]+$/u.test(message)?message:message==="vua.amf.unavailable"?"share_unavailable":"share_image_invalid"};}
     announce();
   });
   ipcMain.handle("vua:share:list",(event,recipeId:unknown)=>{check(event);if(recipeId!==undefined&&(typeof recipeId!=="string"||!/^[A-Za-z0-9-]{1,100}$/u.test(recipeId)))throw new Error("share_invalid");return protect(()=>services().client.list(recipeId));});
@@ -54,4 +54,23 @@ export function registerRecipeSharing(options:{provider:ModuleProvider;root:()=>
   ipcMain.handle("vua:share:take-pending",event=>{check(event);const value=pending;pending=null;return value;});
   // Verified NSIS context only. Legacy ZIP and development never change OS registration.
   if(app.isPackaged&&installedContext()&&!app.commandLine.hasSwitch("vua-smoke-test"))app.setAsDefaultProtocolClient("vua");
+  return {
+    async tryQueueDroppedImage(file: string): Promise<boolean> {
+      try {
+        options.assertReady();
+        pending = { received: await services().io.readImage(file) };
+        announce();
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        if (message === "share_image_no_code" || message === "share_image_invalid" || message === "share_image_too_large" || message === "vua.amf.unavailable" || message === "share_unavailable") return false;
+        if (/^share_[a-z_]+$/u.test(message)) {
+          pending = { error: message };
+          announce();
+          return true;
+        }
+        return false;
+      }
+    },
+  };
 }

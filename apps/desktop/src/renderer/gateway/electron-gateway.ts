@@ -81,8 +81,8 @@ function createLiveTaskPort(client: GatewayClient): TaskPort {
       };
       // 事件只是事实通知;权威状态一律经 task.list 重取(契约"revision 与事件")
       const unsubscribe = client.subscribe((event) => {
-        if (!isTaskEvent(event)) return;
-        progress.observe(event);
+        if (isTaskEvent(event)) progress.observe(event);
+        else if (event.kind !== "capability.changed") return;
         pending = true; void refresh();
       });
       return () => { active = false; unsubscribe(); };

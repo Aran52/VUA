@@ -115,6 +115,8 @@ export function deriveInstallerCardState(
   return { action: "prepare", status: tc.short.install, actionIcon: "download", percent: null, busy: false };
 }
 
+const activeToolTasks = new Map<InstallerToolId, string>();
+
 export function useInstallerTool(toolId: InstallerToolId) {
   const gateway = useGateway();
   const port = gateway.environment.installerTools;
@@ -124,7 +126,12 @@ export function useInstallerTool(toolId: InstallerToolId) {
   const [failed, setFailed] = useState(false);
   const [pending, setPending] = useState(false);
   const [planning, setPlanning] = useState(false);
-  const [taskId, setTaskId] = useState<string | null>(null);
+  const [taskId, setTaskIdState] = useState<string | null>(() => activeToolTasks.get(toolId) ?? null);
+  const setTaskId = useCallback((next: string | null) => {
+    if (next === null) activeToolTasks.delete(toolId);
+    else activeToolTasks.set(toolId, next);
+    setTaskIdState(next);
+  }, [toolId]);
   const [task, setTask] = useState<TaskSnapshotV01 | null>(null);
   const [step, setStep] = useState<DeploymentProgress | null>(null);
   const [cancelPending, setCancelPending] = useState(false);

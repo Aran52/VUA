@@ -138,10 +138,14 @@ export class AiToolsServer {
             http.once("error", failed); http.once("listening", ready); http.listen(port, "127.0.0.1");
           });
           const address = http.address(); if (!address || typeof address === "string") throw new Error("invalid_binding");
-          if (this.options.port === 0 && isFetchBadPort(address.port) && attempt + 1 < maxAttempts) {
-            skipped.push(http);
-            http = newHttp();
-            continue;
+          if (this.options.port === 0 && isFetchBadPort(address.port)) {
+            if (attempt + 1 < maxAttempts) {
+              skipped.push(http);
+              http = newHttp();
+              continue;
+            }
+            http.close();
+            throw new Error("no_safe_ephemeral_port");
           }
           this.http = http; this.endpoint = `http://127.0.0.1:${address.port}/mcp`; this.enabled = true;
           http.on("error", () => { this.error = "connection_failed"; this.changed(); });

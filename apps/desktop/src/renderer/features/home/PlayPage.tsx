@@ -172,7 +172,7 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
         <PlayRouteFlow route={item} session={live.sessions[item] ?? null} unavailable={!!live.unavailable[item]} launchPending={!!live.pending[item]}
           refreshToken={refreshToken} onLaunch={stop => { void live.act(item, stop); }} onAccounts={onAccounts} onStep={item === "desktop_play" ? desktopStep : picoStep} />
       </div>)}
-      {engine.kind === "tool" ? <div id={`${cardId(setup)}-details`}><GuidedFlow key={engine.toolId} setup={setup} toolId={engine.toolId} detected={detected} onStep={setGuidedStep} /></div> : null}
+      {engine.kind === "tool" ? <div id={`${cardId(setup)}-details`}><GuidedFlow key={`${setup.platform}:${setup.device}:${setup.connection ?? ""}`} setup={setup} toolId={engine.toolId} detected={detected} refreshToken={refreshToken} onStep={setGuidedStep} /></div> : null}
       {engine.kind === "headset" ? <div id={`${cardId(setup)}-details`}><HeadsetFlow setup={setup} /></div> : null}
     </SlideDrawer>
   </div>;

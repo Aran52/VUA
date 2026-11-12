@@ -276,8 +276,9 @@ export class GuideContentService implements DesktopGuideContentApiV01 {
         throw new Error("guide_min_client_unsatisfied");
       }
       writeAtomic(this.cachedEnvelopePath(id), raw);
-      state.guides[id] = { sequence: payload.sequence, payloadSha256, checkedAt };
-      this.writeState(state);
+      const latestState = this.readState();
+      latestState.guides[id] = { sequence: payload.sequence, payloadSha256, checkedAt };
+      this.writeState(latestState);
       return { document: payload, source: "remote", checkedAt };
     } catch {
       const cached = this.readVerifiedCache(id, state.guides[id]);

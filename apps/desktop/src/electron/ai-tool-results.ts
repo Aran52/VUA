@@ -9,6 +9,8 @@ export interface AiBuildIdentity { version: string; commit: string; dirty: boole
 export const MCP_RETRYABLE_CODES: Readonly<Record<string, boolean>> = {
   gateway_unavailable: true,
   too_many_requests: true,
+  "vua.amf.unavailable": true,
+  "vua.provider.not_accepting": true,
   "vua.amf_production.busy": true,
   connection_disabled: false,
   unsupported_tool_or_parameters: false,

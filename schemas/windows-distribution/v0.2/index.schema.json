@@ -122,14 +122,16 @@
               "minLength": 1
             },
             "uiAbi": {
-              "const": "amf-ui/0.1"
+              "type": "string",
+              "minLength": 1
             },
             "react": {
               "type": "string",
               "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?$"
             },
             "application": {
-              "const": "0.1"
+              "type": "string",
+              "minLength": 1
             },
             "bridge": {
               "type": "string",

@@ -527,8 +527,8 @@
     "name": "unknown-ui-abi",
     "schema": "index",
     "component": "amf",
-    "schemaValid": false,
-    "nativeValid": false,
+    "schemaValid": true,
+    "nativeValid": true,
     "value": {
       "schemaVersion": "0.2",
       "product": "VUA",
@@ -563,7 +563,8 @@
           "activation": "reload"
         }
       ]
-    }
+    },
+    "publisherValid": false
   },
   {
     "name": "duplicate-version",
@@ -1016,6 +1017,279 @@
       "algorithm": "ed25519",
       "payload": "{\"schemaVersion\":\"0.2\",\"product\":\"VUA\",\"platform\":\"windows\",\"arch\":\"x64\",\"channel\":\"beta\",\"component\":\"amf\",\"sequence\":3,\"releases\":[{\"version\":\"0.1.0\",\"build\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"releaseUrl\":\"https://ph-r.com/\\ud800\",\"manifest\":{\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"bytes\":4096,\"sources\":[\"https://ph-r.com/vua/releases/v0.6.7/vua-release.json\"]},\"compatibility\":{\"host\":\">=0.6.7, <0.7.0\",\"uiAbi\":\"amf-ui/0.1\",\"react\":\"19.2.8\",\"application\":\"0.1\",\"bridge\":\"0.1\",\"bdlWrite\":\"0.10\",\"bdlRead\":[\"0.10\"]},\"activation\":\"reload\"}]}",
       "signature": "0455cff021d8ff39d502c55ca68edb3c23644c06e311f1628bc04eb02d12316937b7d58b86278ea2018daf8406f304918ea23e84d91654c7e2e642e6dff6810e"
+    }
+  },
+  {
+    "name": "empty-ui-abi",
+    "schema": "index",
+    "component": "amf",
+    "schemaValid": false,
+    "nativeValid": false,
+    "value": {
+      "schemaVersion": "0.2",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "channel": "beta",
+      "component": "amf",
+      "sequence": 3,
+      "releases": [
+        {
+          "version": "0.1.0",
+          "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "releaseUrl": "https://ph-r.com/vua/releases/v0.6.7/",
+          "manifest": {
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 4096,
+            "sources": [
+              "https://ph-r.com/vua/releases/v0.6.7/vua-release.json"
+            ]
+          },
+          "compatibility": {
+            "host": ">=0.6.7, <0.7.0",
+            "uiAbi": "",
+            "react": "19.2.8",
+            "application": "0.1",
+            "bridge": "0.1",
+            "bdlWrite": "0.10",
+            "bdlRead": [
+              "0.10"
+            ]
+          },
+          "activation": "reload"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unsupported-ui-abi-keeps-compatible-update",
+    "schema": "index",
+    "component": "amf",
+    "schemaValid": true,
+    "nativeValid": true,
+    "value": {
+      "schemaVersion": "0.2",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "channel": "beta",
+      "component": "amf",
+      "sequence": 3,
+      "releases": [
+        {
+          "version": "0.2.0",
+          "build": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "releaseUrl": "https://ph-r.com/vua/components/amf/v0.2.0/",
+          "manifest": {
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "bytes": 4096,
+            "sources": [
+              "https://ph-r.com/vua/releases/v0.6.7/vua-release.json"
+            ]
+          },
+          "compatibility": {
+            "host": ">=0.6.7, <0.7.0",
+            "uiAbi": "amf-ui/0.2",
+            "react": "19.2.8",
+            "application": "0.1",
+            "bridge": "0.1",
+            "bdlWrite": "0.10",
+            "bdlRead": [
+              "0.10"
+            ]
+          },
+          "activation": "reload"
+        },
+        {
+          "version": "0.1.1",
+          "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "releaseUrl": "https://ph-r.com/vua/components/amf/v0.1.1/",
+          "manifest": {
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 4096,
+            "sources": [
+              "https://ph-r.com/vua/releases/v0.6.7/vua-release.json"
+            ]
+          },
+          "compatibility": {
+            "host": ">=0.6.7, <0.7.0",
+            "uiAbi": "amf-ui/0.1",
+            "react": "19.2.8",
+            "application": "0.1",
+            "bridge": "0.1",
+            "bdlWrite": "0.10",
+            "bdlRead": [
+              "0.10"
+            ]
+          },
+          "activation": "reload"
+        }
+      ]
+    },
+    "publisherValid": false,
+    "selection": {
+      "installedHost": "0.6.7",
+      "installedAmf": "0.1.0",
+      "latest": "0.2.0",
+      "target": "0.1.1"
+    }
+  },
+  {
+    "name": "unknown-application",
+    "schema": "index",
+    "component": "amf",
+    "schemaValid": true,
+    "nativeValid": true,
+    "value": {
+      "schemaVersion": "0.2",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "channel": "beta",
+      "component": "amf",
+      "sequence": 3,
+      "releases": [
+        {
+          "version": "0.1.0",
+          "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "releaseUrl": "https://ph-r.com/vua/releases/v0.6.7/",
+          "manifest": {
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 4096,
+            "sources": [
+              "https://ph-r.com/vua/releases/v0.6.7/vua-release.json"
+            ]
+          },
+          "compatibility": {
+            "host": ">=0.6.7, <0.7.0",
+            "uiAbi": "amf-ui/0.1",
+            "react": "19.2.8",
+            "application": "0.2",
+            "bridge": "0.1",
+            "bdlWrite": "0.10",
+            "bdlRead": [
+              "0.10"
+            ]
+          },
+          "activation": "reload"
+        }
+      ]
+    },
+    "publisherValid": false
+  },
+  {
+    "name": "empty-application",
+    "schema": "index",
+    "component": "amf",
+    "schemaValid": false,
+    "nativeValid": false,
+    "value": {
+      "schemaVersion": "0.2",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "channel": "beta",
+      "component": "amf",
+      "sequence": 3,
+      "releases": [
+        {
+          "version": "0.1.0",
+          "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "releaseUrl": "https://ph-r.com/vua/releases/v0.6.7/",
+          "manifest": {
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 4096,
+            "sources": [
+              "https://ph-r.com/vua/releases/v0.6.7/vua-release.json"
+            ]
+          },
+          "compatibility": {
+            "host": ">=0.6.7, <0.7.0",
+            "uiAbi": "amf-ui/0.1",
+            "react": "19.2.8",
+            "application": "",
+            "bridge": "0.1",
+            "bdlWrite": "0.10",
+            "bdlRead": [
+              "0.10"
+            ]
+          },
+          "activation": "reload"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unsupported-application-keeps-compatible-update",
+    "schema": "index",
+    "component": "amf",
+    "schemaValid": true,
+    "nativeValid": true,
+    "value": {
+      "schemaVersion": "0.2",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "channel": "beta",
+      "component": "amf",
+      "sequence": 3,
+      "releases": [
+        {
+          "version": "0.2.0",
+          "build": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "releaseUrl": "https://ph-r.com/vua/components/amf/v0.2.0/",
+          "manifest": {
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "bytes": 4096,
+            "sources": [
+              "https://ph-r.com/vua/releases/v0.6.7/vua-release.json"
+            ]
+          },
+          "compatibility": {
+            "host": ">=0.6.7, <0.7.0",
+            "uiAbi": "amf-ui/0.1",
+            "react": "19.2.8",
+            "application": "0.2",
+            "bridge": "0.1",
+            "bdlWrite": "0.10",
+            "bdlRead": [
+              "0.10"
+            ]
+          },
+          "activation": "reload"
+        },
+        {
+          "version": "0.1.1",
+          "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "releaseUrl": "https://ph-r.com/vua/components/amf/v0.1.1/",
+          "manifest": {
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 4096,
+            "sources": [
+              "https://ph-r.com/vua/releases/v0.6.7/vua-release.json"
+            ]
+          },
+          "compatibility": {
+            "host": ">=0.6.7, <0.7.0",
+            "uiAbi": "amf-ui/0.1",
+            "react": "19.2.8",
+            "application": "0.1",
+            "bridge": "0.1",
+            "bdlWrite": "0.10",
+            "bdlRead": [
+              "0.10"
+            ]
+          },
+          "activation": "reload"
+        }
+      ]
+    },
+    "publisherValid": false,
+    "selection": {
+      "installedHost": "0.6.7",
+      "installedAmf": "0.1.0",
+      "latest": "0.2.0",
+      "target": "0.1.1"
     }
   }
 ]

@@ -121,6 +121,26 @@ fn component_feed_vectors_validate_schema_and_native_consumer() {
             "native: {}",
             case["name"]
         );
+        if let Some(expected) = case.get("selection") {
+            let mut installed = baseline();
+            installed.host.version = expected["installedHost"].as_str().unwrap().into();
+            installed.release_version = installed.host.version.clone();
+            installed.amf.version = expected["installedAmf"].as_str().unwrap().into();
+            let feed: ComponentFeed = serde_json::from_value(case["value"].clone()).unwrap();
+            let selection = feed.select(&installed, &installed).unwrap();
+            assert_eq!(
+                selection.latest.map(|entry| entry.version.as_str()),
+                expected["latest"].as_str(),
+                "latest: {}",
+                case["name"]
+            );
+            assert_eq!(
+                selection.target.map(|entry| entry.version.as_str()),
+                expected["target"].as_str(),
+                "target: {}",
+                case["name"]
+            );
+        }
     }
 }
 

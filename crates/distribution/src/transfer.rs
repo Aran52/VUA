@@ -46,7 +46,7 @@ impl Transfer {
         report: impl Fn(Progress) + Send + Sync + 'static,
         versions: Option<(&str, &str)>,
     ) -> Result<Self> {
-        let agent = distribution_user_agent(versions)?;
+        let agent = distribution_user_agent(versions);
         let client = reqwest::Client::builder()
             .https_only(true)
             .connect_timeout(Duration::from_secs(8))
@@ -360,17 +360,17 @@ impl Transfer {
     }
 }
 
-pub(crate) fn distribution_user_agent(versions: Option<(&str, &str)>) -> Result<String> {
+pub(crate) fn distribution_user_agent(versions: Option<(&str, &str)>) -> String {
     let Some((host, amf)) = versions else {
-        return Ok("VUA-distribution/0.1".into());
+        return "VUA-distribution/0.2".into();
     };
     if [host, amf]
         .iter()
         .any(|value| value.len() > 96 || semver::Version::parse(value).is_err())
     {
-        return Err(Error("invalid_distribution_version".into()));
+        return "VUA-distribution/0.2".into();
     }
-    Ok(format!("VUA-distribution/0.2 host/{host} amf/{amf}"))
+    format!("VUA-distribution/0.2 (host={host}; amf={amf})")
 }
 
 fn range_matches(response: &reqwest::Response, start: u64, end: u64, total: u64) -> bool {
@@ -393,13 +393,32 @@ mod user_agent_tests {
     #[test]
     fn reports_only_verified_component_versions_without_a_client_identifier() {
         assert_eq!(
-            distribution_user_agent(Some(("1.0.1", "0.3.0"))).unwrap(),
-            "VUA-distribution/0.2 host/1.0.1 amf/0.3.0"
+            distribution_user_agent(Some(("1.0.1", "0.3.0"))),
+            "VUA-distribution/0.2 (host=1.0.1; amf=0.3.0)"
         );
+        assert_eq!(distribution_user_agent(None), "VUA-distribution/0.2");
         assert_eq!(
-            distribution_user_agent(None).unwrap(),
-            "VUA-distribution/0.1"
+            distribution_user_agent(Some(("1.0.1-rc.2+build.4", "0.3.0+local"))),
+            "VUA-distribution/0.2 (host=1.0.1-rc.2+build.4; amf=0.3.0+local)"
         );
-        assert!(distribution_user_agent(Some(("1.0.1\r\nX-Fake: value", "0.3.0"))).is_err());
+        for invalid in [
+            "",
+            "1.0",
+            "v1.0.1",
+            "1.0.1\r\nX-Fake: value",
+            "1.0.1; id=x",
+            "1.0.1\0",
+            "版本1.0.1",
+            &format!("1.0.1+{}", "x".repeat(96)),
+        ] {
+            assert_eq!(
+                distribution_user_agent(Some((invalid, "0.3.0"))),
+                "VUA-distribution/0.2"
+            );
+            assert_eq!(
+                distribution_user_agent(Some(("1.0.1", invalid))),
+                "VUA-distribution/0.2"
+            );
+        }
     }
 }

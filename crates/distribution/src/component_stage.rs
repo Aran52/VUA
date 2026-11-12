@@ -1,6 +1,6 @@
 //! Component staging and restart transactions. No live executable is overwritten.
 use crate::{
-    component_feed::{self, Activation, ComponentKind, Release},
+    component_feed::{self, Activation, ComponentFeed, ComponentKind, Release},
     layout::{Active, Installation},
     manifest::{Manifest, SignedManifest},
     paths::{atomic_json, owned_path},
@@ -558,21 +558,37 @@ impl Installation {
         &self,
         kind: ComponentKind,
         active: &Active,
-    ) -> Result<()> {
+        feed: &ComponentFeed,
+    ) -> Result<bool> {
+        let _operation = self.lock("operation.lock")?;
         let _stage = self.lock(&format!("component-stage-{}.lock", kind.name()))?;
-        let failed = self
-            .activation_journal()?
-            .filter(|journal| journal.state == "recovered" && &journal.before == active);
-        if self.component_pending(kind)?.is_some_and(|(pending, _)| {
-            &pending.base != active
-                || failed
-                    .as_ref()
-                    .is_some_and(|journal| selected(&journal.next, kind) == pending.manifest)
-        }) {
+        if &self.active()? != active {
+            return Err(Error("active_selection_changed".into()));
+        }
+        let journal = self.activation_journal()?;
+        if journal
+            .as_ref()
+            .is_some_and(|journal| matches!(journal.state.as_str(), "prepared" | "verifying"))
+        {
+            return Ok(false);
+        }
+        let Some((pending, _)) = self.component_pending(kind)? else {
+            return Ok(false);
+        };
+        let withdrawn = !feed
+            .releases
+            .iter()
+            .any(|entry| entry.manifest.sha256 == pending.manifest);
+        let recovered = journal.as_ref().is_some_and(|journal| {
+            journal.state == "recovered"
+                && &journal.before == active
+                && selected(&journal.next, kind) == pending.manifest
+        });
+        if withdrawn || &pending.base != active || recovered {
             // Only obsolete intent is cleared; downloaded immutable files remain reusable.
             fs::remove_file(owned_path(&self.root, &name(kind, "pending"))?)?;
         }
-        Ok(())
+        Ok(withdrawn)
     }
     pub(crate) fn validate_pair(&self, pair: &Active) -> Result<(Manifest, Manifest)> {
         if pair.schema_version != "0.1" {

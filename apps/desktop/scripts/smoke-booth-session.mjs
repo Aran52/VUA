@@ -125,13 +125,17 @@ async function run(){try{
   assert(true,"Three synthetic account libraries sync through the real AMF provider");
   await waitFor(()=>js('document.querySelectorAll(".vua-warehouse-card img").length===2&&[...document.querySelectorAll(".vua-warehouse-card img")].every(i=>i.naturalWidth===128&&!i.dataset.pending)'),"native cached card images");
   assert(true,"A renderer created during host startup displays later-synced images through the real AMF cache loader");
+  assert(productRequests===0,"Post-sync background enrichment paces after sync instead of racing immediate navigation");
   await js(`document.querySelector('[data-product-id="booth:9001"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`);
   await waitFor(()=>js('!!document.querySelector(".vua-warehouse-detail .vua-media-slot img")'),"detail media");
   await js('document.querySelector(".vua-warehouse-detail .vua-media-slot").scrollIntoView({block:"nearest"})');
   await waitFor(()=>js('document.querySelector(".vua-warehouse-detail .vua-media-slot img")?.naturalWidth===128'),"detail image");
   assert(await js('!!document.querySelector("[data-nav-id=warehouse-detail-back]") && document.querySelector(".vua-warehouse-detail__title").getBoundingClientRect().width>0'),"Product details open as a page with a way back");
-  await waitFor(()=>productRequests>0,"optional description lookup");await delay(250);
-  assert(productRequests===1,"An unavailable description lookup is attempted once per opened detail, without a retry loop");
+  await waitFor(()=>requests.some(r=>r.path==="/zh-cn/items/9001"),"optional description lookup");await delay(250);
+  assert(
+    JSON.stringify(requests.filter(r=>r.path.startsWith("/zh-cn/items/9001")).map(r=>r.path)) === JSON.stringify(["/zh-cn/items/9001.json","/zh-cn/items/9001"]) && productRequests===2,
+    "An unavailable description lookup is attempted once per opened detail (JSON then HTML fallback), without a retry loop",
+  );
   const loadedImages=imageRequests;
   await js(`document.querySelector('[data-nav-id=warehouse-detail-back]').click()`);
   await js(`document.querySelector('[data-product-id="booth:9001"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`);

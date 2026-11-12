@@ -47,7 +47,7 @@ AMF는 VUA와 함께 설치되는 자체 편집 모듈이며 새 사용자에게
 
 [v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0)는 본체의 첫 안정 버전이며 독립 업데이트하는 **AMF 0.3.0 Beta**를 포함합니다. 소재 이전 계획, 제작 예상치, 첫 실행 안내를 추가하고 도구 상세, 환경 확인 재사용, VN3 새로 고침을 고쳤습니다. Windows x64 온라인·오프라인 설치 파일을 제공합니다.
 
-[릴리스 노트](docs/release/v1.0.0_KO.md)에 제공 범위와 남은 실제 기기·사용자 검사를 적었습니다. 공개만으로 [N1–N7 검수](docs/development-outline.md)가 끝나지는 않습니다.
+아래 다운로드는 공개된 1.0.0 버전입니다. 현재 소스는 **v1.1.0 Getting on Track**(**AMF 0.4.0 Beta** 포함)을 준비 중이며, 제공 범위와 남은 실제 기기·사용자 검사는 [v1.1.0 릴리스 노트(준비판)](docs/release/v1.1.0_KO.md)와 공개된 [v1.0.0 릴리스 노트](docs/release/v1.0.0_KO.md)에 적었습니다. 소스 준비와 공개만으로 [N1–N7 검수](docs/development-outline.md)가 끝나지는 않습니다.
 
 ### 현재 제공 상태와 시작 방법
 
@@ -61,7 +61,7 @@ AMF는 VUA와 함께 설치되는 자체 편집 모듈이며 새 사용자에게
 - [문서 가이드](docs/README.md)——작업별 최소 경로
 - [제품 경계](docs/product-boundary.md)
 - [아키텍처](docs/architecture/system.md)
-- [v1.0.0 릴리스 노트](docs/release/v1.0.0_KO.md)
+- [v1.1.0 릴리스 노트(준비판)](docs/release/v1.1.0_KO.md) · [v1.0.0 릴리스 노트](docs/release/v1.0.0_KO.md)
 - [1.0.0 최소 안내서(후보판, 다섯 언어)](docs/user-guide/v1.0.0/ko.md)
 - [기여 가이드](CONTRIBUTING.md) · [보안 정책](SECURITY.md)
 
@@ -79,6 +79,7 @@ AMF는 VUA와 함께 설치되는 자체 편집 모듈이며 새 사용자에게
 | 2026-10-17 | [60프레임 턴테이블과 관리형 업로드를 갖춘 릴리스 룸](https://github.com/Aran52/VUA/pull/4) |
 | 2026-10-18 | [VN3 약관 해석과 용도별 검사](https://github.com/Aran52/VUA/pull/31) |
 | 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0): 아바타 제작 흐름을 담은 첫 릴리스 |
+| 2026-11-05 | [v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0): 본체의 첫 안정 릴리스(AMF 0.3.0 Beta 포함) |
 
 ## 라이선스
 

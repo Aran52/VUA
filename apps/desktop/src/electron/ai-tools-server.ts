@@ -117,24 +117,42 @@ export class AiToolsServer {
     await this.lifecycle; await this.stop(); this.listeners.clear();
   }
   private async start(): Promise<void> {
-    const http = createServer((req, res) => { void this.handle(req, res).catch(() => { if (!res.headersSent) this.reply(res, 500, "request_failed"); else res.end(); }); });
-    http.requestTimeout = 30_000; http.headersTimeout = 10_000; http.maxConnections = 32;
-    for (let attempt = 0; attempt < 8; attempt++) {
-      try {
-        const port = this.options.port === 0 ? 0 : (this.options.port ?? 32179) + attempt;
-        await new Promise<void>((resolve, reject) => {
-          const failed = (e: Error) => { http.removeListener("listening", ready); reject(e); };
-          const ready = () => { http.removeListener("error", failed); resolve(); };
-          http.once("error", failed); http.once("listening", ready); http.listen(port, "127.0.0.1");
-        });
-        const address = http.address(); if (!address || typeof address === "string") throw new Error("invalid_binding");
-        this.http = http; this.endpoint = `http://127.0.0.1:${address.port}/mcp`; this.enabled = true;
-        http.on("error", () => { this.error = "connection_failed"; this.changed(); });
-        this.pruneTimer = setInterval(() => { void this.prune(); }, 30_000); this.pruneTimer.unref();
-        return;
-      } catch (error) {
-        if (!record(error) || error.code !== "EADDRINUSE" || attempt === 7) { http.close(); throw error; }
+    const newHttp = () => {
+      const server = createServer((req, res) => { void this.handle(req, res).catch(() => { if (!res.headersSent) this.reply(res, 500, "request_failed"); else res.end(); }); });
+      server.requestTimeout = 30_000; server.headersTimeout = 10_000; server.maxConnections = 32;
+      return server;
+    };
+    const isFetchBadPort = (port: number) =>
+      port < 1024 || (port >= 6000 && port <= 6063)
+      || [1719, 1720, 1723, 2049, 3659, 4045, 4190, 5060, 5061, 6566, 6665, 6666, 6667, 6668, 6669, 6679, 6697, 10080].includes(port);
+    const skipped: HttpServer[] = [];
+    const maxAttempts = this.options.port === 0 ? 80 : 8;
+    let http = newHttp();
+    try {
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const port = this.options.port === 0 ? 0 : (this.options.port ?? 32179) + attempt;
+          await new Promise<void>((resolve, reject) => {
+            const failed = (e: Error) => { http.removeListener("listening", ready); reject(e); };
+            const ready = () => { http.removeListener("error", failed); resolve(); };
+            http.once("error", failed); http.once("listening", ready); http.listen(port, "127.0.0.1");
+          });
+          const address = http.address(); if (!address || typeof address === "string") throw new Error("invalid_binding");
+          if (this.options.port === 0 && isFetchBadPort(address.port) && attempt + 1 < maxAttempts) {
+            skipped.push(http);
+            http = newHttp();
+            continue;
+          }
+          this.http = http; this.endpoint = `http://127.0.0.1:${address.port}/mcp`; this.enabled = true;
+          http.on("error", () => { this.error = "connection_failed"; this.changed(); });
+          this.pruneTimer = setInterval(() => { void this.prune(); }, 30_000); this.pruneTimer.unref();
+          return;
+        } catch (error) {
+          if (!record(error) || error.code !== "EADDRINUSE" || attempt + 1 === maxAttempts) { http.close(); throw error; }
+        }
       }
+    } finally {
+      for (const s of skipped) s.close();
     }
   }
   /** Closing VUA keeps waiting requests for the next launch; turning the connection off withdraws them. */

@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-optimizer-claim",
+  "operation": "amf_optimizer",
+  "status": "succeeded",
+  "changedPaths": [
+    "Assets/VUA/Production.unity"
+  ],
+  "diagnostics": [],
+  "data": {
+    "editorVersion": "2022.3.22f1",
+    "projectFingerprint": "v2:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "avatarName": "Synthetic Avatar",
+    "avatarGlobalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-12345",
+    "prefabs": [],
+    "instances": [],
+    "sdkDescriptorRecognized": true,
+    "officialSdkChecks": "not_run",
+    "visualReview": "pending",
+    "missingReferences": 0,
+    "hasMissingScripts": false,
+    "observedSelection": null,
+    "usedSourceIds": [],
+    "avatars": [],
+    "missingShaderMaterials": [],
+    "sdkSignedIn": "yes",
+    "previews": [],
+    "turntable": {
+      "folder": "",
+      "frames": 0,
+      "size": 0
+    },
+    "sdkReview": {
+      "state": "not_run",
+      "platform": "",
+      "overall": "",
+      "issues": [],
+      "stats": [],
+      "detail": ""
+    },
+    "sdkFixesApplied": [],
+    "optimizerReport": {
+      "state": "measured",
+      "localMeasurementOnly": false,
+      "enabled": true,
+      "measuredAt": "2026-11-11T12:00:00.0000000Z",
+      "before": {
+        "platform": "pc",
+        "overall": "Medium",
+        "stats": [],
+        "triangles": 98000,
+        "materialSlots": 14,
+        "meshes": 9,
+        "skinnedMeshes": 8,
+        "textureBytes": 67108864,
+        "textureComplete": true,
+        "meshBytes": 6291456,
+        "meshComplete": true,
+        "physBones": 6,
+        "physBonesKnown": true
+      },
+      "after": {
+        "platform": "pc",
+        "overall": "Good",
+        "stats": [],
+        "triangles": 64000,
+        "materialSlots": 7,
+        "meshes": 3,
+        "skinnedMeshes": 2,
+        "textureBytes": 50331648,
+        "textureComplete": true,
+        "meshBytes": 4194304,
+        "meshComplete": true,
+        "physBones": 6,
+        "physBonesKnown": true
+      },
+      "detail": ""
+    }
+  }
+}

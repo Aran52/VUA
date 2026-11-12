@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-optimizer-unbound",
+  "projectId": "n3-vector",
+  "operation": "amf_optimizer",
+  "dryRun": false,
+  "payload": {
+    "planRef": ".vua/bridge/n3-vector-optimizer.amf-plan.json",
+    "planHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

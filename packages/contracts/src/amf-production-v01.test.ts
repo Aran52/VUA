@@ -134,6 +134,17 @@ describe("AMF material-first Candidate boundary", () => {
       expect(keys.filter(key => key !== "open").sort(), name).toEqual([...AMF_STEP_KEYS].sort());
     }
   });
+  it("registers setOptimizer as a command requiring a boolean flag", () => {
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["amf.production.setOptimizer"]).toBe("command");
+    for (const enabled of [true, false]) {
+      const params = { schemaVersion: "0.1", runId: "n3-test", enabled };
+      expect(isDesktopGatewayRequestV1({ schemaVersion: 1, requestId: "opt", method: "amf.production.setOptimizer", params })).toBe(true);
+      expect(isApplicationRequestV01({ contractVersion: "0.1", requestId: "opt", correlationId: "opt", commandId: "cmd-opt", kind: "command", method: "amf.production.setOptimizer", params })).toBe(true);
+    }
+    for (const bad of [{ schemaVersion: "0.1", runId: "n3-test" }, { schemaVersion: "0.1", runId: "n3-test", enabled: "yes" }, { schemaVersion: "0.1", runId: "n3-test", enabled: true, extra: 1 }]) {
+      expect(isAmfProductionParams("amf.production.setOptimizer", bad)).toBe(false);
+    }
+  });
 });
 
 describe("switch options in a selection", () => {

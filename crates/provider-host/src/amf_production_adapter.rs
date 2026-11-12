@@ -83,6 +83,7 @@ struct BridgeExtras<'a> {
     face_tracking: Option<&'a FaceTrackingPatch>,
     apply_target: Option<&'a vua_orchestrator::amf_recipe_apply::RecipeApplyTarget>,
     sdk_fixes: Option<&'a [String]>,
+    optimizer: Option<bool>,
     fits: &'a [OutfitFit],
 }
 
@@ -246,6 +247,68 @@ impl NativeAmfProduction {
         }
         Ok(())
     }
+    /// Ensures the project's VPM dependencies are compatible with `com.anatawa12.avatar-optimizer`
+    /// 1.9.21 and installs that exact pinned release from the official feed when not yet present.
+    fn ensure_avatar_optimizer_installed(&self, run: &ProductionRun) -> Result<(), AppErrorV1> {
+        let project = Path::new(&run.project_root);
+        let manifest_path = project.join("Packages/vpm-manifest.json");
+        let manifest: serde_json::Value = serde_json::from_slice(
+            &fs::read(&manifest_path).map_err(|e| err("project_unreadable", e))?,
+        )
+        .map_err(|e| err("project_unreadable", e))?;
+        let locked = manifest["locked"]
+            .as_object()
+            .ok_or_else(|| err("project_unreadable", "Installed VPM lock is missing."))?;
+        let sdk_version = locked
+            .get("com.vrchat.avatars")
+            .and_then(|entry| entry["version"].as_str());
+        let ndmf_version = locked
+            .get("nadena.dev.ndmf")
+            .and_then(|entry| entry["version"].as_str());
+        if !known_packages::avatar_optimizer_compatible(sdk_version, ndmf_version) {
+            return Err(err(
+                "optimizer_incompatible",
+                format!(
+                    "Avatar Optimizer {} requires com.vrchat.avatars >= 3.7.0 < 3.11.0 and nadena.dev.ndmf >= 1.8.0 < 2.0.0 (observed SDK {}, NDMF {}).",
+                    known_packages::AVATAR_OPTIMIZER_PINNED_VERSION,
+                    sdk_version.unwrap_or("none"),
+                    ndmf_version.unwrap_or("none")
+                ),
+            ));
+        }
+        let installed_version = locked
+            .get(known_packages::AVATAR_OPTIMIZER_ID)
+            .and_then(|entry| entry["version"].as_str());
+        if installed_version == Some(known_packages::AVATAR_OPTIMIZER_PINNED_VERSION)
+            && project
+                .join("Packages")
+                .join(known_packages::AVATAR_OPTIMIZER_ID)
+                .join("package.json")
+                .is_file()
+        {
+            return Ok(());
+        }
+        if let Some(other) = installed_version {
+            if other != known_packages::AVATAR_OPTIMIZER_PINNED_VERSION {
+                return Err(err(
+                    "optimizer_incompatible",
+                    format!(
+                        "Work project already carries {} {other}; VUA pins {} {}.",
+                        known_packages::AVATAR_OPTIMIZER_ID,
+                        known_packages::AVATAR_OPTIMIZER_ID,
+                        known_packages::AVATAR_OPTIMIZER_PINNED_VERSION
+                    ),
+                ));
+            }
+        }
+        let package = known_packages::find_known_package(known_packages::AVATAR_OPTIMIZER_ID)
+            .expect("Avatar Optimizer known package entry");
+        self.install_known_package(
+            run,
+            package,
+            InstallPin::Release(known_packages::AVATAR_OPTIMIZER_PINNED_VERSION),
+        )
+    }
     fn bridge(
         &self,
         run: &ProductionRun,
@@ -264,7 +327,7 @@ impl NativeAmfProduction {
         fits: &[OutfitFit],
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, operation, selection, BridgeExtras { texture_changes: None, apply_target, sdk_fixes: None, fits, face_tracking: None, outfit_removal: None }, watch)
+        self.bridge_request(run, operation, selection, BridgeExtras { texture_changes: None, apply_target, sdk_fixes: None, optimizer: None, fits, face_tracking: None, outfit_removal: None }, watch)
     }
     /// One Bridge v5 run: the request file, the command and the observed result.
     fn bridge_request(
@@ -275,7 +338,7 @@ impl NativeAmfProduction {
         extras: BridgeExtras<'_>,
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
-        let BridgeExtras { texture_changes, apply_target, sdk_fixes, fits, face_tracking, outfit_removal } = extras;
+        let BridgeExtras { texture_changes, apply_target, sdk_fixes, optimizer, fits, face_tracking, outfit_removal } = extras;
         self.verify_editor(&run.editor.path)?;
         reject_editor_lock(Path::new(&run.project_root))?;
         clear_stale_lock(Path::new(&run.project_root));
@@ -317,6 +380,9 @@ impl NativeAmfProduction {
         if let Some(patch) = face_tracking {
             request["faceTrackingPatch"] = serde_json::to_value(patch).map_err(|e| err("request_invalid", e))?;
         }
+        if let Some(enabled) = optimizer {
+            request["optimizer"] = serde_json::json!({ "enabled": enabled });
+        }
         let serialized =
             serde_json::to_vec_pretty(&request).map_err(|e| err("request_invalid", e))?;
         // v5 carries a separate request format, not a frozen v2/v3 Recipe plan.
@@ -337,7 +403,7 @@ impl NativeAmfProduction {
             operation,
             project_id: run.run_id.clone(),
             dry_run: operation == UnityOperation::AmfInspect,
-            expected_project_fingerprint: matches!(operation, UnityOperation::AmfAssemble | UnityOperation::AmfSdkFix | UnityOperation::AmfFtPatch | UnityOperation::AmfTextureImport | UnityOperation::AmfOutfitRemove)
+            expected_project_fingerprint: matches!(operation, UnityOperation::AmfAssemble | UnityOperation::AmfSdkFix | UnityOperation::AmfFtPatch | UnityOperation::AmfTextureImport | UnityOperation::AmfOutfitRemove | UnityOperation::AmfOptimizer)
                 .then(|| run.unity_fingerprint.clone()),
             payload: UnityPayload {
                 plan_ref: Some(plan_ref),
@@ -406,6 +472,7 @@ impl NativeAmfProduction {
             validate_face_tracking(ft)?;
         }
         validate_outfit_removal_facts(&facts)?;
+        validate_optimizer_facts(&mut facts, operation == UnityOperation::AmfOptimizer)?;
         let omitted = normalize_previews(&mut facts, Path::new(&run.project_root), &id)?;
         let mut diagnostics = result.diagnostics;
         if !omitted.is_empty() {
@@ -1001,18 +1068,39 @@ impl AmfProductionPlatform for NativeAmfProduction {
         ))
     }
     fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, UnityOperation::AmfSdkFix, None, BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: Some(fixes), fits: &[], face_tracking: None, outfit_removal: None }, watch)
+        self.bridge_request(run, UnityOperation::AmfSdkFix, None, BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: Some(fixes), optimizer: None, fits: &[], face_tracking: None, outfit_removal: None }, watch)
+    }
+    fn set_optimizer(&self, run: &ProductionRun, enabled: bool, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        reject_editor_lock(Path::new(&run.project_root))?;
+        if enabled {
+            self.ensure_avatar_optimizer_installed(run)?;
+        }
+        self.bridge_request(
+            run,
+            UnityOperation::AmfOptimizer,
+            None,
+            BridgeExtras {
+                texture_changes: None,
+                apply_target: None,
+                sdk_fixes: None,
+                optimizer: Some(enabled),
+                fits: &[],
+                face_tracking: None,
+                outfit_removal: None,
+            },
+            watch,
+        )
     }
     fn texture_import(&self, run: &ProductionRun, changes: &[TextureImportChange], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, UnityOperation::AmfTextureImport, None, BridgeExtras { texture_changes: Some(changes), apply_target: None, sdk_fixes: None, fits: &[], face_tracking: None, outfit_removal: None }, watch)
+        self.bridge_request(run, UnityOperation::AmfTextureImport, None, BridgeExtras { texture_changes: Some(changes), apply_target: None, sdk_fixes: None, optimizer: None, fits: &[], face_tracking: None, outfit_removal: None }, watch)
     }
     fn remove_outfit(&self, run: &ProductionRun, removal: &OutfitRemoval, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         self.bridge_request(run, UnityOperation::AmfOutfitRemove, None,
-            BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: None, fits: &[], face_tracking: None, outfit_removal: Some(removal) }, watch)
+            BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: None, optimizer: None, fits: &[], face_tracking: None, outfit_removal: Some(removal) }, watch)
     }
     fn face_tracking_patch(&self, run: &ProductionRun, patch: &FaceTrackingPatch, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         self.bridge_request(run, UnityOperation::AmfFtPatch, None,
-            BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: None, fits: &[], face_tracking: Some(patch), outfit_removal: None }, watch)
+            BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: None, optimizer: None, fits: &[], face_tracking: Some(patch), outfit_removal: None }, watch)
     }
     fn turntable(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         self.bridge(run, UnityOperation::AmfTurntable, None, watch)
@@ -2524,6 +2612,181 @@ mod tests {
             .unwrap(),
             "the legacy value is exactly what older records carry"
         );
+        drop(adapter);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn avatar_optimizer_installs_pinned_version_offline_and_rejects_incompatible_locks() {
+        use std::io::{Read, Write};
+        let root = std::env::temp_dir().join(format!(
+            "vua-amf-aao-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        let project = root.join("work");
+        for scope in ["Assets", "Packages", "ProjectSettings"] {
+            std::fs::create_dir_all(project.join(scope)).unwrap();
+        }
+        std::fs::write(project.join("ProjectSettings/ProjectVersion.txt"), "m_EditorVersion: 2022.3.22f1c1\n").unwrap();
+        std::fs::write(project.join("Packages/manifest.json"), include_str!("amf_project_manifest.json")).unwrap();
+        FileSystemProjectStore::initialize(&ProjectRef {
+            id: "n3-aao".into(),
+            root: project.clone(),
+        }).unwrap();
+        let adapter = NativeAmfProduction {
+            bdl: Arc::new(BdlStore::open(root.join("bdl.db")).unwrap()),
+            root: root.join("amf"),
+            editor_roots: vec![],
+            explicit_editor: None,
+            unity_hub: None,
+        };
+        let run: ProductionRun = serde_json::from_value(serde_json::json!({
+            "schemaVersion": "0.1",
+            "runId": "n3-aao",
+            "phase": "succeeded",
+            "taskId": "task-1",
+            "editor": {"path": "synthetic-editor", "version": "2022.3.22f1c1"},
+            "projectRoot": project.to_string_lossy(),
+            "choices": [],
+            "sources": [],
+            "prefabs": [],
+            "steps": [],
+            "selection": null,
+            "error": null,
+            "recovery": null,
+            "snapshotId": "snap-1",
+            "unityFingerprint": "scene-1",
+            "projectFingerprint": "vua-project-tree-v2:1",
+            "result": null
+        })).unwrap();
+
+        // Incompatible SDK lock is rejected before any feed lookup.
+        std::fs::write(
+            project.join("Packages/vpm-manifest.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "dependencies": {"com.vrchat.avatars": {"version": "3.11.0"}},
+                "locked": {
+                    "com.vrchat.avatars": {"version": "3.11.0", "dependencies": {}},
+                    "nadena.dev.ndmf": {"version": "1.10.0", "dependencies": {}}
+                }
+            })).unwrap(),
+        ).unwrap();
+        assert_eq!(
+            adapter.ensure_avatar_optimizer_installed(&run).unwrap_err().code,
+            "vua.amf_production.optimizer_incompatible"
+        );
+
+        // Compatible SDK + NDMF installed in the project, plus a local cached feed and archive server.
+        for (pkg, ver) in [("com.vrchat.avatars", "3.10.5"), ("nadena.dev.ndmf", "1.10.0")] {
+            let dir = project.join("Packages").join(pkg);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                dir.join("package.json"),
+                serde_json::to_vec(&serde_json::json!({"name": pkg, "version": ver, "displayName": pkg})).unwrap(),
+            ).unwrap();
+        }
+        std::fs::write(
+            project.join("Packages/vpm-manifest.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "dependencies": {"com.vrchat.avatars": {"version": "3.10.5"}},
+                "locked": {
+                    "com.vrchat.avatars": {"version": "3.10.5", "dependencies": {}},
+                    "nadena.dev.ndmf": {"version": "1.10.0", "dependencies": {}}
+                }
+            })).unwrap(),
+        ).unwrap();
+
+        let mut zip_bytes = Vec::new();
+        {
+            let mut archive = zip::ZipWriter::new(std::io::Cursor::new(&mut zip_bytes));
+            let opts = zip::write::SimpleFileOptions::default();
+            archive.start_file("package.json", opts).unwrap();
+            archive.write_all(&serde_json::to_vec(&serde_json::json!({
+                "name": "com.anatawa12.avatar-optimizer",
+                "version": "1.9.21",
+                "displayName": "Avatar Optimizer",
+                "vpmDependencies": {
+                    "com.vrchat.avatars": ">=3.7.0 <3.11.0-a",
+                    "nadena.dev.ndmf": ">=1.8.0 <2.0.0-a"
+                }
+            })).unwrap()).unwrap();
+            archive.finish().unwrap();
+        }
+        let actual_sha256: String = Sha256::digest(&zip_bytes).iter().map(|b| format!("{b:02x}")).collect();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 2048];
+            let _ = stream.read(&mut buf);
+            let header = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                zip_bytes.len()
+            );
+            stream.write_all(header.as_bytes()).unwrap();
+            stream.write_all(&zip_bytes).unwrap();
+        });
+
+        let env_root = adapter.root.join("vpm-environment");
+        let cache_file = env_root
+            .join("Repos")
+            .join(format!("{}.json", vua_orchestrator::fnv1a_hex(known_packages::AVATAR_OPTIMIZER_FEED.as_bytes())));
+        std::fs::create_dir_all(cache_file.parent().unwrap()).unwrap();
+        std::fs::write(
+            env_root.join("settings.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "ignoreOfficialRepository": true,
+                "ignoreCuratedRepository": true,
+                "userRepos": [{
+                    "id": "com.anatawa12.vpm",
+                    "name": "anatawa12's VPM repository",
+                    "url": known_packages::AVATAR_OPTIMIZER_FEED,
+                    "localPath": cache_file
+                }]
+            })).unwrap(),
+        ).unwrap();
+        std::fs::write(
+            &cache_file,
+            serde_json::to_vec(&serde_json::json!({
+                "repo": {
+                    "name": "anatawa12's VPM repository",
+                    "id": "com.anatawa12.vpm",
+                    "url": known_packages::AVATAR_OPTIMIZER_FEED,
+                    "packages": {
+                        "com.anatawa12.avatar-optimizer": {
+                            "versions": {
+                                "1.9.21": {
+                                    "name": "com.anatawa12.avatar-optimizer",
+                                    "version": "1.9.21",
+                                    "displayName": "Avatar Optimizer",
+                                    "url": format!("http://{addr}/com.anatawa12.avatar-optimizer-1.9.21.zip"),
+                                    "zipSHA256": actual_sha256,
+                                    "vpmDependencies": {
+                                        "com.vrchat.avatars": ">=3.7.0 <3.11.0-a",
+                                        "nadena.dev.ndmf": ">=1.8.0 <2.0.0-a"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "vrc-get": {"etag": "\"synthetic\""}
+            })).unwrap(),
+        ).unwrap();
+
+        adapter.ensure_avatar_optimizer_installed(&run).unwrap();
+        server.join().unwrap();
+        assert!(project.join("Packages/com.anatawa12.avatar-optimizer/package.json").is_file());
+        let updated_manifest: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(project.join("Packages/vpm-manifest.json")).unwrap(),
+        ).unwrap();
+        assert_eq!(updated_manifest["locked"]["com.anatawa12.avatar-optimizer"]["version"], "1.9.21");
+
+        // Second invocation is an offline no-op when 1.9.21 is already installed.
+        adapter.ensure_avatar_optimizer_installed(&run).unwrap();
+
         drop(adapter);
         std::fs::remove_dir_all(&root).unwrap();
     }

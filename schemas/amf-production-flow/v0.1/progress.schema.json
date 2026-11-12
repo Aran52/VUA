@@ -55,7 +55,8 @@
         "open",
         "editor_close",
         "texture_memory",
-        "outfit_removal"
+        "outfit_removal",
+        "optimizer"
       ]
     },
     "timestamp": {

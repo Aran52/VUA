@@ -33,7 +33,8 @@
         "amf_sdk_fix",
         "amf_ft_patch",
         "amf_texture_import",
-        "amf_outfit_remove"
+        "amf_outfit_remove",
+        "amf_optimizer"
       ]
     },
     "dryRun": {
@@ -128,7 +129,8 @@
               "amf_assemble",
               "amf_sdk_fix",
               "amf_ft_patch",
-              "amf_outfit_remove"
+              "amf_outfit_remove",
+              "amf_optimizer"
             ]
           }
         }

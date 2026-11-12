@@ -7,7 +7,7 @@ import { parseJson, type Json } from "../src/json.js";
 import { validateShare } from "../src/validation.js";
 import { app, publish, recipe, request, selection } from "./helpers.js";
 
-for (const folder of ["amf-recipe/v0.4/share-examples", "amf-recipe/v0.5/share-examples", "selection-share/v0.1/examples"]) {
+for (const folder of ["amf-recipe/v0.4/share-examples", "amf-recipe/v0.5/share-examples", "amf-recipe/v0.6/share-examples", "selection-share/v0.1/examples"]) {
   test(`closed schema and semantic vectors: ${folder}`, () => {
     const directory = new URL(`../../../../schemas/${folder}/`, import.meta.url);
     for (const filename of readdirSync(directory)) {

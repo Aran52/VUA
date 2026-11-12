@@ -1,8 +1,8 @@
 # AMF production Recipe v0.5
 
-> Document version: 0.2.0
+> Document version: 0.2.1
 > Status: Candidate
-> Updated: 2026-10-25
+> Updated: 2026-11-11
 > Owner: AMF
 
 Recipe v0.5 identifies material by BOOTH product where a source association is known. A creator
@@ -10,8 +10,10 @@ updating a package does not invalidate the declaration. The closed [Recipe schem
 and [share schema](../../schemas/amf-recipe/v0.5/share.schema.json) have positive and negative
 vectors consumed by Rust and TypeScript. Existing [v0.4](amf-recipe-v0.4.md) documents and paste
 codes remain readable, importable and preparable with their original hash-only resolution.
-`saveRecipe` always captures v0.5; importing a v0.4 declaration preserves that version and identity.
-Both generations use the existing revisioned local document store, without moving old files.
+`saveRecipe` captures v0.5 whenever optional Avatar Optimizer is off, and [v0.6](amf-recipe-v0.6.md)
+only when Avatar Optimizer is explicitly enabled on the line; importing a v0.4, v0.5 or v0.6
+declaration preserves that version and identity. All generations use the existing revisioned local
+document store, without moving old files.
 
 ## Portable declarations
 
@@ -122,6 +124,9 @@ Receiver pages and download actions are separate work; this Candidate supplies t
 explicit confirmation parameters.
 
 ## Document changelog
+
+- 0.2.1 (2026-11-11): note that `saveRecipe` continues to emit v0.5 when optional Avatar Optimizer
+  is off and emits [v0.6](amf-recipe-v0.6.md) only when Avatar Optimizer is enabled.
 
 - 0.2.0 (2026-10-25): retain optional outfit `saved` and `group` options across capture, shared declarations and product-based reproduction.
 

@@ -1,14 +1,14 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.23.0
+> Document version: 0.24.0
 > Status: Candidate
-> Updated: 2026-11-08
+> Updated: 2026-11-12
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
 The fixed entry point is `Vua.Editor.Bridge.AmfProductionEntryPoint.Run`.
 
-Operations are `amf_prepare`, `amf_inspect`, `amf_assemble`, `amf_turntable`, `amf_sdk_fix`, `amf_ft_patch`, `amf_texture_import` and `amf_outfit_remove`. The command envelope has `schemaVersion: 5`,
+Operations are `amf_prepare`, `amf_inspect`, `amf_assemble`, `amf_turntable`, `amf_sdk_fix`, `amf_ft_patch`, `amf_texture_import`, `amf_outfit_remove` and `amf_optimizer`. The command envelope has `schemaVersion: 5`,
 `commandId`, `projectId`, `operation`, `dryRun`, optional `expectedProjectFingerprint` and
 `payload`. `payload.planRef` names an `*.amf-plan.json` request under the managed project's
 `.vua/bridge/`; `payload.planHash` is its lowercase 64-character SHA-256 (without a prefix).
@@ -464,7 +464,30 @@ selection's order, so the menu works as radio buttons. Inspection reads both bac
 independent switch). A grouped item with a value below 1 or a parameter outside that prefix does
 not verify.
 
+## Avatar Optimizer
+
+`amf_optimizer` configures `Anatawa12.AvatarOptimizer.TraceAndOptimize` on the active VUA-owned
+Avatar root. It is a bound write (`dryRun` false, `expectedProjectFingerprint` required) carrying
+`optimizer: {enabled}` in the request file. When `enabled` is true, the Bridge verifies that the
+upstream `TraceAndOptimize` component type is loaded, ensures a single default-configured component
+on the active owned Avatar root without reading or writing private fields, and saves the managed
+work scene. When `enabled` is false, it removes any `TraceAndOptimize` component on the active owned
+Avatar root and saves the managed work scene if modified.
+
+After scene observation and `sdkReview`, `amf_optimizer` runs local before/after measurement via
+NDMF's public `nadena.dev.ndmf.AvatarProcessor.ManualProcessAvatar` on two temporary unpacked scene
+clones (one without `TraceAndOptimize`, one with `TraceAndOptimize`), reads SDK performance ratings
+and `ObserveFootprint` counts on both processed copies into `data.optimizerReport`, and cleans up
+both clones, `AvatarProcessor.CleanTemporaryAssets()` and temporary entries under
+`Assets/ZZZ_GeneratedAssets` without saving the scene. `optimizerReport` always sets
+`localMeasurementOnly: true`; a measurement failure records `state: "failed"` and `detail` without
+reverting the component toggle. Whenever `TraceAndOptimize` is present on an Avatar whose
+`faceTracking` facts carry active parameters, non-MA FT components or a creator patch,
+`data.optimizerWarnings` includes `"osc_gimmick_possible"`.
+
 ## Document changelog
+
+- 0.24.0 (2026-11-12): add bound `amf_optimizer` operation (`optimizer: {enabled}`), `data.optimizerReport` (`localMeasurementOnly: true` NDMF `ManualProcessAvatar` before/after comparison) and `data.optimizerWarnings` (`osc_gimmick_possible` when face tracking is active).
 
 - 0.23.0 (2026-11-08): add the local SDK test handoff, durable blueprint restoration and explicit post-sign-in eligibility observations.
 

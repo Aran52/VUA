@@ -3,7 +3,7 @@ use vua_orchestrator::amf_recipe::ProductionRecipe;
 
 #[test]
 fn candidate_recipe_vectors_are_closed_portable_declarations() {
-    for version in ["v0.4","v0.5"] {
+    for version in ["v0.4","v0.5","v0.6"] {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/amf-recipe").join(version);
     let schema = serde_json::from_slice(&fs::read(root.join("recipe.schema.json")).unwrap()).unwrap();
     let validator = jsonschema::validator_for(&schema).unwrap();
@@ -32,7 +32,7 @@ fn recipe_cannot_redirect_a_relationship_or_hide_a_duplicate_input() {
 #[test]
 fn share_schema_codec_and_rust_agree_on_closed_payloads() {
     use vua_orchestrator::amf_recipe_share::SharedRecipe;
-    for version in ["v0.4","v0.5"] {
+    for version in ["v0.4","v0.5","v0.6"] {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/amf-recipe").join(version);
     let schema = serde_json::from_slice(&fs::read(root.join("share.schema.json")).unwrap()).unwrap();
     let validator = jsonschema::validator_for(&schema).unwrap();

@@ -153,9 +153,10 @@ fn wire_run(run: ProductionRun) -> Value {
                 .remove("assetPaths");
         }
     }
-    // The materials kept with a restore point stay inside the record.
+    // The materials and optimizer state kept with a restore point stay inside the record.
     let object = value.as_object_mut().expect("run object");
     object.remove("snapshotSources");
+    object.remove("snapshotOptimizer");
     // Fit provenance and observation bookkeeping stay in the record; the view carries the
     // digest-bound `fitChanges` and `availableFits` instead.
     object.remove("appliedFits");
@@ -242,6 +243,7 @@ fn route(
         "amf.production.applyTextureMemory" => &["schemaVersion", "runId", "platform", "targetRank", "planDigest", "textures"],
         "amf.production.applyLighting" => &["schemaVersion", "runId", "planDigest", "materials"],
         "amf.production.sdkFix" => &["schemaVersion", "runId", "fixes"],
+        "amf.production.setOptimizer" => &["schemaVersion", "runId", "enabled"],
         "amf.production.changeSources" => &["schemaVersion", "runId", "sources"],
         "amf.production.delete" => &["schemaVersion", "runId"],
         _ => {
@@ -548,7 +550,7 @@ fn route(
     if method == "amf.production.open" && !queued {
         service.engine.precheck_open(&run_id)?;
     }
-    if matches!(method, "amf.production.reinspect" | "amf.production.assemble" | "amf.production.changeSources" | "amf.production.sdkFix"
+    if matches!(method, "amf.production.reinspect" | "amf.production.assemble" | "amf.production.changeSources" | "amf.production.sdkFix" | "amf.production.setOptimizer"
         | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.applyTextureMemory" | "amf.production.delete"
         | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch" | "amf.production.removeOutfit") {
         service.engine.precheck_closed(&run_id)?;
@@ -587,6 +589,15 @@ fn route(
         }
         fixes
     } else { Vec::new() };
+    let optimizer_enabled = if method == "amf.production.setOptimizer" {
+        Some(
+            params["enabled"]
+                .as_bool()
+                .ok_or_else(|| production_error("params_invalid", "Choose whether Avatar Optimizer is enabled."))?,
+        )
+    } else {
+        None
+    };
     let ft_menu = if method == "amf.production.faceTrackingPatch" {
         let menu = string("menuId")?;
         if menu.len() != 64 || !menu.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
@@ -633,6 +644,11 @@ fn route(
                 )?,
                 "amf.production.reinspect" => worker.engine.reinspect(&operation_run, ctx)?,
                 "amf.production.sdkFix" => worker.engine.sdk_fix(&operation_run, sdk_fixes, ctx)?,
+                "amf.production.setOptimizer" => worker.engine.set_optimizer(
+                    &operation_run,
+                    optimizer_enabled.expect("validated optimizer setting"),
+                    ctx,
+                )?,
                 "amf.production.faceTrackingPatch" => worker.engine.face_tracking_patch(&operation_run,
                     ft_menu.as_deref().expect("confirmed menu"), &digest, true, ctx)?,
                 "amf.production.applyTextureMemory" => {

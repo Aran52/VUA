@@ -46,6 +46,8 @@ pub static AMF_PRODUCTION_BRIDGE_FILES: &[(&str, &str)] = &[
     ("Editor/Amf/AmfProductionEntryPoint.TextureMemory.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.TextureMemory.cs.meta")),
     ("Editor/Amf/AmfProductionEntryPoint.Footprint.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Footprint.cs")),
     ("Editor/Amf/AmfProductionEntryPoint.Footprint.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Footprint.cs.meta")),
+    ("Editor/Amf/AmfProductionEntryPoint.Optimizer.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Optimizer.cs")),
+    ("Editor/Amf/AmfProductionEntryPoint.Optimizer.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Optimizer.cs.meta")),
 ];
 
 pub const MA_STUB_PACKAGE_JSON: &str =

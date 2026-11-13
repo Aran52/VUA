@@ -45,15 +45,15 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 
 ## 开发进度说明
 
-[v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0) 是本体的首个稳定版，随包提供独立更新的 **AMF 0.3.0 Beta**。新增素材迁移规划、制作预估和首次使用指南，修复工具详情、环境重复检测和 VN3 刷新。Windows x64 在线与离线安装包均包含 AMF。
+[v1.1.0 Getting on Track](https://github.com/VUA-Project/VUA/releases/tag/v1.1.0) 更新稳定版本体，随包提供独立更新的 **AMF 0.4.0 Beta**。新增原生单卡片安装与卸载界面、覆盖 3 个社交平台与 15 项游玩方式的按目标启动页、Steam 与官方安装器外部工具连接、可选 Avatar Optimizer 与本地 SDK 测试构建、Recipe v0.6、签名指南通道及 `v0.3` 压缩增量更新，安装后磁盘占用约减半。Windows x64 在线与离线安装包均包含 AMF。
 
-下方下载指向已发布的 1.0.0 版本。源码当前准备 **v1.1.0 Getting on Track**（搭档 **AMF 0.4.0 Beta**）；交付范围与待完成的实机和人工检查见 [v1.1.0 发行说明草稿](docs/release/v1.1.0_ZH.md)及已发布的 [v1.0.0 发行说明](docs/release/v1.0.0_ZH.md)。源码准备与发布均不代表 [N1–N7 验收](docs/development-outline.md)通过。
+交付范围与待完成的实机和人工检查见 [v1.1.0 发行说明](docs/release/v1.1.0_ZH.md)。公开发布不代表 [N1–N7 验收](docs/development-outline.md)通过。
 
 ### 当前交付与开始入口
 
-- 从 [GitHub 发布页](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0) 下载 **VUA-1.0.0-windows-x64-setup.exe**，需要内置运行时时选择 **VUA-1.0.0-windows-x64-offline.exe**。[官网镜像](https://ph-r.com/vua/downloads/)会标明当前提供的版本。运行安装器，随后从开始菜单打开 VUA。运行不需要 Node、pnpm、Rust 或源码。安装包没有 Authenticode 签名，Windows 可能提示未知发布者。
-- 首次启动会播放功能导览；也可直接进入游玩、工具或改模。新用户默认启用 AMF，可在设置 → 模块关闭。Steam/PICO/Unity 和账号操作按官方应用的提示完成。
-- 更新 VUA 时先完成当前任务、退出程序，再运行新版安装器。AMF 可在设置 → 模块或关于单独更新，然后明确重启。数据保留在 %APPDATA%\VUA，原 ZIP 用户也可改用安装版并沿用这份档案。发行说明列出尚未实测的流程和人工交接。问题可通过 [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) 提交。
+- 从 [GitHub 发布页](https://github.com/VUA-Project/VUA/releases/tag/v1.1.0) 下载 **VUA-1.1.0-windows-x64-setup.exe**，需要内置运行时时选择 **VUA-1.1.0-windows-x64-offline.exe**。[官网镜像](https://ph-r.com/vua/downloads/)会标明当前提供的版本。运行安装器，完成后将自动打开 VUA 并创建开始菜单快捷方式。运行不需要 Node、pnpm、Rust 或源码。安装包没有 Authenticode 签名，Windows 可能提示未知发布者。
+- 首次启动会播放功能导览；也可直接进入启动、工具或工坊。新用户默认启用 AMF，可在设置 → 功能模块关闭。Steam/PICO/Unity 和账号操作按官方应用的提示完成。
+- 更新 VUA 时先完成当前任务、退出程序，再运行新版安装器。AMF 可在设置 → 功能模块或关于单独更新，然后明确重启。数据保留在 %APPDATA%\VUA，原 ZIP 用户也可改用安装版并沿用这份档案。发行说明列出尚未实测的流程和人工交接。问题可通过 [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) 提交。
 - 开发者可从[安装依赖、启动桌面应用与选择检查](apps/desktop/README.md#development-commands)开始，再阅读[贡献指南](CONTRIBUTING.md)。
 
 ## 文档
@@ -61,7 +61,7 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 - [文档指南](docs/README.md)——每项任务的最小阅读路径
 - [产品边界](docs/product-boundary.md)
 - [系统架构](docs/architecture/system.md)
-- [v1.1.0 发行说明（草稿）](docs/release/v1.1.0_ZH.md) · [v1.0.0 发行说明](docs/release/v1.0.0_ZH.md)
+- [v1.1.0 发行说明](docs/release/v1.1.0_ZH.md) · [v1.0.0 发行说明](docs/release/v1.0.0_ZH.md)
 - [1.0.0 最小指南（候选版，五种语言）](docs/user-guide/v1.0.0/zh-CN.md)
 - [贡献指南](CONTRIBUTING.md) · [安全策略](SECURITY.md)
 
@@ -80,6 +80,7 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 | 2026-10-18 | [VN3 条款解析和按用途检查](https://github.com/Aran52/VUA/pull/31) |
 | 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)：首个带 Avatar 制作路径的版本 |
 | 2026-11-05 | [v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0)：本体首个稳定版，搭档 AMF 0.3.0 Beta |
+| 2026-11-13 | [v1.1.0 Getting on Track](https://github.com/VUA-Project/VUA/releases/tag/v1.1.0)：原生现代安装卡片、按目标启动页、Avatar Optimizer、本地 SDK 测试与压缩增量更新，搭档 AMF 0.4.0 Beta |
 
 ## 许可证
 

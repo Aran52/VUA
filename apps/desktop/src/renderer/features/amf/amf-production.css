@@ -49,6 +49,8 @@
 .vua-n3__gallery button:focus-visible { outline: 2px solid var(--vua-accent); outline-offset: 3px; }
 .vua-n3__preview { display: grid; gap: 8px; margin: 0; min-width: 0; }
 .vua-n3__preview img, .vua-n3__preview-frame { display: block; width: 100%; aspect-ratio: 1; border-radius: var(--vua-radius-lg); background: var(--vua-bg-panel); object-fit: contain; }
+.vua-n3__preview-frame:not(:empty) { display: grid; place-items: center; padding: var(--vua-space-3); color: var(--vua-text-secondary); font-size: var(--vua-text-caption-size); text-align: center; }
+.vua-n3__views-gone { margin: 0; color: var(--vua-text-secondary); }
 .vua-n3__preview figcaption { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--vua-text-body-size); line-height: var(--vua-text-body-leading); color: var(--vua-text-secondary); }
 html[data-effects="off"] .vua-n3__gallery button { transition: none; }
 @media (prefers-reduced-motion: reduce) { .vua-n3__gallery button { transition: none; } }

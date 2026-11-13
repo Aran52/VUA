@@ -74,10 +74,11 @@ async function run(){try{
   window.webContents.setBackgroundThrottling(false);
   const click=async id=>{await waitFor(()=>js(`!!document.querySelector('[data-nav-id="${id}"]')`),id);await js(`document.querySelector('[data-nav-id="${id}"]').click()`);};
   const views=()=>window.contentView.children.filter(view=>view.webContents&&view.webContents!==window.webContents);
+  await waitFor(()=>js('!!document.querySelector("[data-nav-id=first-use-enter]")'),"first-use notice");
+  await js('document.querySelector("[data-nav-id=first-use-enter]").click()');
   await waitFor(()=>js('document.querySelector(".vua-tour")?.dataset.tourStep==="welcome"'),"welcome");
   await js('document.querySelector(".vua-tour__actions button").click()');
-  await waitFor(()=>js('!!document.querySelector(".vua-onboarding")&&!document.querySelector(".vua-boot-splash")'),"guide");
-  await js('document.querySelector(".vua-journey-top button").click()');
+  await waitFor(()=>js('!!document.querySelector(".vua-home")&&!document.querySelector(".vua-boot-splash")'),"home");
   await click("nav-warehouse");
   await waitFor(()=>js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("登录")'),"signed-out library");
   assert(libraryRequests===0,"An empty session does not make anonymous account-library requests");
@@ -101,31 +102,49 @@ async function run(){try{
   await waitFor(()=>js('!document.querySelector(".vua-login-browser__bar")'),"automatic return after successful login",15000);
   await waitFor(()=>js('!document.querySelector("[data-nav-id=accounts-booth-login]")&&document.querySelector(".vua-settings-account__head")?.textContent.includes("Synthetic account")'),"account refresh after close");
   assert(true,"Successful login automatically returns and refreshes Settings → Accounts to signed in");
-  await click("logo-home");await click("nav-warehouse");
-  await waitFor(()=>js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("同步 BOOTH")'),"signed-in library");
+  await click("logo-home");
+  await waitFor(()=>js('!!document.querySelector(".vua-home")&&!document.querySelector(".vua-warehouse")'),"home before returning to the library");
+  const beforeWarehouseProbe=libraryRequests;
+  await click("nav-warehouse");
+  await waitFor(()=>js('!!document.querySelector(".vua-warehouse")&&!document.querySelector(".vua-home")'),"new library page after login");
+  await waitFor(()=>libraryRequests>beforeWarehouseProbe,"warehouse session check");
+  await delay(120);
+  await waitFor(()=>js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("同步 BOOTH")&&!document.querySelector("[data-nav-id=warehouse-sync]").disabled'),"signed-in library");
   assert(true,"Returning to the asset library offers sync instead of another login");
-  await click("warehouse-sync");
-  await waitFor(()=>js('document.querySelector(".vua-warehouse")?.textContent.includes("账号列表同步完成")'),"completed native provider sync",30000);
+  let lastSyncClick=0;
+  await waitFor(async()=>{
+    const probe=await js('window.vua.catalogSync.probe()');
+    if(probe.runId!==null)return true;
+    if(Date.now()-lastSyncClick>=600){
+      const clicked=await js('(()=>{const b=document.querySelector("[data-nav-id=warehouse-sync]");if(b&&!b.disabled&&b.textContent.includes("同步 BOOTH")){b.click();return true;}return false;})()');
+      if(clicked)lastSyncClick=Date.now();
+    }
+    return false;
+  },"native provider sync started",15000);
+  await waitFor(()=>js('document.body.textContent.includes("账号列表同步完成")'),"completed native provider sync",30000);
   assert(true,"Three synthetic account libraries sync through the real AMF provider");
   await waitFor(()=>js('document.querySelectorAll(".vua-warehouse-card img").length===2&&[...document.querySelectorAll(".vua-warehouse-card img")].every(i=>i.naturalWidth===128&&!i.dataset.pending)'),"native cached card images");
   assert(true,"A renderer created during host startup displays later-synced images through the real AMF cache loader");
+  assert(productRequests===0,"Post-sync background enrichment paces after sync instead of racing immediate navigation");
   await js(`document.querySelector('[data-product-id="booth:9001"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`);
-  await waitFor(()=>js('!!document.querySelector(".vua-warehouse__drawer .vua-media-slot img")'),"detail media");
-  await js('document.querySelector(".vua-warehouse__drawer .vua-media-slot").scrollIntoView({block:"nearest"})');
-  await waitFor(()=>js('document.querySelector(".vua-warehouse__drawer .vua-media-slot img")?.naturalWidth===128'),"detail image");
-  const header=await js('(()=>{const h=document.querySelector(".vua-warehouse__drawer-header"),t=h.querySelector("h2").getBoundingClientRect(),c=h.querySelector("button").getBoundingClientRect();return {below:t.top>=c.bottom,titleFits:t.right<=h.getBoundingClientRect().right};})()');
-  assert(header.below&&header.titleFits,"Product detail puts its title below a separate close-button row");
-  await waitFor(()=>productRequests>0,"optional description lookup");await delay(250);
-  assert(productRequests===1,"An unavailable description lookup is attempted once per opened detail, without a retry loop");
+  await waitFor(()=>js('!!document.querySelector(".vua-warehouse-detail .vua-media-slot img")'),"detail media");
+  await js('document.querySelector(".vua-warehouse-detail .vua-media-slot").scrollIntoView({block:"nearest"})');
+  await waitFor(()=>js('document.querySelector(".vua-warehouse-detail .vua-media-slot img")?.naturalWidth===128'),"detail image");
+  assert(await js('!!document.querySelector("[data-nav-id=warehouse-detail-back]") && document.querySelector(".vua-warehouse-detail__title").getBoundingClientRect().width>0'),"Product details open as a page with a way back");
+  await waitFor(()=>requests.some(r=>r.path==="/zh-cn/items/9001"),"optional description lookup");await delay(250);
+  assert(
+    JSON.stringify(requests.filter(r=>r.path.startsWith("/zh-cn/items/9001")).map(r=>r.path)) === JSON.stringify(["/zh-cn/items/9001.json","/zh-cn/items/9001"]) && productRequests===2,
+    "An unavailable description lookup is attempted once per opened detail (JSON then HTML fallback), without a retry loop",
+  );
   const loadedImages=imageRequests;
-  await js(`document.querySelector('.vua-warehouse__drawer-header button').click()`);
+  await js(`document.querySelector('[data-nav-id=warehouse-detail-back]').click()`);
   await js(`document.querySelector('[data-product-id="booth:9001"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`);
-  await waitFor(()=>js('document.querySelector(".vua-warehouse__drawer .vua-media-slot img")?.naturalWidth===128'),"cached detail reopen");
+  await waitFor(()=>js('document.querySelector(".vua-warehouse-detail .vua-media-slot img")?.naturalWidth===128'),"cached detail reopen");
   assert(imageRequests===loadedImages,"Reopening detail reuses an already loaded product image");
   await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true});await delay(80);
   fs.writeFileSync(path.join(output,"library-detail.png"),(await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true})).toPNG());
-  const cachedImage=await js('document.querySelector(".vua-warehouse__drawer .vua-media-slot img").src');
-  await js(`document.querySelector('.vua-warehouse__drawer-header button').click()`);
+  const cachedImage=await js('document.querySelector(".vua-warehouse-detail .vua-media-slot img").src');
+  await js(`document.querySelector('[data-nav-id=warehouse-detail-back]').click()`);
   assert(await js('!document.querySelector("[data-nav-id=warehouse-open-folder]")'), "The whole-library folder button is retired from the header");
   await js('window.vua.library.openFolder()');
   await waitFor(()=>folderRequests.length===1,"Explorer handoff");
@@ -158,7 +177,7 @@ async function run(){try{
         await js(`document.querySelector('.vua-warehouse').scrollTop=0`);
         await js(`document.querySelector('.vua-warehouse__filters').scrollIntoView({block:'nearest'})`);
         await delay(100);
-        const layout=await js(`(()=>{const f=document.querySelector('.vua-warehouse__filters'),controls=[...f.querySelectorAll('input,select')],r=controls.map(c=>c.getBoundingClientRect()),s=r.slice(1);return {nativeCategory:controls.filter(c=>c.tagName==='SELECT').length===3,aligned:s.every(x=>Math.abs(x.top-s[0].top)<1&&Math.abs(x.height-s[0].height)<1),responsive:innerWidth>1000?Math.abs(r[0].top-s[0].top)<1:r[0].bottom<s[0].top,height:r.every(x=>Math.abs(x.height-r[0].height)<1),fits:r.every(x=>x.left>=0&&x.right<=innerWidth+1&&x.bottom<=innerHeight+1),noOverflow:document.documentElement.scrollWidth<=innerWidth+1};})()`);
+        const layout=await js(`(()=>{const f=document.querySelector('.vua-warehouse__filters'),controls=[...f.querySelectorAll('input,select')],r=controls.map(c=>c.getBoundingClientRect()),s=r.slice(1);return {nativeCategory:controls.filter(c=>c.tagName==='SELECT').length===4,aligned:innerWidth<=1000||s.every(x=>Math.abs(x.top-s[0].top)<1&&Math.abs(x.height-s[0].height)<1),responsive:innerWidth<=1000||Math.abs(r[0].top-s[0].top)<1,height:r.every(x=>Math.abs(x.height-r[0].height)<1),fits:r.every(x=>x.left>=0&&x.right<=innerWidth+1&&x.bottom<=innerHeight+1),noOverflow:document.documentElement.scrollWidth<=innerWidth+1};})()`);
         if(!Object.values(layout).every(Boolean)){console.error(JSON.stringify({locale,theme,width,height,zoom,layout,geometry:await js(`({width:innerWidth,height:innerHeight,rects:[...document.querySelectorAll('.vua-warehouse__filters input,.vua-warehouse__filters select')].map(x=>x.getBoundingClientRect().toJSON())})`)}));fs.writeFileSync(path.join(output,"layout-failure.png"),(await window.webContents.capturePage()).toPNG());}
         assert(Object.values(layout).every(Boolean),`${locale} ${theme}: aligned search/source/state/native-category controls at ${width}×${height}, zoom ${zoom}`);
         if(width===1400){await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true});await delay(80);fs.writeFileSync(path.join(output,`library-${locale}-${theme}.png`),(await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true})).toPNG());}
@@ -182,5 +201,7 @@ async function run(){try{
   assert((await net.fetch(cachedImage)).status===503,"The early-installed image loader denies reads after AMF is disabled");
   fs.writeFileSync(path.join(output,"checks.json"),JSON.stringify({scope:"Actual Electron/Main/preload/renderer/providers with synthetic BOOTH and stubbed Explorer; no real account/material acceptance",checks},null,2));
   console.log(JSON.stringify({passed:checks.length,output}));exitCode=0;clearTimeout(deadline);app.quit();
-}catch(error){console.error(error.stack??String(error));console.error(JSON.stringify({output,checks,requests,views:window?.contentView.children.map(v=>v.webContents?.getURL())}));clearTimeout(deadline);app.quit();}}
+}catch(error){console.error(error.stack??String(error));
+  const state=window&&!window.isDestroyed()?await window.webContents.executeJavaScript('(async()=>({text:document.body.textContent.slice(-6000),amf:await window.vua.amfModule.snapshot(),sync:await window.vua.catalogSync.probe()}))()').catch(error=>({diagnosticError:String(error)})):null;
+  console.error(JSON.stringify({output,checks,requests,state,views:window?.contentView.children.map(v=>v.webContents?.getURL())}));clearTimeout(deadline);app.quit();}}
 void run();

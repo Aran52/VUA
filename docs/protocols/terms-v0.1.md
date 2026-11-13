@@ -1,8 +1,8 @@
 # VN3 terms v0.1
 
-> Document version: 0.3.0
+> Document version: 0.3.1
 > Status: Candidate
-> Updated: 2026-11-01
+> Updated: 2026-11-06
 > Owner: AMF
 
 This face records public license links from captured BOOTH descriptions, refreshes linked
@@ -26,7 +26,7 @@ recorded product that is outside the account library. Queries use stored evidenc
 
 ## Sources and acquisition
 
-Desktop purpose filtering reads stored evidence and starts no downloads on tab entry or a filter
+The desktop VN3 filter reads stored evidence and starts no downloads on tab entry or a filter
 change. Its explicit **Read recorded terms** control submits `terms.refreshLibrary` for links
 in recorded descriptions, follows the task, and refreshes the library decisions on completion
 or warnings. An unread description is still unknown. The product detail's explicit read first
@@ -134,8 +134,8 @@ store and place local PDFs under AMF's `terms/<source-kind>/<file-id>/<sha256>.p
 
 ## Library and Recipe consumers
 
-[Library view v0.2](library-view-v0.2.md) reuses these stored-evidence decisions for purpose
-filtering before pagination. Recipe import uses the same per-product and strictest-combination
+[Library view v0.3](library-view-v0.3.md) reads these stored items for its VN3 filter before
+pagination, and [v0.2](library-view-v0.2.md) reuses the use decisions. Recipe import uses the same per-product and strictest-combination
 check and explicit refresh command, without blocking import or introducing new presets.
 
 ## Document changelog

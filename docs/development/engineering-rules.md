@@ -46,6 +46,8 @@ The README explains these constraints to players; it does not authorize new API 
   or user content. Local read-only compatibility tests may access public BOOTH pages. Local Unity
   integration and smoke tests may use assets lawfully obtained by the developer; assets, projects,
   page captures, configuration, logs, and outputs remain local.
+- Every `scripts/smoke-*.mjs` runs in CI or states in `scripts/smokes-local.json` why it stays local; `pnpm check`
+  enforces this.
 - Before bundling a third-party binary, audit its license, redistribution terms, update source,
   signatures, notices, and removal path.
 

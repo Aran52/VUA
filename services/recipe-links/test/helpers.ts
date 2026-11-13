@@ -7,7 +7,7 @@ import type { Json } from "../src/json.js";
 export const origin = "https://shares.example.test";
 export const fixture = (relative: string): Json => JSON.parse(readFileSync(new URL(`../../../../schemas/${relative}`, import.meta.url), "utf8")) as Json;
 export const selection = (): Json => fixture("selection-share/v0.1/examples/selection.valid.json");
-export const recipe = (version: "0.4" | "0.5"): Json => fixture(`amf-recipe/v${version}/share-examples/share.valid.json`);
+export const recipe = (version: "0.4" | "0.5" | "0.6"): Json => fixture(`amf-recipe/v${version}/share-examples/share.valid.json`);
 export const app = () => createHandler({ publicOrigin: origin, store: new MemoryStore(), limiter: new PublishLimiter(1000) });
 export const request = (path: string, method = "GET", body?: string, headers: Record<string, string> = {}): Request => new Request(origin + path, {
   method,

@@ -12,8 +12,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use vua_orchestrator::{
     recover_from_journal, AppErrorV1, ErrorCategory, FixedClock, FixedIdGenerator,
     JournalEntryKind, JournalPayload, JournalSink, JournalWriter, MemoryJournal,
-    RecoveredDisposition, SubmitRequest, SystemClock, TaskEventKind, TaskExit, TaskLane, TaskLanePolicy, TaskRuntime,
-    TaskState,
+    RecoveredDisposition, SubmitRequest, SystemClock, TaskEventKind, TaskExit, TaskLane,
+    TaskLanePolicy, TaskRuntime, TaskState,
 };
 
 fn journal_path(label: &str) -> PathBuf {
@@ -760,7 +760,11 @@ fn cancelling_a_poisoned_task_returns_a_typed_error_instead_of_acknowledging() {
 }
 
 /// A job that waits for its release, recording when it runs.
-fn gated_job(name: &'static str, order: Arc<Mutex<Vec<&'static str>>>, gate: mpsc::Receiver<()>) -> SubmitRequest {
+fn gated_job(
+    name: &'static str,
+    order: Arc<Mutex<Vec<&'static str>>>,
+    gate: mpsc::Receiver<()>,
+) -> SubmitRequest {
     SubmitRequest {
         correlation_id: None,
         timeout: None,
@@ -780,10 +784,19 @@ fn a_lane_runs_its_jobs_one_at_a_time_in_order() {
     let (release_a, gate_a) = mpsc::channel();
     let (release_b, gate_b) = mpsc::channel();
     let (release_c, gate_c) = mpsc::channel();
-    let a = runtime.submit_in_lane(gated_job("a", order.clone(), gate_a), &lane).unwrap().task_id;
+    let a = runtime
+        .submit_in_lane(gated_job("a", order.clone(), gate_a), &lane)
+        .unwrap()
+        .task_id;
     wait_for_state(&runtime, &a, TaskState::Running);
-    let b = runtime.submit_in_lane(gated_job("b", order.clone(), gate_b), &lane).unwrap().task_id;
-    let c = runtime.submit_in_lane(gated_job("c", order.clone(), gate_c), &lane).unwrap().task_id;
+    let b = runtime
+        .submit_in_lane(gated_job("b", order.clone(), gate_b), &lane)
+        .unwrap()
+        .task_id;
+    let c = runtime
+        .submit_in_lane(gated_job("c", order.clone(), gate_c), &lane)
+        .unwrap()
+        .task_id;
     std::thread::sleep(Duration::from_millis(100));
     assert_eq!(runtime.snapshot(&b).unwrap().state, TaskState::Queued);
     assert_eq!(runtime.snapshot(&c).unwrap().state, TaskState::Queued);
@@ -801,7 +814,9 @@ fn a_lane_runs_its_jobs_one_at_a_time_in_order() {
     // The lane's bookkeeping clears after the terminal state is published; poll
     // instead of asserting immediately (flaked on a loaded CI runner, 2026-10-30).
     for _ in 0..150 {
-        if lane.is_idle() { break; }
+        if lane.is_idle() {
+            break;
+        }
         std::thread::sleep(Duration::from_millis(20));
     }
     assert!(lane.is_idle());
@@ -814,9 +829,15 @@ fn a_waiting_job_cancelled_ends_cancelled_without_running() {
     let order = Arc::new(Mutex::new(Vec::new()));
     let (release_a, gate_a) = mpsc::channel();
     let (_release_b, gate_b) = mpsc::channel();
-    let a = runtime.submit_in_lane(gated_job("a", order.clone(), gate_a), &lane).unwrap().task_id;
+    let a = runtime
+        .submit_in_lane(gated_job("a", order.clone(), gate_a), &lane)
+        .unwrap()
+        .task_id;
     wait_for_state(&runtime, &a, TaskState::Running);
-    let b = runtime.submit_in_lane(gated_job("b", order.clone(), gate_b), &lane).unwrap().task_id;
+    let b = runtime
+        .submit_in_lane(gated_job("b", order.clone(), gate_b), &lane)
+        .unwrap()
+        .task_id;
     runtime.cancel(&b).unwrap();
     assert_eq!(wait_for_terminal(&runtime, &b).state, TaskState::Cancelled);
     assert!(lane.waiting().is_empty());
@@ -826,22 +847,41 @@ fn a_waiting_job_cancelled_ends_cancelled_without_running() {
     assert!(lane.is_idle());
 }
 
-fn submit_lane_job(runtime: &TaskRuntime, lane: &TaskLane, key: &str, exclusive: bool) -> (String, mpsc::Sender<()>) {
+fn submit_lane_job(
+    runtime: &TaskRuntime,
+    lane: &TaskLane,
+    key: &str,
+    exclusive: bool,
+) -> (String, mpsc::Sender<()>) {
     let (release, gate) = mpsc::channel();
-    let accepted = runtime.submit_in_lane_with_policy(SubmitRequest {
-        correlation_id: None, timeout: None,
-        job: Box::new(move |_ctx| {
-            gate.recv_timeout(Duration::from_secs(10)).expect("test releases running job");
-            Ok(TaskExit::Done(serde_json::Value::Null))
-        }),
-    }, lane, TaskLanePolicy { key: Some(key.into()), exclusive }).unwrap();
+    let accepted = runtime
+        .submit_in_lane_with_policy(
+            SubmitRequest {
+                correlation_id: None,
+                timeout: None,
+                job: Box::new(move |_ctx| {
+                    gate.recv_timeout(Duration::from_secs(10))
+                        .expect("test releases running job");
+                    Ok(TaskExit::Done(serde_json::Value::Null))
+                }),
+            },
+            lane,
+            TaskLanePolicy {
+                key: Some(key.into()),
+                exclusive,
+            },
+        )
+        .unwrap();
     (accepted.task_id, release)
 }
 
 fn wait_for_idle(lane: &TaskLane) {
     let deadline = Instant::now() + Duration::from_secs(10);
     while !lane.is_idle() {
-        assert!(Instant::now() < deadline, "lane did not release finished jobs");
+        assert!(
+            Instant::now() < deadline,
+            "lane did not release finished jobs"
+        );
         std::thread::sleep(Duration::from_millis(5));
     }
 }
@@ -901,7 +941,10 @@ fn an_exclusive_head_waits_for_all_jobs_then_runs_alone_without_starvation() {
     release_a.send(()).unwrap();
     wait_for_terminal(&runtime, &a);
     std::thread::sleep(Duration::from_millis(100));
-    assert_eq!(runtime.snapshot(&exclusive).unwrap().state, TaskState::Queued);
+    assert_eq!(
+        runtime.snapshot(&exclusive).unwrap().state,
+        TaskState::Queued
+    );
     assert_eq!(runtime.snapshot(&later).unwrap().state, TaskState::Queued);
     release_b.send(()).unwrap();
     wait_for_state(&runtime, &exclusive, TaskState::Running);
@@ -939,13 +982,19 @@ fn capacity_is_one_by_default_bounded_to_three_and_changes_only_when_idle() {
     assert!(TaskLane::with_capacity(0).is_err());
     assert!(TaskLane::with_capacity(4).is_err());
     lane.set_capacity(3).unwrap();
-    let jobs: Vec<_> = (0..4).map(|i| submit_lane_job(&runtime, &lane, &format!("line-{i}"), false)).collect();
-    for (id, _) in &jobs[..3] { wait_for_state(&runtime, id, TaskState::Running); }
+    let jobs: Vec<_> = (0..4)
+        .map(|i| submit_lane_job(&runtime, &lane, &format!("line-{i}"), false))
+        .collect();
+    for (id, _) in &jobs[..3] {
+        wait_for_state(&runtime, id, TaskState::Running);
+    }
     assert_eq!(lane.snapshot().running.len(), 3);
     assert_eq!(lane.waiting(), vec![jobs[3].0.clone()]);
     assert!(lane.set_capacity(1).is_err());
     assert_eq!(lane.snapshot().capacity, 3);
-    for (_, release) in &jobs { release.send(()).unwrap(); }
+    for (_, release) in &jobs {
+        release.send(()).unwrap();
+    }
     wait_for_idle(&lane);
     lane.set_capacity(1).unwrap();
     assert_eq!(lane.snapshot().capacity, 1);

@@ -98,6 +98,8 @@ input { width:16px; height:16px; padding:0; margin:0; }
 <div class="camera"><div id="scene" class="scene"></div><div class="hidden"><button id="hidden-control">hidden</button></div></div>
 <div id="bleed" class="bleed">actual viewport overflow</div>
 <div class="caption-clip"><span id="caption" class="caption">actual clipped caption</span></div>
+<div style="overflow:hidden;height:60px"><div style="overflow-y:auto;height:60px"><div style="height:50px"></div><p id="at-the-fold" style="margin:0;line-height:20px">text a page can scroll to</p><div style="height:100px"></div></div></div>
+<div style="overflow:hidden;height:60px"><div style="overflow-y:auto;height:90px"><div style="height:50px"></div><p id="past-the-frame" style="margin:0;line-height:20px">text its scroller is cut across</p><div style="height:100px"></div></div></div>
 <label id="large-label" class="label"><input id="labelled" type="checkbox">a usable label</label>
 <input id="unlabelled" type="checkbox" aria-label="tiny independent control">
 <div inert><button id="inert-control" style="width:16px;height:16px;padding:0">inactive background action</button></div>
@@ -217,6 +219,8 @@ test("paint clipping, label hit regions and auto margins preserve real defects",
   assert.equal(flagged("overflow", "scene"), false, "a camera clipped inside the page is not viewport leakage");
   assert.equal(flagged("overflow", "bleed"), true, "unconfined content still fails");
   assert.equal(flagged("overflow", "caption"), true, "ordinary clipped text is not exempted with the scene");
+  assert.equal(flagged("overflow", "at-the-fold"), false, "text at a scrolling page's fold is scrolled, not clipped");
+  assert.equal(flagged("overflow", "past-the-frame"), true, "a scroller cut by its own frame still clips");
   assert.equal(flagged("target-size", "labelled"), false, "the associated 28px label supplies the real hit region");
   assert.equal(flagged("target-size", "unlabelled"), true, "an independent tiny checkbox still fails");
   assert.equal(element("inert-control").disabled, true, "modal isolation makes background actions inactive");

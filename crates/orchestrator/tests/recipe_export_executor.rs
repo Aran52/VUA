@@ -49,7 +49,10 @@ fn assert_schema_valid(draft: &ProjectDraftDocumentV01) {
         .iter_errors(&envelope)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(problems.is_empty(), "frozen schema must admit the draft: {problems:?}");
+    assert!(
+        problems.is_empty(),
+        "frozen schema must admit the draft: {problems:?}"
+    );
 }
 
 fn unique_root(label: &str) -> PathBuf {
@@ -76,8 +79,11 @@ fn seed_skeleton(root: &Path, label: &str) -> PathBuf {
 }
 
 fn write_version(project: &Path, text: &str) {
-    fs::write(project.join("ProjectSettings").join("ProjectVersion.txt"), text)
-        .expect("project version writes");
+    fs::write(
+        project.join("ProjectSettings").join("ProjectVersion.txt"),
+        text,
+    )
+    .expect("project version writes");
 }
 
 fn write_manifest(project: &Path, text: &str) {
@@ -116,7 +122,8 @@ fn missing_values(draft: &ProjectDraftDocumentV01) -> Vec<String> {
         .collect()
 }
 
-const UUID_V7_PATTERN: &str = "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
+const UUID_V7_PATTERN: &str =
+    "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
 
 #[test]
 fn the_loop_three_override_flips_the_declared_none_default() {
@@ -124,7 +131,10 @@ fn the_loop_three_override_flips_the_declared_none_default() {
     // (the F5 law: an adapter overrides exactly when it implements) — this
     // flip is what turns the served row available.
     let capabilities = exporter().export_capabilities();
-    assert!(capabilities.export_project_draft, "the real executor declares the face");
+    assert!(
+        capabilities.export_project_draft,
+        "the real executor declares the face"
+    );
 }
 
 #[test]
@@ -162,37 +172,80 @@ fn a_normal_project_projects_the_full_frozen_word_face() {
     // Origin: the registered path echoed verbatim, the final component as
     // the name source fact, the VUA-native tri-state.
     assert_eq!(draft.origin.project_path, project.to_string_lossy());
-    assert_eq!(draft.origin.project_name.as_deref(), Some("comfy-avatar-2026"));
-    assert_eq!(draft.origin.vua_identity_status, VuaIdentityStatusV01::Present);
+    assert_eq!(
+        draft.origin.project_name.as_deref(),
+        Some("comfy-avatar-2026")
+    );
+    assert_eq!(
+        draft.origin.vua_identity_status,
+        VuaIdentityStatusV01::Present
+    );
 
     // Environment: the observed version verbatim, no marker.
-    assert_eq!(draft.environment.unity_version_constraint.as_deref(), Some("2022.3.22f1"));
+    assert_eq!(
+        draft.environment.unity_version_constraint.as_deref(),
+        Some("2022.3.22f1")
+    );
 
     // Dependencies: the DECLARED set only (the locked-only transitive entry
     // produces NO row), packageId ascending, pins only where one exists.
-    let ids: Vec<&str> = draft.dependencies.iter().map(|row| row.package_id.as_str()).collect();
-    assert_eq!(ids, ["com.vrchat.avatars", "com.vrchat.base", "dev.example.coolshader"]);
+    let ids: Vec<&str> = draft
+        .dependencies
+        .iter()
+        .map(|row| row.package_id.as_str())
+        .collect();
+    assert_eq!(
+        ids,
+        [
+            "com.vrchat.avatars",
+            "com.vrchat.base",
+            "dev.example.coolshader"
+        ]
+    );
     assert_eq!(draft.dependencies[0].version_constraint, "3.7.x");
-    assert_eq!(draft.dependencies[0].locked_version.as_deref(), Some("3.7.12"));
+    assert_eq!(
+        draft.dependencies[0].locked_version.as_deref(),
+        Some("3.7.12")
+    );
     assert_eq!(
         draft.dependencies[1].locked_version,
         Option::<String>::None,
         "an unpinned declaration carries no locked pin"
     );
-    assert_eq!(draft.dependencies[2].locked_version.as_deref(), Some("1.2.7"));
+    assert_eq!(
+        draft.dependencies[2].locked_version.as_deref(),
+        Some("1.2.7")
+    );
 
     // Missing: the nine constant dimensions only — the relation face is
     // never scanned (zero-bridge ruling) and the version was readable.
     assert_eq!(
         missing_values(&draft),
-        ["assets", "instances", "relations", "wardrobeGroups", "targetAvatar", "assetRoles", "assetLabels", "sourceRefs", "titleSemantics"],
+        [
+            "assets",
+            "instances",
+            "relations",
+            "wardrobeGroups",
+            "targetAvatar",
+            "assetRoles",
+            "assetLabels",
+            "sourceRefs",
+            "titleSemantics"
+        ],
     );
-    assert_eq!(draft.exported_at, FIXED_INSTANT, "the injected clock stamps the scan");
+    assert_eq!(
+        draft.exported_at, FIXED_INSTANT,
+        "the injected clock stamps the scan"
+    );
     // The draft instance identity: minted per call, uuid-v7-shaped, never a
     // recipeId.
     let id_validator = jsonschema::validator_for(&json!({ "pattern": UUID_V7_PATTERN }))
         .expect("pattern compiles");
-    assert!(id_validator.is_valid(&json!(draft.draft_id)), "{}", draft.draft_id);
+    assert!(
+        id_validator.is_valid(&json!(draft.draft_id)),
+        "{}",
+        draft.draft_id
+    );
     fs::remove_dir_all(&root).ok();
 }
 
@@ -208,9 +261,16 @@ fn manifest_absent_and_empty_declared_project_the_honest_empty_rows() {
     write_manifest(&zero, r#"{"dependencies": {}}"#);
     let locked_only = seed_skeleton(&root, "locked-only");
     write_version(&locked_only, "m_EditorVersion: 2022.3.22f1\n");
-    write_manifest(&locked_only, r#"{"locked": {"com.example.transitive": "1.0.0"}}"#);
+    write_manifest(
+        &locked_only,
+        r#"{"locked": {"com.example.transitive": "1.0.0"}}"#,
+    );
 
-    for (label, project) in [("absent", absent), ("zero", zero), ("locked-only", locked_only)] {
+    for (label, project) in [
+        ("absent", absent),
+        ("zero", zero),
+        ("locked-only", locked_only),
+    ] {
         let draft = exporter()
             .export_project_draft(project.to_string_lossy().as_ref())
             .unwrap_or_else(|error| panic!("{label} must be a success fact: {}", error.code));
@@ -220,7 +280,11 @@ fn manifest_absent_and_empty_declared_project_the_honest_empty_rows() {
             Some("2022.3.22f1"),
             "{label}: the version was readable, no marker"
         );
-        assert_eq!(missing_values(&draft).len(), 9, "{label}: nine constants only");
+        assert_eq!(
+            missing_values(&draft).len(),
+            9,
+            "{label}: nine constants only"
+        );
         assert_schema_valid(&draft);
     }
     fs::remove_dir_all(&root).ok();
@@ -244,7 +308,10 @@ fn corrupted_and_shape_broken_manifests_project_the_honest_empty_rows() {
         let draft = exporter()
             .export_project_draft(project.to_string_lossy().as_ref())
             .unwrap_or_else(|error| panic!("{label} must ride as a success fact: {}", error.code));
-        assert!(draft.dependencies.is_empty(), "{label}: no rows derivable, none invented");
+        assert!(
+            draft.dependencies.is_empty(),
+            "{label}: no rows derivable, none invented"
+        );
         assert_eq!(
             draft.environment.unity_version_constraint.as_deref(),
             Some("2022.3.22f1"),
@@ -270,8 +337,16 @@ fn non_string_version_entries_are_skipped_never_guessed() {
     let draft = exporter()
         .export_project_draft(project.to_string_lossy().as_ref())
         .expect("observation succeeds");
-    let ids: Vec<&str> = draft.dependencies.iter().map(|row| row.package_id.as_str()).collect();
-    assert_eq!(ids, ["com.example.string"], "only the string-valued declaration rides");
+    let ids: Vec<&str> = draft
+        .dependencies
+        .iter()
+        .map(|row| row.package_id.as_str())
+        .collect();
+    assert_eq!(
+        ids,
+        ["com.example.string"],
+        "only the string-valued declaration rides"
+    );
     fs::remove_dir_all(&root).ok();
 }
 
@@ -291,8 +366,7 @@ fn incomplete_and_absent_version_lines_carry_null_constraint_and_the_marker() {
             .export_project_draft(project.to_string_lossy().as_ref())
             .unwrap_or_else(|error| panic!("{label} must ride as a success fact: {}", error.code));
         assert_eq!(
-            draft.environment.unity_version_constraint,
-            None,
+            draft.environment.unity_version_constraint, None,
             "{label}: unreadable version is the honest null"
         );
         assert_eq!(
@@ -316,7 +390,10 @@ fn the_identity_tri_state_follows_the_aggregate_verdict_boundaries() {
     write_identity(&garbage, "not json at all");
     let unknown_version = seed_skeleton(&root, "unknown-identity-version");
     write_version(&unknown_version, "m_EditorVersion: 2022.3.22f1\n");
-    write_identity(&unknown_version, r#"{"identityVersion": 99, "markedAt": "x"}"#);
+    write_identity(
+        &unknown_version,
+        r#"{"identityVersion": 99, "markedAt": "x"}"#,
+    );
     let missing_member = seed_skeleton(&root, "identity-missing-marked-at");
     write_version(&missing_member, "m_EditorVersion: 2022.3.22f1\n");
     write_identity(&missing_member, r#"{"identityVersion": 1}"#);
@@ -325,7 +402,11 @@ fn the_identity_tri_state_follows_the_aggregate_verdict_boundaries() {
         ("absent", absent, VuaIdentityStatusV01::Absent),
         ("garbage", garbage, VuaIdentityStatusV01::Unreadable),
         ("unknown", unknown_version, VuaIdentityStatusV01::Unreadable),
-        ("missing-member", missing_member, VuaIdentityStatusV01::Unreadable),
+        (
+            "missing-member",
+            missing_member,
+            VuaIdentityStatusV01::Unreadable,
+        ),
     ];
     for (label, project, expected) in cases {
         let draft = exporter()
@@ -334,7 +415,10 @@ fn the_identity_tri_state_follows_the_aggregate_verdict_boundaries() {
         assert_eq!(draft.origin.vua_identity_status, expected, "{label}");
         // An absent identity is NOT a gate (proposal 029 open item 2): the
         // draft rides the fact either way.
-        assert_eq!(draft.environment.unity_version_constraint.as_deref(), Some("2022.3.22f1"));
+        assert_eq!(
+            draft.environment.unity_version_constraint.as_deref(),
+            Some("2022.3.22f1")
+        );
     }
     fs::remove_dir_all(&root).ok();
 }
@@ -350,8 +434,14 @@ fn a_path_without_a_final_component_has_no_name_fact() {
         .export_project_draft("C:/")
         .expect("observation succeeds");
     assert_eq!(draft.origin.project_name, None);
-    assert_eq!(draft.origin.project_path, "C:/", "the path itself echoes verbatim");
-    assert_eq!(draft.origin.vua_identity_status, VuaIdentityStatusV01::Absent);
+    assert_eq!(
+        draft.origin.project_path, "C:/",
+        "the path itself echoes verbatim"
+    );
+    assert_eq!(
+        draft.origin.vua_identity_status,
+        VuaIdentityStatusV01::Absent
+    );
     fs::remove_dir_all(&root).ok();
 }
 
@@ -368,8 +458,12 @@ fn repeated_exports_pin_determinism_except_the_per_call_draft_identity() {
         r#"{"dependencies": {"zeta.last": "0.1.0", "alpha.first": "2.0.0"}, "locked": {"alpha.first": "2.0.1"}}"#,
     );
     let path = project.to_string_lossy().into_owned();
-    let first = exporter().export_project_draft(&path).expect("first export");
-    let second = exporter().export_project_draft(&path).expect("second export");
+    let first = exporter()
+        .export_project_draft(&path)
+        .expect("first export");
+    let second = exporter()
+        .export_project_draft(&path)
+        .expect("second export");
 
     let mut first_without_id = first.clone();
     first_without_id.draft_id = String::new();
@@ -379,8 +473,19 @@ fn repeated_exports_pin_determinism_except_the_per_call_draft_identity() {
         first_without_id, second_without_id,
         "the fact projection is deterministic"
     );
-    assert_ne!(first.draft_id, second.draft_id, "each export mints its own draft identity");
-    let ids: Vec<&str> = first.dependencies.iter().map(|row| row.package_id.as_str()).collect();
-    assert_eq!(ids, ["alpha.first", "zeta.last"], "packageId ascending both calls");
+    assert_ne!(
+        first.draft_id, second.draft_id,
+        "each export mints its own draft identity"
+    );
+    let ids: Vec<&str> = first
+        .dependencies
+        .iter()
+        .map(|row| row.package_id.as_str())
+        .collect();
+    assert_eq!(
+        ids,
+        ["alpha.first", "zeta.last"],
+        "packageId ascending both calls"
+    );
     fs::remove_dir_all(&root).ok();
 }

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Catalog orders v0.1 command",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["method", "params"],
+  "properties": {
+    "method": { "const": "catalog.ingestOrdersPage" },
+    "params": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "sourceUrl", "html"],
+      "properties": {
+        "schemaVersion": { "const": "0.1" },
+        "sourceUrl": {
+          "type": "string",
+          "pattern": "^https://accounts\\.booth\\.pm/orders(\\?page=[1-9][0-9]*)?$"
+        },
+        "html": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

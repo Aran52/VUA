@@ -113,16 +113,16 @@ pub fn classify_editor(version: &ParsedEditorVersion) -> (EditorClass, &'static 
         );
     }
     if MIGRATION_SOURCES.contains(&version.display.as_str()) {
-        return (
-            EditorClass::MigrationSource,
-            codes::EDITOR_MIGRATION_SOURCE,
-        );
+        return (EditorClass::MigrationSource, codes::EDITOR_MIGRATION_SOURCE);
     }
     if version.china_suffix.is_some() {
         let base = format!(
             "{}.{}.{}{}{}",
-            version.major, version.minor, version.patch,
-            version.release_kind, version.release_number
+            version.major,
+            version.minor,
+            version.patch,
+            version.release_kind,
+            version.release_number
         );
         if base == PRODUCTION_TARGET {
             return (
@@ -159,7 +159,8 @@ mod editor_version_path_tests {
 
     #[test]
     fn hub_layout_yields_the_version_directory() {
-        let path = std::path::Path::new("C:/Program Files/Unity/Hub/Editor/2022.3.22f1/Editor/Unity.exe");
+        let path =
+            std::path::Path::new("C:/Program Files/Unity/Hub/Editor/2022.3.22f1/Editor/Unity.exe");
         assert_eq!(
             editor_version_from_path(path).as_deref(),
             Some("2022.3.22f1")

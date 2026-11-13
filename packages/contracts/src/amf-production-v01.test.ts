@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
-import { isAmfProductionParams, isAmfEditorCloseResult, isAmfAssemblySelection, readAmfProductionProgress, isAmfStep, isAmfUsualDurations, isAmfRunProgress, AMF_RUN_PHASES } from "./amf-production-v01.js";
+import { isAmfProductionParams, isAmfEditorCloseResult, isAmfAssemblySelection, readAmfProductionProgress, isAmfStep, isAmfUsualDurations, isAmfRunProgress, AMF_RUN_PHASES, AMF_STEP_KEYS } from "./amf-production-v01.js";
 import { DESKTOP_GATEWAY_METHOD_KINDS, isDesktopGatewayRequestV1 } from "./desktop-gateway.js";
 import { isApplicationRequestV01 } from "./application-contract.js";
 
 const selection = { avatarPrefab:"Assets/Avatar.prefab",outfits:[{sourceId:"outfit",prefabPath:"Assets/Outfit.prefab",mode:"merge_armature",bone:"",toggleName:"Coat",active:true}] };
 describe("AMF material-first Candidate boundary", () => {
+  it("registers local testing without accepting upload rights, a name or caller-supplied paths", () => {
+    const params = { schemaVersion: "0.1", runId: "n3-test" };
+    expect(isDesktopGatewayRequestV1({ schemaVersion: 1, requestId: "test", method: "amf.production.localTest", params })).toBe(true);
+    const request = { contractVersion: "0.1", requestId: "test", correlationId: "test", commandId: "cmd-test", kind: "command", method: "amf.production.localTest", params };
+    expect(isApplicationRequestV01(request)).toBe(true);
+    expect(isApplicationRequestV01({ ...request, kind: "query" })).toBe(false);
+    for (const bad of [{ ...params, rightsConfirmed: true }, { ...params, avatarName: "Avatar" }, { ...params, projectRoot: "C:/project" }, { ...params, runId: "../run" }]) {
+      expect(isAmfProductionParams("amf.production.localTest", bad)).toBe(false);
+    }
+  });
   it("registers saving and closing as an explicitly confirmed command", () => {
     const params={schemaVersion:"0.1",runId:"n3-test",confirmed:true};
     expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"close",method:"amf.production.closeEditor",params})).toBe(true);
@@ -116,8 +126,24 @@ describe("AMF material-first Candidate boundary", () => {
   });
 
   it("accepts every step the AMF engine records, including release steps", () => {
-    for (const key of ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload"])
+    for (const key of AMF_STEP_KEYS)
       expect(isAmfStep({ key, name: key, state: "succeeded", detail: "", startedAt: "2026-10-17T15:00:00.000Z", endedAt: "2026-10-17T15:01:00.000Z" }), key).toBe(true);
+    for (const name of ["progress", "status"]) {
+      const schema = JSON.parse(readFileSync(new URL(`../../../schemas/amf-production-flow/v0.1/${name}.schema.json`, import.meta.url), "utf8"));
+      const keys: string[] = schema.$defs.stepKey.enum;
+      expect(keys.filter(key => key !== "open").sort(), name).toEqual([...AMF_STEP_KEYS].sort());
+    }
+  });
+  it("registers setOptimizer as a command requiring a boolean flag", () => {
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["amf.production.setOptimizer"]).toBe("command");
+    for (const enabled of [true, false]) {
+      const params = { schemaVersion: "0.1", runId: "n3-test", enabled };
+      expect(isDesktopGatewayRequestV1({ schemaVersion: 1, requestId: "opt", method: "amf.production.setOptimizer", params })).toBe(true);
+      expect(isApplicationRequestV01({ contractVersion: "0.1", requestId: "opt", correlationId: "opt", commandId: "cmd-opt", kind: "command", method: "amf.production.setOptimizer", params })).toBe(true);
+    }
+    for (const bad of [{ schemaVersion: "0.1", runId: "n3-test" }, { schemaVersion: "0.1", runId: "n3-test", enabled: "yes" }, { schemaVersion: "0.1", runId: "n3-test", enabled: true, extra: 1 }]) {
+      expect(isAmfProductionParams("amf.production.setOptimizer", bad)).toBe(false);
+    }
   });
 });
 

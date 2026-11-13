@@ -41,7 +41,7 @@ export function OnboardingPage({ onComplete }: {
       </section>
       <div className="vua-onboarding__part" data-first-use-part="updates"><UpdatePrivacyNotice /></div>
       <footer className="vua-onboarding__footer">
-        <Button variant="subtle" data-nav-id="first-use-beginner" onClick={() => onComplete({
+        <Button data-nav-id="first-use-beginner" onClick={() => onComplete({
           status: "completed", goals: [], environments: [], page: "help-wizard",
         })}>{copy.beginner}</Button>
         <Button variant="primary" data-nav-id="first-use-enter" onClick={() => onComplete({

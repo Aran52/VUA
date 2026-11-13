@@ -17,7 +17,7 @@ async function main() {
     output = await mkdtemp(path.join(os.tmpdir(), "vua-library-bulk-"));
     const profile = path.join(output, "isolated-profile"); await mkdir(profile); app.setPath("userData", profile);
     await app.whenReady();
-    server = await createServer({ configFile: false, appType: "custom", root, cacheDir: path.join(output, "vite-cache"), plugins: [react()], server: { host: "127.0.0.1", port: 0 }, optimizeDeps: { force: true, include: ["react", "react-dom/client", "@vua/contracts"] } });
+    server = await createServer({ configFile: false, appType: "custom", root, cacheDir: path.join(output, "vite-cache"), plugins: [react()], resolve: { alias: { "@vua/contracts": path.resolve(root, "../../packages/contracts/src/index.ts") } }, server: { host: "127.0.0.1", port: 0 }, optimizeDeps: { force: true, entries: [corners ? "scripts/fixtures/library-corners.tsx" : "scripts/fixtures/library-bulk.tsx"], include: ["react", "react-dom/client", "react/jsx-dev-runtime", "@vua/contracts"] } });
     server.middlewares.use(async (req, res, next) => {
       if (!req.url?.startsWith("/__library-bulk")) return next();
       const locale = new URL(req.url, "http://localhost").searchParams.get("locale") ?? "en";
@@ -80,24 +80,26 @@ async function main() {
           await window.webContents.executeJavaScript(`new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`);
           const fits=()=>window.webContents.executeJavaScript(`(() => {
             const filters=document.querySelector('.vua-warehouse__filters'), bounds=filters.getBoundingClientRect();
-            return filters.scrollWidth<=filters.clientWidth && [...filters.querySelectorAll('input,select')].every(control=>{
+            return filters.scrollWidth<=filters.clientWidth && [...filters.querySelectorAll('input,select,.vua-vn3-filter__button')].every(control=>{
               const rect=control.getBoundingClientRect();return rect.width>0 && rect.left>=bounds.left-1 && rect.right<=bounds.right+1;
             });
           })()`);
           if(!await fits())throw Error(`${locale}/${theme}: material filters overflow a narrow page`);
           await window.webContents.executeJavaScript(`(async()=>{
-            const use=document.querySelector('.vua-library-use-filter select');
-            if(use.value!==use.options[1].value){Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(use,use.options[1].value);use.dispatchEvent(new Event('change',{bubbles:true}));}
+            document.querySelector('[data-nav-id="warehouse-vn3"]').click();
             await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+            const panel=document.querySelector('.vua-vn3-filter__panel').getBoundingClientRect();
+            if(panel.left<0||panel.right>innerWidth)throw Error('the VN3 panel leaves a narrow page');
+            document.querySelector('[data-nav-id="warehouse-vn3"]').click();
           })()`);
-          if(!await fits())throw Error(`${locale}/${theme}: expanded use filters overflow a narrow page`);
+          if(!await fits())throw Error(`${locale}/${theme}: the VN3 filter overflows a narrow page`);
           await window.webContents.executeJavaScript(`new Promise((resolve,reject)=>{
             let attempts=0;const timer=setInterval(()=>{
               if(document.querySelectorAll('[data-selection-id]').length===5&&!document.querySelector('.vua-skeleton')){clearInterval(timer);resolve();}
               else if(++attempts>100){clearInterval(timer);reject(Error('narrow material results did not settle'));}
             },40);
           })`);
-          checks.push(`${locale}/${theme}: ordinary and expanded material filters stay aligned inside a 640 px page`);
+          checks.push(`${locale}/${theme}: material filters and the VN3 panel stay inside a 640 px page`);
           await new Promise(resolve=>setTimeout(resolve,350));
           await writeFile(path.join(output,`corners-${locale}-${theme}-narrow.png`),(await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true})).toPNG());
           window.setContentSize(...fullSize);

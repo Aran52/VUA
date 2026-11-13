@@ -18,9 +18,7 @@ use vua_acquisition::warehouse_download_adopt::{
     submit_warehouse_import_downloads, WarehouseDownloadAdoptTaskSpec,
 };
 use vua_bdl_store::bdl_store::BdlStore;
-use vua_bdl_store::download_events::{
-    DownloadEventConsumer, DownloadEventKind, DownloadEventV01,
-};
+use vua_bdl_store::download_events::{DownloadEventConsumer, DownloadEventKind, DownloadEventV01};
 use vua_orchestrator::{FixedIdGenerator, MemoryJournal, SystemClock, TaskRuntime};
 
 fn schema_dir() -> PathBuf {
@@ -115,7 +113,10 @@ fn import_downloads_vector_validates_against_the_command_schema() {
         .iter_errors(&vector)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "the import-downloads vector must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "the import-downloads vector must validate: {errors:?}"
+    );
 }
 
 #[test]
@@ -125,7 +126,10 @@ fn import_downloads_result_vector_validates_against_the_result_schema() {
         .iter_errors(&vector)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "the import-downloads result must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "the import-downloads result must validate: {errors:?}"
+    );
 }
 
 #[test]
@@ -177,7 +181,11 @@ fn import_downloads_vector_drives_the_real_adoption_task_and_validates() {
         .iter()
         .map(|value| value.as_str().unwrap().to_owned())
         .collect();
-    assert_eq!(download_ids.len(), 2, "the vector promises a two-download batch");
+    assert_eq!(
+        download_ids.len(),
+        2,
+        "the vector promises a two-download batch"
+    );
 
     let store = Arc::new(BdlStore::open_in_memory().unwrap());
     let staging_dir = unique_dir("staging");
@@ -187,7 +195,12 @@ fn import_downloads_vector_drives_the_real_adoption_task_and_validates() {
         .map(|download_id| {
             (
                 download_id.clone(),
-                stage_completed_download(&consumer, &staging_dir, download_id, b"PK download fixture"),
+                stage_completed_download(
+                    &consumer,
+                    &staging_dir,
+                    download_id,
+                    b"PK download fixture",
+                ),
             )
         })
         .collect();
@@ -223,7 +236,10 @@ fn import_downloads_vector_drives_the_real_adoption_task_and_validates() {
         .iter_errors(&acceptance)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "the real acceptance must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "the real acceptance must validate: {errors:?}"
+    );
     let expected = read_json(IMPORT_DOWNLOADS_RESULT);
     assert_eq!(acceptance["operation"], expected["operation"]);
 
@@ -233,7 +249,9 @@ fn import_downloads_vector_drives_the_real_adoption_task_and_validates() {
     // closed onto the content row.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let snapshot = loop {
-        let snapshot = runtime.snapshot(&accepted.task_id).expect("task must exist");
+        let snapshot = runtime
+            .snapshot(&accepted.task_id)
+            .expect("task must exist");
         if snapshot.state.is_terminal() {
             break snapshot;
         }
@@ -241,14 +259,19 @@ fn import_downloads_vector_drives_the_real_adoption_task_and_validates() {
         std::thread::sleep(std::time::Duration::from_millis(10));
     };
     assert_eq!(snapshot.correlation_id, correlation_id);
-    let cards = store.warehouse_entry_cards(vua_bdl_store::bdl_store::ArtifactMode::GenerateVpm).unwrap();
+    let cards = store
+        .warehouse_entry_cards(vua_bdl_store::bdl_store::ArtifactMode::GenerateVpm)
+        .unwrap();
     assert_eq!(cards.len(), 2, "the task created one entry per download");
     for card in &cards {
         assert_eq!(card.kind, "downloaded_material");
     }
     for (download_id, staging_path) in &staged {
         // Copy-in: staging survives untouched.
-        assert!(staging_path.exists(), "staging for {download_id} must survive adoption");
+        assert!(
+            staging_path.exists(),
+            "staging for {download_id} must survive adoption"
+        );
     }
 }
 
@@ -284,7 +307,9 @@ fn import_downloads_task_fails_fast_and_keeps_the_landed_entry() {
 
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let snapshot = loop {
-        let snapshot = runtime.snapshot(&accepted.task_id).expect("task must exist");
+        let snapshot = runtime
+            .snapshot(&accepted.task_id)
+            .expect("task must exist");
         if snapshot.state.is_terminal() {
             break snapshot;
         }
@@ -296,7 +321,9 @@ fn import_downloads_task_fails_fast_and_keeps_the_landed_entry() {
         "an uncompleted download must fail the task, got {:?}",
         snapshot.state
     );
-    let cards = store.warehouse_entry_cards(vua_bdl_store::bdl_store::ArtifactMode::GenerateVpm).unwrap();
+    let cards = store
+        .warehouse_entry_cards(vua_bdl_store::bdl_store::ArtifactMode::GenerateVpm)
+        .unwrap();
     assert_eq!(cards.len(), 1, "the first download's entry stays durable");
     assert_eq!(cards[0].kind, "downloaded_material");
 }

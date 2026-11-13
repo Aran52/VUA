@@ -4,13 +4,16 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use vua_orchestrator::{project_tree_fingerprint, project_tree_fingerprint_cached, FINGERPRINT_V2_PREFIX};
+use vua_orchestrator::{
+    project_tree_fingerprint, project_tree_fingerprint_cached, FINGERPRINT_V2_PREFIX,
+};
 
 const SCOPES: [&str; 3] = ["Assets", "Packages", "ProjectSettings"];
 /// The locked value of `locked_tree()` under the v1 algorithm and under v2, computed
 /// from the same files; any change to either algorithm changes its value.
 const LOCKED_V1: &str = "sha256:4b9cd1c6a41e6bfdaca0ac888e64b10706ceeff5831a3ceb5413a19e8b94dd71";
-const LOCKED_V2: &str = "vua-project-tree-v2:b51ec491ecf43bdccf41f768498d560d4bc1cbbb46648d15dcf08db2a1bac7b9";
+const LOCKED_V2: &str =
+    "vua-project-tree-v2:b51ec491ecf43bdccf41f768498d560d4bc1cbbb46648d15dcf08db2a1bac7b9";
 
 fn temp_project(name: &str) -> PathBuf {
     let root = std::env::temp_dir().join(format!(
@@ -33,7 +36,11 @@ fn locked_tree(root: &Path) {
     fs::write(root.join("Assets/Meiyun.prefab"), "avatar\n").unwrap();
     fs::write(root.join("Assets/Tshirt.mat"), "material\n").unwrap();
     fs::write(root.join("Packages/vpm-manifest.json"), "{}\n").unwrap();
-    fs::write(root.join("ProjectSettings/ProjectVersion.txt"), "m_EditorVersion: 2022.3.22f1\n").unwrap();
+    fs::write(
+        root.join("ProjectSettings/ProjectVersion.txt"),
+        "m_EditorVersion: 2022.3.22f1\n",
+    )
+    .unwrap();
 }
 
 /// Two writes must land on different modification times, or the cache could rightly
@@ -43,19 +50,31 @@ fn settle() {
 }
 
 fn v1(root: &Path) -> String {
-    project_tree_fingerprint(root, &SCOPES).unwrap().expect("project exists")
+    project_tree_fingerprint(root, &SCOPES)
+        .unwrap()
+        .expect("project exists")
 }
 
 fn v2(root: &Path) -> String {
-    project_tree_fingerprint_cached(root, &SCOPES).unwrap().expect("project exists")
+    project_tree_fingerprint_cached(root, &SCOPES)
+        .unwrap()
+        .expect("project exists")
 }
 
 #[test]
 fn the_v1_value_is_locked_and_v2_names_its_own_algorithm() {
     let root = temp_project("locked");
     locked_tree(&root);
-    assert_eq!(v1(&root), LOCKED_V1, "the v1 value that assembly and older records rely on must not change");
-    assert_eq!(v2(&root), LOCKED_V2, "the v2 value over the same files is part of this algorithm's record");
+    assert_eq!(
+        v1(&root),
+        LOCKED_V1,
+        "the v1 value that assembly and older records rely on must not change"
+    );
+    assert_eq!(
+        v2(&root),
+        LOCKED_V2,
+        "the v2 value over the same files is part of this algorithm's record"
+    );
     assert!(v2(&root).starts_with(FINGERPRINT_V2_PREFIX));
     assert_ne!(v1(&root), v2(&root));
     fs::remove_dir_all(&root).unwrap();
@@ -74,7 +93,10 @@ fn an_unchanged_project_fingerprints_identically_from_the_cache() {
     let document: serde_json::Value = serde_json::from_slice(&fs::read(&cache).unwrap()).unwrap();
     assert_eq!(document["version"], 2);
     assert_eq!(document["files"].as_object().unwrap().len(), 4);
-    assert!(!root.join(".vua/fingerprint-cache.json.pending").exists(), "the cache write is atomic");
+    assert!(
+        !root.join(".vua/fingerprint-cache.json.pending").exists(),
+        "the cache write is atomic"
+    );
     fs::remove_dir_all(&root).unwrap();
 }
 
@@ -88,7 +110,10 @@ fn changed_contents_sizes_new_deleted_and_renamed_files_change_the_v2_value() {
     settle();
     fs::write(root.join("Assets/Meiyun.prefab"), "ovatar\n").unwrap();
     let second = v2(&root);
-    assert_ne!(first, second, "a same-size content change is a different file");
+    assert_ne!(
+        first, second,
+        "a same-size content change is a different file"
+    );
 
     settle();
     fs::write(root.join("Assets/Meiyun.prefab"), "ovatar\nx").unwrap();
@@ -104,10 +129,17 @@ fn changed_contents_sizes_new_deleted_and_renamed_files_change_the_v2_value() {
     fs::remove_file(root.join("Assets/New.meta")).unwrap();
     let fifth = v2(&root);
     assert_ne!(fourth, fifth, "a deleted file changes the project");
-    assert_eq!(fifth, third, "the same content has the same value, whatever its times");
+    assert_eq!(
+        fifth, third,
+        "the same content has the same value, whatever its times"
+    );
 
     settle();
-    fs::rename(root.join("Assets/Tshirt.mat"), root.join("Assets/Shirt.mat")).unwrap();
+    fs::rename(
+        root.join("Assets/Tshirt.mat"),
+        root.join("Assets/Shirt.mat"),
+    )
+    .unwrap();
     let sixth = v2(&root);
     assert_ne!(fifth, sixth, "a renamed file changes the project");
     fs::remove_dir_all(&root).unwrap();
@@ -121,18 +153,24 @@ fn a_cache_entry_is_reused_until_its_file_moves_then_recomputed() {
     let cache = root.join(".vua/fingerprint-cache.json");
 
     // A stored hash the file still matches by size and time is trusted as-is.
-    let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&cache).unwrap()).unwrap();
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&fs::read(&cache).unwrap()).unwrap();
     document["files"]["Assets/Meiyun.prefab"]["sha256"] = "0".repeat(64).into();
     fs::write(&cache, serde_json::to_vec_pretty(&document).unwrap()).unwrap();
     let tampered = v2(&root);
-    assert_ne!(tampered, real, "an unchanged file's hash comes from the cache");
+    assert_ne!(
+        tampered, real,
+        "an unchanged file's hash comes from the cache"
+    );
 
     // Once the file is written again, its fresh hash replaces the tampered entry.
     settle();
     fs::write(root.join("Assets/Meiyun.prefab"), "avatar\n").unwrap();
     assert_eq!(v2(&root), real);
     let document: serde_json::Value = serde_json::from_slice(&fs::read(&cache).unwrap()).unwrap();
-    let stored = document["files"]["Assets/Meiyun.prefab"]["sha256"].as_str().expect("stored hash");
+    let stored = document["files"]["Assets/Meiyun.prefab"]["sha256"]
+        .as_str()
+        .expect("stored hash");
     assert_ne!(stored, "0".repeat(64));
     fs::remove_dir_all(&root).unwrap();
 }
@@ -170,9 +208,11 @@ fn the_v2_walk_refuses_symbolic_links_like_v1() {
     let outside = temp_project("outside");
     fs::write(outside.join("secret"), "outside\n").unwrap();
     #[cfg(windows)]
-    let linked = std::os::windows::fs::symlink_file(outside.join("secret"), root.join("Assets/link.prefab"));
+    let linked =
+        std::os::windows::fs::symlink_file(outside.join("secret"), root.join("Assets/link.prefab"));
     #[cfg(unix)]
-    let linked = std::os::unix::fs::symlink(outside.join("secret"), root.join("Assets/link.prefab"));
+    let linked =
+        std::os::unix::fs::symlink(outside.join("secret"), root.join("Assets/link.prefab"));
     // Creating the link needs a privilege this run may not have; both algorithms share
     // the refusing walk either way.
     if linked.is_ok() {

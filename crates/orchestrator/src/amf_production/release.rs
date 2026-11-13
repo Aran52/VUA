@@ -5,6 +5,9 @@
 
 use super::*;
 
+mod local_test;
+pub use local_test::*;
+
 /// Turntable frames live in this work-project folder, one subfolder per Bridge command.
 pub const TURNTABLE_ROOT: &str = ".vua/turntables";
 pub const TURNTABLE_FRAMES: u32 = 60;
@@ -16,12 +19,33 @@ const MAX_DETAIL_CHARS: usize = 2000;
 const MAX_ERRORS: usize = 32;
 
 /// Where the player is in one upload, in the order they happen.
-pub const UPLOAD_STAGES: [&str; 7] = ["starting", "sdk_panel", "sign_in", "checking", "building", "uploading", "finishing"];
+pub const UPLOAD_STAGES: [&str; 7] = [
+    "starting",
+    "sdk_panel",
+    "sign_in",
+    "checking",
+    "building",
+    "uploading",
+    "finishing",
+];
 /// Why an upload ended without success, in plain categories the release room explains.
 pub const UPLOAD_REASONS: [&str; 16] = [
-    "sign_in_required", "no_publish_permission", "validation", "ownership", "agreement_declined", "build", "build_blocked",
-    "upload", "thumbnail_missing", "avatar_missing", "scene_not_saved", "interrupted", "editor_unavailable", "timeout",
-    "cancelled", "unknown",
+    "sign_in_required",
+    "no_publish_permission",
+    "validation",
+    "ownership",
+    "agreement_declined",
+    "build",
+    "build_blocked",
+    "upload",
+    "thumbnail_missing",
+    "avatar_missing",
+    "scene_not_saved",
+    "interrupted",
+    "editor_unavailable",
+    "timeout",
+    "cancelled",
+    "unknown",
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -79,6 +103,8 @@ pub struct ReleaseRecord {
     pub turntable: Option<Turntable>,
     #[serde(default)]
     pub uploads: Vec<UploadRecord>,
+    #[serde(default)]
+    pub local_tests: Vec<LocalTestRecord>,
 }
 
 /// One build-and-upload handed to the Editor. The rights confirmation is the player's own, given
@@ -113,34 +139,56 @@ pub struct UploadReceipt {
     /// The SDK's Avatar check read again in the Editor after the upload, so an Auto Fix the
     /// player made in the SDK panel reaches the line's facts. Only a `checked` or `partial` review.
     pub sdk_review: Option<serde_json::Value>,
+    /// Observed only after the SDK has signed in; absence never means ineligible.
+    pub can_publish_avatars: Option<bool>,
 }
 
 /// VRChat Avatar IDs: `avtr_` and a lowercase or uppercase hexadecimal UUID.
 pub fn is_blueprint_id(value: &str) -> bool {
-    let Some(uuid) = value.strip_prefix("avtr_") else { return false; };
+    let Some(uuid) = value.strip_prefix("avtr_") else {
+        return false;
+    };
     let groups = uuid.split('-').collect::<Vec<_>>();
     groups.len() == 5
-        && groups.iter().zip([8, 4, 4, 4, 12]).all(|(group, length)| group.len() == length && group.bytes().all(|b| b.is_ascii_hexdigit()))
+        && groups.iter().zip([8, 4, 4, 4, 12]).all(|(group, length)| {
+            group.len() == length && group.bytes().all(|b| b.is_ascii_hexdigit())
+        })
 }
 
 /// A name VRChat can show: trimmed, 1 to 64 characters, without control characters.
 pub fn validate_avatar_name(name: &str) -> Result<(), AppErrorV1> {
     let count = name.chars().count();
-    if name.trim() != name || count == 0 || count > MAX_AVATAR_NAME_CHARS || name.chars().any(char::is_control) {
-        return Err(production_error("avatar_name_invalid", "Give the Avatar a name of 1 to 64 characters."));
+    if name.trim() != name
+        || count == 0
+        || count > MAX_AVATAR_NAME_CHARS
+        || name.chars().any(char::is_control)
+    {
+        return Err(production_error(
+            "avatar_name_invalid",
+            "Give the Avatar a name of 1 to 64 characters.",
+        ));
     }
     Ok(())
 }
 
 /// Bounded plain text from the SDK: no control characters except line breaks.
 pub fn bounded_text(value: &str, limit: usize) -> String {
-    value.chars().filter(|c| *c == '\n' || !c.is_control()).take(limit).collect()
+    value
+        .chars()
+        .filter(|c| *c == '\n' || !c.is_control())
+        .take(limit)
+        .collect()
 }
 
 fn plain_name(part: &str) -> bool {
     part.len() <= 160
-        && part.bytes().next().is_some_and(|b| b.is_ascii_alphanumeric())
-        && part.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
+        && part
+            .bytes()
+            .next()
+            .is_some_and(|b| b.is_ascii_alphanumeric())
+        && part
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
 }
 
 /// `.vua/turntables/<command>/frame-NN.png`, relative to the work project.
@@ -149,19 +197,36 @@ pub fn turntable_frame_path(command_id: &str, index: u32) -> String {
 }
 
 /// Resolves one turntable frame to its PNG file inside the work project.
-pub fn turntable_file(project_root: &Path, command_id: &str, index: u32) -> Result<PathBuf, AppErrorV1> {
+pub fn turntable_file(
+    project_root: &Path,
+    command_id: &str,
+    index: u32,
+) -> Result<PathBuf, AppErrorV1> {
     let relative = turntable_frame_path(command_id, index);
-    let invalid = || production_error("turntable_invalid", format!("A turntable frame is outside the work project's turntable folder: {relative}"));
+    let invalid = || {
+        production_error(
+            "turntable_invalid",
+            format!("A turntable frame is outside the work project's turntable folder: {relative}"),
+        )
+    };
     if !plain_name(command_id) || index >= TURNTABLE_FRAMES {
         return Err(invalid());
     }
-    let root = fs::canonicalize(project_root).map_err(|e| production_error("project_missing", e.to_string()))?;
-    let file = relative.split('/').fold(project_root.to_path_buf(), |path, part| path.join(part));
-    let metadata = fs::symlink_metadata(&file).map_err(|e| production_error("turntable_missing", format!("{relative}: {e}")))?;
+    let root = fs::canonicalize(project_root)
+        .map_err(|e| production_error("project_missing", e.to_string()))?;
+    let file = relative
+        .split('/')
+        .fold(project_root.to_path_buf(), |path, part| path.join(part));
+    let metadata = fs::symlink_metadata(&file)
+        .map_err(|e| production_error("turntable_missing", format!("{relative}: {e}")))?;
     if !metadata.is_file() || metadata.len() == 0 || metadata.len() > MAX_PREVIEW_BYTES {
-        return Err(production_error("turntable_unusable", format!("A turntable frame is not a bounded image file: {relative}")));
+        return Err(production_error(
+            "turntable_unusable",
+            format!("A turntable frame is not a bounded image file: {relative}"),
+        ));
     }
-    let actual = fs::canonicalize(&file).map_err(|e| production_error("turntable_missing", format!("{relative}: {e}")))?;
+    let actual = fs::canonicalize(&file)
+        .map_err(|e| production_error("turntable_missing", format!("{relative}: {e}")))?;
     if !actual.starts_with(&root) {
         return Err(invalid());
     }
@@ -170,19 +235,31 @@ pub fn turntable_file(project_root: &Path, command_id: &str, index: u32) -> Resu
 
 /// Accepts the Bridge's turntable facts when they name the fixed frame set and every frame is a
 /// bounded file inside the work project.
-pub fn turntable_from_facts(facts: &serde_json::Value, project_root: &Path, unity_fingerprint: &str, baked_at: &str) -> Result<Turntable, AppErrorV1> {
+pub fn turntable_from_facts(
+    facts: &serde_json::Value,
+    project_root: &Path,
+    unity_fingerprint: &str,
+    baked_at: &str,
+) -> Result<Turntable, AppErrorV1> {
     let invalid = |detail: &str| production_error("receipt_invalid", detail.to_owned());
-    let folder = facts["folder"].as_str().ok_or_else(|| invalid("The Bridge reported no turntable."))?;
+    let folder = facts["folder"]
+        .as_str()
+        .ok_or_else(|| invalid("The Bridge reported no turntable."))?;
     let command_id = folder
         .strip_prefix(TURNTABLE_ROOT)
         .and_then(|rest| rest.strip_prefix('/'))
         .filter(|name| plain_name(name))
-        .ok_or_else(|| invalid("The turntable folder is outside the work project's turntable folder."))?;
-    if facts["frames"].as_u64() != Some(TURNTABLE_FRAMES.into()) || facts["size"].as_u64() != Some(TURNTABLE_SIZE.into()) {
+        .ok_or_else(|| {
+            invalid("The turntable folder is outside the work project's turntable folder.")
+        })?;
+    if facts["frames"].as_u64() != Some(TURNTABLE_FRAMES.into())
+        || facts["size"].as_u64() != Some(TURNTABLE_SIZE.into())
+    {
         return Err(invalid("The turntable has another frame count or size."));
     }
     for index in 0..TURNTABLE_FRAMES {
-        turntable_file(project_root, command_id, index).map_err(|error| invalid(&format!("Frame {index}: {}", error.code)))?;
+        turntable_file(project_root, command_id, index)
+            .map_err(|error| invalid(&format!("Frame {index}: {}", error.code)))?;
     }
     Ok(Turntable {
         command_id: command_id.into(),
@@ -195,10 +272,16 @@ pub fn turntable_from_facts(facts: &serde_json::Value, project_root: &Path, unit
 
 /// Removes turntable folders other than the kept one. Links and junctions stay as they are.
 pub fn prune_turntables(project_root: &Path, kept: Option<&str>) {
-    let Ok(entries) = fs::read_dir(project_root.join(TURNTABLE_ROOT)) else { return; };
+    let Ok(entries) = fs::read_dir(project_root.join(TURNTABLE_ROOT)) else {
+        return;
+    };
     for entry in entries.flatten() {
         let name = entry.file_name();
-        if entry.file_type().is_ok_and(|kind| kind.is_dir() && !kind.is_symlink()) && Some(name.to_string_lossy().as_ref()) != kept {
+        if entry
+            .file_type()
+            .is_ok_and(|kind| kind.is_dir() && !kind.is_symlink())
+            && Some(name.to_string_lossy().as_ref()) != kept
+        {
             let _ = fs::remove_dir_all(entry.path());
         }
     }
@@ -209,16 +292,23 @@ fn reason_of(error: &AppErrorV1) -> &'static str {
     match error.code.as_str() {
         _ if error.category == ErrorCategory::Cancelled => "cancelled",
         "vua.amf_production.upload_timeout" => "timeout",
-        "vua.amf_production.editor_unavailable" | "vua.amf_production.open_failed" => "editor_unavailable",
+        "vua.amf_production.editor_unavailable" | "vua.amf_production.open_failed" => {
+            "editor_unavailable"
+        }
         _ => "unknown",
     }
 }
 
 fn error_detail(error: &AppErrorV1) -> String {
-    error.params.as_ref().and_then(|params| params.get("detail")).and_then(|value| match value {
-        ParamValue::Text(text) => Some(text.clone()),
-        _ => None,
-    }).unwrap_or_else(|| error.code.clone())
+    error
+        .params
+        .as_ref()
+        .and_then(|params| params.get("detail"))
+        .and_then(|value| match value {
+            ParamValue::Text(text) => Some(text.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| error.code.clone())
 }
 
 impl AmfProductionEngine {
@@ -232,13 +322,18 @@ impl AmfProductionEngine {
             Ok(bytes) => {
                 let record: ReleaseRecord = serde_json::from_slice(&bytes).map_err(io_error)?;
                 if record.schema_version != "0.1" || record.run_id != run_id {
-                    return Err(production_error("release_invalid", "The release record belongs to another run."));
+                    return Err(production_error(
+                        "release_invalid",
+                        "The release record belongs to another run.",
+                    ));
                 }
                 Ok(record)
             }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                Ok(ReleaseRecord { schema_version: "0.1".into(), run_id: run_id.into(), ..Default::default() })
-            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(ReleaseRecord {
+                schema_version: "0.1".into(),
+                run_id: run_id.into(),
+                ..Default::default()
+            }),
             Err(error) => Err(io_error(error)),
         }
     }
@@ -246,16 +341,29 @@ impl AmfProductionEngine {
         let path = self.release_file(&record.run_id)?;
         fs::create_dir_all(path.parent().expect("release parent")).map_err(io_error)?;
         let pending = path.with_extension("pending");
-        fs::write(&pending, serde_json::to_vec_pretty(record).map_err(io_error)?).map_err(io_error)?;
+        fs::write(
+            &pending,
+            serde_json::to_vec_pretty(record).map_err(io_error)?,
+        )
+        .map_err(io_error)?;
         fs::rename(&pending, path).map_err(io_error)
     }
     fn finished(&self, run_id: &str) -> Result<ProductionRun, AppErrorV1> {
         let run = self.get(run_id)?;
         if run.phase != "succeeded" {
-            return Err(production_error("result_not_ready", "Assemble the Avatar before releasing it."));
+            return Err(production_error(
+                "result_not_ready",
+                "Assemble the Avatar before releasing it.",
+            ));
         }
-        if run.result["facts"]["avatarGlobalObjectId"].as_str().is_none_or(str::is_empty) {
-            return Err(production_error("result_invalid", "The result has no Avatar identity. Check it again."));
+        if run.result["facts"]["avatarGlobalObjectId"]
+            .as_str()
+            .is_none_or(str::is_empty)
+        {
+            return Err(production_error(
+                "result_invalid",
+                "The result has no Avatar identity. Check it again.",
+            ));
         }
         Ok(run)
     }
@@ -271,27 +379,44 @@ impl AmfProductionEngine {
     pub fn release_state(&self, run_id: &str) -> Result<serde_json::Value, AppErrorV1> {
         let run = self.get(run_id)?;
         let record = self.release_record(run_id)?;
-        let turntable = record.turntable.as_ref().map(|turntable| serde_json::json!({
-            "frames": turntable.frames, "size": turntable.size, "bakedAt": turntable.baked_at,
-            "current": turntable.unity_fingerprint == run.unity_fingerprint,
-        }));
+        let turntable = record.turntable.as_ref().map(|turntable| {
+            serde_json::json!({
+                "frames": turntable.frames, "size": turntable.size, "bakedAt": turntable.baked_at,
+                "current": turntable.unity_fingerprint == run.unity_fingerprint,
+            })
+        });
         let uploads = record.uploads.iter().rev().take(10).collect::<Vec<_>>();
-        Ok(serde_json::json!({"schemaVersion":"0.1", "runId":run_id, "turntable":turntable, "uploads":uploads,
-            "editorOpen":self.platform.editor_open(Path::new(&run.project_root))}))
+        let local_tests = record.local_tests.iter().rev().take(10).collect::<Vec<_>>();
+        Ok(
+            serde_json::json!({"schemaVersion":"0.1", "runId":run_id, "turntable":turntable, "uploads":uploads,
+            "localTests":local_tests, "uploadEligibility":self.upload_eligibility(),
+            "editorOpen":self.platform.editor_open(Path::new(&run.project_root))}),
+        )
     }
 
     /// Reads one frame of the run's turntable.
     pub fn turntable_frame(&self, run_id: &str, index: u32) -> Result<Vec<u8>, AppErrorV1> {
         let run = self.get(run_id)?;
-        let turntable = self.release_record(run_id)?.turntable
-            .ok_or_else(|| production_error("turntable_missing", "This Avatar has no turntable yet."))?;
+        let turntable = self.release_record(run_id)?.turntable.ok_or_else(|| {
+            production_error("turntable_missing", "This Avatar has no turntable yet.")
+        })?;
         if index >= turntable.frames {
-            return Err(production_error("turntable_invalid", "The turntable has fewer frames."));
+            return Err(production_error(
+                "turntable_invalid",
+                "The turntable has fewer frames.",
+            ));
         }
-        let bytes = fs::read(turntable_file(Path::new(&run.project_root), &turntable.command_id, index)?)
-            .map_err(|e| production_error("turntable_missing", e.to_string()))?;
+        let bytes = fs::read(turntable_file(
+            Path::new(&run.project_root),
+            &turntable.command_id,
+            index,
+        )?)
+        .map_err(|e| production_error("turntable_missing", e.to_string()))?;
         if bytes.len() as u64 > MAX_PREVIEW_BYTES || !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
-            return Err(production_error("turntable_invalid", "The turntable frame is not a bounded PNG image."));
+            return Err(production_error(
+                "turntable_invalid",
+                "The turntable frame is not a bounded PNG image.",
+            ));
         }
         Ok(bytes)
     }
@@ -302,7 +427,10 @@ impl AmfProductionEngine {
         let run = self.finished(run_id)?;
         let project = Path::new(&run.project_root);
         if self.platform.editor_open(project) {
-            return Err(production_error("project_open", "Close Unity for this work project, then bake the turntable."));
+            return Err(production_error(
+                "project_open",
+                "Close Unity for this work project, then bake the turntable.",
+            ));
         }
         if !self.project_state(&run)?.0 {
             return Err(production_error("project_drift", "The work project changed since its last check. Check it again, then bake the turntable."));
@@ -322,12 +450,20 @@ impl AmfProductionEngine {
                 return Err(error);
             }
             if observed.editor_version != run.editor.version {
-                return Err(production_error("editor_drift", "The actual Editor version changed."));
+                return Err(production_error(
+                    "editor_drift",
+                    "The actual Editor version changed.",
+                ));
             }
             if observed.unity_fingerprint != run.unity_fingerprint {
                 return Err(production_error("project_drift", "The Avatar changed in Unity since its last check. Check it again, then bake the turntable."));
             }
-            let turntable = turntable_from_facts(&observed.result["facts"]["turntable"], &project, &run.unity_fingerprint, &SystemClock.now_rfc3339())?;
+            let turntable = turntable_from_facts(
+                &observed.result["facts"]["turntable"],
+                &project,
+                &run.unity_fingerprint,
+                &SystemClock.now_rfc3339(),
+            )?;
             let mut record = self.release_record(run_id)?;
             record.turntable = Some(turntable);
             self.save_release(&record)?;
@@ -336,11 +472,19 @@ impl AmfProductionEngine {
             run.project_fingerprint = self.platform.fingerprint(&project)?;
             Ok(())
         })();
-        let kept = self.release_record(run_id).ok().and_then(|record| record.turntable).map(|turntable| turntable.command_id);
+        let kept = self
+            .release_record(run_id)
+            .ok()
+            .and_then(|record| record.turntable)
+            .map(|turntable| turntable.command_id);
         prune_turntables(&project, kept.as_deref());
         match &result {
             Ok(()) => Self::end_step(&mut run, "succeeded", String::new()),
-            Err(error) => Self::end_step(&mut run, "failed", format!("{} — {}", error.code, error_detail(error))),
+            Err(error) => Self::end_step(
+                &mut run,
+                "failed",
+                format!("{} — {}", error.code, error_detail(error)),
+            ),
         }
         self.save(&run)?;
         result
@@ -349,42 +493,79 @@ impl AmfProductionEngine {
     /// The SDK uploads what the work scene holds. With Unity closed, the project must be unchanged
     /// since the run's last check; with Unity open, the scene as it is in Unity is what uploads.
     pub fn precheck_upload(&self, run_id: &str, avatar_name: &str) -> Result<(), AppErrorV1> {
-        let run = self.finished(run_id)?;
         validate_avatar_name(avatar_name)?;
+        self.precheck_local_test(run_id)
+    }
+
+    /// Local SDK tests need a finished Avatar, but no upload name, thumbnail or rights confirmation.
+    pub fn precheck_local_test(&self, run_id: &str) -> Result<(), AppErrorV1> {
+        let run = self.finished(run_id)?;
         let editor = self.platform.verify_editor(&run.editor.path)?;
         if editor.version != run.editor.version {
-            return Err(production_error("editor_drift", "The selected Editor identity changed."));
+            return Err(production_error(
+                "editor_drift",
+                "The selected Editor identity changed.",
+            ));
         }
         let project = Path::new(&run.project_root);
         if !self.platform.editor_open(project) && !self.project_state(&run)?.0 {
-            return Err(production_error("project_drift", "The work project changed since its last check. Check it again before uploading."));
+            return Err(production_error("project_drift", "The work project changed since its last check. Check it again before building with the SDK."));
         }
         Ok(())
     }
 
     /// Runs one managed upload. It starts only from the player's confirmation in VUA; the VRChat
     /// sign-in and the SDK's own ownership agreement stay inside the SDK.
-    pub fn upload(&self, run_id: &str, avatar_name: &str, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+    pub fn upload(
+        &self,
+        run_id: &str,
+        avatar_name: &str,
+        ctx: &TaskContext,
+    ) -> Result<(), AppErrorV1> {
         self.precheck_upload(run_id, avatar_name)?;
         let mut run = self.get(run_id)?;
         let mut record = self.release_record(run_id)?;
         let now = SystemClock.now_rfc3339();
         // Production work runs one at a time, so an upload still marked running ended with VUA.
-        for stale in record.uploads.iter_mut().filter(|upload| upload.state == "running") {
+        for stale in record
+            .uploads
+            .iter_mut()
+            .filter(|upload| upload.state == "running")
+        {
             stale.state = "failed".into();
             stale.reason = Some("interrupted".into());
             stale.ended_at = Some(now.clone());
         }
-        let upload_id = format!("upload-{}", ctx.task_id().chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').take(80).collect::<String>());
-        let thumbnail = run.result["facts"]["previews"].as_array().into_iter().flatten()
+        let upload_id = format!(
+            "upload-{}",
+            ctx.task_id()
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
+                .take(80)
+                .collect::<String>()
+        );
+        let thumbnail = run.result["facts"]["previews"]
+            .as_array()
+            .into_iter()
+            .flatten()
             .find(|view| view["view"] == "front")
             .and_then(|view| view["path"].as_str())
             .filter(|path| is_preview_path(path))
             .map(str::to_owned);
         record.uploads.push(UploadRecord {
-            upload_id: upload_id.clone(), avatar_name: avatar_name.into(), started_at: now, ended_at: None,
-            state: "running".into(), stage: "starting".into(), progress: None, status: String::new(),
-            blueprint_id: None, first_upload: None, reason: None, detail: String::new(), errors: Vec::new(),
+            upload_id: upload_id.clone(),
+            avatar_name: avatar_name.into(),
+            started_at: now,
+            ended_at: None,
+            state: "running".into(),
+            stage: "starting".into(),
+            progress: None,
+            status: String::new(),
+            blueprint_id: None,
+            first_upload: None,
+            reason: None,
+            detail: String::new(),
+            errors: Vec::new(),
             sdk_sign_in: None,
         });
         while record.uploads.len() > KEPT_UPLOADS {
@@ -392,18 +573,35 @@ impl AmfProductionEngine {
         }
         self.save_release(&record)?;
         run.task_id = ctx.task_id().into();
-        self.step(&mut run, ctx, "upload", "Build and upload with the VRChat SDK")?;
+        self.step(
+            &mut run,
+            ctx,
+            "upload",
+            "Build and upload with the VRChat SDK",
+        )?;
 
-        let request = UploadRequest { upload_id: upload_id.clone(), avatar_name: avatar_name.into(), thumbnail };
+        let request = UploadRequest {
+            upload_id: upload_id.clone(),
+            avatar_name: avatar_name.into(),
+            thumbnail,
+        };
         let mut last: Option<UploadProgress> = None;
         let mut report = |progress: UploadProgress| {
-            if !UPLOAD_STAGES.contains(&progress.stage.as_str()) || last.as_ref() == Some(&progress) {
+            if !UPLOAD_STAGES.contains(&progress.stage.as_str()) || last.as_ref() == Some(&progress)
+            {
                 return;
             }
             if let Ok(mut current) = self.release_record(run_id) {
-                if let Some(upload) = current.uploads.iter_mut().rev().find(|upload| upload.upload_id == upload_id) {
+                if let Some(upload) = current
+                    .uploads
+                    .iter_mut()
+                    .rev()
+                    .find(|upload| upload.upload_id == upload_id)
+                {
                     upload.stage = progress.stage.clone();
-                    upload.progress = progress.progress.filter(|share| (0.0..=1.0).contains(share));
+                    upload.progress = progress
+                        .progress
+                        .filter(|share| (0.0..=1.0).contains(share));
                     upload.status = bounded_text(&progress.status, 200);
                     let _ = self.save_release(&current);
                 }
@@ -415,21 +613,37 @@ impl AmfProductionEngine {
         let outcome = self.platform.upload(&run, &request, ctx, &mut report);
 
         let mut record = self.release_record(run_id)?;
-        let entry = record.uploads.iter_mut().rev().find(|upload| upload.upload_id == upload_id)
+        let entry = record
+            .uploads
+            .iter_mut()
+            .rev()
+            .find(|upload| upload.upload_id == upload_id)
             .ok_or_else(|| production_error("release_invalid", "The upload record is missing."))?;
         entry.ended_at = Some(SystemClock.now_rfc3339());
         let result = match outcome {
             Ok(receipt) => {
-                if let Some(review) = receipt.sdk_review.filter(|review| matches!(review["state"].as_str(), Some("checked" | "partial"))) {
+                if let Some(review) = receipt.sdk_review.filter(|review| {
+                    matches!(review["state"].as_str(), Some("checked" | "partial"))
+                }) {
                     if run.result["facts"].is_object() {
                         run.result["facts"]["sdkReview"] = review;
                     }
                 }
-                let reason = receipt.reason.filter(|reason| UPLOAD_REASONS.contains(&reason.as_str()));
+                let reason = receipt
+                    .reason
+                    .filter(|reason| UPLOAD_REASONS.contains(&reason.as_str()));
                 entry.detail = bounded_text(&receipt.detail, MAX_DETAIL_CHARS);
-                entry.errors = receipt.errors.iter().take(MAX_ERRORS).map(|error| bounded_text(error, 500)).collect();
+                entry.errors = receipt
+                    .errors
+                    .iter()
+                    .take(MAX_ERRORS)
+                    .map(|error| bounded_text(error, 500))
+                    .collect();
+                self.record_upload_eligibility(receipt.can_publish_avatars, ctx, &mut entry.errors);
                 entry.first_upload = Some(receipt.first_upload);
-                entry.sdk_sign_in = receipt.sdk_sign_in.filter(|source| source == "vua_session" || source == "panel");
+                entry.sdk_sign_in = receipt
+                    .sdk_sign_in
+                    .filter(|source| source == "vua_session" || source == "panel");
                 match receipt.outcome.as_str() {
                     "succeeded" => match receipt.blueprint_id.filter(|id| is_blueprint_id(id)) {
                         Some(id) => {
@@ -442,24 +656,41 @@ impl AmfProductionEngine {
                         None => {
                             entry.state = "failed".into();
                             entry.reason = Some("unknown".into());
-                            Err(production_error("receipt_invalid", "The SDK reported success without a VRChat Avatar ID."))
+                            Err(production_error(
+                                "receipt_invalid",
+                                "The SDK reported success without a VRChat Avatar ID.",
+                            ))
                         }
                     },
                     "cancelled" => {
                         entry.state = "cancelled".into();
                         entry.reason = Some("cancelled".into());
-                        Err(ctx.cancellation_error("amf-production").unwrap_or_else(|| production_error("upload_cancelled", "The upload was stopped.")))
+                        Err(ctx.cancellation_error("amf-production").unwrap_or_else(|| {
+                            production_error("upload_cancelled", "The upload was stopped.")
+                        }))
                     }
                     _ => {
                         entry.state = "failed".into();
                         entry.reason = Some(reason.unwrap_or_else(|| "unknown".into()));
-                        Err(production_error("upload_failed", format!("{}: {}", entry.reason.as_deref().unwrap_or("unknown"), entry.detail)))
+                        Err(production_error(
+                            "upload_failed",
+                            format!(
+                                "{}: {}",
+                                entry.reason.as_deref().unwrap_or("unknown"),
+                                entry.detail
+                            ),
+                        ))
                     }
                 }
             }
             Err(error) => {
                 let reason = reason_of(&error);
-                entry.state = if reason == "cancelled" { "cancelled" } else { "failed" }.into();
+                entry.state = if reason == "cancelled" {
+                    "cancelled"
+                } else {
+                    "failed"
+                }
+                .into();
                 entry.reason = Some(reason.into());
                 entry.detail = bounded_text(&error_detail(&error), MAX_DETAIL_CHARS);
                 Err(error)
@@ -468,7 +699,11 @@ impl AmfProductionEngine {
         self.save_release(&record)?;
         match &result {
             Ok(()) => Self::end_step(&mut run, "succeeded", String::new()),
-            Err(error) => Self::end_step(&mut run, "failed", format!("{} — {}", error.code, error_detail(error))),
+            Err(error) => Self::end_step(
+                &mut run,
+                "failed",
+                format!("{} — {}", error.code, error_detail(error)),
+            ),
         }
         self.save(&run)?;
         result
@@ -488,6 +723,9 @@ mod tests {
         let with_source: ReleaseRecord = serde_json::from_str(r#"{"schemaVersion":"0.1","runId":"n3-new","uploads":[
             {"uploadId":"upload-2","avatarName":"Meiyun","startedAt":"2026-10-18T00:00:00Z","state":"succeeded","stage":"finishing",
              "blueprintId":"avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a","sdkSignIn":"vua_session"}]}"#).unwrap();
-        assert_eq!(with_source.uploads[0].sdk_sign_in.as_deref(), Some("vua_session"));
+        assert_eq!(
+            with_source.uploads[0].sdk_sign_in.as_deref(),
+            Some("vua_session")
+        );
     }
 }

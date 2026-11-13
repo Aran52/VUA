@@ -22,9 +22,7 @@
 
 use serde_json::{json, Value};
 use std::path::PathBuf;
-use vua_bdl_store::download_events::{
-    DownloadEventConsumer, DownloadEventKind, DownloadEventV01,
-};
+use vua_bdl_store::download_events::{DownloadEventConsumer, DownloadEventKind, DownloadEventV01};
 use vua_bdl_store::{BdlStore, CompletedDownloadRow, BDL_QUERIES_SCHEMA_VERSION};
 
 fn schema_dir() -> PathBuf {
@@ -161,7 +159,10 @@ fn list_completed_vector_validates_against_the_query_schema() {
         .iter_errors(&vector)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "the request vector must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "the request vector must validate: {errors:?}"
+    );
 }
 
 #[test]
@@ -171,7 +172,10 @@ fn list_completed_result_vector_validates_against_the_result_schema() {
         .iter_errors(&vector)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "the result vector must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "the result vector must validate: {errors:?}"
+    );
 }
 
 #[test]
@@ -223,7 +227,10 @@ fn list_completed_answers_the_honest_empty_set_without_download_facts() {
         .iter_errors(&enveloped(&rows))
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "the empty envelope must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "the empty envelope must validate: {errors:?}"
+    );
 }
 
 /// The mirror property: only downloads whose fold sits at a completed
@@ -286,8 +293,14 @@ fn list_completed_mirrors_the_adoption_guard_predicate() {
     assert_eq!(rows.len(), 1, "only the adoptable delivery lists");
     let row = &rows[0];
     assert_eq!(row.download_id, "dl-good");
-    assert_eq!(row.source_url, "https://booth.example.com/download/1000001/dl-good");
-    assert_eq!(row.suggested_file_name.as_deref(), Some("material-pack.zip"));
+    assert_eq!(
+        row.source_url,
+        "https://booth.example.com/download/1000001/dl-good"
+    );
+    assert_eq!(
+        row.suggested_file_name.as_deref(),
+        Some("material-pack.zip")
+    );
     assert_eq!(row.received_bytes, b"PK good fixture".len() as u64);
     assert!(row.adopted_warehouse_item_ids.is_empty());
     // Paths never appear in the assembled row shape.
@@ -300,7 +313,11 @@ fn list_completed_mirrors_the_adoption_guard_predicate() {
     // After a real adoption the row's adoption links light up: the entry
     // whose content came from this download is reported on the row.
     let item = store
-        .create_warehouse_item("adopted-pack", "downloaded_material", "2026-09-10T10:00:00.000Z")
+        .create_warehouse_item(
+            "adopted-pack",
+            "downloaded_material",
+            "2026-09-10T10:00:00.000Z",
+        )
         .unwrap();
     let fixture_sha = format!("sha256:{}", "a".repeat(64));
     store
@@ -332,7 +349,10 @@ fn list_completed_mirrors_the_adoption_guard_predicate() {
         .iter_errors(&enveloped(&rows))
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "the assembled result must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "the assembled result must validate: {errors:?}"
+    );
 }
 
 /// BG-17: the face's ordering contract, pinned. Rows sort by `completedAt`
@@ -371,10 +391,7 @@ fn list_completed_sorts_by_completed_at_ascending_even_from_unordered_ingest() {
     );
 
     let rows = store.list_adoptable_downloads().unwrap();
-    let completed_at: Vec<&str> = rows
-        .iter()
-        .map(|row| row.completed_at.as_str())
-        .collect();
+    let completed_at: Vec<&str> = rows.iter().map(|row| row.completed_at.as_str()).collect();
     assert_eq!(
         completed_at,
         vec![

@@ -1,0 +1,300 @@
+{
+  "requests": [
+    {
+      "name": "queue",
+      "valid": true,
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "query",
+        "method": "catalog.enrichmentQueue",
+        "params": {
+          "schemaVersion": "0.1",
+          "limit": 60
+        }
+      }
+    },
+    {
+      "name": "begin",
+      "valid": true,
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "command",
+        "method": "catalog.beginEnrichment",
+        "commandId": "enrichment-command",
+        "params": {
+          "schemaVersion": "0.1",
+          "productId": "booth:99990001"
+        }
+      }
+    },
+    {
+      "name": "product-json",
+      "valid": true,
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "command",
+        "method": "catalog.observeProduct",
+        "commandId": "enrichment-command",
+        "params": {
+          "schemaVersion": "0.1",
+          "productId": "booth:99990001",
+          "format": "json",
+          "sourceUrl": "https://booth.pm/zh-cn/items/99990001.json",
+          "body": "{\"id\":99990001,\"name\":\"Synthetic Avatar\",\"description\":\"First line\\n\\nhttps://synthetic.booth.pm/items/99990002\\nhttps://vn3.org/synthetic-terms\",\"published_at\":\"2026-11-01T10:30:00+09:00\",\"category\":{\"name\":\"3D Characters\"},\"shop\":{\"name\":\"Synthetic Shop\",\"url\":\"https://synthetic.booth.pm/\"},\"is_adult\":false,\"is_end_of_sale\":false,\"is_sold_out\":false}",
+          "fetchedAt": "2026-11-10T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "product-html",
+      "valid": true,
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "command",
+        "method": "catalog.observeProduct",
+        "commandId": "enrichment-command",
+        "params": {
+          "schemaVersion": "0.1",
+          "productId": "booth:99990001",
+          "format": "html",
+          "sourceUrl": "https://booth.pm/en/items/99990001",
+          "body": "<div id=\"items\" data-product-id=\"99990001\"><article><div class=\"js-market-item-detail-description description\">First<br>second</div></article></div>",
+          "fetchedAt": "2026-11-10T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "invalid-limit",
+      "valid": false,
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "query",
+        "method": "catalog.enrichmentQueue",
+        "params": {
+          "schemaVersion": "0.1",
+          "limit": 61
+        }
+      }
+    },
+    {
+      "name": "invalid-extra-field",
+      "valid": false,
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "command",
+        "method": "catalog.beginEnrichment",
+        "commandId": "enrichment-command",
+        "params": {
+          "schemaVersion": "0.1",
+          "productId": "booth:99990001",
+          "membership": "bought"
+        }
+      }
+    },
+    {
+      "name": "invalid-source",
+      "valid": false,
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "command",
+        "method": "catalog.observeProduct",
+        "commandId": "enrichment-command",
+        "params": {
+          "schemaVersion": "0.1",
+          "productId": "booth:99990001",
+          "format": "json",
+          "sourceUrl": "https://synthetic.example/items/99990001.json",
+          "body": "{\"id\":99990001,\"name\":\"Synthetic Avatar\",\"description\":\"First line\\n\\nhttps://synthetic.booth.pm/items/99990002\\nhttps://vn3.org/synthetic-terms\",\"published_at\":\"2026-11-01T10:30:00+09:00\",\"category\":{\"name\":\"3D Characters\"},\"shop\":{\"name\":\"Synthetic Shop\",\"url\":\"https://synthetic.booth.pm/\"},\"is_adult\":false,\"is_end_of_sale\":false,\"is_sold_out\":false}",
+          "fetchedAt": "2026-11-10T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "invalid-source-identity",
+      "valid": false,
+      "schemaValid": true,
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "command",
+        "method": "catalog.observeProduct",
+        "commandId": "enrichment-command",
+        "params": {
+          "schemaVersion": "0.1",
+          "productId": "booth:99990001",
+          "format": "json",
+          "sourceUrl": "https://booth.pm/zh-cn/items/99990002.json",
+          "body": "{\"id\":99990001,\"name\":\"Synthetic Avatar\",\"description\":\"First line\\n\\nhttps://synthetic.booth.pm/items/99990002\\nhttps://vn3.org/synthetic-terms\",\"published_at\":\"2026-11-01T10:30:00+09:00\",\"category\":{\"name\":\"3D Characters\"},\"shop\":{\"name\":\"Synthetic Shop\",\"url\":\"https://synthetic.booth.pm/\"},\"is_adult\":false,\"is_end_of_sale\":false,\"is_sold_out\":false}",
+          "fetchedAt": "2026-11-10T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "invalid-calendar-date",
+      "valid": false,
+      "schemaValid": true,
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "command",
+        "method": "catalog.observeProduct",
+        "commandId": "enrichment-command",
+        "params": {
+          "schemaVersion": "0.1",
+          "productId": "booth:99990001",
+          "format": "json",
+          "sourceUrl": "https://booth.pm/zh-cn/items/99990001.json",
+          "body": "{\"id\":99990001,\"name\":\"Synthetic Avatar\",\"description\":\"First line\\n\\nhttps://synthetic.booth.pm/items/99990002\\nhttps://vn3.org/synthetic-terms\",\"published_at\":\"2026-11-01T10:30:00+09:00\",\"category\":{\"name\":\"3D Characters\"},\"shop\":{\"name\":\"Synthetic Shop\",\"url\":\"https://synthetic.booth.pm/\"},\"is_adult\":false,\"is_end_of_sale\":false,\"is_sold_out\":false}",
+          "fetchedAt": "2026-02-30T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "invalid-empty-body",
+      "valid": false,
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "command",
+        "method": "catalog.observeProduct",
+        "commandId": "enrichment-command",
+        "params": {
+          "schemaVersion": "0.1",
+          "productId": "booth:99990001",
+          "format": "json",
+          "sourceUrl": "https://booth.pm/zh-cn/items/99990001.json",
+          "body": "",
+          "fetchedAt": "2026-11-10T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "invalid-format-url",
+      "valid": false,
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "command",
+        "method": "catalog.observeProduct",
+        "commandId": "enrichment-command",
+        "params": {
+          "schemaVersion": "0.1",
+          "productId": "booth:99990001",
+          "format": "html",
+          "sourceUrl": "https://booth.pm/zh-cn/items/99990001.json",
+          "body": "{\"id\":99990001,\"name\":\"Synthetic Avatar\",\"description\":\"First line\\n\\nhttps://synthetic.booth.pm/items/99990002\\nhttps://vn3.org/synthetic-terms\",\"published_at\":\"2026-11-01T10:30:00+09:00\",\"category\":{\"name\":\"3D Characters\"},\"shop\":{\"name\":\"Synthetic Shop\",\"url\":\"https://synthetic.booth.pm/\"},\"is_adult\":false,\"is_end_of_sale\":false,\"is_sold_out\":false}",
+          "fetchedAt": "2026-11-10T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "unrecognized-json",
+      "valid": true,
+      "expectedError": "vua.catalog.invalid_product",
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "command",
+        "method": "catalog.observeProduct",
+        "commandId": "enrichment-command",
+        "params": {
+          "schemaVersion": "0.1",
+          "productId": "booth:99990001",
+          "format": "json",
+          "sourceUrl": "https://booth.pm/zh-cn/items/99990001.json",
+          "body": "not JSON",
+          "fetchedAt": "2026-11-10T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "mismatched-document",
+      "valid": true,
+      "expectedError": "vua.catalog.product_mismatch",
+      "request": {
+        "contractVersion": "0.1",
+        "requestId": "enrichment-synthetic",
+        "correlationId": "enrichment-synthetic",
+        "kind": "command",
+        "method": "catalog.observeProduct",
+        "commandId": "enrichment-command",
+        "params": {
+          "schemaVersion": "0.1",
+          "productId": "booth:99990001",
+          "format": "json",
+          "sourceUrl": "https://booth.pm/zh-cn/items/99990001.json",
+          "body": "{\"id\":99990002,\"name\":\"Synthetic Avatar\",\"description\":\"First line\\n\\nhttps://synthetic.booth.pm/items/99990002\\nhttps://vn3.org/synthetic-terms\",\"published_at\":\"2026-11-01T10:30:00+09:00\",\"category\":{\"name\":\"3D Characters\"},\"shop\":{\"name\":\"Synthetic Shop\",\"url\":\"https://synthetic.booth.pm/\"},\"is_adult\":false,\"is_end_of_sale\":false,\"is_sold_out\":false}",
+          "fetchedAt": "2026-11-10T00:00:00.000Z"
+        }
+      }
+    }
+  ],
+  "responses": [
+    {
+      "name": "queue",
+      "valid": true,
+      "value": {
+        "schemaVersion": "0.1",
+        "productIds": [
+          "booth:99990001"
+        ]
+      }
+    },
+    {
+      "name": "begin",
+      "valid": true,
+      "value": {
+        "schemaVersion": "0.1",
+        "productId": "booth:99990001",
+        "claimed": true
+      }
+    },
+    {
+      "name": "observation",
+      "valid": true,
+      "value": {
+        "schemaVersion": "0.1",
+        "productId": "booth:99990001"
+      }
+    },
+    {
+      "name": "duplicate-queue",
+      "valid": false,
+      "value": {
+        "schemaVersion": "0.1",
+        "productIds": [
+          "booth:99990001",
+          "booth:99990001"
+        ]
+      }
+    },
+    {
+      "name": "extra-response-field",
+      "valid": false,
+      "value": {
+        "schemaVersion": "0.1",
+        "productId": "booth:99990001",
+        "accountOwned": true
+      }
+    }
+  ]
+}

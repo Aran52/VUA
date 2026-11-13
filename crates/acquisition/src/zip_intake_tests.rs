@@ -132,7 +132,11 @@ fn conflicting_local_and_central_zip_names_publish_no_files() {
         Some("vua.library.zip_invalid")
     );
     assert!(!f.target().exists());
-    assert!(f.store.archive_members(&f.parent.copy_id).unwrap().is_empty());
+    assert!(f
+        .store
+        .archive_members(&f.parent.copy_id)
+        .unwrap()
+        .is_empty());
     assert_eq!(fs::read(&f.parent.stored_path).unwrap(), bytes);
     assert!(!f.root.join("x.txt").exists());
 }

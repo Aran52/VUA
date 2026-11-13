@@ -141,7 +141,14 @@ const api: VuaDesktopApiV7 = Object.freeze({
   }),
   startup: Object.freeze({
     systemLanguages: Object.freeze(systemLanguages),
-    complete: () => ipcRenderer.invoke("vua:startup:complete"),
+    complete: () => {
+      let flattened = false;
+      try {
+        flattened = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          || window.localStorage.getItem("vua-effects") === "off";
+      } catch { /* Restricted storage keeps normal timing. */ }
+      return ipcRenderer.invoke("vua:startup:complete", flattened);
+    },
   }),
   amfModule: Object.freeze({
     snapshot: () => ipcRenderer.invoke("vua:amf-module:snapshot"),
@@ -166,6 +173,9 @@ const api: VuaDesktopApiV7 = Object.freeze({
   }),
   toolLogos: Object.freeze({
     logo: (toolId: string) => ipcRenderer.invoke("vua:tools:logo", toolId),
+  }),
+  guideContent: Object.freeze({
+    read: (id: import("@vua/contracts").GuideContentIdV01) => ipcRenderer.invoke("vua:guide-content:read", id),
   }),
   gateway: Object.freeze({
     version: DESKTOP_GATEWAY_VERSION,
@@ -378,6 +388,17 @@ const api: VuaDesktopApiV7 = Object.freeze({
   // 账号库同步窄面(N5 S1):只触发/中止;进度与终态走任务面。会话凭据
   // 不经过本面(见 contracts CatalogSyncApiV1 注释)
   catalogSync: Object.freeze({
+    subscribeEnrichment: (listener: (event: { readonly schemaVersion: "0.1"; readonly updated: number }) => void) => {
+      const wrapped = (_event: IpcRendererEvent, value: unknown) => {
+        if (typeof value !== "object" || value === null || Array.isArray(value)) return;
+        const payload = value as Record<string, unknown>;
+        if (Object.keys(payload).sort().join() === "schemaVersion,updated" && payload.schemaVersion === "0.1"
+          && Number.isInteger(payload.updated) && Number(payload.updated) >= 1 && Number(payload.updated) <= 60)
+          listener({ schemaVersion: "0.1", updated: Number(payload.updated) });
+      };
+      ipcRenderer.on("vua:catalog-sync:enriched", wrapped);
+      return () => ipcRenderer.removeListener("vua:catalog-sync:enriched", wrapped);
+    },
     // libraryType 可选:同步哪个账号库(缺省已购;all=三库串行);
     // 入口由 Main 按类型派生
     start: (request?: {

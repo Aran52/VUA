@@ -32,7 +32,7 @@
   border-radius: var(--vua-radius-sm);
   background: var(--vua-accent-tint);
   pointer-events: none;
-  transition: transform 220ms ease;
+  transition: transform var(--vua-motion-normal) var(--vua-motion-ease-enter);
 }
 
 .vua-theme-choice__button {
@@ -342,8 +342,6 @@
   .vua-vrchat__method[data-active="true"] { border-color: Highlight; }
   .vua-vrchat__thumb--empty { border-color: CanvasText; }
 }
-.vua-theme-page { max-width: 960px; }
-.vua-theme-page .vua-page__hero h1 { font: var(--vua-font-display); }
 .vua-settings-group.vua-card { padding: 0; overflow: hidden; }
 .vua-settings-group > h2 { margin: 0; padding: 20px 24px; font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
 .vua-preference-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px; padding: 20px 24px; border-top: 1px solid var(--vua-border); }

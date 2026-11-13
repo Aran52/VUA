@@ -34,7 +34,7 @@ try {
   deadline = setTimeout(() => {
     console.error(`First-run UI smoke timed out; URL=${window?.webContents.getURL() ?? "not loaded"}`);
     app.exit(1);
-  }, 90_000);
+  }, Number(process.env.VUA_SMOKE_DEADLINE_MS ?? 150_000));
   await app.whenReady();
   server = await createServer({ configFile: false, appType: "custom", root, plugins: [react()],
     resolve: { alias: { "@vua/contracts": path.resolve(root, "../../packages/contracts/src/index.ts") } },

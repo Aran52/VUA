@@ -142,9 +142,9 @@ export function guideTargetForComponent(component: string): GuideTarget | null {
 
 /** 读取上次阅读位置:存储缺席/损坏/词表外 → null(调用方回落默认开始页);
  *  存储值经 normalizeGuideTarget 校验,旧词表的失效分节安全落回主题开头 */
-export function loadGuideReading(key: string = storageKeys.guideReading): GuideTarget | null {
+export function loadGuideReading(): GuideTarget | null {
   try {
-    const stored = localStorage.getItem(key);
+    const stored = localStorage.getItem(storageKeys.guideReading);
     if (stored === null) return null;
     const parsed: unknown = JSON.parse(stored);
     const normalized = normalizeGuideTarget(parsed);
@@ -157,10 +157,10 @@ export function loadGuideReading(key: string = storageKeys.guideReading): GuideT
 }
 
 /** 保存阅读位置(只写 {topic, section?};存储不可用静默降级为本次内存) */
-export function saveGuideReading(position: GuideTarget, key: string = storageKeys.guideReading): void {
+export function saveGuideReading(position: GuideTarget): void {
   try {
     localStorage.setItem(
-      key,
+      storageKeys.guideReading,
       JSON.stringify(
         position.section === undefined
           ? { topic: position.topic }

@@ -7,7 +7,7 @@ import {verifyInventory} from "../distribution/component-index.mjs";
 import {prepareComponentRelease, fileDigest, ownedPath} from "./prepare-component-release.mjs";
 
 /** Extract authenticated bytes, never run a published payload or forge a build receipt. */
-export function seedComponentRelease({component, baseline, packFile, previous, sequence, output, privateKey, publicKey}) {
+export function seedComponentRelease({component, baseline, packFile, previous, previousV03, sequence, retainVersions = [], output, privateKey, publicKey}) {
   const original = verifyInventory(baseline, publicKey);
   if (!["host", "amf"].includes(component)) throw Error("invalid_component_identity");
   const inventory = original[component], actual = fileDigest(packFile);
@@ -30,7 +30,7 @@ export function seedComponentRelease({component, baseline, packFile, previous, s
       } finally {fs.closeSync(target);}
       if (hash.digest("hex") !== file.sha256) throw Error("seed_file_corrupt");
     }
-    return prepareComponentRelease({component, version: inventory.version, build: inventory.build, componentRoot: temporary, baseline, previous, sequence, retainVersions: [], output, privateKey, publicKey});
+    return prepareComponentRelease({component, version: inventory.version, build: inventory.build, componentRoot: temporary, baseline, previous, previousV03, sequence, retainVersions, output, privateKey, publicKey});
   } finally {
     fs.closeSync(fd);
     if (path.dirname(path.resolve(temporary)) !== path.resolve(os.tmpdir()) || !path.basename(temporary).startsWith("vua-authenticated-seed-")) throw Error("unsafe_seed_cleanup");
@@ -38,8 +38,24 @@ export function seedComponentRelease({component, baseline, packFile, previous, s
   }
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [component, manifest, packFile, previous, sequence, output, keyFile] = process.argv.slice(2);
-  if (!keyFile) throw Error("Usage: seed-component-release.mjs <host|amf> <official-vua-release.json> <official-pack.bin> <previous-index.json> <sequence> <new-output> <private-key-file>");
+  const flags = process.argv.slice(2).filter(arg => arg.startsWith("--"));
+  const positional = process.argv.slice(2).filter(arg => !arg.startsWith("--"));
+  const [component, manifest, packFile, previous, sequence, output, keyFile] = positional;
+  if (!keyFile) throw Error("Usage: seed-component-release.mjs <host|amf> <official-vua-release.json> <official-pack.bin> <previous-index.json|none> <sequence> <new-output> <private-key-file> [--previous-v03=<path>] [--retain=<v1,v2>]");
+  const previousV03Arg = flags.find(arg => arg.startsWith("--previous-v03="))?.slice("--previous-v03=".length);
+  const retainArg = flags.find(arg => arg.startsWith("--retain="))?.slice("--retain=".length);
+  const retainVersions = retainArg ? retainArg.split(",").map(v => v.trim()).filter(Boolean) : [];
   const trust = JSON.parse(fs.readFileSync(new URL("../distribution/trust.json", import.meta.url)));
-  console.log(JSON.stringify(seedComponentRelease({component, baseline: fs.readFileSync(manifest), packFile: path.resolve(packFile), previous: fs.readFileSync(previous), sequence: Number(sequence), output: path.resolve(output), privateKey: fs.readFileSync(keyFile), publicKey: trust.publicKey})));
+  console.log(JSON.stringify(seedComponentRelease({
+    component,
+    baseline: fs.readFileSync(manifest),
+    packFile: path.resolve(packFile),
+    previous: previous === "none" ? undefined : fs.readFileSync(previous),
+    previousV03: previousV03Arg ? fs.readFileSync(previousV03Arg) : undefined,
+    sequence: Number(sequence),
+    retainVersions,
+    output: path.resolve(output),
+    privateKey: fs.readFileSync(keyFile),
+    publicKey: trust.publicKey,
+  })));
 }

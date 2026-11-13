@@ -233,3 +233,8 @@
 [data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-workshop__line { background-image: none; }
 [data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-workshop__line:hover { border-color: var(--aero-hover-edge); background-image: var(--aero-hover); }
 [data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-workshop__line[aria-current] { border-color: var(--aero-select-edge); background-image: var(--aero-select); }
+
+/* Vista drops its details pane in a short window, so the page keeps its height. */
+@media (max-height: 860px) {
+  [data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-theme-details { display: none; }
+}

@@ -256,13 +256,15 @@
         "protect_current",
         "restore",
         "turntable",
+        "local_test",
         "upload",
         "sdk_fix",
         "face_tracking",
         "lighting",
         "editor_close",
         "texture_memory",
-        "outfit_removal"
+        "outfit_removal",
+        "optimizer"
       ]
     },
     "timestamp": {

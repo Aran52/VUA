@@ -20,7 +20,8 @@ try {
   await app.whenReady();
   server = await createServer({ configFile: false, appType: "custom", root, plugins: [react()],
     server: { host: "127.0.0.1", port: 0, strictPort: false },
-    optimizeDeps: { force: true, include: ["react", "react-dom/client", "@vua/contracts"] } });
+    // Scan this fixture's graph, not every unrelated HTML fixture in the checkout.
+    optimizeDeps: { entries: ["scripts/fixtures/library-maintenance.tsx"], force: true, include: ["react", "react-dom/client", "@vua/contracts"] } });
   server.middlewares.use(async (req, res, next) => {
     if (req.url !== "/__library-maintenance") return next();
     res.setHeader("Content-Type", "text/html");
@@ -30,6 +31,8 @@ try {
   window = new BrowserWindow({ show: false, width: 1280, height: 900,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false } });
   window.webContents.on("console-message", (event) => { if (event.level === "error") console.error(event.message); });
+  window.webContents.on("render-process-gone", (_event, details) => console.error("Library fixture renderer exited", details.reason, details.exitCode));
+  window.webContents.on("did-fail-load", (_event, code, description) => console.error("Library fixture load failed", code, description));
   await window.loadURL(`http://127.0.0.1:${server.httpServer.address().port}/__library-maintenance`);
   await window.webContents.executeJavaScript('new Promise((resolve, reject) => { let attempts = 0; const timer = setInterval(() => { if(window.n5MaintenanceReview) { clearInterval(timer); resolve(); } else if (++attempts > 200) { clearInterval(timer); reject(new Error("fixture load timeout")); } }, 50); })');
   const checks = await window.webContents.executeJavaScript("window.n5MaintenanceReview.run()");
@@ -45,7 +48,12 @@ try {
   console.log(JSON.stringify({ passed: checks.length, scope: evidence.scope, evidence: output }, null, 2));
   window.destroy(); await server.close(); app.exit(0);
 } catch (error) {
-  console.error(error); window?.destroy(); await server?.close(); app.exit(1);
+  console.error(error);
+  if (window && !window.isDestroyed()) {
+    const state = await window.webContents.executeJavaScript('({path:location.pathname,readyState:document.readyState,fixtureReady:!!window.n5MaintenanceReview,rootChildren:document.getElementById("root")?.childElementCount,scripts:[...document.scripts].map(s=>new URL(s.src,location.href).pathname)})').catch(() => null);
+    console.error(JSON.stringify({ fixtureState: state }));
+  }
+  window?.destroy(); await server?.close(); app.exit(1);
 }
 }
 void main();

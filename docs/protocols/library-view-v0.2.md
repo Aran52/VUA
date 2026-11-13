@@ -1,8 +1,8 @@
 # Unified library view v0.2
 
-> Document version: 0.2.0
+> Document version: 0.2.1
 > Status: Candidate
-> Updated: 2026-10-29
+> Updated: 2026-11-06
 > Owner: AMF
 
 This new `library.list` face adds an optional purpose filter to the existing local library
@@ -59,7 +59,8 @@ and the strictest-combination behavior of the shared terms checker.
 
 ## Desktop consumers
 
-The library filter offers a purpose and either available-only or all-with-decisions. Cards and
+[Library view v0.3](library-view-v0.3.md) replaced this filter in the desktop library on 2026-11-06.
+The library filter offered a purpose and either available-only or all-with-decisions. Cards and
 list rows show the returned status; their existing details drawer remains the terms evidence
 view. Changing a purpose clears the prior result while the next read is pending. Reverse-link
 navigation saves, clears and restores the purpose alongside the other filters.
@@ -84,6 +85,8 @@ and inspect Shinano as usable; import a Recipe referencing it and select game de
 see the contact-required R item. Synthetic evidence does not certify that specific product.
 
 ## Changelog
+
+- 0.2.1 (2026-11-06): the desktop library moved to [v0.3](library-view-v0.3.md); this face stays readable.
 
 - 0.2.0 (2026-10-29): add versioned purpose filtering before pagination, optional status rows,
   and informational Recipe terms/content consumers while retaining the v0.1 face.

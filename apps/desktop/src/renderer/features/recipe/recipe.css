@@ -4,6 +4,8 @@
  * 红仅冲突/缺失,橙/紫仅选中态;unresolved 是中性事实(空心点),不是异常。
  */
 
+.vua-recipe-workspace__bar { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: var(--vua-space-2); }
+
 .vua-recipe-canvas-card {
   overflow: hidden;
 }

@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ph-r.com/schemas/guide-content/v0.1/payload.schema.json",
+  "type": "object",
+  "additionalProperties": true,
+  "$defs": {
+    "localizedText": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "en": { "type": "string", "minLength": 1, "maxLength": 16384 },
+        "zh-CN": { "type": "string", "maxLength": 16384 },
+        "zh-TW": { "type": "string", "maxLength": 16384 },
+        "ja": { "type": "string", "maxLength": 16384 },
+        "ko": { "type": "string", "maxLength": 16384 }
+      },
+      "required": ["en"]
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[A-Za-z0-9.-]+)?(?:\\+[A-Za-z0-9.-]+)?$"
+    },
+    "isoDate": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "httpsUrl": {
+      "type": "string",
+      "maxLength": 2048,
+      "pattern": "^https://(?:ph-r\\.com|(?:www\\.|accounts\\.|www\\.help\\.)?pixiv\\.net|(?:accounts\\.|manage\\.)?booth\\.pm|(?:www\\.)?paypal\\.com|(?:hello\\.|docs\\.|creators\\.|help\\.|wiki\\.)?vrchat\\.com|jinxxy\\.com|gumroad\\.com|(?:help\\.)?payhip\\.com|(?:store\\.|help\\.)?steampowered\\.com|(?:login\\.)?unity\\.com)(?:/[^\\s]*)?$"
+    }
+  },
+  "properties": {
+    "schemaVersion": {
+      "const": "0.1"
+    },
+    "id": {
+      "enum": [
+        "pixiv-account",
+        "booth-prices",
+        "paying-abroad",
+        "buying",
+        "terms-of-use",
+        "why-licensed"
+      ]
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "version": {
+      "$ref": "#/$defs/semver"
+    },
+    "minClient": {
+      "$ref": "#/$defs/semver"
+    },
+    "sop": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "title": { "$ref": "#/$defs/localizedText" },
+        "appliesTo": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "software": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "devices": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "region": { "type": "string", "minLength": 1 }
+          },
+          "required": ["software", "devices", "region"]
+        },
+        "prerequisites": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "$ref": "#/$defs/localizedText" }
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+              "performer": { "enum": ["vua", "vua_opens", "player"] },
+              "action": { "$ref": "#/$defs/localizedText" },
+              "expectedResult": { "$ref": "#/$defs/localizedText" },
+              "verification": { "$ref": "#/$defs/localizedText" },
+              "onFailure": { "$ref": "#/$defs/localizedText" },
+              "sites": {
+                "type": "array",
+                "maxItems": 16,
+                "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+              },
+              "links": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "label": { "$ref": "#/$defs/localizedText" },
+                    "url": { "$ref": "#/$defs/httpsUrl" }
+                  },
+                  "required": ["label", "url"]
+                }
+              }
+            },
+            "required": [
+              "id",
+              "performer",
+              "action",
+              "expectedResult",
+              "verification",
+              "onFailure",
+              "sites",
+              "links"
+            ]
+          }
+        },
+        "regionalNotes": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "region": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+              "text": { "$ref": "#/$defs/localizedText" },
+              "verification": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "date": { "$ref": "#/$defs/isoDate" },
+                  "network": { "type": "string", "minLength": 1 },
+                  "cardIssuingRegion": { "type": "string", "minLength": 1 }
+                },
+                "required": ["date", "network", "cardIssuingRegion"]
+              }
+            },
+            "required": ["region", "text", "verification"]
+          }
+        },
+        "lastVerification": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "date": { "$ref": "#/$defs/isoDate" },
+            "environment": { "type": "string", "minLength": 1 },
+            "softwareVersions": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            }
+          },
+          "required": ["date", "environment", "softwareVersions"]
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "url": { "$ref": "#/$defs/httpsUrl" }
+            },
+            "required": ["label", "url"]
+          }
+        }
+      },
+      "required": [
+        "title",
+        "appliesTo",
+        "prerequisites",
+        "steps",
+        "regionalNotes",
+        "lastVerification",
+        "sources"
+      ]
+    },
+    "assets": {
+      "type": "object",
+      "maxProperties": 128,
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9._/-]{0,127}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "bytes": { "type": "integer", "minimum": 1, "maximum": 20971520 },
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": { "$ref": "#/$defs/httpsUrl" }
+          }
+        },
+        "required": ["sha256", "bytes", "sources"]
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "sequence",
+    "version",
+    "minClient",
+    "sop",
+    "assets"
+  ]
+}

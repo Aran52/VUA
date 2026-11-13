@@ -48,7 +48,11 @@ fn unitypackage(path: &Path, assets: &[&str]) {
 fn provisioned_project(label: &str) -> PathBuf {
     let root = temp_dir(label).join("target");
     fs::create_dir_all(root.join("ProjectSettings")).unwrap();
-    fs::write(root.join("ProjectSettings").join("ProjectVersion.txt"), "2022.3.22f1").unwrap();
+    fs::write(
+        root.join("ProjectSettings").join("ProjectVersion.txt"),
+        "2022.3.22f1",
+    )
+    .unwrap();
     root
 }
 
@@ -206,7 +210,10 @@ fn b3_w25_unprovisioned_target_plans_provision_step_between_snapshot_and_import(
     let base = temp_dir("w25-plan");
     let source_root = base.join("Asset");
     fs::create_dir_all(&source_root).unwrap();
-    unitypackage(&source_root.join("asset.unitypackage"), &["Assets/Asset.prefab"]);
+    unitypackage(
+        &source_root.join("asset.unitypackage"),
+        &["Assets/Asset.prefab"],
+    );
     let engine = MaterialIntakeEngine;
     let source = engine.inspect_folder(&source_root, "corr").unwrap();
 
@@ -301,7 +308,10 @@ fn b3_w25_material_plan_v02_vectors_validate_against_the_frozen_schema() {
     )
     .unwrap();
     assert!(
-        validator.iter_errors(&negative["instance"]).next().is_some(),
+        validator
+            .iter_errors(&negative["instance"])
+            .next()
+            .is_some(),
         "an invented step kind must be INVALID by the frozen v0.2 schema"
     );
 }

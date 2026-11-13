@@ -37,9 +37,23 @@ fn invoke(request: Value) -> Value {
     fs::remove_dir_all(root).unwrap();
     response["payload"].clone()
 }
+
 #[test]
-fn all_six_fixed_tools_pass_the_gate_and_unknown_or_missing_ids_do_not() {
-    for tool_id in ["vrcft", "space", "advanced", "toolkit", "oyasumi", "translator"] {
+fn all_twelve_fixed_steam_tools_pass_the_gate_and_unknown_or_missing_ids_do_not() {
+    for tool_id in [
+        "vrcft",
+        "space",
+        "advanced",
+        "toolkit",
+        "oyasumi",
+        "translator",
+        "chilloutvr",
+        "reborn",
+        "vrchat",
+        "steamvr",
+        "desktopplus",
+        "fpsvr",
+    ] {
         let observe = invoke(json!({
             "contractVersion": "0.1",
             "requestId": "query",
@@ -52,7 +66,7 @@ fn all_six_fixed_tools_pass_the_gate_and_unknown_or_missing_ids_do_not() {
             observe["error"]["code"], "vua.external_tool.unavailable",
             "{tool_id}: {observe}"
         );
-        for action in ["install", "start", "stop", "cancel"] {
+        for action in ["install", "start", "stop", "cancel", "reinstall"] {
             let response = invoke(json!({
                 "contractVersion": "0.1",
                 "requestId": "query",
@@ -68,7 +82,7 @@ fn all_six_fixed_tools_pass_the_gate_and_unknown_or_missing_ids_do_not() {
             );
         }
     }
-    for bad in ["liv", "vrcs", "custom"] {
+    for bad in ["liv", "xsoverlay", "vrcs", "custom"] {
         let response = invoke(json!({
             "contractVersion": "0.1",
             "requestId": "query",
@@ -95,9 +109,10 @@ fn all_six_fixed_tools_pass_the_gate_and_unknown_or_missing_ids_do_not() {
         "{missing}"
     );
 }
+
 #[test]
-fn both_schema_faces_pin_the_shared_vectors_and_the_actual_request_gate() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/external-tool/v0.2");
+fn both_schema_faces_pin_the_shared_v04_vectors_and_the_actual_request_gate() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/external-tool/v0.4");
     let vectors: Value =
         serde_json::from_slice(&fs::read(root.join("vectors.json")).unwrap()).unwrap();
     for (face, file) in [
@@ -122,6 +137,42 @@ fn both_schema_faces_pin_the_shared_vectors_and_the_actual_request_gate() {
                         "vua.external_tool.unavailable"
                     } else {
                         "vua.external_tool.invalid_params"
+                    },
+                    "{}: {response}",
+                    v["name"]
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn installer_tool_v01_schemas_and_wire_gate_match_shared_vectors() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/installer-tool/v0.1");
+    let vectors: Value =
+        serde_json::from_slice(&fs::read(root.join("vectors.json")).unwrap()).unwrap();
+    for (face, file) in [
+        ("requests", "request.schema.json"),
+        ("results", "result.schema.json"),
+    ] {
+        let schema: Value = serde_json::from_slice(&fs::read(root.join(file)).unwrap()).unwrap();
+        let validator = jsonschema::validator_for(&schema).unwrap();
+        for v in vectors[face].as_array().unwrap() {
+            assert_eq!(
+                validator.is_valid(&v["value"]),
+                v["valid"] == true,
+                "{}",
+                v["name"]
+            );
+            if face == "requests" {
+                let response = invoke(v["value"].clone());
+                assert_eq!(response["ok"], false);
+                assert_eq!(
+                    response["error"]["code"],
+                    if v["valid"] == true {
+                        "vua.installer_tool.unavailable"
+                    } else {
+                        "vua.installer_tool.invalid_params"
                     },
                     "{}: {response}",
                     v["name"]

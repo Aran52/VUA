@@ -33,7 +33,7 @@ const environment = { ...base.environment,
   deployment: { async capability(){return {state:"ready" as const};},async plan(intent:any){plans++;return {schemaVersion:"vua.environment-deployment/v0.1" as const,intent,steps:[],digest:"a".repeat(64),prerequisitesReady:true,installer:null};},async execute(){installs++;return "task";},async status(){throw Error("not used");},async cancel(){},subscribe(){return()=>{};} },
 };
 function Fixture() {
-  const [page,setPage] = useState<PageId>("help");
+  const [page,setPage] = useState<PageId>("help-ai");
   return <GatewayProvider gateway={{...base,aiTools,environment} as any}>
     <AiRequestsHere page={page} />
     {page === "env-play" ? <DeploymentPanel zone="play" purpose="desktop_play" /> : page === "settings-accounts" ? <AccountGuide account="unity" onBack={()=>setPage("help")} />
@@ -53,7 +53,7 @@ Object.assign(window,{agentUiReview:{
     for (const id of ["to-preparation", "to-license"]) document.getElementById(id)!.hidden = true;
   },
   async run(){ const passed:string[]=[]; const assert=(value:unknown,name:string)=>{if(!value)throw Error(name);passed.push(name);};
-  await until(()=>!!button(strings.aiTools.title));button(strings.aiTools.title)!.click();await until(()=>!!button(strings.aiTools.enable));
+  await until(()=>!!button(strings.aiTools.enable));
   assert(!document.querySelector("textarea"),"No pairing token is shown before enabling");
   button(strings.aiTools.enable)!.click();await until(()=>!!document.querySelector("textarea"));
   button(strings.aiTools.copy)!.click();await until(()=>copied);

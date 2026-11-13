@@ -80,7 +80,9 @@ pub enum PendingMutation {
 pub enum ProjectLockError {
     /// Another live instance holds the lock; `previous` is the best-effort
     /// parse of the diagnostic envelope the other holder left.
-    Held { previous: Option<LockHolder> },
+    Held {
+        previous: Option<LockHolder>,
+    },
     Io(io::Error),
 }
 
@@ -166,7 +168,10 @@ impl Drop for ProjectLockGuard {
 /// the lock. Crash semantics are delegated to the OS: when the holder
 /// process dies, its byte-range lock is released and the next acquirer
 /// wins — no staleness heuristics.
-pub fn acquire_project_lock(project_root: &Path, holder: LockHolder) -> Result<ProjectLockGuard, ProjectLockError> {
+pub fn acquire_project_lock(
+    project_root: &Path,
+    holder: LockHolder,
+) -> Result<ProjectLockGuard, ProjectLockError> {
     let dir = vua_dir(project_root);
     fs::create_dir_all(&dir)?;
     let lock_path = dir.join(LOCK_FILE_NAME);
@@ -182,7 +187,9 @@ pub fn acquire_project_lock(project_root: &Path, holder: LockHolder) -> Result<P
         Err(LockRefused::Held) => {
             // The OS refused the byte-range lock: someone else holds it.
             // Best-effort diagnostics from whatever the holder wrote.
-            return Err(ProjectLockError::Held { previous: read_holder(&lock_path) });
+            return Err(ProjectLockError::Held {
+                previous: read_holder(&lock_path),
+            });
         }
         Err(LockRefused::Io(error)) => return Err(ProjectLockError::Io(error)),
     }
@@ -191,12 +198,19 @@ pub fn acquire_project_lock(project_root: &Path, holder: LockHolder) -> Result<P
     // torn envelope (they fail on the lock anyway; this is for readers).
     file.set_len(0)?;
     file.seek(SeekFrom::Start(0))?;
-    let envelope = LockEnvelopeV1 { lock_version: PROJECT_LOCK_SCHEMA_VERSION, holder };
+    let envelope = LockEnvelopeV1 {
+        lock_version: PROJECT_LOCK_SCHEMA_VERSION,
+        holder,
+    };
     serde_json::to_writer_pretty(&mut file, &envelope)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     file.flush()?;
 
-    Ok(ProjectLockGuard { file: Some(file), lock_path, released: false })
+    Ok(ProjectLockGuard {
+        file: Some(file),
+        lock_path,
+        released: false,
+    })
 }
 
 /// Reads the pending-mutation marker for the inspect-first gate: any
@@ -269,7 +283,10 @@ pub fn begin_mutation(
     let json = serde_json::to_string_pretty(&marker)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     fs::write(&path, json)?;
-    Ok(MutationMarkerGuard { path, removed: false })
+    Ok(MutationMarkerGuard {
+        path,
+        removed: false,
+    })
 }
 
 // --- OS byte-range lock (Windows: LockFileEx; elsewhere unsupported) ---
@@ -330,8 +347,7 @@ fn release_os_lock(file: &mut File) -> io::Result<()> {
 
     let mut overlapped = OVERLAPPED::default();
     overlapped.Anonymous.Anonymous.Offset = LOCK_OFFSET;
-    let status =
-        unsafe { UnlockFileEx(file.as_raw_handle(), 0, 1, 0, &mut overlapped) };
+    let status = unsafe { UnlockFileEx(file.as_raw_handle(), 0, 1, 0, &mut overlapped) };
     if status != 0 {
         Ok(())
     } else {

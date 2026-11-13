@@ -6,11 +6,13 @@ import { storageKeys } from "../../src/renderer/app/storage-keys.ts";
 import { TOUR_STEPS } from "../../src/renderer/features/tour/tour-model.ts";
 import { BEGINNER_CONCEPTS } from "../../src/renderer/features/help/beginner-wizard-model.ts";
 import { playFlowCopy } from "../../src/renderer/i18n/play-flow-copy.ts";
+import { structureCopy } from "../../src/renderer/i18n/structure-copy.ts";
 import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 
 const copy = strings.journey;
 const flowCopy = playFlowCopy[currentLocale];
+const unitySetup = structureCopy[currentLocale].unitySetup;
 // Capture the shell's requested theme before App mounting can resolve or persist a default.
 const previewTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
 let root: Root | undefined;
@@ -41,7 +43,7 @@ const wait = async (predicate: () => unknown, label = "") => {
   while (!predicate()) { if (Date.now() - start > 10000) throw new Error(`UI condition timed out: ${label || predicate.toString().slice(0, 160)}; wizard=${document.querySelector("[data-first-use-notice]")?.getAttribute("data-first-use-notice")}`); await new Promise(r => setTimeout(r, 25)); }
 };
 const visible = (el: Element) => el.getClientRects().length > 0 && !el.closest("[hidden],[inert]");
-const flowButton = (route = "desktop_play") => document.querySelector<HTMLButtonElement>(`[data-nav-id="play-flow-${route}"]`);
+const flowButton = (route = "desktop_play") => document.querySelector<HTMLButtonElement>(`[data-nav-id="${route === "desktop_play" ? "route-desktop" : "route-pico"}-action"]`);
 const flowPhase = (route = "desktop_play") => flowButton(route)?.dataset.phase;
 const advance = async (phase: string, route = "desktop_play") => {
   await wait(() => flowPhase(route) === phase && !flowButton(route)!.disabled, `play flow ${phase}`);
@@ -153,11 +155,11 @@ async function mountPreview(inventory: typeof creatorInventory = "all") {
   await mount("installed", "desktop", previewTheme, inventory);
 }
 async function prepare() {
-  await click(copy.play);
+  await click(copy.launchPage);
   // Remounting the fixture retains the app session's route checks. Refresh after
   // changing synthetic software facts so the next step uses the current scenario.
   await click(flowCopy.refreshDevices);
-  await click(copy.desktop);
+
   await wait(() => document.querySelector('[data-route-stage="prepare"]'));
   // The flow checks the environment by itself; the checklist is the next step.
   await wait(() => ["confirm", "execute", "launch"].includes(flowPhase() ?? ""), "play flow after its own check");
@@ -242,28 +244,33 @@ const review = {
     await wait(() => document.querySelector('[data-context-guide="home"]'));
     check("returning from the concept wizard leaves no forced tour or notice", !document.querySelector(".vua-tour") && !document.querySelector("[data-first-use-notice]"));
     check("reading guidance and page introductions request no deployment plan", intents.length === 0);
-    await click(strings.contextGuide.later);
-    check("later snoozes only for this session", localStorage.getItem(storageKeys.contextGuide) === null && sessionStorage.getItem(storageKeys.contextGuideSnoozed)?.includes("home"));
+    check("a page introduction offers one button to close it", [...document.querySelectorAll<HTMLButtonElement>('[data-context-guide="home"] button')].filter(button => button.textContent?.trim() === strings.contextGuide.dismiss).length === 1);
+    await click(strings.contextGuide.dismiss);
+    check("closing is remembered without a wizard or forced tour", JSON.parse(localStorage.getItem(storageKeys.contextGuide)!).dismissed.home === 1 && !document.querySelector(".vua-tour"));
     await click(copy.help); await click(copy.wizard);
     await wait(() => document.querySelector(".vua-vua-guide"));
-    check("the concept wizard offers neither the VUA manual nor a page-tip replay", !document.querySelector('[data-nav-id="wizard-manual"]') && ![...document.querySelectorAll("button")].some(button => button.textContent?.trim() === strings.contextGuide.replay));
+    check("the concept wizard shows its three buttons in one row", (() => {
+      const row = ["wizard-previous", "wizard-want", "wizard-next"].map(id => document.querySelector<HTMLElement>(`[data-nav-id="${id}"]`)!.getBoundingClientRect());
+      return row.every(rect => Math.abs(rect.top - row[0]!.top) < 1 && Math.abs(rect.width - row[0]!.width) < 1);
+    })());
+    const nextAt = () => document.querySelector<HTMLElement>('[data-nav-id="wizard-next"]')!.getBoundingClientRect().top;
+    const before = nextAt();
+    document.querySelector<HTMLButtonElement>('[data-nav-id="wizard-next"]')!.click();
+    await wait(() => document.querySelector('[data-wizard-step="steam"]'));
+    check("the wizard's buttons stay in place from page to page", Math.abs(nextAt() - before) < 1);
+    document.querySelector<HTMLButtonElement>('[data-nav-id="wizard-previous"]')!.click();
+    await wait(() => document.querySelector('[data-wizard-step="vrchat"]'));
     document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
     await wait(() => document.querySelector(".vua-home"));
-    check("returning from the wizard keeps the page tip snoozed for this session",
-      !document.querySelector('[data-context-guide="home"]') && sessionStorage.getItem(storageKeys.contextGuideSnoozed)?.includes("home"));
-    // A new session remounts the app as well as clearing session storage; the
-    // mounted guidance keeps its own snooze state while navigating between pages.
     const savedGoals = localStorage.getItem(storageKeys.goals);
     const savedTheme = localStorage.getItem(storageKeys.theme);
     root!.unmount(); sessionStorage.clear(); location.hash = "";
     root = createRoot(document.getElementById("root")!); root.render(<App />);
-    await wait(() => document.querySelector('[data-context-guide="home"]'));
-    check("a new session restores the tip without losing preferences or first-use completion",
-      sessionStorage.getItem(storageKeys.contextGuideSnoozed) === null
+    await wait(() => document.querySelector(".vua-home"));
+    check("a new session keeps the introduction closed, the preferences and first-use completion",
+      !document.querySelector('[data-context-guide="home"]')
       && localStorage.getItem(storageKeys.goals) === savedGoals && localStorage.getItem(storageKeys.theme) === savedTheme
       && !document.querySelector("[data-first-use-notice]") && !document.querySelector(".vua-tour"));
-    await click(strings.contextGuide.dismiss);
-    check("dismissal is remembered without a wizard or forced tour", JSON.parse(localStorage.getItem(storageKeys.contextGuide)!).dismissed.home === 1 && !document.querySelector(".vua-tour"));
     await prepare();
     check("Play checks each route independently and plans nothing yet",
       ["desktop_play", "pico_pcvr"].every(route => checkIntents.some(intent => intent.join() === route))
@@ -291,7 +298,8 @@ const review = {
     await mount("installed", "desktop");
     document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
     await wait(() => !document.querySelector("[data-first-use-notice]"));
-    check("AMF remains inactive until explicit enablement", !document.querySelector('.vua-shell__sidebar [data-module="production"]') && !!document.querySelector('[data-nav-id="nav-enable-amf"]'));
+    check("AMF remains inactive until explicit enablement", !document.querySelector('[data-nav-id="nav-warehouse"]') && !!document.querySelector('[data-nav-id="nav-enable-amf"]'));
+    check("Unity setup stays reachable without AMF, under Avatar editing", !!document.querySelector('.vua-shell__sidebar [data-module="production"] [data-nav-id="nav-env-create"]'));
     check("bottom-left duplicate settings and help entries are gone", !document.querySelector(".vua-shell__sidebar-global") && !document.querySelector('.vua-shell__sidebar [data-nav-id="nav-settings-theme"]'));
     check("desktop sidebar is narrower and retains frosted glass", document.querySelector(".vua-shell__sidebar")!.getBoundingClientRect().width === 176 && getComputedStyle(document.querySelector(".vua-shell__sidebar")!).backdropFilter.includes("blur"));
     check("feature search has no sidebar button outside Settings", !document.querySelector('[data-nav-id="settings-search"]'));
@@ -300,7 +308,7 @@ const review = {
     check("Ctrl+P still opens feature search outside Settings", !!document.querySelector(".vua-palette"));
     document.querySelector<HTMLInputElement>(".vua-palette__input")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     await wait(() => !document.querySelector(".vua-palette"));
-    await click(copy.play); await click(copy.desktop);
+    await click(copy.launchPage);
     await wait(() => document.querySelector('[data-route-stage="prepare"]'));
     document.querySelector<HTMLButtonElement>('[data-nav-id="shell-settings"]')!.click();
     await wait(() => document.querySelector('[data-nav-id="nav-settings-accounts"]'));
@@ -341,7 +349,7 @@ const review = {
     await wait(() => document.querySelector('[data-card="route-desktop"]')?.dataset.action === "start");
     check("fresh detection enables continuation", document.querySelector('[data-card="route-desktop"]')?.dataset.action === "start");
     const observationsBeforeRestore = playObservationCount;
-    await mount("restored"); await click(copy.play); await click(copy.desktop);
+    await mount("restored"); await click(copy.launchPage);
     await wait(() => playObservationCount > observationsBeforeRestore && document.querySelector('[data-card="route-desktop"]')?.dataset.action === "start", "fresh observation after restoring a receipt");
     check("an old terminal receipt cannot replace fresh observation or launch software", playObservationCount > observationsBeforeRestore
       && document.querySelector('[data-card="route-desktop"]')?.dataset.action === "start" && playCalls.length === 0);
@@ -349,11 +357,9 @@ const review = {
     await wait(() => document.querySelector('[data-card="route-desktop"]')?.dataset.action === "start");
     check("restored work remains usable after an explicit environment review", document.querySelector('[data-card="route-desktop"]')?.dataset.action === "start" && playCalls.length === 0);
     await mount("installed", "bigscreen");
-    await wait(() => document.querySelector('[data-nav-id="home-help"]'));
+    await wait(() => document.querySelector(".vua-home"));
     check("a saved big-screen preference is cleared and retains the ordinary Home directory", localStorage.getItem(storageKeys.retiredDisplayMode) === null && !document.querySelector('.vua-shell[data-display-mode]'));
     await click(copy.help); document.querySelector<HTMLButtonElement>('[data-nav-id="help-tour"]')!.click();
-    await wait(() => document.querySelector('[data-nav-id="help-start-tour"]'));
-    document.querySelector<HTMLButtonElement>('[data-nav-id="help-start-tour"]')!.click();
     for (let index = 0; index < TOUR_STEPS.findIndex(step => step.id === "tasks"); index += 1) {
       await wait(() => document.querySelector('.vua-tour .vua-button--primary'));
       document.querySelector<HTMLButtonElement>('.vua-tour .vua-button--primary')!.click();
@@ -370,19 +376,24 @@ const review = {
     const startAt = checks.length;
     await mount("installed", "desktop");  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-use-notice]"));
     check("Software & connections is absent from the fixed directory", !document.querySelector('[data-nav-id="nav-software"]') && !document.querySelector('[data-nav-id="home-software"]'));
-    await click(copy.play); const card = () => document.querySelector<HTMLElement>('[data-card="route-desktop"]')!;
+    await click(copy.launchPage); const card = () => document.querySelector<HTMLElement>('[data-card="route-desktop"]')!;
     await wait(() => card()?.dataset.action === "start", "desktop card ready to start");
-    const halves = card().querySelectorAll<HTMLButtonElement>(":scope > button"); const network = document.querySelector<HTMLElement>(".vua-network-tile")!;
+    const halves = card().querySelectorAll<HTMLButtonElement>(":scope > button");
     const separatorWidth = parseFloat(getComputedStyle(halves[1]!).borderLeftWidth);
     check("play card has two independent halves and a thin separator", halves.length === 2 && !halves[0]!.disabled && separatorWidth > 0 && separatorWidth <= 1);
-    check("network is above the environments and has the same height", network.getBoundingClientRect().bottom <= card().getBoundingClientRect().top && Math.abs(network.getBoundingClientRect().height - card().getBoundingClientRect().height) < 1);
+    check("latency lives in the top bar instead of the Play page", !document.querySelector(".vua-play-page .vua-network") && !!document.querySelector('[data-nav-id="shell-network"]'));
     check("entering Play makes no website test requests", websiteCalls === 0);
-    await wait(() => !document.querySelector<HTMLButtonElement>('[data-nav-id="play-network-test"]')!.disabled);
-    check("regional reference testing is explicit and keeps both US coasts", network.textContent?.includes(strings.websiteTests.regionTitle) && network.textContent?.includes(strings.websiteTests.regionShort.eu) && network.textContent?.includes(strings.websiteTests.regionShort.usw) && network.textContent?.includes(strings.websiteTests.regionShort.use));
-    document.querySelector<HTMLButtonElement>('[data-nav-id="play-network-details"]')!.click();
-    await wait(() => visible(document.querySelector(".vua-network")!));
-    document.querySelector<HTMLButtonElement>(`.vua-network [aria-label="${strings.websiteTests.testAll}"]`)!.click(); await wait(() => websiteCalls === 1 && document.querySelector(".vua-network")!.textContent?.includes("ms"));
-    check("website tests live only in expanded details and cannot become regional ping", websiteCalls === 1 && !network.textContent?.includes("ms"));
+    document.querySelector<HTMLButtonElement>('[data-nav-id="shell-network"]')!.click();
+    await wait(() => document.querySelector(".vua-network-panel") && !document.querySelector<HTMLButtonElement>('[data-nav-id="network-test"]')!.disabled);
+    const network = document.querySelector<HTMLElement>(".vua-network-panel")!;
+    check("opening latency tests the regions, keeping both US coasts", network.textContent?.includes(strings.websiteTests.regionTitle) && [strings.websiteTests.regionCities.eu, strings.websiteTests.regionCities.usw, strings.websiteTests.regionCities.use].every(city => network.textContent?.includes(city)));
+    document.querySelector<HTMLElement>(".vua-network-panel__sites")!.setAttribute("open", "");
+    const beforeSites = websiteCalls;
+    document.querySelector<HTMLButtonElement>(`.vua-network [aria-label="${strings.websiteTests.testAll}"]`)!.click(); await wait(() => websiteCalls > beforeSites && document.querySelector(".vua-network")!.textContent?.includes("ms"));
+    check("website tests sit one level down, separate from the regional reading", websiteCalls > beforeSites);
+    document.querySelector<HTMLButtonElement>('[data-nav-id="shell-network"]')!.click();
+    check("the choices stay open until the player has chosen", !!document.querySelector('[data-route-stage="prepare"]'));
+    document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop"]')!.click(); await wait(() => document.querySelector('[data-route-stage="pick"]'));
     document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop"]')!.click(); await wait(() => document.querySelector('[data-route-stage="prepare"]'));
     check("left half opens details without launching software", playCalls.length === 0 && softwareChips().length === 2 && document.querySelector<HTMLElement>(".vua-play-drawer")?.dataset.open === "true");
     document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop-action"]')!.click(); await wait(() => card().dataset.action === "stop");
@@ -401,10 +412,10 @@ const review = {
     playStates.desktop_play = "idle";
     await click(flowCopy.refreshDevices); await wait(() => card().dataset.action === "start", "all owned software exited");
     check("exit of all owned software restores Play without an extra close request", playCalls.filter(call => call.startsWith("environment.stopPlay:")).length === 1);
-    check("Quest, Vive and Index remain development peers", ["quest", "vive", "index"].every(id => document.querySelector(`[data-card="route-${id}"] .vua-route-tile__tag`)?.textContent === copy.developing));
+    check("Quest, Vive and Index are devices to choose beside PC mode and PICO", ["pc", "pico", "quest", "vive-standalone", "vive-wired", "index"].every(id => !!document.querySelector(`[data-nav-id="play-device-${id}"]`)));
     playUnavailable = true; await click(flowCopy.refreshDevices); await wait(() => card().dataset.action === "unknown", "provider failure shown as unknown");
-    check("provider failure is unknown instead of missing or ready", card().textContent?.includes(strings.environmentCards.unknown));
-    await click(copy.create); await wait(() => document.querySelector('[data-nav-id="editor-2019.4.31f1"]'));
+    check("provider failure is unknown instead of missing or ready", card().textContent?.includes(flowCopy.phases.unavailable));
+    await click(unitySetup); await wait(() => document.querySelector('[data-nav-id="editor-2019.4.31f1"]'));
     check("creator lists complete discovered versions beside the fixed Unity entries", document.querySelector('[data-nav-id="route-unity2022"]') && document.querySelector('[data-nav-id="editor-2021.3.45f1"]') && document.querySelector('[data-nav-id="route-unity6"] .vua-route-tile__tag')?.textContent === copy.developing);
     check("Hub, VCC and ALCOM have separate detected statuses", ["unity_hub", "vcc", "alcom"].every(id => document.querySelector(`[data-manager="${id}"] [role="status"]`)) && document.querySelector('[data-manager="alcom"]')!.textContent?.includes(strings.environmentCards.notFound));
     document.querySelector<HTMLButtonElement>('[data-nav-id="manager-vcc"]')!.click(); await wait(() => document.querySelector<HTMLElement>("#manager-vcc-details")!.dataset.open === "true");
@@ -418,35 +429,37 @@ const review = {
       control.click();
       await wait(() => control.getAttribute('aria-expanded') === 'false');
     }
-    await mount("missing", "desktop");  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-use-notice]")); await click(copy.play);
+    await mount("missing", "desktop");  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-use-notice]")); await click(copy.launchPage);
     await click(flowCopy.refreshDevices);
-    await wait(() => card()?.dataset.action === "prepare"); document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop-action"]')!.click();
+    await wait(() => card()?.dataset.action === "prepare");
     await wait(() => flowPhase() === "confirm", "plus shows the checked flow");
     check("plus checks software without planning, installing or launching", playCalls.length === 0 && intents.length === 0);
     await advance("confirm"); await wait(() => flowPhase() === "execute", "the run follows the confirmed checklist");
     check("the installation waits for an explicit run without launching software", playCalls.length === 0 && intents.length === 0);
     installationRunning = true; await advance("execute"); await wait(() => card().dataset.action === "busy");
-    check("accepted installation shows a spinner and cannot launch", card().querySelector(".vua-environment-card__spin") && card().textContent?.includes(strings.environmentCards.installing) && flowButton()!.disabled && flowPhase() === "running");
+    check("accepted installation shows a spinner and cannot launch", card().querySelector(".vua-environment-card__spin") && card().textContent?.includes(flowCopy.phases.running) && flowButton()!.disabled && flowPhase() === "running");
     check("details remain available while installation is running", !card().querySelector<HTMLButtonElement>(".vua-environment-card__details")!.disabled);
     const panel = document.querySelector('#route-desktop-details .vua-play-flow');
     const receipt = localStorage.getItem(`${storageKeys.deploymentReceiptPlay}.desktop_play`);
     document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop"]')!.click();
     await wait(() => document.querySelector<HTMLElement>('.vua-play-drawer')!.dataset.open === 'false');
-    document.querySelector<HTMLButtonElement>('[data-nav-id="route-pico"]')!.click();
-    await wait(() => !document.querySelector<HTMLElement>('#route-pico-details')!.hidden);
     document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop"]')!.click();
+    await wait(() => document.querySelector<HTMLElement>('.vua-play-drawer')!.dataset.open === 'true');
+    document.querySelector<HTMLButtonElement>('[data-nav-id="play-device-pico"]')!.click();
+    await wait(() => !document.querySelector<HTMLElement>('#route-pico-details')!.hidden);
+    document.querySelector<HTMLButtonElement>('[data-nav-id="play-device-pc"]')!.click();
     await wait(() => !document.querySelector<HTMLElement>('#route-desktop-details')!.hidden);
     check("closing and switching card details retains the live installation flow and receipt", panel === document.querySelector('#route-desktop-details .vua-play-flow') && receipt !== null && receipt === localStorage.getItem(`${storageKeys.deploymentReceiptPlay}.desktop_play`) && card().dataset.action === 'busy');
     return checks.slice(startAt);
   },
   async creatorSession() {
     const start = checks.length;
-    await mountPreview(); await click(copy.create);
+    await mountPreview(); await click(unitySetup);
     const refresh = () => document.querySelector<HTMLButtonElement>('[data-nav-id="creator-refresh-environment"]')!;
     await wait(() => !!refresh() && !refresh().disabled);
     const scanned = creatorInventoryReads;
-    await click(copy.play); await wait(() => document.querySelector(".vua-play-page"));
-    await click(copy.create); await wait(() => document.querySelector(".vua-creator-page"));
+    await click(copy.launchPage); await wait(() => document.querySelector(".vua-play-page"));
+    await click(unitySetup); await wait(() => document.querySelector(".vua-creator-page"));
     check("returning to Creator immediately restores the checked inventory", !refresh().disabled && !refresh().textContent?.includes(strings.environmentCards.checking));
     await new Promise(resolve => setTimeout(resolve, 100));
     check("returning to Creator starts no new scan", creatorInventoryReads === scanned);
@@ -456,7 +469,7 @@ const review = {
   },
   async previewEnvironment(page: "play" | "create", inventory: typeof creatorInventory = "all") {
     await mountPreview(inventory);  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-use-notice]"));
-    await click(copy[page]);
+    await click(page === "play" ? copy.launchPage : unitySetup);
     await wait(() => page === "play" ? document.querySelector<HTMLElement>('[data-card="route-desktop"]')?.dataset.action === "start" : document.querySelector('[data-editor-status]')?.textContent?.includes("2022.3.22f1"));
     await settlePage();
   },

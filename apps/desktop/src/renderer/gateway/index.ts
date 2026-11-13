@@ -59,7 +59,8 @@ export {
   type WorkflowRunState,
   type WorkflowStage,
 } from "./workflow.ts";
-export type { EnvironmentPort, EnvironmentView, NetworkPort } from "./environment-port.ts";
+export type { DeploymentPort, EnvironmentPort, EnvironmentView, NetworkPort, PlayPort } from "./environment-port.ts";
+export type { ScenarioEnvironmentPort } from "./scenario-environment-port.ts";
 export { CURRENT_RECIPE_ID } from "./model-production-port.ts";
 export {
   buildRecordDisplayStatuses,
@@ -265,17 +266,29 @@ export {
   useWorkshopView,
 } from "./GatewayProvider.tsx";
 export type { CreatorManagers, CreatorEditor } from "./creator-inventory-port.ts";
-export type { PlayPort } from "./environment-port.ts";
 
+export { GUIDE_CONTENT_IDS, isAllowedGuideHttpsUrl, resolveGuideLocalizedText } from "@vua/contracts";
+export type {
+  DesktopGuideContentApiV01,
+  GuideContentIdV01,
+  GuideContentPayloadV01,
+  GuideContentReadResultV01,
+  GuideContentSourceV01,
+  GuideLocalizedTextV01,
+  GuideRegionalNoteV01,
+  GuideSopStepV01,
+  GuideSopV01,
+} from "@vua/contracts";
 export { useAmfModule } from "./GatewayProvider.tsx";
 export { formatBytes, recentDownloadSpeed } from "./task-progress.ts";
 export { createDistributionPort } from "./distribution-port.ts";
 export { installAmfUiHost } from "./amf-ui-host.ts";
-export type { AmfReleasePort, AmfReleaseState, AmfUpload, AmfUploadStage, AmfUploadReason, AmfTurntable } from "./amf-release-port.ts";
-export { AMF_UPLOAD_STAGES } from "./amf-release-port.ts";
+export type { AmfReleasePort, AmfReleaseState, AmfUpload, AmfUploadStage, AmfUploadReason, AmfTurntable, AmfLocalTest } from "./amf-release-port.ts";
+export { AMF_UPLOAD_STAGES, AMF_LOCAL_TEST_STAGES, AMF_LOCAL_TEST_REASONS } from "./amf-release-port.ts";
 export type { VrchatPort, VrchatStatus, VrchatSignInOutcome, VrchatAvatarCheck, VrchatAvatarEntry, VrchatAvatarList, VrchatTwoFactorMethod, VrchatAccountView } from "./vrchat-port.ts";
 export { VRCHAT_TWO_FACTOR_METHODS } from "./vrchat-port.ts";
 export type { TermsPort } from "./terms-port.ts";
 export { AmfProductionError } from "./amf-production-port.ts";
-export type { AmfProductionPort, AmfProductionRun, AmfProductionPlan, AmfProductionRestorePlan, AmfProductionRevisionKind, AmfProductionRevisionSummary, AmfProductionRevisionSummaryItem, AmfProductionRevisionPlan, AmfFitObject, AmfProductionFitChanges, AmfProductionAvailableFit, AmfFitSummary, AmfFitSaved, AmfProductionSource, AmfProductionList, AmfQueuedWork, AmfRunPhase, AmfPrefab, AmfSavedRecipe, AmfRecipeSummary, AmfRecipeSharePlan, AmfRecipeShareExport, AmfRecipeApplyPlan, AmfProductionAccepted, AmfPreviewImage, AmfStep, AmfUsualDurations, AmfRunProgress, AmfProductionProgress, AmfSdkReview, AmfSdkIssue, AmfSdkStat, AmfSdkRating, AmfLightingPlan, AmfPlanPrediction, AmfPlanPredictionRow, AmfPlanPredictionTotal } from "./amf-production-port.ts";
+export type { AmfProductionPort, AmfProductionRun, AmfProductionPlan, AmfProductionRestorePlan, AmfProductionRevisionKind, AmfProductionRevisionSummary, AmfProductionRevisionSummaryItem, AmfProductionRevisionPlan, AmfFitObject, AmfProductionFitChanges, AmfProductionAvailableFit, AmfFitSummary, AmfFitSaved, AmfProductionSource, AmfProductionList, AmfQueuedWork, AmfRunPhase, AmfPrefab, AmfSavedRecipe, AmfRecipeSummary, AmfRecipeImage, AmfRecipeSharePlan, AmfRecipeShareExport, AmfRecipeApplyPlan, AmfProductionAccepted, AmfPreviewImage, AmfStep, AmfUsualDurations, AmfRunProgress, AmfProductionProgress, AmfSdkReview, AmfSdkIssue, AmfSdkStat, AmfSdkRating, AmfLightingPlan, AmfPlanPrediction, AmfPlanPredictionRow, AmfPlanPredictionTotal } from "./amf-production-port.ts";
+export type { AmfOptimizerMetrics, AmfOptimizerReport, AmfOptimizerState } from "@vua/contracts";
 export { AMF_SDK_RATINGS } from "./amf-production-port.ts";

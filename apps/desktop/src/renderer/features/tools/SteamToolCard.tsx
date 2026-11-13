@@ -7,11 +7,12 @@ import { deriveToolCardState, type ToolConnectionStatusKey } from "./tool-connec
 import { useToolConnection } from "./use-tool-connection.ts";
 import { ToolLogo } from "./ToolLogo.tsx";
 import { ToolDetails } from "./ToolDetails.tsx";
+import { ToolReinstall } from "./ToolReinstall.tsx";
 import "./tools.css";
 
 /** Shared Steam connection card for the five non-VRCFT N2 tools: same state machine as VrcftCard without the hardware gate. */
-export function SteamToolCard({ toolId, title, icon, selected, onDetails, onReveal, onPrepareSteam }: {
-  toolId: ExternalToolId; title: string; icon: IconName; selected: boolean;
+export function SteamToolCard({ toolId, title, hint, icon, selected, onDetails, onReveal, onPrepareSteam }: {
+  toolId: ExternalToolId; title: string; hint?: string | undefined; icon: IconName; selected: boolean;
   onDetails(): void; onReveal(): void; onPrepareSteam(): void;
 }) {
   const copy = strings.toolConnection;
@@ -35,7 +36,7 @@ export function SteamToolCard({ toolId, title, icon, selected, onDetails, onReve
   };
   return <>
     <EnvironmentCard title={title} icon={icon} logo={<ToolLogo id={toolId} icon={icon} />} id={`tool-${toolId}`}
-      selected={selected} action={state.action} status={status(state.status)} actionHint={actionHint} iconOnlyAction onDetails={onDetails} onAction={act}
+      hint={hint} selected={selected} action={state.action} status={copy.short[state.status]} actionHint={actionHint} actionIcon={state.status === "install" ? "download" : undefined} onDetails={onDetails} onAction={act}
       disabled={state.action === "busy"} spinning={state.action === "busy"} warning={!!s?.issue && s.canStop} />
     <ToolDetails id={toolId} title={title} selected={selected}>
       <header className="vua-environment-heading"><h2>{title}</h2><Button variant="subtle" onClick={onDetails}>{strings.environmentCards.closeDetails}</Button></header>
@@ -47,8 +48,9 @@ export function SteamToolCard({ toolId, title, icon, selected, onDetails, onReve
         {s.issue ? <p role="alert">{text(copy.issues[s.issue])}</p> : null}
         {s.steamReady && (s.presence === "missing" || s.presence === "incomplete") && !waiting ? <Button disabled={live.pending} onClick={() => { void live.act("install"); }}>{copy.install}</Button> : null}
         {s.presence === "installed" && s.steamReady ? <Button disabled={live.pending || waiting} onClick={() => { void live.act("start"); }}>{text(copy.openApp)}</Button> : null}
-        {waiting && s.activity !== "stopping" ? <div><p>{s.activity === "install_requested" ? copy.waitInstall : copy.waitOpen}</p><Button disabled={live.pending} variant="subtle" onClick={() => { void live.act("cancel"); }}>{copy.cancelWait}</Button></div> : null}
+        {waiting && s.activity !== "stopping" && s.activity !== "reinstall_requested" ? <div><p>{s.activity === "install_requested" ? copy.waitInstall : copy.waitOpen}</p><Button disabled={live.pending} variant="subtle" onClick={() => { void live.act("cancel"); }}>{copy.cancelWait}</Button></div> : null}
         {s.running && !s.canStop ? <p className="vua-text-secondary">{text(copy.existing)}</p> : null}
+        <ToolReinstall id={toolId} title={title} live={live} />
       </> : <p role="status">{status("checking")}</p>}
     </ToolDetails>
   </>;

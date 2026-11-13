@@ -109,6 +109,7 @@
   margin-top: var(--vua-space-1, 4px);
 }
 
+.vua-tour__actions button { white-space: nowrap; }
 .vua-tour__nav {
   display: flex;
   gap: var(--vua-space-2, 8px);

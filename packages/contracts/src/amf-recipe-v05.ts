@@ -1,4 +1,5 @@
 import { isAmfRecipeDocument as legacyDocument, isAmfSharedRecipe as legacyShare } from "./amf-recipe-v04.js";
+import { isAmfRecipeDocumentV06, isAmfSharedRecipeV06 } from "./amf-recipe-v06.js";
 import { hasAmfSwitchOptions } from "./amf-production-v01.js";
 /** Candidate portable declarations. Local saving does not establish sharing provenance. */
 export interface AmfRecipeMaterial { readonly id: string; readonly packageName: string; readonly sha256: string; readonly boothProductId?: string }
@@ -14,9 +15,9 @@ export interface AmfRecipeFitObject {
 }
 /** The saved fit of one material's garment: every adjusted object with its local Transform. */
 export interface AmfRecipeFit { readonly materialId: string; readonly objects: readonly AmfRecipeFitObject[] }
-export interface AmfRecipeAdjustments { readonly lighting: readonly AmfRecipeLighting[]; readonly sdkFixes: readonly string[]; readonly fits?: readonly AmfRecipeFit[] }
+export interface AmfRecipeAdjustments { readonly lighting: readonly AmfRecipeLighting[]; readonly sdkFixes: readonly string[]; readonly fits?: readonly AmfRecipeFit[]; readonly optimizer?: boolean }
 export interface AmfRecipeDocument {
-  readonly formatVersion: "0.4" | "0.5"; readonly recipeId: string; readonly title: string; readonly editorVersion: "2022.3.22f1" | "2022.3.22f1c1";
+  readonly formatVersion: "0.4" | "0.5" | "0.6"; readonly recipeId: string; readonly title: string; readonly editorVersion: "2022.3.22f1" | "2022.3.22f1c1";
   readonly materials: readonly AmfRecipeMaterial[]; readonly avatar: { readonly materialId: string; readonly prefabPath: string; readonly prefabGuid?: string };
   readonly outfits: readonly AmfRecipeOutfit[]; readonly packages: Readonly<Record<string, string>>;
   readonly adjustments?: AmfRecipeAdjustments;
@@ -49,6 +50,7 @@ const adjustments = (v: unknown): v is AmfRecipeAdjustments => {
 };
 export function isAmfRecipeDocument(v: unknown): v is AmfRecipeDocument {
   if (record(v) && v.formatVersion === "0.4") return legacyDocument(v);
+  if (record(v) && v.formatVersion === "0.6") return isAmfRecipeDocumentV06(v);
   if (!record(v) || !exact(v,"adjustments" in v ? ["formatVersion","recipeId","title","editorVersion","materials","avatar","outfits","packages","adjustments"] : ["formatVersion","recipeId","title","editorVersion","materials","avatar","outfits","packages"])
     || v.formatVersion !== "0.5" || typeof v.recipeId !== "string" || !/^[a-zA-Z0-9-]{1,100}$/u.test(v.recipeId) || !label(v.title,120)
     || !["2022.3.22f1","2022.3.22f1c1"].includes(String(v.editorVersion)) || !Array.isArray(v.materials) || v.materials.length < 1 || v.materials.length > 64
@@ -78,9 +80,10 @@ export function isAmfRecipeDocument(v: unknown): v is AmfRecipeDocument {
 }
 
 export interface AmfRecipeSource { readonly boothProductId: string; readonly shopName?: string }
-export interface AmfSharedRecipe { readonly formatVersion: "0.4" | "0.5"; readonly recipe: AmfRecipeDocument; readonly sources: Readonly<Record<string,string | AmfRecipeSource>> }
+export interface AmfSharedRecipe { readonly formatVersion: "0.4" | "0.5" | "0.6"; readonly recipe: AmfRecipeDocument; readonly sources: Readonly<Record<string,string | AmfRecipeSource>> }
 export function isAmfSharedRecipe(value: unknown): value is AmfSharedRecipe {
   if (record(value) && value.formatVersion === "0.4") return legacyShare(value);
+  if (record(value) && value.formatVersion === "0.6") return isAmfSharedRecipeV06(value);
   if (!record(value) || !exact(value,["formatVersion","recipe","sources"]) || value.formatVersion !== "0.5" || value.recipe === undefined || !isAmfRecipeDocument(value.recipe) || !record(value.sources) || value.recipe.formatVersion !== "0.5") return false;
   const sources = value.sources;
   return Object.keys(sources).length === value.recipe.materials.length && value.recipe.materials.every(material => { const id = sources[material.id]; return record(id) && exact(id,["boothProductId",...("shopName" in id ? ["shopName"] : [])])
@@ -94,7 +97,7 @@ export function decodeAmfRecipeShare(text: string): AmfSharedRecipe | null {
   if (typeof text !== "string" || text.length > 349557) return null;
   try {
     let json = text.trim();
-    if ((json.startsWith("vuar0.4.") || json.startsWith("vuar0.5."))) {
+    if ((json.startsWith("vuar0.4.") || json.startsWith("vuar0.5.") || json.startsWith("vuar0.6."))) {
       const payload = json.slice(8);
       if (!/^[a-zA-Z0-9_-]+$/u.test(payload)) return null;
       const binary = atob(payload.replace(/-/gu,"+").replace(/_/gu,"/"));

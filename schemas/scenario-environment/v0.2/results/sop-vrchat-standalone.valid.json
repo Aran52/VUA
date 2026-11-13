@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "vua.scenario-environment/v0.2",
+  "selection": {
+    "platform": "vrchat",
+    "device": "quest",
+    "connection": "standalone"
+  },
+  "engine": {
+    "kind": "headset"
+  },
+  "requirements": [],
+  "steps": [
+    {
+      "id": "store-install",
+      "actor": "player",
+      "title": "Install VRChat on the headset",
+      "explanation": "Open Meta Horizon Store inside the headset and install VRChat. No PC streaming software is needed.",
+      "expectedResult": "VRChat appears in the headset's installed library.",
+      "automatic": false,
+      "verification": "Check the headset library in Meta Horizon Store to confirm VRChat finished downloading.",
+      "onFailure": "Check headset Wi-Fi connectivity and available storage in Meta Horizon Store, then retry the download."
+    },
+    {
+      "id": "store-launch",
+      "actor": "player",
+      "title": "Open VRChat in the headset",
+      "explanation": "Launch VRChat directly on the headset and sign in through the official in-headset flow.",
+      "expectedResult": "VRChat opens in standalone mode and enters the home world.",
+      "automatic": false,
+      "verification": "Confirm audio, controller tracking and sign-in inside the headset.",
+      "onFailure": "Restart the application on the headset and review official account linking guidance if sign-in fails."
+    }
+  ],
+  "performed": "sop_only",
+  "nextAction": "follow_sop",
+  "sopVersions": {
+    "platform": "0.2.0",
+    "device": "0.2.0",
+    "connection": "0.2.0"
+  },
+  "lastVerification": {
+    "date": "2026-11-07",
+    "environment": "Official upstream documentation catalog review (no unverified hardware session claim)",
+    "softwareVersions": []
+  },
+  "sources": [
+    {
+      "label": "VRChat on Steam",
+      "url": "https://store.steampowered.com/app/438100/VRChat/"
+    },
+    {
+      "label": "VRChat standalone getting started",
+      "url": "https://wiki.vrchat.com/wiki/Getting_Started"
+    }
+  ]
+}

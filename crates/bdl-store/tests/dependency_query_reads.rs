@@ -19,7 +19,10 @@ fn product(product_id: &str, status: ProductObservationStatus) -> ProductObserva
             .to_owned(),
         library_type: None,
         variant_name: None,
-        source_url: format!("https://booth.pm/ja/items/{}", product_id.trim_start_matches("booth:")),
+        source_url: format!(
+            "https://booth.pm/ja/items/{}",
+            product_id.trim_start_matches("booth:")
+        ),
         final_url: None,
         status,
         source_locale: None,
@@ -90,10 +93,13 @@ fn whole_library_scan_returns_insertion_order_across_products() {
         "observation-identity order across products, NOT product order"
     );
     let empty = BdlStore::open_in_memory().expect("in-memory library");
-    assert!(empty
-        .dependency_observations_all()
-        .expect("read")
-        .is_empty(), "empty library = the honest empty set");
+    assert!(
+        empty
+            .dependency_observations_all()
+            .expect("read")
+            .is_empty(),
+        "empty library = the honest empty set"
+    );
 }
 
 #[test]
@@ -111,12 +117,21 @@ fn product_row_serves_any_status_and_none_for_unknown() {
         .expect("known");
     assert_eq!(complete.status, "complete");
     assert_eq!(complete.title.as_deref(), Some("title of booth:111"));
-    assert_eq!(complete.availability.as_deref(), Some("https://schema.org/InStock"));
-    assert_eq!(complete.source_url.as_deref(), Some("https://booth.pm/ja/items/111"));
+    assert_eq!(
+        complete.availability.as_deref(),
+        Some("https://schema.org/InStock")
+    );
+    assert_eq!(
+        complete.source_url.as_deref(),
+        Some("https://booth.pm/ja/items/111")
+    );
     let tombstone = store
         .dependency_product_row("booth:666")
         .expect("read")
         .expect("a tombstoned product is a row, never a deletion");
     assert_eq!(tombstone.status, "missing");
-    assert!(store.dependency_product_row("booth:404").expect("read").is_none());
+    assert!(store
+        .dependency_product_row("booth:404")
+        .expect("read")
+        .is_none());
 }

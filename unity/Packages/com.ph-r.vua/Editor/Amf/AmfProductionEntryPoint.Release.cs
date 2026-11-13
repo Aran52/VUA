@@ -54,6 +54,7 @@ namespace Vua.Editor.Bridge
             public string blueprintId = ""; public string reason = ""; public string detail = "";
             public List<string> errors = new List<string>(); public bool firstUpload; public bool sceneSaved;
             public string sdkSignIn = "panel";
+            public bool canPublishAvatars; public bool canPublishAvatarsObserved;
             // The SDK's Avatar check read again after the upload, so an Auto Fix made in the panel reaches VUA.
             public SdkReview sdkReview = new SdkReview();
         }
@@ -78,6 +79,7 @@ namespace Vua.Editor.Bridge
                 if (uploadRunning || EditorApplication.timeSinceStartup < next || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
                 next = EditorApplication.timeSinceStartup + 0.5;
                 var file = Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".vua", "bridge", "amf-upload.json"));
+                if (File.Exists(Path.Combine(Path.GetDirectoryName(file), "amf-test.started"))) return;
                 if (!File.Exists(file)) return;
                 uploadRunning = true;
                 RunUpload(file);
@@ -193,7 +195,8 @@ namespace Vua.Editor.Bridge
                 Line(builder == null ? "sdk_panel" : "sign_in");
                 await Task.Delay(1000);
             }
-            if (!sdk.CanPublishAvatars()) { receipt.reason = "no_publish_permission"; receipt.detail = "This VRChat account cannot upload Avatars yet."; return; }
+            receipt.canPublishAvatars = sdk.CanPublishAvatars(); receipt.canPublishAvatarsObserved = true;
+            if (!receipt.canPublishAvatars) { receipt.reason = "no_publish_permission"; receipt.detail = "This VRChat account cannot upload Avatars yet."; return; }
             sdk.Select(builder, avatar);
             var pipeline = sdk.Pipeline(avatar);
             var blueprint = sdk.BlueprintId(pipeline);
@@ -392,6 +395,29 @@ namespace Vua.Editor.Bridge
 
             internal string BlueprintId(Component component) =>
                 (pipeline.GetField("blueprintId")?.GetValue(component) ?? pipeline.GetProperty("blueprintId")?.GetValue(component)) as string;
+
+            internal Component ExistingPipeline(GameObject target) => target.GetComponent(pipeline);
+
+            internal void SetBlueprintId(Component component, string value)
+            {
+                var field = pipeline.GetField("blueprintId");
+                if (field != null) field.SetValue(component, value);
+                else
+                {
+                    var property = pipeline.GetProperty("blueprintId");
+                    if (property == null || !property.CanWrite) throw new InvalidOperationException("The SDK pipeline identity cannot be restored.");
+                    property.SetValue(component, value);
+                }
+                EditorUtility.SetDirty(component);
+            }
+
+            internal async Task BuildAndTest(object builder, GameObject target)
+            {
+                var method = avatarApi.GetMethods().FirstOrDefault(m => m.Name == "BuildAndTest" && m.GetParameters().Length == 1
+                    && m.GetParameters()[0].ParameterType == typeof(GameObject))
+                    ?? throw new InvalidOperationException("The VRChat SDK has no Avatar build-and-test method.");
+                await (Task)method.Invoke(builder, new object[] { target });
+            }
 
             internal object NewAvatar(string name)
             {

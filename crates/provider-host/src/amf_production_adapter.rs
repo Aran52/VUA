@@ -1,4 +1,5 @@
 //! Thin native adapter for the AMF-owned material-first use case.
+use crate::known_packages::{self, KnownPackage};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -14,14 +15,16 @@ use vua_orchestrator::{
     UnityOperation, UnityPayload, VpmBackend,
 };
 use vua_unity_bridge::UnityBatchBridge;
-use crate::known_packages::{self, KnownPackage};
 
-mod release_handoff;
 mod editor_close;
+mod read_cache;
+mod release_handoff;
+pub use read_cache::ProductionReadCache;
 
 pub struct NativeAmfProduction {
     pub bdl: Arc<BdlStore>,
     pub root: PathBuf,
+    pub read_cache: ProductionReadCache,
     pub editor_roots: Vec<PathBuf>,
     pub explicit_editor: Option<PathBuf>,
     /// The environment's current `unity_hub` finding, read before each Unity run.
@@ -53,7 +56,11 @@ fn ensure_repo(
     url: &str,
     name: &str,
 ) -> Result<(), AppErrorV1> {
-    if !backend.list_repos()?.iter().any(|r| r.url.as_deref() == Some(url)) {
+    if !backend
+        .list_repos()?
+        .iter()
+        .any(|r| r.url.as_deref() == Some(url))
+    {
         backend.add_remote_repo(url, name)?;
     }
     // Registering a feed does not populate its package cache. Resolve only
@@ -63,10 +70,18 @@ fn ensure_repo(
         .list_repos()?
         .into_iter()
         .find(|repo| repo.url.as_deref() == Some(url))
-        .ok_or_else(|| err("dependencies_unavailable", format!("The {name} repository is not registered.")))?;
+        .ok_or_else(|| {
+            err(
+                "dependencies_unavailable",
+                format!("The {name} repository is not registered."),
+            )
+        })?;
     if !repo.cached {
         let id = repo.repo_id.as_deref().ok_or_else(|| {
-            err("dependencies_unavailable", format!("The {name} repository has no verified identity."))
+            err(
+                "dependencies_unavailable",
+                format!("The {name} repository has no verified identity."),
+            )
         })?;
         backend.refresh_repo(id)?;
     }
@@ -80,6 +95,7 @@ struct BridgeExtras<'a> {
     face_tracking: Option<&'a FaceTrackingPatch>,
     apply_target: Option<&'a vua_orchestrator::amf_recipe_apply::RecipeApplyTarget>,
     sdk_fixes: Option<&'a [String]>,
+    optimizer: Option<bool>,
     fits: &'a [OutfitFit],
 }
 
@@ -96,7 +112,10 @@ enum InstallPin<'a> {
 
 impl NativeAmfProduction {
     fn start_unity_hub(&self) {
-        let launch = self.unity_hub.as_ref().and_then(|finding| crate::unity_hub::hub_launch(&finding().facts));
+        let launch = self
+            .unity_hub
+            .as_ref()
+            .and_then(|finding| crate::unity_hub::hub_launch(&finding().facts));
         crate::unity_hub::ensure_licensing_client(launch, || false);
     }
     fn package_backend(&self) -> Result<vua_project_manager::VrcGetLibBackend, AppErrorV1> {
@@ -110,28 +129,51 @@ impl NativeAmfProduction {
     /// release, the newest cached stable release of one version line, or one
     /// exact recorded release — the last two pinned through the request's
     /// exact `PackageRequestV1.version`.
-    fn install_known_package(&self, run: &ProductionRun, package: &KnownPackage, pin: InstallPin<'_>) -> Result<(), AppErrorV1> {
-        let _environment = VPM_ENVIRONMENT_WRITE.lock().expect("AMF VPM environment poisoned");
+    fn install_known_package(
+        &self,
+        run: &ProductionRun,
+        package: &KnownPackage,
+        pin: InstallPin<'_>,
+    ) -> Result<(), AppErrorV1> {
+        let _environment = VPM_ENVIRONMENT_WRITE
+            .lock()
+            .expect("AMF VPM environment poisoned");
         let backend = self.package_backend()?;
         ensure_repo(&backend, package.feed_url, package.display_name)?;
         let version = match pin {
-            InstallPin::Line(line) => Some(known_packages::latest_cached_line_version(
-                &self.root.join("vpm-environment"),
-                package.feed_url,
-                package.id,
-                line,
-            )
-            .ok_or_else(|| err("dependencies_unavailable", format!("The {} feed offers no stable {line} release of {}.", package.display_name, package.id)))?),
+            InstallPin::Line(line) => Some(
+                known_packages::latest_cached_line_version(
+                    &self.root.join("vpm-environment"),
+                    package.feed_url,
+                    package.id,
+                    line,
+                )
+                .ok_or_else(|| {
+                    err(
+                        "dependencies_unavailable",
+                        format!(
+                            "The {} feed offers no stable {line} release of {}.",
+                            package.display_name, package.id
+                        ),
+                    )
+                })?,
+            ),
             InstallPin::Release(version) => Some(version.to_owned()),
             InstallPin::Newest => None,
         };
         let p = project(run);
-        let request = [PackageRequestV1 { package_id: package.id.into(), version }];
+        let request = [PackageRequestV1 {
+            package_id: package.id.into(),
+            version,
+        }];
         let preview = backend.preview_install(&p, &request)?;
         if preview.destructive || !preview.conflicts.is_empty() {
             return Err(err(
                 "dependencies_conflict",
-                format!("{} installation needs explicit conflict handling: {:?}", package.display_name, preview.conflicts),
+                format!(
+                    "{} installation needs explicit conflict handling: {:?}",
+                    package.display_name, preview.conflicts
+                ),
             ));
         }
         backend.apply_install(&p, &request, &preview.digest)?;
@@ -141,7 +183,9 @@ impl NativeAmfProduction {
         let Some(member) = &source.archive_member else {
             return Ok(source.path.clone());
         };
-        let _cache = PACKAGE_CACHE_WRITE.lock().expect("AMF package cache poisoned");
+        let _cache = PACKAGE_CACHE_WRITE
+            .lock()
+            .expect("AMF package cache poisoned");
         let archive_hash = vua_unity_bridge::material_exec::sha256_file(&source.path)
             .map_err(|e| err("source_unreadable", format!("Read selected ZIP: {e}")))?;
         let root = self.root.join("package-cache");
@@ -206,6 +250,15 @@ impl NativeAmfProduction {
         }
         result
     }
+    fn with_recorded_hashes(&self, mut sources: Vec<ProductionSource>) -> Vec<ProductionSource> {
+        let hashes = self.read_cache.material_hashes(&self.root);
+        for source in &mut sources {
+            if let Some(hash) = hashes.known(&source.path, source.archive_member.as_deref()) {
+                source.sha256 = Some(hash);
+            }
+        }
+        sources
+    }
     fn verify_assembly_sources(&self, run: &ProductionRun) -> Result<(), AppErrorV1> {
         let available = self
             .sources()?
@@ -234,6 +287,68 @@ impl NativeAmfProduction {
         }
         Ok(())
     }
+    /// Ensures the project's VPM dependencies are compatible with `com.anatawa12.avatar-optimizer`
+    /// 1.9.21 and installs that exact pinned release from the official feed when not yet present.
+    fn ensure_avatar_optimizer_installed(&self, run: &ProductionRun) -> Result<(), AppErrorV1> {
+        let project = Path::new(&run.project_root);
+        let manifest_path = project.join("Packages/vpm-manifest.json");
+        let manifest: serde_json::Value = serde_json::from_slice(
+            &fs::read(&manifest_path).map_err(|e| err("project_unreadable", e))?,
+        )
+        .map_err(|e| err("project_unreadable", e))?;
+        let locked = manifest["locked"]
+            .as_object()
+            .ok_or_else(|| err("project_unreadable", "Installed VPM lock is missing."))?;
+        let sdk_version = locked
+            .get("com.vrchat.avatars")
+            .and_then(|entry| entry["version"].as_str());
+        let ndmf_version = locked
+            .get("nadena.dev.ndmf")
+            .and_then(|entry| entry["version"].as_str());
+        if !known_packages::avatar_optimizer_compatible(sdk_version, ndmf_version) {
+            return Err(err(
+                "optimizer_incompatible",
+                format!(
+                    "Avatar Optimizer {} requires com.vrchat.avatars >= 3.7.0 < 3.11.0 and nadena.dev.ndmf >= 1.8.0 < 2.0.0 (observed SDK {}, NDMF {}).",
+                    known_packages::AVATAR_OPTIMIZER_PINNED_VERSION,
+                    sdk_version.unwrap_or("none"),
+                    ndmf_version.unwrap_or("none")
+                ),
+            ));
+        }
+        let installed_version = locked
+            .get(known_packages::AVATAR_OPTIMIZER_ID)
+            .and_then(|entry| entry["version"].as_str());
+        if installed_version == Some(known_packages::AVATAR_OPTIMIZER_PINNED_VERSION)
+            && project
+                .join("Packages")
+                .join(known_packages::AVATAR_OPTIMIZER_ID)
+                .join("package.json")
+                .is_file()
+        {
+            return Ok(());
+        }
+        if let Some(other) = installed_version {
+            if other != known_packages::AVATAR_OPTIMIZER_PINNED_VERSION {
+                return Err(err(
+                    "optimizer_incompatible",
+                    format!(
+                        "Work project already carries {} {other}; VUA pins {} {}.",
+                        known_packages::AVATAR_OPTIMIZER_ID,
+                        known_packages::AVATAR_OPTIMIZER_ID,
+                        known_packages::AVATAR_OPTIMIZER_PINNED_VERSION
+                    ),
+                ));
+            }
+        }
+        let package = known_packages::find_known_package(known_packages::AVATAR_OPTIMIZER_ID)
+            .expect("Avatar Optimizer known package entry");
+        self.install_known_package(
+            run,
+            package,
+            InstallPin::Release(known_packages::AVATAR_OPTIMIZER_PINNED_VERSION),
+        )
+    }
     fn bridge(
         &self,
         run: &ProductionRun,
@@ -252,7 +367,21 @@ impl NativeAmfProduction {
         fits: &[OutfitFit],
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, operation, selection, BridgeExtras { texture_changes: None, apply_target, sdk_fixes: None, fits, face_tracking: None, outfit_removal: None }, watch)
+        self.bridge_request(
+            run,
+            operation,
+            selection,
+            BridgeExtras {
+                texture_changes: None,
+                apply_target,
+                sdk_fixes: None,
+                optimizer: None,
+                fits,
+                face_tracking: None,
+                outfit_removal: None,
+            },
+            watch,
+        )
     }
     /// One Bridge v5 run: the request file, the command and the observed result.
     fn bridge_request(
@@ -263,7 +392,15 @@ impl NativeAmfProduction {
         extras: BridgeExtras<'_>,
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
-        let BridgeExtras { texture_changes, apply_target, sdk_fixes, fits, face_tracking, outfit_removal } = extras;
+        let BridgeExtras {
+            texture_changes,
+            apply_target,
+            sdk_fixes,
+            optimizer,
+            fits,
+            face_tracking,
+            outfit_removal,
+        } = extras;
         self.verify_editor(&run.editor.path)?;
         reject_editor_lock(Path::new(&run.project_root))?;
         clear_stale_lock(Path::new(&run.project_root));
@@ -282,7 +419,10 @@ impl NativeAmfProduction {
             .map(|mut value| {
                 if let Some(outfits) = value["outfits"].as_array_mut() {
                     for outfit in outfits {
-                        if let Some(fit) = fits.iter().find(|fit| Some(fit.source_id.as_str()) == outfit["sourceId"].as_str()) {
+                        if let Some(fit) = fits
+                            .iter()
+                            .find(|fit| Some(fit.source_id.as_str()) == outfit["sourceId"].as_str())
+                        {
                             outfit["fit"] = serde_json::json!({"objects": fit.objects});
                         }
                     }
@@ -293,17 +433,25 @@ impl NativeAmfProduction {
             "sources":run.sources.iter().map(|s| serde_json::json!({"sourceId":s.source_id,"role":s.role,"assetPaths":s.asset_paths})).collect::<Vec<_>>(),
             "selection":selection});
         if let Some(target) = apply_target {
-            request["applyTarget"] = serde_json::to_value(target).map_err(|e| err("request_invalid", e))?;
+            request["applyTarget"] =
+                serde_json::to_value(target).map_err(|e| err("request_invalid", e))?;
         }
-        if let Some(changes) = texture_changes { request["textureChanges"] = serde_json::json!(changes); }
+        if let Some(changes) = texture_changes {
+            request["textureChanges"] = serde_json::json!(changes);
+        }
         if let Some(fixes) = sdk_fixes {
             request["sdkFixes"] = serde_json::json!(fixes);
         }
         if let Some(removal) = outfit_removal {
-            request["outfitRemoval"] = serde_json::to_value(removal).map_err(|e| err("request_invalid", e))?;
+            request["outfitRemoval"] =
+                serde_json::to_value(removal).map_err(|e| err("request_invalid", e))?;
         }
         if let Some(patch) = face_tracking {
-            request["faceTrackingPatch"] = serde_json::to_value(patch).map_err(|e| err("request_invalid", e))?;
+            request["faceTrackingPatch"] =
+                serde_json::to_value(patch).map_err(|e| err("request_invalid", e))?;
+        }
+        if let Some(enabled) = optimizer {
+            request["optimizer"] = serde_json::json!({ "enabled": enabled });
         }
         let serialized =
             serde_json::to_vec_pretty(&request).map_err(|e| err("request_invalid", e))?;
@@ -325,8 +473,16 @@ impl NativeAmfProduction {
             operation,
             project_id: run.run_id.clone(),
             dry_run: operation == UnityOperation::AmfInspect,
-            expected_project_fingerprint: matches!(operation, UnityOperation::AmfAssemble | UnityOperation::AmfSdkFix | UnityOperation::AmfFtPatch | UnityOperation::AmfTextureImport | UnityOperation::AmfOutfitRemove)
-                .then(|| run.unity_fingerprint.clone()),
+            expected_project_fingerprint: matches!(
+                operation,
+                UnityOperation::AmfAssemble
+                    | UnityOperation::AmfSdkFix
+                    | UnityOperation::AmfFtPatch
+                    | UnityOperation::AmfTextureImport
+                    | UnityOperation::AmfOutfitRemove
+                    | UnityOperation::AmfOptimizer
+            )
+            .then(|| run.unity_fingerprint.clone()),
             payload: UnityPayload {
                 plan_ref: Some(plan_ref),
                 plan_hash: Some(plan_hash),
@@ -334,8 +490,13 @@ impl NativeAmfProduction {
             },
         };
         // The first preparation imports every work-project asset, so its count has a total.
-        let total = (operation == UnityOperation::AmfPrepare && watch.step_key() == "inspect").then(|| imported_asset_count(run));
-        let tail = Mutex::new(vua_unity_bridge::UnityLogTail::new(Path::new(&run.project_root), &id, total));
+        let total = (operation == UnityOperation::AmfPrepare && watch.step_key() == "inspect")
+            .then(|| imported_asset_count(run));
+        let tail = Mutex::new(vua_unity_bridge::UnityLogTail::new(
+            Path::new(&run.project_root),
+            &id,
+            total,
+        ));
         let next_poll = Mutex::new(Instant::now());
         let poll = || {
             let mut next = next_poll.lock().expect("Unity poll poisoned");
@@ -346,7 +507,11 @@ impl NativeAmfProduction {
             watch.report(tail.lock().expect("Unity log poisoned").poll());
             watch.stop_requested()
         };
-        let outcome = UnityBatchBridge::for_amf_production(&run.editor.path).execute_watched(&project(run), &command, &poll);
+        let outcome = UnityBatchBridge::for_amf_production(&run.editor.path).execute_watched(
+            &project(run),
+            &command,
+            &poll,
+        );
         // A stopped or crashed Unity leaves its lock file behind.
         clear_stale_lock(Path::new(&run.project_root));
         let result = outcome.map_err(|e| match e {
@@ -389,16 +554,25 @@ impl NativeAmfProduction {
             return Err(err("receipt_invalid", "Bridge returned another operation."));
         }
         let mut facts = result.data;
-        if let Some(textures) = facts.get("textureMemory") { validate_texture_memory(textures)?; }
+        if let Some(textures) = facts.get("textureMemory") {
+            validate_texture_memory(textures)?;
+        }
         if let Some(ft) = facts.get("faceTracking") {
             validate_face_tracking(ft)?;
         }
         validate_outfit_removal_facts(&facts)?;
+        validate_optimizer_facts(&mut facts, operation == UnityOperation::AmfOptimizer)?;
         let omitted = normalize_previews(&mut facts, Path::new(&run.project_root), &id)?;
         let mut diagnostics = result.diagnostics;
         if !omitted.is_empty() {
-            diagnostics.push(vua_orchestrator::Diagnostic { code: "amf.preview.failed".into(), severity: vua_orchestrator::DiagnosticSeverity::Warning,
-                message: format!("{} preview images were left out because their files are missing or too large.", omitted.len()) });
+            diagnostics.push(vua_orchestrator::Diagnostic {
+                code: "amf.preview.failed".into(),
+                severity: vua_orchestrator::DiagnosticSeverity::Warning,
+                message: format!(
+                    "{} preview images were left out because their files are missing or too large.",
+                    omitted.len()
+                ),
+            });
         }
         vua_orchestrator::amf_recipe_materials::validate_inspection(&facts)?;
         let prefabs: Vec<PrefabCandidate> = serde_json::from_value(facts["prefabs"].clone())
@@ -430,7 +604,12 @@ impl NativeAmfProduction {
             })
             .collect::<BTreeMap<_, _>>();
         normalize_observed_selection(&mut facts)?;
-        append_known_package_guides(&mut diagnostics, Path::new(&run.project_root), &facts, &package_versions);
+        append_known_package_guides(
+            &mut diagnostics,
+            Path::new(&run.project_root),
+            &facts,
+            &package_versions,
+        );
         let data = serde_json::json!({"facts":facts,"packageVersions":package_versions,"diagnostics":diagnostics,"officialSdkChecks":"not_run","visualReview":"pending"});
         Ok(ObservedProject {
             prefabs,
@@ -445,17 +624,29 @@ impl NativeAmfProduction {
 /// work project; a path that leaves it invalidates the receipt. A missing or oversized image is
 /// left out and named in the returned list. Unity writes an empty string for a candidate without
 /// an image.
-fn normalize_previews(facts: &mut serde_json::Value, project: &Path, command_id: &str) -> Result<Vec<String>, AppErrorV1> {
+fn normalize_previews(
+    facts: &mut serde_json::Value,
+    project: &Path,
+    command_id: &str,
+) -> Result<Vec<String>, AppErrorV1> {
     let folder = format!("{PREVIEW_ROOT}/{command_id}/");
     let mut omitted = Vec::new();
     let mut usable = |path: &str| -> Result<bool, AppErrorV1> {
         if !path.starts_with(&folder) {
-            return Err(err("receipt_invalid", format!("A preview belongs to another Bridge command: {path}")));
+            return Err(err(
+                "receipt_invalid",
+                format!("A preview belongs to another Bridge command: {path}"),
+            ));
         }
         match preview_file(project, path) {
             Ok(_) => Ok(true),
-            Err(error) if error.code == "vua.amf_production.preview_invalid" => Err(err("receipt_invalid", format!("{path}: {}", error.code))),
-            Err(_) => { omitted.push(path.to_owned()); Ok(false) }
+            Err(error) if error.code == "vua.amf_production.preview_invalid" => {
+                Err(err("receipt_invalid", format!("{path}: {}", error.code)))
+            }
+            Err(_) => {
+                omitted.push(path.to_owned());
+                Ok(false)
+            }
         }
     };
     let views = match facts.get("previews") {
@@ -469,20 +660,38 @@ fn normalize_previews(facts: &mut serde_json::Value, project: &Path, command_id:
         let (Some(name), Some(path)) = (view["view"].as_str(), view["path"].as_str()) else {
             return Err(err("receipt_invalid", "A preview has no view or path."));
         };
-        if view.as_object().map_or(0, |v| v.len()) != 2 || !PREVIEW_VIEWS.contains(&name) || !seen.insert(name.to_owned()) {
-            return Err(err("receipt_invalid", "Previews name each of front, side and back at most once."));
+        if view.as_object().map_or(0, |v| v.len()) != 2
+            || !PREVIEW_VIEWS.contains(&name)
+            || !seen.insert(name.to_owned())
+        {
+            return Err(err(
+                "receipt_invalid",
+                "Previews name each of front, side and back at most once.",
+            ));
         }
-        if usable(path)? { kept.push(view); }
+        if usable(path)? {
+            kept.push(view);
+        }
     }
     facts["previews"] = serde_json::Value::Array(kept);
-    if let Some(prefabs) = facts.get_mut("prefabs").and_then(serde_json::Value::as_array_mut) {
-        for prefab in prefabs.iter_mut().filter_map(serde_json::Value::as_object_mut) {
+    if let Some(prefabs) = facts
+        .get_mut("prefabs")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for prefab in prefabs
+            .iter_mut()
+            .filter_map(serde_json::Value::as_object_mut)
+        {
             let rendered = match prefab.get("preview") {
                 Some(serde_json::Value::String(path)) if !path.is_empty() => usable(path)?,
                 None | Some(serde_json::Value::Null) | Some(serde_json::Value::String(_)) => false,
-                Some(_) => return Err(err("receipt_invalid", "A candidate preview is not a path.")),
+                Some(_) => {
+                    return Err(err("receipt_invalid", "A candidate preview is not a path."))
+                }
             };
-            if !rendered { prefab.remove("preview"); }
+            if !rendered {
+                prefab.remove("preview");
+            }
         }
     }
     Ok(omitted)
@@ -490,19 +699,30 @@ fn normalize_previews(facts: &mut serde_json::Value, project: &Path, command_id:
 
 /// Removes preview folders of earlier Bridge commands that the run no longer reports.
 fn prune_previews(project: &Path, kept: &[String]) {
-    let Ok(entries) = fs::read_dir(project.join(PREVIEW_ROOT)) else { return; };
-    let kept = kept.iter().filter_map(|path| path.split('/').nth(2)).collect::<BTreeSet<_>>();
+    let Ok(entries) = fs::read_dir(project.join(PREVIEW_ROOT)) else {
+        return;
+    };
+    let kept = kept
+        .iter()
+        .filter_map(|path| path.split('/').nth(2))
+        .collect::<BTreeSet<_>>();
     for entry in entries.flatten() {
         let name = entry.file_name();
         // A link or junction is left as it is; only plain folders VUA wrote are removed.
-        if entry.file_type().is_ok_and(|kind| kind.is_dir() && !kind.is_symlink()) && !kept.contains(name.to_string_lossy().as_ref()) {
+        if entry
+            .file_type()
+            .is_ok_and(|kind| kind.is_dir() && !kind.is_symlink())
+            && !kept.contains(name.to_string_lossy().as_ref())
+        {
             let _ = fs::remove_dir_all(entry.path());
         }
     }
 }
 
 fn normalize_observed_selection(facts: &mut serde_json::Value) -> Result<(), AppErrorV1> {
-    let Some(selection) = facts.get_mut("observedSelection") else { return Ok(()); };
+    let Some(selection) = facts.get_mut("observedSelection") else {
+        return Ok(());
+    };
     // Unity's inline-class serializer writes a null Selection as its empty
     // default object. Keep that sentinel out of the typed desktop contract.
     if *selection == serde_json::json!({"avatarPrefab":"", "outfits":[]}) {
@@ -512,19 +732,31 @@ fn normalize_observed_selection(facts: &mut serde_json::Value) -> Result<(), App
         // outfits too, even though these newly observed outfits have no fit request.
         // Only its empty sentinel is removable; real fit data and unknown fields must
         // still fail this closed receipt rather than being silently discarded.
-        if let Some(outfits) = selection.get_mut("outfits").and_then(serde_json::Value::as_array_mut) {
+        if let Some(outfits) = selection
+            .get_mut("outfits")
+            .and_then(serde_json::Value::as_array_mut)
+        {
             for outfit in outfits {
                 if let Some(fit) = outfit.get("fit") {
                     if !fit.is_null() && *fit != serde_json::json!({"objects":[]}) {
-                        return Err(err("receipt_invalid", "An observed outfit carries unexpected fit request data."));
+                        return Err(err(
+                            "receipt_invalid",
+                            "An observed outfit carries unexpected fit request data.",
+                        ));
                     }
-                    outfit.as_object_mut().expect("fit field belongs to an object").remove("fit");
+                    outfit
+                        .as_object_mut()
+                        .expect("fit field belongs to an object")
+                        .remove("fit");
                 }
             }
         }
-        let observed: AssemblySelection = serde_json::from_value(selection.clone())
-            .map_err(|e| err("receipt_invalid", e))?;
-        if observed.avatar_prefab.is_empty() || observed.outfits.is_empty() || observed.outfits.len() > 64 {
+        let observed: AssemblySelection =
+            serde_json::from_value(selection.clone()).map_err(|e| err("receipt_invalid", e))?;
+        if observed.avatar_prefab.is_empty()
+            || observed.outfits.is_empty()
+            || observed.outfits.len() > 64
+        {
             return Err(err("receipt_invalid", "Invalid observed scene selection."));
         }
     }
@@ -540,7 +772,9 @@ fn append_known_package_guides(
     facts: &serde_json::Value,
     package_versions: &BTreeMap<String, String>,
 ) {
-    let Some(missing) = facts["missingShaderMaterials"].as_array() else { return; };
+    let Some(missing) = facts["missingShaderMaterials"].as_array() else {
+        return;
+    };
     let mut materials = Vec::new();
     for path in missing.iter().filter_map(serde_json::Value::as_str) {
         if !safe_asset_path(path) || !path.to_ascii_lowercase().ends_with(".mat") {
@@ -558,23 +792,70 @@ fn append_known_package_guides(
 }
 
 impl AmfProductionPlatform for NativeAmfProduction {
-    fn recipe_source_candidates(&self, materials: &[vua_orchestrator::amf_recipe::RecipeMaterial], origins: &BTreeMap<String, Vec<String>>) -> Result<BTreeMap<String, Vec<String>>, AppErrorV1> {
+    fn recipe_source_candidates(
+        &self,
+        materials: &[vua_orchestrator::amf_recipe::RecipeMaterial],
+        origins: &BTreeMap<String, Vec<String>>,
+    ) -> Result<BTreeMap<String, Vec<String>>, AppErrorV1> {
         let mut matches: BTreeMap<String, Vec<String>> = BTreeMap::new();
         // Read retained BDL facts even if a local file is currently absent. Sharing does not
         // require possession or re-download; reproduction separately verifies actual bytes.
-        for entry in self.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).map_err(|e| err("library_failed", e))? {
-            let copies = self.bdl.entry_copies(&entry.warehouse_item_id).map_err(|e| err("library_failed", e))?;
-            let detail = self.bdl.warehouse_entry_detail(&entry.warehouse_item_id, ArtifactMode::UseOriginalUnitypackage).map_err(|e| err("library_failed", e))?;
-            let Some(detail) = detail else { continue; };
-            let metadata = if entry.kind == "imported_material" { self.bdl.library_entry_metadata(&entry.warehouse_item_id).map_err(|e| err("library_failed", e))?.product_id } else { None };
+        for entry in self
+            .bdl
+            .warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage)
+            .map_err(|e| err("library_failed", e))?
+        {
+            let copies = self
+                .bdl
+                .entry_copies(&entry.warehouse_item_id)
+                .map_err(|e| err("library_failed", e))?;
+            let detail = self
+                .bdl
+                .warehouse_entry_detail(
+                    &entry.warehouse_item_id,
+                    ArtifactMode::UseOriginalUnitypackage,
+                )
+                .map_err(|e| err("library_failed", e))?;
+            let Some(detail) = detail else {
+                continue;
+            };
+            let metadata = if entry.kind == "imported_material" {
+                self.bdl
+                    .library_entry_metadata(&entry.warehouse_item_id)
+                    .map_err(|e| err("library_failed", e))?
+                    .product_id
+            } else {
+                None
+            };
             for material in materials {
                 for copy in copies.iter().filter(|copy| copy.role.name() == "original") {
-                    let from_origin = origins.get(&material.id).is_some_and(|ids| ids.iter().any(|id| id == &copy.copy_id || id.strip_prefix(&copy.copy_id).is_some_and(|tail| tail.starts_with('-') && tail.len() == 25)));
-                    if !from_origin && copy.artifact_sha256.trim_start_matches("sha256:") != material.sha256 { continue; }
+                    let from_origin = origins.get(&material.id).is_some_and(|ids| {
+                        ids.iter().any(|id| {
+                            id == &copy.copy_id
+                                || id
+                                    .strip_prefix(&copy.copy_id)
+                                    .is_some_and(|tail| tail.starts_with('-') && tail.len() == 25)
+                        })
+                    });
+                    if !from_origin
+                        && copy.artifact_sha256.trim_start_matches("sha256:") != material.sha256
+                    {
+                        continue;
+                    }
                     let products = matches.entry(material.id.clone()).or_default();
-                    for id in detail.artifacts.iter().filter(|artifact| artifact.artifact_sha256 == copy.artifact_sha256)
-                        .flat_map(|artifact| &artifact.mapped_product_ids).chain(metadata.iter()) {
-                        if let Some(id) = id.strip_prefix("booth:").filter(|id| vua_orchestrator::amf_recipe_share::valid_booth_id(id)) { products.push(id.into()); }
+                    for id in detail
+                        .artifacts
+                        .iter()
+                        .filter(|artifact| artifact.artifact_sha256 == copy.artifact_sha256)
+                        .flat_map(|artifact| &artifact.mapped_product_ids)
+                        .chain(metadata.iter())
+                    {
+                        if let Some(id) = id
+                            .strip_prefix("booth:")
+                            .filter(|id| vua_orchestrator::amf_recipe_share::valid_booth_id(id))
+                        {
+                            products.push(id.into());
+                        }
                     }
                 }
             }
@@ -582,46 +863,135 @@ impl AmfProductionPlatform for NativeAmfProduction {
         Ok(matches)
     }
 
-    fn recipe_materials(&self, recipe: &vua_orchestrator::amf_recipe::ProductionRecipe, choices: &vua_orchestrator::amf_recipe_materials::MaterialChoices) -> Result<Vec<vua_orchestrator::amf_recipe_materials::RecipeMaterialResolution>,AppErrorV1> {
-        use vua_orchestrator::amf_recipe_materials::{MaterialInventory,MaterialPackage,resolve_materials};
+    fn recipe_materials(
+        &self,
+        recipe: &vua_orchestrator::amf_recipe::ProductionRecipe,
+        choices: &vua_orchestrator::amf_recipe_materials::MaterialChoices,
+    ) -> Result<Vec<vua_orchestrator::amf_recipe_materials::RecipeMaterialResolution>, AppErrorV1>
+    {
+        use vua_orchestrator::amf_recipe_materials::{
+            resolve_materials, MaterialInventory, MaterialPackage,
+        };
         let available = self.sources()?;
         let mut known = HashMap::new();
-        for item_id in available.iter().map(|source| &source.item_id).collect::<BTreeSet<_>>() {
-            for copy in self.bdl.entry_copies(item_id).map_err(|e| err("library_failed",e))? {
-                known.insert(copy.copy_id,copy.artifact_sha256.trim_start_matches("sha256:").to_owned());
+        for item_id in available
+            .iter()
+            .map(|source| &source.item_id)
+            .collect::<BTreeSet<_>>()
+        {
+            for copy in self
+                .bdl
+                .entry_copies(item_id)
+                .map_err(|e| err("library_failed", e))?
+            {
+                known.insert(
+                    copy.copy_id,
+                    copy.artifact_sha256
+                        .trim_start_matches("sha256:")
+                        .to_owned(),
+                );
             }
         }
         let mut inventory = Vec::new();
+        let mut hashes = self.read_cache.material_hashes(&self.root);
         for source in available {
-            let product_ids = source.product_ids.iter().filter_map(|id| id.strip_prefix("booth:")).map(str::to_owned).collect::<Vec<_>>();
-            let by_hash = known.get(&source.source_id).is_some_and(|hash| recipe.materials.iter().any(|m| &m.sha256 == hash));
-            let by_product = recipe.materials.iter().any(|m| m.booth_product_id.as_ref().is_some_and(|id| product_ids.contains(id)));
+            let product_ids = source
+                .product_ids
+                .iter()
+                .filter_map(|id| id.strip_prefix("booth:"))
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            let by_hash = known
+                .get(&source.source_id)
+                .is_some_and(|hash| recipe.materials.iter().any(|m| &m.sha256 == hash));
+            let by_product = recipe.materials.iter().any(|m| {
+                m.booth_product_id
+                    .as_ref()
+                    .is_some_and(|id| product_ids.contains(id))
+            });
             // Retained hashes narrow plain files; archive members have their own content hashes.
-            if !by_hash && !by_product && source.archive_member.is_none() { continue; }
-            let sha256 = vua_unity_bridge::material_exec::sha256_file(&self.package_path(&source)?).map_err(|e| err("source_unreadable",e))?;
-            inventory.push(MaterialInventory {package:MaterialPackage {source_id:source.source_id,package_name:source.name.rsplit(['/', '\\']).next().unwrap_or(&source.name).into(),sha256:sha256.trim_start_matches("sha256:").into()},product_ids});
+            if !by_hash && !by_product && source.archive_member.is_none() {
+                continue;
+            }
+            let sha256 = hashes.digest(&source.path, source.archive_member.as_deref(), || {
+                vua_unity_bridge::material_exec::sha256_file(&self.package_path(&source)?)
+                    .map_err(|e| err("source_unreadable", e))
+            })?;
+            inventory.push(MaterialInventory {
+                package: MaterialPackage {
+                    source_id: source.source_id,
+                    package_name: source
+                        .name
+                        .rsplit(['/', '\\'])
+                        .next()
+                        .unwrap_or(&source.name)
+                        .into(),
+                    sha256: sha256.trim_start_matches("sha256:").into(),
+                },
+                product_ids,
+            });
         }
+        self.read_cache.remember_hashes(&self.root, hashes);
         let mut purchased = BTreeMap::new();
         for material in &recipe.materials {
             if let Some(id) = &material.booth_product_id {
                 let product = format!("booth:{id}");
-                if !self.bdl.product_library_memberships(&product).map_err(|e| err("library_failed",e))?.is_empty() {
-                    purchased.insert(id.clone(),self.bdl.downloadables_for_product(&product).map_err(|e| err("library_failed",e))?.into_iter().map(|(_,name)|name).collect());
+                if !self
+                    .bdl
+                    .product_library_memberships(&product)
+                    .map_err(|e| err("library_failed", e))?
+                    .is_empty()
+                {
+                    purchased.insert(
+                        id.clone(),
+                        self.bdl
+                            .downloadables_for_product(&product)
+                            .map_err(|e| err("library_failed", e))?
+                            .into_iter()
+                            .map(|(_, name)| name)
+                            .collect(),
+                    );
                 }
             }
         }
-        resolve_materials(recipe,&inventory,&purchased,choices)
+        resolve_materials(recipe, &inventory, &purchased, choices)
     }
-    fn recipe_shop_name(&self, id: &str) -> Result<Option<String>,AppErrorV1> {
-        Ok(self.bdl.library_product_summaries().map_err(|e| err("library_failed",e))?.into_iter().find(|p| p.product_id == format!("booth:{id}")).and_then(|p| p.shop_name)
-            .filter(|name| !name.trim().is_empty() && name.chars().count() <= 240 && !name.chars().any(char::is_control)))
+    fn recipe_shop_name(&self, id: &str) -> Result<Option<String>, AppErrorV1> {
+        Ok(self
+            .bdl
+            .library_product_summaries()
+            .map_err(|e| err("library_failed", e))?
+            .into_iter()
+            .find(|p| p.product_id == format!("booth:{id}"))
+            .and_then(|p| p.shop_name)
+            .filter(|name| {
+                !name.trim().is_empty()
+                    && name.chars().count() <= 240
+                    && !name.chars().any(char::is_control)
+            }))
     }
-    fn resolve_recipe_materials(&self, materials: &[vua_orchestrator::amf_recipe::RecipeMaterial]) -> Result<BTreeMap<String, String>, AppErrorV1> {
+    fn resolve_recipe_materials(
+        &self,
+        materials: &[vua_orchestrator::amf_recipe::RecipeMaterial],
+    ) -> Result<BTreeMap<String, String>, AppErrorV1> {
         let available = self.sources()?;
         let mut known = HashMap::new();
-        for item_id in available.iter().map(|source| &source.item_id).collect::<std::collections::BTreeSet<_>>() {
-            for copy in self.bdl.entry_copies(item_id).map_err(|e| err("library_failed", e))? {
-                known.insert(copy.copy_id, copy.artifact_sha256.trim_start_matches("sha256:").to_owned());
+        for item_id in available
+            .iter()
+            .map(|source| &source.item_id)
+            .collect::<std::collections::BTreeSet<_>>()
+        {
+            for copy in self
+                .bdl
+                .entry_copies(item_id)
+                .map_err(|e| err("library_failed", e))?
+            {
+                known.insert(
+                    copy.copy_id,
+                    copy.artifact_sha256
+                        .trim_start_matches("sha256:")
+                        .to_owned(),
+                );
             }
         }
         let mut resolved = BTreeMap::new();
@@ -629,16 +999,31 @@ impl AmfProductionPlatform for NativeAmfProduction {
         for material in materials {
             for source in &available {
                 let known_match = known.get(&source.source_id) == Some(&material.sha256);
-                let named_member = source.archive_member.is_some() && source.name.rsplit('/').next() == Some(material.package_name.as_str());
-                if !known_match && !named_member { continue; }
-                let actual = vua_unity_bridge::material_exec::sha256_file(&self.package_path(source)?)
-                    .map_err(|e| err("source_unreadable", e))?;
-                if actual.strip_prefix("sha256:").unwrap_or(&actual) == material.sha256 { resolved.insert(material.id.clone(), source.source_id.clone()); break; }
+                let named_member = source.archive_member.is_some()
+                    && source.name.rsplit('/').next() == Some(material.package_name.as_str());
+                if !known_match && !named_member {
+                    continue;
+                }
+                let actual =
+                    vua_unity_bridge::material_exec::sha256_file(&self.package_path(source)?)
+                        .map_err(|e| err("source_unreadable", e))?;
+                if actual.strip_prefix("sha256:").unwrap_or(&actual) == material.sha256 {
+                    resolved.insert(material.id.clone(), source.source_id.clone());
+                    break;
+                }
             }
-            if !resolved.contains_key(&material.id) { missing.push(material.package_name.clone()); }
+            if !resolved.contains_key(&material.id) {
+                missing.push(material.package_name.clone());
+            }
         }
         if !missing.is_empty() {
-            return Err(err("recipe_material_missing", format!("Supply these exact original packages in the library, then retry: {}", missing.join(", "))));
+            return Err(err(
+                "recipe_material_missing",
+                format!(
+                    "Supply these exact original packages in the library, then retry: {}",
+                    missing.join(", ")
+                ),
+            ));
         }
         Ok(resolved)
     }
@@ -651,7 +1036,9 @@ impl AmfProductionPlatform for NativeAmfProduction {
             .bdl
             .removed_local_entries()
             .map_err(|e| err("library_failed", e))?;
-        let mut result = Vec::new();
+        let mut files = Vec::new();
+        let mut identities = Vec::new();
+        let mut cacheable = true;
         for entry in entries {
             if removed.contains(&entry.warehouse_item_id) {
                 continue;
@@ -660,10 +1047,24 @@ impl AmfProductionPlatform for NativeAmfProduction {
                 .bdl
                 .entry_copies(&entry.warehouse_item_id)
                 .map_err(|e| err("library_failed", e))?;
-            let products = self
+            let mut products = self
                 .bdl
                 .product_ids_for_warehouse_item(&entry.warehouse_item_id)
                 .map_err(|e| err("library_failed", e))?;
+            if entry.kind == "imported_material" {
+                if let Some(product_id) = self
+                    .bdl
+                    .library_entry_metadata(&entry.warehouse_item_id)
+                    .map_err(|e| err("library_failed", e))?
+                    .product_id
+                    .filter(|id| !id.trim().is_empty())
+                {
+                    if !products.contains(&product_id) {
+                        products.push(product_id);
+                        products.sort();
+                    }
+                }
+            }
             for copy in copies {
                 let path = PathBuf::from(&copy.stored_path);
                 if copy.role.name() != "original" || !path.is_file() {
@@ -676,56 +1077,90 @@ impl AmfProductionPlatform for NativeAmfProduction {
                 {
                     continue;
                 }
-                if path
+                let plain = path
                     .extension()
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("unitypackage"))
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("unitypackage"));
+                if !plain
+                    && !path
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("zip"))
                 {
-                    result.push(ProductionSource {
-                        source_id: copy.copy_id,
-                        item_id: entry.warehouse_item_id.clone(),
-                        item_name: entry.display_name.clone(),
-                        name: copy.relative_path,
-                        product_ids: products.clone(),
-                        path,
-                        archive_member: None,
-                    });
-                } else if path
-                    .extension()
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("zip"))
-                {
-                    let Ok(mut archive) = zip::ZipArchive::new(
-                        fs::File::open(&path).map_err(|e| err("source_unreadable", e))?,
-                    ) else {
-                        continue;
-                    };
-                    if archive.len() > 100_000 {
-                        return Err(err(
-                            "archive_too_large",
-                            "Archive has too many entries to inspect.",
-                        ));
-                    }
-                    for index in 0..archive.len() {
-                        let inner = archive
-                            .by_index_raw(index)
-                            .map_err(|e| err("source_invalid", e))?;
-                        let member = inner.name().map_err(|e| err("source_invalid", e))?;
-                        if inner.is_dir()
-                            || !member.to_ascii_lowercase().ends_with(".unitypackage")
-                            || !safe_zip_member(&member)
-                        {
-                            continue;
-                        }
-                        result.push(ProductionSource {
-                            source_id: format!("{}-{}", copy.copy_id, &hash_text(&member)[..24]),
-                            item_id: entry.warehouse_item_id.clone(),
-                            item_name: entry.display_name.clone(),
-                            name: member.replace('\\', "/"),
-                            product_ids: products.clone(),
-                            path: path.clone(),
-                            archive_member: Some(member.into()),
-                        });
-                    }
+                    continue;
                 }
+                let stamp = read_cache::file_stamp(&path);
+                cacheable &= stamp.is_some();
+                identities.push(serde_json::json!([
+                    &copy.copy_id,
+                    &entry.warehouse_item_id,
+                    &entry.display_name,
+                    &copy.relative_path,
+                    &products,
+                    &path,
+                    &copy.artifact_sha256,
+                    &stamp,
+                ]));
+                files.push(ProductionSource {
+                    source_id: copy.copy_id,
+                    item_id: entry.warehouse_item_id.clone(),
+                    item_name: entry.display_name.clone(),
+                    name: copy.relative_path,
+                    product_ids: products.clone(),
+                    path,
+                    archive_member: None,
+                    sha256: plain.then(|| {
+                        copy.artifact_sha256
+                            .trim_start_matches("sha256:")
+                            .to_owned()
+                    }),
+                });
+            }
+        }
+        // Re-read library membership and file metadata every time. Only the expensive archive
+        // directory work is reused, so imports, removals and external edits invalidate this view.
+        let key = cacheable.then(|| {
+            hash_text(&serde_json::to_string(&identities).expect("source identities serialize"))
+        });
+        if let Some(sources) = key.as_ref().and_then(|key| self.read_cache.sources(key)) {
+            return Ok(self.with_recorded_hashes(sources));
+        }
+        let mut result = Vec::new();
+        for source in files {
+            if source
+                .path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("unitypackage"))
+            {
+                result.push(source);
+                continue;
+            }
+            let Ok(mut archive) = zip::ZipArchive::new(
+                fs::File::open(&source.path).map_err(|e| err("source_unreadable", e))?,
+            ) else {
+                continue;
+            };
+            if archive.len() > 100_000 {
+                return Err(err(
+                    "archive_too_large",
+                    "Archive has too many entries to inspect.",
+                ));
+            }
+            for index in 0..archive.len() {
+                let inner = archive
+                    .by_index_raw(index)
+                    .map_err(|e| err("source_invalid", e))?;
+                let member = inner.name().map_err(|e| err("source_invalid", e))?;
+                if inner.is_dir()
+                    || !member.to_ascii_lowercase().ends_with(".unitypackage")
+                    || !safe_zip_member(&member)
+                {
+                    continue;
+                }
+                result.push(ProductionSource {
+                    source_id: format!("{}-{}", source.source_id, &hash_text(&member)[..24]),
+                    name: member.replace('\\', "/"),
+                    archive_member: Some(member.into()),
+                    ..source.clone()
+                });
             }
         }
         let mut result = drop_expanded_duplicates(result);
@@ -738,7 +1173,10 @@ impl AmfProductionPlatform for NativeAmfProduction {
                 "Too many local package inputs; narrow the library before selecting.",
             ));
         }
-        Ok(result)
+        if let Some(key) = key {
+            self.read_cache.remember_sources(key, &result);
+        }
+        Ok(self.with_recorded_hashes(result))
     }
     fn editors(&self) -> Result<Vec<ProductionEditor>, AppErrorV1> {
         let mut candidates = Vec::new();
@@ -756,7 +1194,10 @@ impl AmfProductionPlatform for NativeAmfProduction {
         }
         let mut results = Vec::new();
         for path in candidates {
-            if let Ok(editor) = self.verify_editor(&path.to_string_lossy()) {
+            if let Some(editor) = self
+                .read_cache
+                .editor(&path, || self.verify_editor(&path.to_string_lossy()).ok())
+            {
                 if !results
                     .iter()
                     .any(|previous: &ProductionEditor| previous.path == editor.path)
@@ -809,27 +1250,41 @@ impl AmfProductionPlatform for NativeAmfProduction {
         FileSystemProjectStore::initialize(&p).map_err(|e| err("project_failed", e))?;
         fs::write(p.root.join(".vua/amf-run.txt"), &run.run_id)
             .map_err(|e| err("project_failed", e))?;
-        let environment = VPM_ENVIRONMENT_WRITE.lock().expect("AMF VPM environment poisoned");
+        let environment = VPM_ENVIRONMENT_WRITE
+            .lock()
+            .expect("AMF VPM environment poisoned");
         let backend = self.package_backend()?;
         backend.ensure_official_sdk_cache()?;
         ensure_repo(&backend, MA_REPO, "Modular Avatar")?;
         // A reproduced Recipe pins its known packages up front; only then are their feeds needed.
-        for package in known_packages::pinned_auto_packages(known_packages::KNOWN_PACKAGES, &run.package_pins) {
+        for package in
+            known_packages::pinned_auto_packages(known_packages::KNOWN_PACKAGES, &run.package_pins)
+        {
             ensure_repo(&backend, package.feed_url, package.display_name)?;
         }
         if let Some(error) = ctx.cancellation_error("amf-production") {
             return Err(error);
         }
-        let packages = if run.package_pins.is_empty() { vec![
-            PackageRequestV1 {
-                package_id: "com.vrchat.avatars".into(),
-                version: None,
-            },
-            PackageRequestV1 {
-                package_id: "nadena.dev.modular-avatar".into(),
-                version: None,
-            },
-        ] } else { run.package_pins.iter().map(|(id, version)| PackageRequestV1 { package_id: id.clone(), version: Some(version.clone()) }).collect() };
+        let packages = if run.package_pins.is_empty() {
+            vec![
+                PackageRequestV1 {
+                    package_id: "com.vrchat.avatars".into(),
+                    version: None,
+                },
+                PackageRequestV1 {
+                    package_id: "nadena.dev.modular-avatar".into(),
+                    version: None,
+                },
+            ]
+        } else {
+            run.package_pins
+                .iter()
+                .map(|(id, version)| PackageRequestV1 {
+                    package_id: id.clone(),
+                    version: Some(version.clone()),
+                })
+                .collect()
+        };
         let preview = backend.preview_install(&p, &packages)?;
         if preview.destructive || !preview.conflicts.is_empty() {
             return Err(err(
@@ -846,10 +1301,19 @@ impl AmfProductionPlatform for NativeAmfProduction {
         refresh_bridge_package(&p.root)?;
         Ok(())
     }
-    fn import_sources(&self, run: &ProductionRun, ctx: &TaskContext) -> Result<Vec<PreparedSource>, AppErrorV1> {
+    fn import_sources(
+        &self,
+        run: &ProductionRun,
+        ctx: &TaskContext,
+    ) -> Result<Vec<PreparedSource>, AppErrorV1> {
         import_choices(self, run, ctx, None)
     }
-    fn replace_sources(&self, run: &ProductionRun, previous: &[PreparedSource], ctx: &TaskContext) -> Result<Vec<PreparedSource>, AppErrorV1> {
+    fn replace_sources(
+        &self,
+        run: &ProductionRun,
+        previous: &[PreparedSource],
+        ctx: &TaskContext,
+    ) -> Result<Vec<PreparedSource>, AppErrorV1> {
         import_choices(self, run, ctx, Some(previous))
     }
     fn clear_work_scene(&self, run: &ProductionRun) -> Result<(), AppErrorV1> {
@@ -857,7 +1321,11 @@ impl AmfProductionPlatform for NativeAmfProduction {
         reject_editor_lock(project)?;
         clear_work_area(project).map_err(|e| err("rebuild_failed", e))
     }
-    fn inspect(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+    fn inspect(
+        &self,
+        run: &ProductionRun,
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
         let operation = if Path::new(&run.project_root)
             .join("Assets/VUA/Production.unity")
             .is_file()
@@ -876,11 +1344,32 @@ impl AmfProductionPlatform for NativeAmfProduction {
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
         self.verify_assembly_sources(run)?;
-        self.bridge_with_target(run, UnityOperation::AmfAssemble, Some(selection), None, fits, watch)
+        self.bridge_with_target(
+            run,
+            UnityOperation::AmfAssemble,
+            Some(selection),
+            None,
+            fits,
+            watch,
+        )
     }
-    fn apply_recipe(&self, run: &ProductionRun, selection: &AssemblySelection, target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget, fits: &[OutfitFit], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+    fn apply_recipe(
+        &self,
+        run: &ProductionRun,
+        selection: &AssemblySelection,
+        target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget,
+        fits: &[OutfitFit],
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
         self.verify_assembly_sources(run)?;
-        self.bridge_with_target(run, UnityOperation::AmfAssemble, Some(selection), Some(target), fits, watch)
+        self.bridge_with_target(
+            run,
+            UnityOperation::AmfAssemble,
+            Some(selection),
+            Some(target),
+            fits,
+            watch,
+        )
     }
     fn fingerprint(&self, project: &Path) -> Result<String, AppErrorV1> {
         reject_editor_lock(project)?;
@@ -929,7 +1418,11 @@ impl AmfProductionPlatform for NativeAmfProduction {
             .map_err(|e| err("restore_failed", e))
     }
     fn source_content_hash(&self, source_id: &str) -> Result<Option<String>, AppErrorV1> {
-        let Some(source) = self.sources()?.into_iter().find(|source| source.source_id == source_id) else {
+        let Some(source) = self
+            .sources()?
+            .into_iter()
+            .find(|source| source.source_id == source_id)
+        else {
             return Ok(None);
         };
         let path = self.package_path(&source)?;
@@ -988,33 +1481,161 @@ impl AmfProductionPlatform for NativeAmfProduction {
             "Unity did not report this project open within 10 minutes. Once Unity shows the project, VRChat SDK > Show Control Panel opens the upload panel.",
         ))
     }
-    fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, UnityOperation::AmfSdkFix, None, BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: Some(fixes), fits: &[], face_tracking: None, outfit_removal: None }, watch)
+    fn sdk_fix(
+        &self,
+        run: &ProductionRun,
+        fixes: &[String],
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
+        self.bridge_request(
+            run,
+            UnityOperation::AmfSdkFix,
+            None,
+            BridgeExtras {
+                texture_changes: None,
+                apply_target: None,
+                sdk_fixes: Some(fixes),
+                optimizer: None,
+                fits: &[],
+                face_tracking: None,
+                outfit_removal: None,
+            },
+            watch,
+        )
     }
-    fn texture_import(&self, run: &ProductionRun, changes: &[TextureImportChange], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, UnityOperation::AmfTextureImport, None, BridgeExtras { texture_changes: Some(changes), apply_target: None, sdk_fixes: None, fits: &[], face_tracking: None, outfit_removal: None }, watch)
+    fn set_optimizer(
+        &self,
+        run: &ProductionRun,
+        enabled: bool,
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
+        reject_editor_lock(Path::new(&run.project_root))?;
+        if enabled {
+            self.ensure_avatar_optimizer_installed(run)?;
+        }
+        self.bridge_request(
+            run,
+            UnityOperation::AmfOptimizer,
+            None,
+            BridgeExtras {
+                texture_changes: None,
+                apply_target: None,
+                sdk_fixes: None,
+                optimizer: Some(enabled),
+                fits: &[],
+                face_tracking: None,
+                outfit_removal: None,
+            },
+            watch,
+        )
     }
-    fn remove_outfit(&self, run: &ProductionRun, removal: &OutfitRemoval, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, UnityOperation::AmfOutfitRemove, None,
-            BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: None, fits: &[], face_tracking: None, outfit_removal: Some(removal) }, watch)
+    fn texture_import(
+        &self,
+        run: &ProductionRun,
+        changes: &[TextureImportChange],
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
+        self.bridge_request(
+            run,
+            UnityOperation::AmfTextureImport,
+            None,
+            BridgeExtras {
+                texture_changes: Some(changes),
+                apply_target: None,
+                sdk_fixes: None,
+                optimizer: None,
+                fits: &[],
+                face_tracking: None,
+                outfit_removal: None,
+            },
+            watch,
+        )
     }
-    fn face_tracking_patch(&self, run: &ProductionRun, patch: &FaceTrackingPatch, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, UnityOperation::AmfFtPatch, None,
-            BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: None, fits: &[], face_tracking: Some(patch), outfit_removal: None }, watch)
+    fn remove_outfit(
+        &self,
+        run: &ProductionRun,
+        removal: &OutfitRemoval,
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
+        self.bridge_request(
+            run,
+            UnityOperation::AmfOutfitRemove,
+            None,
+            BridgeExtras {
+                texture_changes: None,
+                apply_target: None,
+                sdk_fixes: None,
+                optimizer: None,
+                fits: &[],
+                face_tracking: None,
+                outfit_removal: Some(removal),
+            },
+            watch,
+        )
     }
-    fn turntable(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+    fn face_tracking_patch(
+        &self,
+        run: &ProductionRun,
+        patch: &FaceTrackingPatch,
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
+        self.bridge_request(
+            run,
+            UnityOperation::AmfFtPatch,
+            None,
+            BridgeExtras {
+                texture_changes: None,
+                apply_target: None,
+                sdk_fixes: None,
+                optimizer: None,
+                fits: &[],
+                face_tracking: Some(patch),
+                outfit_removal: None,
+            },
+            watch,
+        )
+    }
+    fn turntable(
+        &self,
+        run: &ProductionRun,
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
         self.bridge(run, UnityOperation::AmfTurntable, None, watch)
     }
-    fn upload(&self, run: &ProductionRun, request: &UploadRequest, ctx: &TaskContext, progress: &mut dyn FnMut(UploadProgress)) -> Result<UploadReceipt, AppErrorV1> {
+    fn upload(
+        &self,
+        run: &ProductionRun,
+        request: &UploadRequest,
+        ctx: &TaskContext,
+        progress: &mut dyn FnMut(UploadProgress),
+    ) -> Result<UploadReceipt, AppErrorV1> {
         release_handoff::upload(self, run, request, ctx, progress)
+    }
+    fn local_test(
+        &self,
+        run: &ProductionRun,
+        request: &LocalTestRequest,
+        ctx: &TaskContext,
+        progress: &mut dyn FnMut(UploadProgress),
+    ) -> Result<LocalTestReceipt, AppErrorV1> {
+        release_handoff::local_test(self, run, request, ctx, progress)
     }
     fn snapshot_open_editor(&self, run: &ProductionRun) -> Result<String, AppErrorV1> {
         let id = format!("n3-{}", super::provider_host::uuid_v7_identity());
-        FileSystemSnapshotStore.create_verified(&project(run), &id, &["Assets", "Packages", "ProjectSettings"])
+        FileSystemSnapshotStore
+            .create_verified(
+                &project(run),
+                &id,
+                &["Assets", "Packages", "ProjectSettings"],
+            )
             .map_err(|e| err("snapshot_failed", e))?;
         Ok(id)
     }
-    fn close_editor(&self, run: &ProductionRun, ctx: &TaskContext) -> Result<EditorCloseResult, AppErrorV1> {
+    fn close_editor(
+        &self,
+        run: &ProductionRun,
+        ctx: &TaskContext,
+    ) -> Result<EditorCloseResult, AppErrorV1> {
         editor_close::close(run, ctx)
     }
     fn editor_open(&self, project: &Path) -> bool {
@@ -1028,10 +1649,14 @@ fn bridge_log_failure(path: &Path) -> Option<AppErrorV1> {
     let length = file.metadata().ok()?.len();
     let mut head = Vec::new();
     (&mut file).take(64 * 1024).read_to_end(&mut head).ok()?;
-    file.seek(SeekFrom::Start(length.saturating_sub(512 * 1024))).ok()?;
+    file.seek(SeekFrom::Start(length.saturating_sub(512 * 1024)))
+        .ok()?;
     let mut tail = Vec::new();
     file.take(512 * 1024).read_to_end(&mut tail).ok()?;
-    classify_bridge_log(&String::from_utf8_lossy(&head), &String::from_utf8_lossy(&tail))
+    classify_bridge_log(
+        &String::from_utf8_lossy(&head),
+        &String::from_utf8_lossy(&tail),
+    )
 }
 
 /// Library intake keeps an original ZIP and also extracts it to `expanded/<zip copy>/<member>`.
@@ -1039,35 +1664,64 @@ fn bridge_log_failure(path: &Path) -> Option<AppErrorV1> {
 fn drop_expanded_duplicates(sources: Vec<ProductionSource>) -> Vec<ProductionSource> {
     let members: BTreeSet<(String, String)> = sources
         .iter()
-        .filter_map(|s| s.archive_member.as_ref().map(|m| (s.item_id.clone(), format!("{}/{}", s.source_id.rsplit_once('-').map_or("", |(zip, _)| zip), m.replace('\\', "/")))))
+        .filter_map(|s| {
+            s.archive_member.as_ref().map(|m| {
+                (
+                    s.item_id.clone(),
+                    format!(
+                        "{}/{}",
+                        s.source_id.rsplit_once('-').map_or("", |(zip, _)| zip),
+                        m.replace('\\', "/")
+                    ),
+                )
+            })
+        })
         .collect();
     sources
         .into_iter()
         .filter(|s| {
             s.archive_member.is_some()
-                || !s.name.strip_prefix("expanded/").is_some_and(|rest| members.contains(&(s.item_id.clone(), rest.to_owned())))
+                || !s
+                    .name
+                    .strip_prefix("expanded/")
+                    .is_some_and(|rest| members.contains(&(s.item_id.clone(), rest.to_owned())))
         })
         .collect()
 }
 
 fn classify_bridge_log(head: &str, tail: &str) -> Option<AppErrorV1> {
-    if ["No ULF license found", "License is not active", "No valid Unity Editor license found"]
-        .iter().any(|message| head.contains(message) || tail.contains(message))
+    if [
+        "No ULF license found",
+        "License is not active",
+        "No valid Unity Editor license found",
+    ]
+    .iter()
+    .any(|message| head.contains(message) || tail.contains(message))
     {
         return Some(err("unity_license_unavailable", "Activate this Editor's license in Unity Hub, then retry preparation. Selected materials are retained."));
     }
-    if ["Failed to start the Unity Package Manager local server", "UpmClient::Connect -- Could not connect to IPC stream"]
-        .iter().any(|message| tail.contains(message))
+    if [
+        "Failed to start the Unity Package Manager local server",
+        "UpmClient::Connect -- Could not connect to IPC stream",
+    ]
+    .iter()
+    .any(|message| tail.contains(message))
     {
         return Some(err("unity_package_manager_unavailable", "Unity's Package Manager service did not start. Allow UnityPackageManager.exe in antivirus software if it is blocked, then reinspect the retained project. Selected materials are retained."));
     }
     let mut errors = Vec::new();
     for line in tail.lines().filter(|line| line.contains(": error CS")) {
         let line = line.trim().chars().take(1200).collect::<String>();
-        if !errors.contains(&line) { errors.push(line); }
-        if errors.len() == 8 { break; }
+        if !errors.contains(&line) {
+            errors.push(line);
+        }
+        if errors.len() == 8 {
+            break;
+        }
     }
-    if errors.is_empty() { return None; }
+    if errors.is_empty() {
+        return None;
+    }
     Some(err("unity_compile_failed", format!(
         "Unity could not compile the prepared project. Resolve the reported package or script dependency, then reinspect the retained project.\n{}", errors.join("\n")
     )))
@@ -1140,7 +1794,11 @@ fn safe_zip_member(value: &str) -> bool {
 }
 /// The progress payload of the materials step while it works on one material.
 fn material_progress(run: &ProductionRun, name: &str) -> serde_json::Value {
-    let mut step = run.steps.last().cloned().expect("materials are imported inside their step");
+    let mut step = run
+        .steps
+        .last()
+        .cloned()
+        .expect("materials are imported inside their step");
     step.name = name.into();
     step_progress(&run.run_id, &step)
 }
@@ -1174,14 +1832,23 @@ fn clear_stale_lock(project: &Path) {
 /// holds the project with the Avatar selected; `sdkPanelRequested` records whether the SDK's
 /// panel menu ran, and the page names that menu either way.
 fn open_receipt(path: &Path, run_id: &str) -> Result<Option<serde_json::Value>, AppErrorV1> {
-    let Some(value) = fs::read(path).ok().and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok()) else {
+    let Some(value) = fs::read(path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+    else {
         return Ok(None);
     };
     if value["runId"] != run_id {
-        return Err(err("open_failed", "Unity answered for another production line."));
+        return Err(err(
+            "open_failed",
+            "Unity answered for another production line.",
+        ));
     }
     if value["reason"] == "editor_unavailable" {
-        return Err(err("editor_unavailable", "Unity could not start. Check the Editor in Unity Hub, then open again."));
+        return Err(err(
+            "editor_unavailable",
+            "Unity could not start. Check the Editor in Unity Hub, then open again.",
+        ));
     }
     if value["avatarSelected"] != true {
         return Err(err(
@@ -1301,175 +1968,221 @@ fn import_choices_with(
     available: &HashMap<String, ProductionSource>,
     previous: Option<&[PreparedSource]>,
 ) -> Result<Vec<PreparedSource>, AppErrorV1> {
-        let mut sources = Vec::new();
-        let mut files: BTreeMap<String, PathBuf> = BTreeMap::new();
-        let mut guids = HashMap::<String, String>::new();
-        let table = known_packages::KNOWN_PACKAGES;
-        // Another line may be refreshing the same feed caches.
-        let legacy = {
-            let _environment = VPM_ENVIRONMENT_WRITE.lock().expect("AMF VPM environment poisoned");
-            known_packages::legacy_entries(table, Some(&adapter.root.join("vpm-environment")))
-        };
-        let mut needs = known_packages::PackageNeeds::new();
-        let mut legacy_copies = known_packages::LegacyCopies::new();
-        // Legacy copies wait for the package action: only a copy the exact official
-        // release covers completely leaves for that release; the others import as before.
-        let mut pending_legacy: Vec<(usize, usize, PathBuf, String)> = Vec::new();
-        for choice in &run.choices {
-            if let Some(error) = events.cancelled() {
-                return Err(error);
-            }
-            let source = available.get(&choice.source_id).cloned().ok_or_else(|| {
-                err(
-                    "source_missing",
-                    "Selected local input is no longer present.",
-                )
-            })?;
-            events.progress(material_progress(run, &source.item_name));
-            let package_path = adapter.package_path(&source)?;
-            let sha256 = vua_unity_bridge::material_exec::sha256_file(&package_path)
-                .map_err(|e| err("source_unreadable", e))?;
-            if run.recipe_source_hashes.get(&source.source_id).is_some_and(|expected| sha256.strip_prefix("sha256:").unwrap_or(&sha256) != expected) {
-                return Err(err("recipe_material_changed", format!("{} changed after Recipe resolution. Restore the required original before retrying.", source.name)));
-            }
-            let staged = vua_unity_bridge::production_job::stage_original_source(
-                &package_path,
-                Path::new(&run.project_root),
-                &match previous { None => format!("{}-{}", run.run_id, sources.len()), Some(_) => format!("{}-r{}-{}", run.run_id, run.revision, sources.len()) },
-                &sha256,
+    let mut sources = Vec::new();
+    let mut files: BTreeMap<String, PathBuf> = BTreeMap::new();
+    let mut guids = HashMap::<String, String>::new();
+    let table = known_packages::KNOWN_PACKAGES;
+    // Another line may be refreshing the same feed caches.
+    let legacy = {
+        let _environment = VPM_ENVIRONMENT_WRITE
+            .lock()
+            .expect("AMF VPM environment poisoned");
+        known_packages::legacy_entries(table, Some(&adapter.root.join("vpm-environment")))
+    };
+    let mut needs = known_packages::PackageNeeds::new();
+    let mut legacy_copies = known_packages::LegacyCopies::new();
+    // Legacy copies wait for the package action: only a copy the exact official
+    // release covers completely leaves for that release; the others import as before.
+    let mut pending_legacy: Vec<(usize, usize, PathBuf, String)> = Vec::new();
+    for choice in &run.choices {
+        if let Some(error) = events.cancelled() {
+            return Err(error);
+        }
+        let source = available.get(&choice.source_id).cloned().ok_or_else(|| {
+            err(
+                "source_missing",
+                "Selected local input is no longer present.",
             )
-            .map_err(|e| err("source_invalid", e))?;
-            let mut asset_paths = Vec::new();
-            let mut has_legacy = false;
-            for folder in
-                fs::read_dir(&staged.source_package_path).map_err(|e| err("source_invalid", e))?
-            {
-                let folder = folder.map_err(|e| err("source_invalid", e))?.path();
-                if !folder.is_dir() {
-                    continue;
-                }
-                let pathname = folder.join("pathname");
-                if !pathname.is_file() {
-                    continue;
-                }
-                let logical = fs::read_to_string(pathname)
-                    .map_err(|e| err("source_invalid", e))?
-                    .trim()
-                    .replace('\\', "/");
-                if !safe_asset_path(&logical) {
-                    return Err(err(
-                        "source_invalid",
-                        format!("Only Assets/ package paths are supported: {logical}"),
-                    ));
-                }
-                let folded = logical.to_ascii_lowercase();
-                if folded == "assets/vua" || folded.starts_with("assets/vua/") {
-                    return Err(err(
-                        "asset_conflict",
-                        "Selected source uses the reserved AMF work-scene directory Assets/VUA.",
-                    ));
-                }
-                if let Some(owner) = known_packages::legacy_owner(&legacy, &folded) {
-                    has_legacy = true;
-                    let copy = legacy_copies.entry(owner).or_default();
-                    copy.present = true;
-                    if folded.ends_with(".shader") {
-                        match fs::read_to_string(folder.join("asset.meta")) {
-                            Ok(metadata) => match legacy_shader_guid(&metadata) {
-                                Some(guid) => {
-                                    copy.shaders.insert(guid);
-                                }
-                                None => copy.unreadable_shader = true,
-                            },
-                            Err(_) => copy.unreadable_shader = true,
-                        }
-                    }
-                    pending_legacy.push((sources.len(), owner, folder, logical));
-                    continue;
-                }
-                import_staged_folder(&folder, logical, table, &mut files, &mut guids, &mut needs, &mut asset_paths)?;
-            }
-            if asset_paths.is_empty() && !has_legacy {
-                return Err(err(
-                    "source_invalid",
-                    format!("{} contains no supported Assets/ inputs.", source.name),
-                ));
-            }
-            asset_paths.sort();
-            sources.push(PreparedSource {
-                source_id: choice.source_id.clone(),
-                role: choice.role,
-                name: source.name,
-                item_name: source.item_name,
-                sha256,
-                asset_paths,
-            });
+        })?;
+        events.progress(material_progress(run, &source.item_name));
+        let package_path = adapter.package_path(&source)?;
+        let sha256 = vua_unity_bridge::material_exec::sha256_file(&package_path)
+            .map_err(|e| err("source_unreadable", e))?;
+        if run
+            .recipe_source_hashes
+            .get(&source.source_id)
+            .is_some_and(|expected| sha256.strip_prefix("sha256:").unwrap_or(&sha256) != expected)
+        {
+            return Err(err("recipe_material_changed", format!("{} changed after Recipe resolution. Restore the required original before retrying.", source.name)));
         }
-        let empty_need = known_packages::PackageNeed::default();
-        let empty_copy = known_packages::LegacyCopy::default();
-        let mut actions = BTreeMap::<usize, known_packages::PackageAction>::new();
-        for index in needs.keys().chain(legacy_copies.keys()).copied().collect::<BTreeSet<_>>() {
-            let package = &table[index];
-            actions.insert(
-                index,
-                known_packages::package_action(
-                    table,
-                    index,
-                    needs.get(&index).unwrap_or(&empty_need),
-                    legacy_copies.get(&index).unwrap_or(&empty_copy),
-                    &guids,
-                    run.result["packageVersions"].get(package.id).and_then(serde_json::Value::as_str),
-                    run.package_pins.contains_key(package.id),
-                ),
-            );
-        }
-        for (source_index, package, folder, logical) in pending_legacy {
-            if actions.get(&package).is_some_and(|action| action.replace_legacy) {
+        let staged = vua_unity_bridge::production_job::stage_original_source(
+            &package_path,
+            Path::new(&run.project_root),
+            &match previous {
+                None => format!("{}-{}", run.run_id, sources.len()),
+                Some(_) => format!("{}-r{}-{}", run.run_id, run.revision, sources.len()),
+            },
+            &sha256,
+        )
+        .map_err(|e| err("source_invalid", e))?;
+        let mut asset_paths = Vec::new();
+        let mut has_legacy = false;
+        for folder in
+            fs::read_dir(&staged.source_package_path).map_err(|e| err("source_invalid", e))?
+        {
+            let folder = folder.map_err(|e| err("source_invalid", e))?.path();
+            if !folder.is_dir() {
                 continue;
             }
-            import_staged_folder(&folder, logical, table, &mut files, &mut guids, &mut needs, &mut sources[source_index].asset_paths)?;
+            let pathname = folder.join("pathname");
+            if !pathname.is_file() {
+                continue;
+            }
+            let logical = fs::read_to_string(pathname)
+                .map_err(|e| err("source_invalid", e))?
+                .trim()
+                .replace('\\', "/");
+            if !safe_asset_path(&logical) {
+                return Err(err(
+                    "source_invalid",
+                    format!("Only Assets/ package paths are supported: {logical}"),
+                ));
+            }
+            let folded = logical.to_ascii_lowercase();
+            if folded == "assets/vua" || folded.starts_with("assets/vua/") {
+                return Err(err(
+                    "asset_conflict",
+                    "Selected source uses the reserved AMF work-scene directory Assets/VUA.",
+                ));
+            }
+            if let Some(owner) = known_packages::legacy_owner(&legacy, &folded) {
+                has_legacy = true;
+                let copy = legacy_copies.entry(owner).or_default();
+                copy.present = true;
+                if folded.ends_with(".shader") {
+                    match fs::read_to_string(folder.join("asset.meta")) {
+                        Ok(metadata) => match legacy_shader_guid(&metadata) {
+                            Some(guid) => {
+                                copy.shaders.insert(guid);
+                            }
+                            None => copy.unreadable_shader = true,
+                        },
+                        Err(_) => copy.unreadable_shader = true,
+                    }
+                }
+                pending_legacy.push((sources.len(), owner, folder, logical));
+                continue;
+            }
+            import_staged_folder(
+                &folder,
+                logical,
+                table,
+                &mut files,
+                &mut guids,
+                &mut needs,
+                &mut asset_paths,
+            )?;
         }
-        for source in &mut sources {
-            source.asset_paths.sort();
+        if asset_paths.is_empty() && !has_legacy {
+            return Err(err(
+                "source_invalid",
+                format!("{} contains no supported Assets/ inputs.", source.name),
+            ));
         }
-        // Validate the entire batch before the first asset copy; shared identical files are reused.
-        validate_asset_layout(files.keys().map(String::as_str))?;
-        // Materials whose shader none of the selected packages carries render pink until the
-        // known package is in the project. Recipe pins and installed packages are left alone.
-        for (index, action) in actions {
-            let Some(install) = action.install else { continue; };
-            let package = &table[index];
-            events.progress(material_progress(run, package.display_name));
-            match install {
-                known_packages::Install::Latest => adapter.install_known_package(run, package, InstallPin::Newest)?,
-                known_packages::Install::Line(line) => adapter.install_known_package(run, package, InstallPin::Line(line))?,
-                known_packages::Install::Release(version) => adapter.install_known_package(run, package, InstallPin::Release(version))?,
+        asset_paths.sort();
+        sources.push(PreparedSource {
+            source_id: choice.source_id.clone(),
+            role: choice.role,
+            name: source.name,
+            item_name: source.item_name,
+            sha256,
+            asset_paths,
+        });
+    }
+    let empty_need = known_packages::PackageNeed::default();
+    let empty_copy = known_packages::LegacyCopy::default();
+    let mut actions = BTreeMap::<usize, known_packages::PackageAction>::new();
+    for index in needs
+        .keys()
+        .chain(legacy_copies.keys())
+        .copied()
+        .collect::<BTreeSet<_>>()
+    {
+        let package = &table[index];
+        actions.insert(
+            index,
+            known_packages::package_action(
+                table,
+                index,
+                needs.get(&index).unwrap_or(&empty_need),
+                legacy_copies.get(&index).unwrap_or(&empty_copy),
+                &guids,
+                run.result["packageVersions"]
+                    .get(package.id)
+                    .and_then(serde_json::Value::as_str),
+                run.package_pins.contains_key(package.id),
+            ),
+        );
+    }
+    for (source_index, package, folder, logical) in pending_legacy {
+        if actions
+            .get(&package)
+            .is_some_and(|action| action.replace_legacy)
+        {
+            continue;
+        }
+        import_staged_folder(
+            &folder,
+            logical,
+            table,
+            &mut files,
+            &mut guids,
+            &mut needs,
+            &mut sources[source_index].asset_paths,
+        )?;
+    }
+    for source in &mut sources {
+        source.asset_paths.sort();
+    }
+    // Validate the entire batch before the first asset copy; shared identical files are reused.
+    validate_asset_layout(files.keys().map(String::as_str))?;
+    // Materials whose shader none of the selected packages carries render pink until the
+    // known package is in the project. Recipe pins and installed packages are left alone.
+    for (index, action) in actions {
+        let Some(install) = action.install else {
+            continue;
+        };
+        let package = &table[index];
+        events.progress(material_progress(run, package.display_name));
+        match install {
+            known_packages::Install::Latest => {
+                adapter.install_known_package(run, package, InstallPin::Newest)?
+            }
+            known_packages::Install::Line(line) => {
+                adapter.install_known_package(run, package, InstallPin::Line(line))?
+            }
+            known_packages::Install::Release(version) => {
+                adapter.install_known_package(run, package, InstallPin::Release(version))?
             }
         }
-        let project = Path::new(&run.project_root);
-        if let Some(previous) = previous {
-            retire_previous(project, previous, &files.keys().cloned().collect())?;
-        }
-        for (relative, original) in files {
-            let destination = project.join(&relative);
-            if destination.exists() {
-                if previous.is_none() {
-                    return Err(err(
-                        "asset_conflict",
-                        format!("Work project already contains {relative}."),
-                    ));
-                }
-                // A file the line keeps stays as it is; a changed version replaces it.
-                if vua_unity_bridge::material_exec::sha256_file(&destination).map_err(|e| err("import_failed", e))?
-                    == vua_unity_bridge::material_exec::sha256_file(&original).map_err(|e| err("source_invalid", e))? {
-                    continue;
-                }
+    }
+    let project = Path::new(&run.project_root);
+    if let Some(previous) = previous {
+        retire_previous(project, previous, &files.keys().cloned().collect())?;
+    }
+    for (relative, original) in files {
+        let destination = project.join(&relative);
+        if destination.exists() {
+            if previous.is_none() {
+                return Err(err(
+                    "asset_conflict",
+                    format!("Work project already contains {relative}."),
+                ));
             }
-            fs::create_dir_all(destination.parent().expect("asset parent"))
-                .map_err(|e| err("import_failed", e))?;
-            fs::copy(original, destination).map_err(|e| err("import_failed", e))?;
+            // A file the line keeps stays as it is; a changed version replaces it.
+            if vua_unity_bridge::material_exec::sha256_file(&destination)
+                .map_err(|e| err("import_failed", e))?
+                == vua_unity_bridge::material_exec::sha256_file(&original)
+                    .map_err(|e| err("source_invalid", e))?
+            {
+                continue;
+            }
         }
-        Ok(sources)
+        fs::create_dir_all(destination.parent().expect("asset parent"))
+            .map_err(|e| err("import_failed", e))?;
+        fs::copy(original, destination).map_err(|e| err("import_failed", e))?;
+    }
+    Ok(sources)
 }
 
 /// Imports one staged asset entry after the usual GUID, metadata and conflict checks,
@@ -1549,16 +2262,26 @@ fn import_staged_folder(
 
 /// The lower-case GUID a staged `.shader` declares in its `asset.meta`.
 fn legacy_shader_guid(metadata: &str) -> Option<String> {
-    let guid = metadata.lines().find_map(|line| line.strip_prefix("guid:").map(str::trim))?;
+    let guid = metadata
+        .lines()
+        .find_map(|line| line.strip_prefix("guid:").map(str::trim))?;
     let guid = guid.to_ascii_lowercase();
     (guid.len() == 32 && guid.bytes().all(|c| c.is_ascii_hexdigit())).then_some(guid)
 }
 
 /// Before a material change: the files only the previous materials used leave the work project,
 /// the folders they leave empty go with their Unity metadata, and AMF's work scene starts fresh.
-fn retire_previous(project: &Path, previous: &[PreparedSource], kept: &BTreeSet<String>) -> Result<(), AppErrorV1> {
+fn retire_previous(
+    project: &Path,
+    previous: &[PreparedSource],
+    kept: &BTreeSet<String>,
+) -> Result<(), AppErrorV1> {
     let mut removed = Vec::new();
-    for asset in previous.iter().flat_map(|source| source.asset_paths.iter()).filter(|asset| safe_asset_path(asset)) {
+    for asset in previous
+        .iter()
+        .flat_map(|source| source.asset_paths.iter())
+        .filter(|asset| safe_asset_path(asset))
+    {
         for relative in [asset.clone(), format!("{asset}.meta")] {
             let path = project.join(&relative);
             if !kept.contains(&relative) && path.is_file() {
@@ -1584,15 +2307,24 @@ fn clear_work_area(project: &Path) -> std::io::Result<()> {
 
 /// Removes the folders the removed files leave empty, with their Unity folder metadata, up to Assets.
 fn prune_empty_folders(project: &Path, removed: &[String]) {
-    let mut folders = removed.iter()
-        .flat_map(|relative| Path::new(relative).ancestors().skip(1).map(Path::to_path_buf).collect::<Vec<_>>())
+    let mut folders = removed
+        .iter()
+        .flat_map(|relative| {
+            Path::new(relative)
+                .ancestors()
+                .skip(1)
+                .map(Path::to_path_buf)
+                .collect::<Vec<_>>()
+        })
         .filter(|folder| folder.starts_with("Assets") && folder.as_path() != Path::new("Assets"))
         .collect::<Vec<_>>();
     folders.sort_by_key(|folder| std::cmp::Reverse(folder.components().count()));
     folders.dedup();
     for folder in folders {
         let path = project.join(&folder);
-        if fs::read_dir(&path).is_ok_and(|mut entries| entries.next().is_none()) && fs::remove_dir(&path).is_ok() {
+        if fs::read_dir(&path).is_ok_and(|mut entries| entries.next().is_none())
+            && fs::remove_dir(&path).is_ok()
+        {
             let _ = fs::remove_file(project.join(format!("{}.meta", folder.to_string_lossy())));
         }
     }
@@ -1604,61 +2336,509 @@ mod tests {
     use std::io::Write;
 
     #[test]
+    fn source_cache_observes_import_removal_archive_edits_and_recorded_member_hashes() {
+        use vua_bdl_store::{
+            ArtifactInspectionState, CopyRole, NewLocalArtifact, RemoveLocalEntries,
+        };
+        let (root, adapter) = preparation_fixture();
+        let now = "2026-11-10T00:00:00Z";
+        adapter
+            .bdl
+            .seed_product("booth:1000001", "1000001")
+            .unwrap();
+        let admit = |path: &Path| {
+            let hash = vua_unity_bridge::material_exec::sha256_file(path).unwrap();
+            let name = path.file_name().unwrap().to_str().unwrap();
+            adapter
+                .bdl
+                .record_untrusted_artifact(&NewLocalArtifact {
+                    artifact_sha256: hash.clone(),
+                    size_bytes: fs::metadata(path).unwrap().len(),
+                    suggested_file_name: Some(name.into()),
+                    download_id: None,
+                    first_seen_at: now.into(),
+                })
+                .unwrap();
+            for state in [
+                ArtifactInspectionState::Inspected,
+                ArtifactInspectionState::Admitted,
+            ] {
+                adapter
+                    .bdl
+                    .transition_artifact(&hash, state, now, None)
+                    .unwrap();
+            }
+            adapter
+                .bdl
+                .record_artifact_mapping(&hash, "booth:1000001", None, None, now)
+                .unwrap();
+            let entry = adapter
+                .bdl
+                .create_warehouse_item(name, "imported_material", now)
+                .unwrap();
+            adapter
+                .bdl
+                .record_artifact_copy(
+                    &entry.warehouse_item_id,
+                    &hash,
+                    name,
+                    path.to_str().unwrap(),
+                    CopyRole::Original,
+                    now,
+                )
+                .unwrap();
+            (entry.warehouse_item_id, hash)
+        };
+        let archive_path = root.join("materials.zip");
+        let archive = |members: &[(&str, &[u8])]| {
+            let mut zip = zip::ZipWriter::new(fs::File::create(&archive_path).unwrap());
+            for (name, bytes) in members {
+                zip.start_file(*name, zip::write::SimpleFileOptions::default())
+                    .unwrap();
+                zip.write_all(bytes).unwrap();
+            }
+            zip.finish().unwrap();
+        };
+        archive(&[("Avatar.unitypackage", b"synthetic avatar")]);
+        let (archive_id, _) = admit(&archive_path);
+        assert_eq!(adapter.sources().unwrap().len(), 1);
+        assert!(
+            adapter.sources().unwrap()[0].sha256.is_none(),
+            "listing does not hash archive members"
+        );
+        let mut recipe: vua_orchestrator::amf_recipe::ProductionRecipe = serde_json::from_str(
+            include_str!("../../../schemas/amf-recipe/v0.5/examples/recipe.valid.json"),
+        )
+        .unwrap();
+        recipe.materials[0].booth_product_id = Some("1000001".into());
+        recipe.materials[0].package_name = "Avatar.unitypackage".into();
+        let expected: String = Sha256::digest(b"synthetic avatar")
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        recipe.materials[0].sha256 = expected.clone();
+        assert!(adapter
+            .recipe_materials(&recipe, &Default::default())
+            .unwrap()[0]
+            .resolved
+            .is_some());
+        assert_eq!(adapter.sources().unwrap()[0].sha256, Some(expected));
+        archive(&[
+            ("Avatar.unitypackage", b"changed avatar"),
+            ("Coat.unitypackage", b"new coat"),
+        ]);
+        let changed = adapter.sources().unwrap();
+        assert_eq!(changed.len(), 2);
+        assert!(
+            changed.iter().all(|source| source.sha256.is_none()),
+            "editing the ZIP invalidates every member hash"
+        );
+        let plain = root.join("Fresh.unitypackage");
+        fs::write(&plain, b"new imported package").unwrap();
+        let (_, plain_hash) = admit(&plain);
+        let imported = adapter.sources().unwrap();
+        assert_eq!(imported.len(), 3);
+        let plain_source = imported.iter().find(|source| source.path == plain).unwrap();
+        assert_eq!(
+            plain_source.sha256.as_deref(),
+            plain_hash.strip_prefix("sha256:")
+        );
+        let schema = serde_json::from_str(include_str!(
+            "../../../schemas/amf-production-flow/v0.1/source.schema.json"
+        ))
+        .unwrap();
+        assert!(jsonschema::validator_for(&schema)
+            .unwrap()
+            .is_valid(&serde_json::to_value(plain_source).unwrap()));
+        let mut hashes = adapter.read_cache.material_hashes(&adapter.root);
+        hashes
+            .digest(&plain, None, || Ok(plain_hash.clone()))
+            .unwrap();
+        adapter.read_cache.remember_hashes(&adapter.root, hashes);
+        let modified = fs::metadata(&plain).unwrap().modified().unwrap();
+        fs::write(&plain, b"changed package data").unwrap();
+        fs::File::options()
+            .write(true)
+            .open(&plain)
+            .unwrap()
+            .set_modified(modified)
+            .unwrap();
+        assert_eq!(
+            adapter
+                .read_cache
+                .material_hashes(&adapter.root)
+                .known(&plain, None)
+                .as_deref(),
+            plain_hash.strip_prefix("sha256:")
+        );
+        assert_ne!(adapter.source_content_hash(&plain_source.source_id).unwrap().unwrap(), plain_hash,
+            "execution verification hashes actual bytes even when metadata still matches the advisory cache");
+        adapter
+            .bdl
+            .remove_local_entries(
+                &RemoveLocalEntries {
+                    schema_version: "0.1".into(),
+                    entry_ids: vec![archive_id],
+                },
+                "remove-test-archive",
+                now,
+            )
+            .unwrap();
+        assert_eq!(
+            adapter.sources().unwrap().len(),
+            1,
+            "removed library entries leave the cached view immediately"
+        );
+        fs::remove_file(&plain).unwrap();
+        assert!(adapter.sources().unwrap().is_empty());
+        drop(adapter);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[ignore = "Local synthetic read-speed benchmark: writes 288 MiB; no real materials or network"]
+    fn a_synthetic_library_measures_recipe_and_source_read_speed() {
+        use vua_bdl_store::{ArtifactInspectionState, CopyRole, NewLocalArtifact};
+        use vua_orchestrator::amf_recipe_materials::MaterialChoices;
+        use vua_orchestrator::{NanosTaskIdGenerator, SqliteTaskStore, SystemClock, TaskRuntime};
+
+        let (root, mut adapter) = preparation_fixture();
+        let now = "2026-11-09T00:00:00Z";
+        adapter
+            .bdl
+            .seed_product("booth:1000001", "1000001")
+            .unwrap();
+        let mut recipe: vua_orchestrator::amf_recipe::ProductionRecipe = serde_json::from_str(
+            include_str!("../../../schemas/amf-recipe/v0.5/examples/recipe.valid.json"),
+        )
+        .unwrap();
+        for index in 0..36 {
+            let bytes = vec![index as u8; 8 * 1024 * 1024];
+            let package_name = format!("Material-{index:02}.unitypackage");
+            let name = if index % 2 == 0 {
+                package_name.clone()
+            } else {
+                format!("Material-{index:02}.zip")
+            };
+            let path = root.join(&name);
+            if index % 2 == 0 {
+                fs::write(&path, &bytes).unwrap();
+            } else {
+                let mut archive = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+                let options = zip::write::SimpleFileOptions::default()
+                    .compression_method(zip::CompressionMethod::Stored);
+                archive.start_file(&package_name, options).unwrap();
+                archive.write_all(&bytes).unwrap();
+                for entry in 0..128 {
+                    archive
+                        .start_file(format!("Companions/{entry}.txt"), options)
+                        .unwrap();
+                    archive.write_all(b"Synthetic companion").unwrap();
+                }
+                archive.finish().unwrap();
+            }
+            let hash = vua_unity_bridge::material_exec::sha256_file(&path).unwrap();
+            adapter
+                .bdl
+                .record_untrusted_artifact(&NewLocalArtifact {
+                    artifact_sha256: hash.clone(),
+                    size_bytes: fs::metadata(&path).unwrap().len(),
+                    suggested_file_name: Some(name.clone()),
+                    download_id: None,
+                    first_seen_at: now.into(),
+                })
+                .unwrap();
+            for state in [
+                ArtifactInspectionState::Inspected,
+                ArtifactInspectionState::Admitted,
+            ] {
+                adapter
+                    .bdl
+                    .transition_artifact(&hash, state, now, None)
+                    .unwrap();
+            }
+            adapter
+                .bdl
+                .record_artifact_mapping(&hash, "booth:1000001", None, None, now)
+                .unwrap();
+            let entry = adapter
+                .bdl
+                .create_warehouse_item(
+                    &format!("Synthetic material {index}"),
+                    "downloaded_material",
+                    now,
+                )
+                .unwrap();
+            adapter
+                .bdl
+                .record_artifact_copy(
+                    &entry.warehouse_item_id,
+                    &hash,
+                    &name,
+                    path.to_str().unwrap(),
+                    CopyRole::Original,
+                    now,
+                )
+                .unwrap();
+            if index < recipe.materials.len() {
+                recipe.materials[index].package_name = package_name;
+                recipe.materials[index].sha256 = Sha256::digest(&bytes)
+                    .iter()
+                    .map(|byte| format!("{byte:02x}"))
+                    .collect();
+            }
+        }
+        for pass in 0..3 {
+            let started = Instant::now();
+            assert_eq!(adapter.sources().unwrap().len(), 36);
+            let source_time = started.elapsed();
+            let started = Instant::now();
+            let plan = adapter
+                .recipe_materials(&recipe, &MaterialChoices::new())
+                .unwrap();
+            let plan_time = started.elapsed();
+            assert_eq!(plan.len(), recipe.materials.len());
+            for (row, material) in plan.iter().zip(&recipe.materials) {
+                assert_eq!(row.resolved.as_ref().unwrap().sha256, material.sha256);
+            }
+            eprintln!(
+                "read-speed pass={pass} sources_ms={} recipe_plan_ms={}",
+                source_time.as_millis(),
+                plan_time.as_millis()
+            );
+        }
+        let store = Arc::new(SqliteTaskStore::open(root.join("read-tasks.db")).unwrap());
+        let runtime = TaskRuntime::with_sqlite(
+            store.clone(),
+            Arc::new(SystemClock),
+            Arc::new(NanosTaskIdGenerator::default()),
+        )
+        .unwrap();
+        let downloads = vua_acquisition::library_download::LibraryDownloadService::new(
+            store.clone(),
+            adapter.bdl.clone(),
+            runtime,
+            root.clone(),
+            root.join("staging"),
+        )
+        .unwrap();
+        // Make the worker's query cold again without changing the original library files.
+        fs::remove_file(adapter.root.join("material-hashes.json")).unwrap();
+        adapter.read_cache = ProductionReadCache::default();
+        let library_read = || {
+            let started = Instant::now();
+            vua_acquisition::library_view::list(
+                &adapter.bdl,
+                &root,
+                ArtifactMode::UseOriginalUnitypackage,
+                &downloads,
+                serde_json::json!({"schemaVersion":"0.3"}),
+            )
+            .unwrap();
+            started.elapsed()
+        };
+        library_read();
+        let mut baseline = (0..25).map(|_| library_read()).collect::<Vec<_>>();
+        baseline.sort_unstable();
+        let baseline = baseline[baseline.len() / 2];
+        let mut overlapping = Vec::new();
+        std::thread::scope(|scope| {
+            let worker = scope.spawn(|| {
+                adapter
+                    .recipe_materials(&recipe, &MaterialChoices::new())
+                    .unwrap()
+            });
+            while !worker.is_finished() {
+                overlapping.push(library_read());
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            worker.join().unwrap();
+        });
+        assert!(!overlapping.is_empty());
+        overlapping.sort_unstable();
+        let concurrent = overlapping[overlapping.len() / 2];
+        eprintln!(
+            "read-speed library_alone_us={} library_during_cold_plan_us={} samples={}",
+            baseline.as_micros(),
+            concurrent.as_micros(),
+            overlapping.len()
+        );
+        assert!(
+            concurrent <= baseline * 2,
+            "fast library reads exceed twice their isolated median"
+        );
+        drop(downloads);
+        drop(store);
+        drop(adapter);
+        assert!(
+            root.is_absolute()
+                && root.parent() == Some(std::env::temp_dir().as_path())
+                && root
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("vua-amf-prepare-")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn recipe_attribution_reads_the_recorded_shop_outside_account_membership() {
         let (root, adapter) = preparation_fixture();
-        let fixture: serde_json::Value = serde_json::from_str(include_str!("../../../schemas/catalog-sync/v0.3/examples/page.request.json")).unwrap();
-        let page = vua_acquisition::extract_library_page(fixture["params"]["html"].as_str().unwrap()).unwrap();
-        let mut observed = vua_acquisition::library_item_to_observation(&page.items[0], &format!("sha256:{}", "b".repeat(64)), "2026-10-29T00:00:00Z", None, None);
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../schemas/catalog-sync/v0.3/examples/page.request.json"
+        ))
+        .unwrap();
+        let page =
+            vua_acquisition::extract_library_page(fixture["params"]["html"].as_str().unwrap())
+                .unwrap();
+        let mut observed = vua_acquisition::library_item_to_observation(
+            &page.items[0],
+            &format!("sha256:{}", "b".repeat(64)),
+            "2026-10-29T00:00:00Z",
+            None,
+            None,
+        );
         observed.library_type = None;
         observed.shop_name = Some("Synthetic creator shop".into());
         adapter.bdl.record_product_observation(&observed).unwrap();
-        assert_eq!(adapter.recipe_shop_name("901").unwrap().as_deref(), Some("Synthetic creator shop"));
+        assert_eq!(
+            adapter.recipe_shop_name("901").unwrap().as_deref(),
+            Some("Synthetic creator shop")
+        );
         assert_eq!(adapter.recipe_shop_name("99999999").unwrap(), None);
         drop(adapter);
-        assert!(root.starts_with(std::env::temp_dir()) && root.file_name().unwrap().to_string_lossy().starts_with("vua-amf-prepare-"));
+        assert!(
+            root.starts_with(std::env::temp_dir())
+                && root
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("vua-amf-prepare-")
+        );
         fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
     fn recipe_resolution_reads_local_ownership_download_names_and_all_product_packages() {
-        use vua_orchestrator::amf_recipe_materials::{MaterialStatus,MaterialChoices};
-        use vua_bdl_store::{ArtifactInspectionState,CopyRole,NewLocalArtifact};
-        let (root,adapter) = preparation_fixture();
-        let fixture: serde_json::Value = serde_json::from_str(include_str!("../../../schemas/catalog-sync/v0.3/examples/page.request.json")).unwrap();
-        let page = vua_acquisition::extract_library_page(fixture["params"]["html"].as_str().unwrap()).unwrap();
+        use vua_bdl_store::{ArtifactInspectionState, CopyRole, NewLocalArtifact};
+        use vua_orchestrator::amf_recipe_materials::{MaterialChoices, MaterialStatus};
+        let (root, adapter) = preparation_fixture();
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../schemas/catalog-sync/v0.3/examples/page.request.json"
+        ))
+        .unwrap();
+        let page =
+            vua_acquisition::extract_library_page(fixture["params"]["html"].as_str().unwrap())
+                .unwrap();
         let now = "2026-10-24T00:00:00Z";
-        adapter.bdl.record_product_observation(&vua_acquisition::library_item_to_observation(&page.items[0],&format!("sha256:{}","0".repeat(64)),now,None,Some("bought"))).unwrap();
-        adapter.bdl.upsert_product_downloadables("booth:901",&[(901,"Recorded download.zip".into())],now,None,Some("bought")).unwrap();
-        let mut recipe: vua_orchestrator::amf_recipe::ProductionRecipe = serde_json::from_str(include_str!("../../../schemas/amf-recipe/v0.5/examples/recipe.valid.json")).unwrap();
+        adapter
+            .bdl
+            .record_product_observation(&vua_acquisition::library_item_to_observation(
+                &page.items[0],
+                &format!("sha256:{}", "0".repeat(64)),
+                now,
+                None,
+                Some("bought"),
+            ))
+            .unwrap();
+        adapter
+            .bdl
+            .upsert_product_downloadables(
+                "booth:901",
+                &[(901, "Recorded download.zip".into())],
+                now,
+                None,
+                Some("bought"),
+            )
+            .unwrap();
+        let mut recipe: vua_orchestrator::amf_recipe::ProductionRecipe = serde_json::from_str(
+            include_str!("../../../schemas/amf-recipe/v0.5/examples/recipe.valid.json"),
+        )
+        .unwrap();
         recipe.materials[0].booth_product_id = Some("901".into());
         recipe.materials[1].booth_product_id = Some("902".into());
-        let checklist = adapter.recipe_materials(&recipe,&MaterialChoices::new()).unwrap();
-        assert_eq!(checklist[0].status,MaterialStatus::MaterialNotDownloaded);
-        assert_eq!(checklist[0].download_names,vec!["Recorded download.zip"]);
-        assert_eq!(checklist[1].status,MaterialStatus::MaterialNotOwned);
-        adapter.bdl.seed_product("booth:902","902").unwrap();
+        let checklist = adapter
+            .recipe_materials(&recipe, &MaterialChoices::new())
+            .unwrap();
+        assert_eq!(checklist[0].status, MaterialStatus::MaterialNotDownloaded);
+        assert_eq!(checklist[0].download_names, vec!["Recorded download.zip"]);
+        assert_eq!(checklist[1].status, MaterialStatus::MaterialNotOwned);
+        adapter.bdl.seed_product("booth:902", "902").unwrap();
         let mut source_ids = Vec::new();
-        for (index,name) in ["Coat-New-A.unitypackage","Coat-New-B.unitypackage"].iter().enumerate() {
+        for (index, name) in ["Coat-New-A.unitypackage", "Coat-New-B.unitypackage"]
+            .iter()
+            .enumerate()
+        {
             let file = root.join(name);
-            write_unitypackage(&file,&[PackageEntry {guid:BODY_MAT,logical:"Assets/Body.mat",asset:format!("Synthetic variant {index}").into_bytes()}]);
+            write_unitypackage(
+                &file,
+                &[PackageEntry {
+                    guid: BODY_MAT,
+                    logical: "Assets/Body.mat",
+                    asset: format!("Synthetic variant {index}").into_bytes(),
+                }],
+            );
             let hash = vua_unity_bridge::material_exec::sha256_file(&file).unwrap();
-            adapter.bdl.record_untrusted_artifact(&NewLocalArtifact {artifact_sha256:hash.clone(),size_bytes:fs::metadata(&file).unwrap().len(),suggested_file_name:Some((*name).into()),download_id:None,first_seen_at:now.into()}).unwrap();
-            for state in [ArtifactInspectionState::Inspected,ArtifactInspectionState::Admitted] { adapter.bdl.transition_artifact(&hash,state,now,None).unwrap(); }
-            adapter.bdl.record_artifact_mapping(&hash,"booth:902",None,None,now).unwrap();
-            let item = adapter.bdl.create_warehouse_item("Synthetic coat","downloaded_material",now).unwrap();
-            let copy = adapter.bdl.record_artifact_copy(&item.warehouse_item_id,&hash,name,file.to_str().unwrap(),CopyRole::Original,now).unwrap();
+            adapter
+                .bdl
+                .record_untrusted_artifact(&NewLocalArtifact {
+                    artifact_sha256: hash.clone(),
+                    size_bytes: fs::metadata(&file).unwrap().len(),
+                    suggested_file_name: Some((*name).into()),
+                    download_id: None,
+                    first_seen_at: now.into(),
+                })
+                .unwrap();
+            for state in [
+                ArtifactInspectionState::Inspected,
+                ArtifactInspectionState::Admitted,
+            ] {
+                adapter
+                    .bdl
+                    .transition_artifact(&hash, state, now, None)
+                    .unwrap();
+            }
+            adapter
+                .bdl
+                .record_artifact_mapping(&hash, "booth:902", None, None, now)
+                .unwrap();
+            let item = adapter
+                .bdl
+                .create_warehouse_item("Synthetic coat", "downloaded_material", now)
+                .unwrap();
+            let copy = adapter
+                .bdl
+                .record_artifact_copy(
+                    &item.warehouse_item_id,
+                    &hash,
+                    name,
+                    file.to_str().unwrap(),
+                    CopyRole::Original,
+                    now,
+                )
+                .unwrap();
             source_ids.push(copy.copy_id);
         }
-        let checklist = adapter.recipe_materials(&recipe,&MaterialChoices::new()).unwrap();
-        assert_eq!(checklist[1].status,MaterialStatus::MaterialChoiceRequired);
-        assert_eq!(checklist[1].candidates.len(),2);
-        let choices = MaterialChoices::from([(recipe.materials[1].id.clone(),source_ids[1].clone())]);
-        let chosen = adapter.recipe_materials(&recipe,&choices).unwrap();
-        assert_eq!(chosen[1].resolved.as_ref().unwrap().source_id,source_ids[1]);
+        let checklist = adapter
+            .recipe_materials(&recipe, &MaterialChoices::new())
+            .unwrap();
+        assert_eq!(checklist[1].status, MaterialStatus::MaterialChoiceRequired);
+        assert_eq!(checklist[1].candidates.len(), 2);
+        let choices =
+            MaterialChoices::from([(recipe.materials[1].id.clone(), source_ids[1].clone())]);
+        let chosen = adapter.recipe_materials(&recipe, &choices).unwrap();
+        assert_eq!(
+            chosen[1].resolved.as_ref().unwrap().source_id,
+            source_ids[1]
+        );
         recipe.materials[1].package_name = "Coat-New-A.unitypackage".into();
-        let named = adapter.recipe_materials(&recipe,&MaterialChoices::new()).unwrap();
-        assert_eq!(named[1].resolved.as_ref().unwrap().source_id,source_ids[0]);
-        drop(adapter); fs::remove_dir_all(root).unwrap();
+        let named = adapter
+            .recipe_materials(&recipe, &MaterialChoices::new())
+            .unwrap();
+        assert_eq!(named[1].resolved.as_ref().unwrap().source_id, source_ids[0]);
+        drop(adapter);
+        fs::remove_dir_all(root).unwrap();
     }
 
     /// A stand-in task context for synthetic preparation runs: nothing cancels
@@ -1668,7 +2848,9 @@ mod tests {
     }
     impl ImportProbe {
         fn new() -> Self {
-            Self { progress: std::sync::Mutex::new(Vec::new()) }
+            Self {
+                progress: std::sync::Mutex::new(Vec::new()),
+            }
         }
         fn names(&self) -> Vec<String> {
             self.progress.lock().expect("progress poisoned").clone()
@@ -1679,10 +2861,13 @@ mod tests {
             None
         }
         fn progress(&self, payload: serde_json::Value) {
-            self.progress
-                .lock()
-                .expect("progress poisoned")
-                .push(payload.get("name").and_then(|name| name.as_str()).unwrap_or_default().to_owned());
+            self.progress.lock().expect("progress poisoned").push(
+                payload
+                    .get("name")
+                    .and_then(|name| name.as_str())
+                    .unwrap_or_default()
+                    .to_owned(),
+            );
         }
     }
 
@@ -1707,7 +2892,10 @@ mod tests {
             };
             add(format!("{folder}/pathname"), entry.logical.as_bytes());
             add(format!("{folder}/asset"), &entry.asset);
-            add(format!("{folder}/asset.meta"), format!("fileFormatVersion: 2\nguid: {}\n", entry.guid).as_bytes());
+            add(
+                format!("{folder}/asset.meta"),
+                format!("fileFormatVersion: 2\nguid: {}\n", entry.guid).as_bytes(),
+            );
         }
         archive.into_inner().unwrap().finish().unwrap();
     }
@@ -1719,7 +2907,10 @@ mod tests {
     fn seed_fake_poiyomi_feed(env: &std::path::Path) {
         let feed_url = "https://poiyomi.github.io/vpm/index.json";
         let repos = env.join("Repos");
-        let cache = repos.join(format!("{}.json", vua_orchestrator::fnv1a_hex(feed_url.as_bytes())));
+        let cache = repos.join(format!(
+            "{}.json",
+            vua_orchestrator::fnv1a_hex(feed_url.as_bytes())
+        ));
         let mut versions = serde_json::Map::new();
         for version in ["9.3.64", "10.0.27"] {
             // A minimal VPM package zip: only the manifest vrc-get reads.
@@ -1729,23 +2920,35 @@ mod tests {
                 writer
                     .start_file("package.json", zip::write::SimpleFileOptions::default())
                     .unwrap();
-                writer.write_all(
-                    serde_json::json!({
-                        "name": "com.poiyomi.toon", "displayName": "Poiyomi Toon Shader",
-                        "version": version, "unity": "2022.3",
-                        "legacyFolders": {"Assets\\_PoiyomiShaders": ""}
-                    })
-                    .to_string()
-                    .as_bytes(),
-                )
-                .unwrap();
+                writer
+                    .write_all(
+                        serde_json::json!({
+                            "name": "com.poiyomi.toon", "displayName": "Poiyomi Toon Shader",
+                            "version": version, "unity": "2022.3",
+                            "legacyFolders": {"Assets\\_PoiyomiShaders": ""}
+                        })
+                        .to_string()
+                        .as_bytes(),
+                    )
+                    .unwrap();
                 writer.finish().unwrap();
             }
-            let digest: String = Sha256::digest(&zip_bytes).iter().map(|b| format!("{b:02x}")).collect();
+            let digest: String = Sha256::digest(&zip_bytes)
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect();
             let package_cache = repos.join("com.poiyomi.toon");
             fs::create_dir_all(&package_cache).unwrap();
-            fs::write(package_cache.join(format!("vrc-get-com.poiyomi.toon-{version}.zip")), &zip_bytes).unwrap();
-            fs::write(package_cache.join(format!("vrc-get-com.poiyomi.toon-{version}.zip.sha256")), &digest).unwrap();
+            fs::write(
+                package_cache.join(format!("vrc-get-com.poiyomi.toon-{version}.zip")),
+                &zip_bytes,
+            )
+            .unwrap();
+            fs::write(
+                package_cache.join(format!("vrc-get-com.poiyomi.toon-{version}.zip.sha256")),
+                &digest,
+            )
+            .unwrap();
             versions.insert(
                 version.to_owned(),
                 serde_json::json!({
@@ -1797,17 +3000,33 @@ mod tests {
         let root = std::env::temp_dir().join(format!(
             "vua-amf-prepare-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         fs::create_dir_all(root.join("work/Assets")).unwrap();
         fs::create_dir_all(root.join("work/Packages")).unwrap();
-        fs::write(root.join("work/Packages/manifest.json"), include_str!("amf_project_manifest.json")).unwrap();
-        fs::write(root.join("work/Packages/vpm-manifest.json"), "{\"dependencies\":{},\"locked\":{}}\n").unwrap();
+        fs::write(
+            root.join("work/Packages/manifest.json"),
+            include_str!("amf_project_manifest.json"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("work/Packages/vpm-manifest.json"),
+            "{\"dependencies\":{},\"locked\":{}}\n",
+        )
+        .unwrap();
         fs::create_dir_all(root.join("work/ProjectSettings")).unwrap();
-        fs::write(root.join("work/ProjectSettings/ProjectVersion.txt"), "m_EditorVersion: 2022.3.22f1\n").unwrap();
+        fs::write(
+            root.join("work/ProjectSettings/ProjectVersion.txt"),
+            "m_EditorVersion: 2022.3.22f1\n",
+        )
+        .unwrap();
         let adapter = NativeAmfProduction {
             bdl: Arc::new(BdlStore::open(root.join("bdl.db")).unwrap()),
             root: root.join("amf"),
+            read_cache: ProductionReadCache::default(),
             editor_roots: vec![],
             explicit_editor: None,
             unity_hub: None,
@@ -1827,6 +3046,7 @@ mod tests {
                 name: "Meiyun.unitypackage".into(),
                 product_ids: Vec::new(),
                 path: package.to_owned(),
+                sha256: None,
                 archive_member: None,
             },
         )])
@@ -1840,7 +3060,11 @@ mod tests {
     const UNKNOWN_SHADER: &str = "0123456789abcdef0123456789abcdef";
 
     fn shader(guid: &'static str, logical: &'static str) -> PackageEntry {
-        PackageEntry { guid, logical, asset: format!("Shader {logical}\n").into_bytes() }
+        PackageEntry {
+            guid,
+            logical,
+            asset: format!("Shader {logical}\n").into_bytes(),
+        }
     }
 
     /// A material whose shader reference names the 9.3 Poiyomi Toon shader.
@@ -1860,31 +3084,58 @@ mod tests {
         // outside the line folders and a plain file, plus the material.
         let entries = vec![
             material_entry(),
-            shader(TOON_81, "Assets/_PoiyomiShaders/Shaders/8.1/Toon/Poiyomi Toon.shader"),
-            shader(TOON_92, "Assets/_PoiyomiShaders/Shaders/9.2/Toon/Poiyomi Toon.shader"),
-            shader(TOON_93, "Assets/_PoiyomiShaders/Shaders/9.3/Toon/Poiyomi Toon.shader"),
-            shader(POIYOMI_EXTRAS, "Assets/_PoiyomiShaders/Shaders/Extras/PoiyomiFakeShadow.shader"),
-            PackageEntry { guid: "22222222222222222222222222222222", logical: "Assets/_PoiyomiShaders/README.txt", asset: b"bundled copy\n".to_vec() },
+            shader(
+                TOON_81,
+                "Assets/_PoiyomiShaders/Shaders/8.1/Toon/Poiyomi Toon.shader",
+            ),
+            shader(
+                TOON_92,
+                "Assets/_PoiyomiShaders/Shaders/9.2/Toon/Poiyomi Toon.shader",
+            ),
+            shader(
+                TOON_93,
+                "Assets/_PoiyomiShaders/Shaders/9.3/Toon/Poiyomi Toon.shader",
+            ),
+            shader(
+                POIYOMI_EXTRAS,
+                "Assets/_PoiyomiShaders/Shaders/Extras/PoiyomiFakeShadow.shader",
+            ),
+            PackageEntry {
+                guid: "22222222222222222222222222222222",
+                logical: "Assets/_PoiyomiShaders/README.txt",
+                asset: b"bundled copy\n".to_vec(),
+            },
         ];
         let package = root.join("outfit.unitypackage");
         write_unitypackage(&package, &entries);
         let run = preparation_run(&project);
         let events = ImportProbe::new();
-        let sources = import_choices_with(&adapter, &run, &events, &source_map(&package), None).unwrap();
+        let sources =
+            import_choices_with(&adapter, &run, &events, &source_map(&package), None).unwrap();
 
         // The material imports; the whole bundled copy leaves for the package.
         assert!(project.join("Assets/Meiyun/Body.mat").is_file());
         assert!(project.join("Assets/Meiyun/Body.mat.meta").is_file());
-        assert!(!project.join("Assets/_PoiyomiShaders").exists(), "the covered copy is not imported");
+        assert!(
+            !project.join("Assets/_PoiyomiShaders").exists(),
+            "the covered copy is not imported"
+        );
         assert_eq!(sources[0].asset_paths, ["Assets/Meiyun/Body.mat"]);
 
         // The official package was installed from the cached fake feed, pinned
         // to the exact recorded release covering the copy.
-        let manifest: serde_json::Value =
-            serde_json::from_str(&fs::read_to_string(project.join("Packages/vpm-manifest.json")).unwrap()).unwrap();
+        let manifest: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(project.join("Packages/vpm-manifest.json")).unwrap(),
+        )
+        .unwrap();
         assert_eq!(manifest["locked"]["com.poiyomi.toon"]["version"], "9.3.64");
-        assert!(project.join("Packages/com.poiyomi.toon/package.json").is_file());
-        assert!(events.names().contains(&"Poiyomi Toon Shader".to_owned()), "the install reports progress");
+        assert!(project
+            .join("Packages/com.poiyomi.toon/package.json")
+            .is_file());
+        assert!(
+            events.names().contains(&"Poiyomi Toon Shader".to_owned()),
+            "the install reports progress"
+        );
 
         drop(adapter);
         std::fs::remove_dir_all(&root).unwrap();
@@ -1897,19 +3148,30 @@ mod tests {
         // An unknown shader inside the copy: no official release covers it.
         let entries = vec![
             material_entry(),
-            shader(TOON_93, "Assets/_PoiyomiShaders/Shaders/9.3/Toon/Poiyomi Toon.shader"),
-            shader(UNKNOWN_SHADER, "Assets/_PoiyomiShaders/Shaders/Custom/Mod.shader"),
+            shader(
+                TOON_93,
+                "Assets/_PoiyomiShaders/Shaders/9.3/Toon/Poiyomi Toon.shader",
+            ),
+            shader(
+                UNKNOWN_SHADER,
+                "Assets/_PoiyomiShaders/Shaders/Custom/Mod.shader",
+            ),
         ];
         let package = root.join("outfit.unitypackage");
         write_unitypackage(&package, &entries);
         let run = preparation_run(&project);
         let events = ImportProbe::new();
-        let sources = import_choices_with(&adapter, &run, &events, &source_map(&package), None).unwrap();
+        let sources =
+            import_choices_with(&adapter, &run, &events, &source_map(&package), None).unwrap();
 
         // The material and every copy file import unchanged.
         assert!(project.join("Assets/Meiyun/Body.mat").is_file());
-        assert!(project.join("Assets/_PoiyomiShaders/Shaders/9.3/Toon/Poiyomi Toon.shader").is_file());
-        assert!(project.join("Assets/_PoiyomiShaders/Shaders/Custom/Mod.shader").is_file());
+        assert!(project
+            .join("Assets/_PoiyomiShaders/Shaders/9.3/Toon/Poiyomi Toon.shader")
+            .is_file());
+        assert!(project
+            .join("Assets/_PoiyomiShaders/Shaders/Custom/Mod.shader")
+            .is_file());
         assert_eq!(
             sources[0].asset_paths,
             [
@@ -1919,7 +3181,10 @@ mod tests {
             ]
         );
         let manifest = fs::read_to_string(project.join("Packages/vpm-manifest.json")).unwrap();
-        assert_eq!(manifest, "{\"dependencies\":{},\"locked\":{}}\n", "nothing was installed");
+        assert_eq!(
+            manifest, "{\"dependencies\":{},\"locked\":{}}\n",
+            "nothing was installed"
+        );
         assert!(!project.join("Packages/com.poiyomi.toon").exists());
         assert!(!events.names().contains(&"Poiyomi Toon Shader".to_owned()));
 
@@ -1941,29 +3206,49 @@ mod tests {
         let outfit = serde_json::json!({"sourceId":"outfit","prefabPath":"Assets/Coat.prefab",
             "mode":"merge_armature","bone":"","toggleName":"Coat","active":true,"saved":true,"group":""});
         for fit in [serde_json::Value::Null, serde_json::json!({"objects":[]})] {
-            let mut wire = outfit.clone(); wire["fit"] = fit;
+            let mut wire = outfit.clone();
+            wire["fit"] = fit;
             let mut facts = serde_json::json!({"observedSelection":{"avatarPrefab":"Assets/Avatar.prefab","outfits":[wire]}});
             normalize_observed_selection(&mut facts).unwrap();
             assert_eq!(facts["observedSelection"]["outfits"][0], outfit);
-            let observed: AssemblySelection = serde_json::from_value(facts["observedSelection"].clone()).unwrap();
+            let observed: AssemblySelection =
+                serde_json::from_value(facts["observedSelection"].clone()).unwrap();
             assert_eq!(observed.outfits[0].toggle_name, "Coat");
         }
-        for fit in [serde_json::json!({"objects":[{"path":"Hips"}]}), serde_json::json!({"objects":[],"extra":true}), serde_json::json!(false)] {
-            let mut wire = outfit.clone(); wire["fit"] = fit;
+        for fit in [
+            serde_json::json!({"objects":[{"path":"Hips"}]}),
+            serde_json::json!({"objects":[],"extra":true}),
+            serde_json::json!(false),
+        ] {
+            let mut wire = outfit.clone();
+            wire["fit"] = fit;
             let mut facts = serde_json::json!({"observedSelection":{"avatarPrefab":"Assets/Avatar.prefab","outfits":[wire]}});
-            assert!(normalize_observed_selection(&mut facts).is_err(), "nonempty or malformed fit must not be silently discarded");
+            assert!(
+                normalize_observed_selection(&mut facts).is_err(),
+                "nonempty or malformed fit must not be silently discarded"
+            );
         }
-        let mut wire = outfit; wire["fit"] = serde_json::Value::Null; wire["unexpected"] = true.into();
+        let mut wire = outfit;
+        wire["fit"] = serde_json::Value::Null;
+        wire["unexpected"] = true.into();
         let mut facts = serde_json::json!({"observedSelection":{"avatarPrefab":"Assets/Avatar.prefab","outfits":[wire]}});
-        assert!(normalize_observed_selection(&mut facts).is_err(), "the observed selection remains closed");
+        assert!(
+            normalize_observed_selection(&mut facts).is_err(),
+            "the observed selection remains closed"
+        );
     }
 
     fn preview_project(name: &str) -> PathBuf {
-        let project = std::env::temp_dir().join(format!("vua-amf-preview-{name}-{}", std::process::id()));
+        let project =
+            std::env::temp_dir().join(format!("vua-amf-preview-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&project);
         std::fs::create_dir_all(project.join(".vua/previews/cmd-1")).unwrap();
         for file in ["front.png", "side.png", "back.png", "candidate-000.png"] {
-            std::fs::write(project.join(".vua/previews/cmd-1").join(file), b"\x89PNG\r\n\x1a\nimage").unwrap();
+            std::fs::write(
+                project.join(".vua/previews/cmd-1").join(file),
+                b"\x89PNG\r\n\x1a\nimage",
+            )
+            .unwrap();
         }
         project
     }
@@ -1971,18 +3256,46 @@ mod tests {
     #[test]
     fn previews_stay_inside_the_work_project_preview_folder() {
         let project = preview_project("paths");
-        assert!(preview_file(&project, ".vua/previews/cmd-1/front.png").unwrap().ends_with("front.png"));
+        assert!(preview_file(&project, ".vua/previews/cmd-1/front.png")
+            .unwrap()
+            .ends_with("front.png"));
         for outside in [
-            "../front.png", ".vua/previews/../cmd-1/front.png", ".vua/previews/cmd-1/../../x.png",
-            ".vua\\previews\\cmd-1\\front.png", "C:/Windows/front.png", "/.vua/previews/cmd-1/front.png",
-            ".vua/previews/cmd-1/front.jpg", ".vua/previews/front.png", ".vua/previews/cmd-1/a/front.png",
-            ".vua/bridge/cmd-1/front.png", ".vua/previews/cmd-1/front.png:stream", ".vua/previews/./front.png",
+            "../front.png",
+            ".vua/previews/../cmd-1/front.png",
+            ".vua/previews/cmd-1/../../x.png",
+            ".vua\\previews\\cmd-1\\front.png",
+            "C:/Windows/front.png",
+            "/.vua/previews/cmd-1/front.png",
+            ".vua/previews/cmd-1/front.jpg",
+            ".vua/previews/front.png",
+            ".vua/previews/cmd-1/a/front.png",
+            ".vua/bridge/cmd-1/front.png",
+            ".vua/previews/cmd-1/front.png:stream",
+            ".vua/previews/./front.png",
         ] {
-            assert_eq!(preview_file(&project, outside).unwrap_err().code, "vua.amf_production.preview_invalid", "{outside}");
+            assert_eq!(
+                preview_file(&project, outside).unwrap_err().code,
+                "vua.amf_production.preview_invalid",
+                "{outside}"
+            );
         }
-        assert_eq!(preview_file(&project, ".vua/previews/cmd-1/absent.png").unwrap_err().code, "vua.amf_production.preview_missing");
-        std::fs::write(project.join(".vua/previews/cmd-1/large.png"), vec![0u8; MAX_PREVIEW_BYTES as usize + 1]).unwrap();
-        assert_eq!(preview_file(&project, ".vua/previews/cmd-1/large.png").unwrap_err().code, "vua.amf_production.preview_unusable");
+        assert_eq!(
+            preview_file(&project, ".vua/previews/cmd-1/absent.png")
+                .unwrap_err()
+                .code,
+            "vua.amf_production.preview_missing"
+        );
+        std::fs::write(
+            project.join(".vua/previews/cmd-1/large.png"),
+            vec![0u8; MAX_PREVIEW_BYTES as usize + 1],
+        )
+        .unwrap();
+        assert_eq!(
+            preview_file(&project, ".vua/previews/cmd-1/large.png")
+                .unwrap_err()
+                .code,
+            "vua.amf_production.preview_unusable"
+        );
         std::fs::remove_dir_all(&project).unwrap();
     }
 
@@ -1993,23 +3306,52 @@ mod tests {
             "previews": [{"view":"front","path":".vua/previews/cmd-1/front.png"},{"view":"side","path":".vua/previews/cmd-1/side.png"},{"view":"back","path":".vua/previews/cmd-1/back.png"}],
             "prefabs": [{"path":"Assets/A.prefab","preview":".vua/previews/cmd-1/candidate-000.png"},{"path":"Assets/B.prefab","preview":""},
                 {"path":"Assets/C.prefab","preview":".vua/previews/cmd-1/candidate-002.png"}]});
-        assert_eq!(normalize_previews(&mut facts, &project, "cmd-1").unwrap(), vec![".vua/previews/cmd-1/candidate-002.png".to_owned()]);
+        assert_eq!(
+            normalize_previews(&mut facts, &project, "cmd-1").unwrap(),
+            vec![".vua/previews/cmd-1/candidate-002.png".to_owned()]
+        );
         assert_eq!(facts["previews"].as_array().unwrap().len(), 3);
-        assert_eq!(facts["prefabs"][0]["preview"], ".vua/previews/cmd-1/candidate-000.png");
-        assert!(facts["prefabs"][1].get("preview").is_none(), "an empty Unity string means no image");
-        assert!(facts["prefabs"][2].get("preview").is_none(), "a missing image is left out");
+        assert_eq!(
+            facts["prefabs"][0]["preview"],
+            ".vua/previews/cmd-1/candidate-000.png"
+        );
+        assert!(
+            facts["prefabs"][1].get("preview").is_none(),
+            "an empty Unity string means no image"
+        );
+        assert!(
+            facts["prefabs"][2].get("preview").is_none(),
+            "a missing image is left out"
+        );
 
-        std::fs::write(project.join(".vua/previews/cmd-1/side.png"), vec![0u8; MAX_PREVIEW_BYTES as usize + 1]).unwrap();
+        std::fs::write(
+            project.join(".vua/previews/cmd-1/side.png"),
+            vec![0u8; MAX_PREVIEW_BYTES as usize + 1],
+        )
+        .unwrap();
         let mut large = serde_json::json!({"previews":[{"view":"front","path":".vua/previews/cmd-1/front.png"},{"view":"side","path":".vua/previews/cmd-1/side.png"}]});
-        assert_eq!(normalize_previews(&mut large, &project, "cmd-1").unwrap().len(), 1);
-        assert_eq!(large["previews"], serde_json::json!([{"view":"front","path":".vua/previews/cmd-1/front.png"}]));
+        assert_eq!(
+            normalize_previews(&mut large, &project, "cmd-1")
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            large["previews"],
+            serde_json::json!([{"view":"front","path":".vua/previews/cmd-1/front.png"}])
+        );
 
         let mut absent = serde_json::json!({"prefabs":[]});
         normalize_previews(&mut absent, &project, "cmd-1").unwrap();
         assert_eq!(absent["previews"], serde_json::json!([]));
 
         let mut other_command = serde_json::json!({"previews":[{"view":"front","path":".vua/previews/cmd-1/front.png"}]});
-        assert_eq!(normalize_previews(&mut other_command, &project, "cmd-2").unwrap_err().code, "vua.amf_production.receipt_invalid");
+        assert_eq!(
+            normalize_previews(&mut other_command, &project, "cmd-2")
+                .unwrap_err()
+                .code,
+            "vua.amf_production.receipt_invalid"
+        );
         for invalid in [
             serde_json::json!({"previews":[{"view":"top","path":".vua/previews/cmd-1/front.png"}]}),
             serde_json::json!({"previews":[{"view":"front","path":".vua/previews/cmd-1/front.png"},{"view":"front","path":".vua/previews/cmd-1/side.png"}]}),
@@ -2020,7 +3362,13 @@ mod tests {
             serde_json::json!({"prefabs":[{"preview":7}]}),
         ] {
             let mut facts = invalid.clone();
-            assert_eq!(normalize_previews(&mut facts, &project, "cmd-1").unwrap_err().code, "vua.amf_production.receipt_invalid", "{invalid}");
+            assert_eq!(
+                normalize_previews(&mut facts, &project, "cmd-1")
+                    .unwrap_err()
+                    .code,
+                "vua.amf_production.receipt_invalid",
+                "{invalid}"
+            );
         }
         std::fs::remove_dir_all(&project).unwrap();
     }
@@ -2033,7 +3381,10 @@ mod tests {
         prune_previews(&project, &[".vua/previews/cmd-1/front.png".into()]);
         assert!(project.join(".vua/previews/cmd-1/front.png").is_file());
         assert!(!project.join(".vua/previews/cmd-0").exists());
-        assert!(project.join(".vua/previews/notes.txt").is_file(), "only folders are pruned");
+        assert!(
+            project.join(".vua/previews/notes.txt").is_file(),
+            "only folders are pruned"
+        );
         prune_previews(&project.join("absent"), &[]);
         std::fs::remove_dir_all(&project).unwrap();
     }
@@ -2041,22 +3392,42 @@ mod tests {
     #[test]
     fn liltoon_materials_name_their_shader() {
         let material = b"Material:\n  m_Name: Tshirt\n  m_Shader: {fileID: 4800000, guid: DF12117ECD77C31469C224178886498E, type: 3}\n  m_Floats:\n    - _lilToonVersion: 44\n";
-        let found = known_packages::detect_material(known_packages::KNOWN_PACKAGES, material).unwrap();
-        assert_eq!(known_packages::KNOWN_PACKAGES[found.package].id, "jp.lilxyzw.liltoon");
-        assert_eq!(found.shader_guid.as_deref(), Some("df12117ecd77c31469c224178886498e"));
+        let found =
+            known_packages::detect_material(known_packages::KNOWN_PACKAGES, material).unwrap();
+        assert_eq!(
+            known_packages::KNOWN_PACKAGES[found.package].id,
+            "jp.lilxyzw.liltoon"
+        );
+        assert_eq!(
+            found.shader_guid.as_deref(),
+            Some("df12117ecd77c31469c224178886498e")
+        );
         assert!(known_packages::detect_material(known_packages::KNOWN_PACKAGES, b"Material:\n  m_Shader: {fileID: 46, guid: 0000000000000000f000000000000000, type: 0}\n").is_none());
     }
 
     #[test]
     fn compiler_failure_reports_deduplicated_diagnostics_without_license_metadata() {
         let diagnostic = "Library/PackageCache/com.unity.xr.oculus@4.2.0/Runtime/FFR.cs(22,20): error CS0103: The name 'Permission' does not exist in the current context";
-        let error = classify_bridge_log("Serial number assigned to: private\nSuccessfully resolved entitlements", &format!("{diagnostic}\n{diagnostic}\nScripts have compiler errors.")).unwrap();
+        let error = classify_bridge_log(
+            "Serial number assigned to: private\nSuccessfully resolved entitlements",
+            &format!("{diagnostic}\n{diagnostic}\nScripts have compiler errors."),
+        )
+        .unwrap();
         assert_eq!(error.code, "vua.amf_production.unity_compile_failed");
         let text = serde_json::to_string(&error).unwrap();
         assert_eq!(text.matches("error CS0103").count(), 1);
         assert!(!text.contains("private"));
-        assert!(classify_bridge_log("Access token is unavailable; failed to update\nSuccessfully resolved entitlements", "Compilation succeeded").is_none());
-        assert_eq!(classify_bridge_log("No valid Unity Editor license found", "").unwrap().code, "vua.amf_production.unity_license_unavailable");
+        assert!(classify_bridge_log(
+            "Access token is unavailable; failed to update\nSuccessfully resolved entitlements",
+            "Compilation succeeded"
+        )
+        .is_none());
+        assert_eq!(
+            classify_bridge_log("No valid Unity Editor license found", "")
+                .unwrap()
+                .code,
+            "vua.amf_production.unity_license_unavailable"
+        );
     }
 
     #[cfg(windows)]
@@ -2067,9 +3438,15 @@ mod tests {
         assert!(reject_editor_lock(&project).is_ok());
         let lock = project.join("Temp/UnityLockfile");
         std::fs::write(&lock, b"").unwrap();
-        assert!(reject_editor_lock(&project).is_ok(), "a crashed run's leftover lock file");
+        assert!(
+            reject_editor_lock(&project).is_ok(),
+            "a crashed run's leftover lock file"
+        );
         let held = std::fs::File::open(&lock).unwrap();
-        assert_eq!(reject_editor_lock(&project).unwrap_err().code, "vua.amf_production.project_open");
+        assert_eq!(
+            reject_editor_lock(&project).unwrap_err().code,
+            "vua.amf_production.project_open"
+        );
         clear_stale_lock(&project);
         assert!(lock.is_file(), "a held lock belongs to a running Editor");
         drop(held);
@@ -2083,17 +3460,27 @@ mod tests {
     #[test]
     fn the_first_import_counts_material_files_and_their_folders() {
         let source = |paths: &[&str]| PreparedSource {
-            source_id: "s".into(), role: SourceRole::Auto, name: "s.unitypackage".into(), item_name: "s".into(),
-            sha256: String::new(), asset_paths: paths.iter().map(|p| (*p).into()).collect(),
+            source_id: "s".into(),
+            role: SourceRole::Auto,
+            name: "s.unitypackage".into(),
+            item_name: "s".into(),
+            sha256: String::new(),
+            asset_paths: paths.iter().map(|p| (*p).into()).collect(),
         };
         let run: ProductionRun = serde_json::from_value(serde_json::json!({
             "schemaVersion":"0.1","runId":"n3-count","phase":"preparing","taskId":"t","editor":{"path":"Unity.exe","version":"2022.3.22f1"},
             "projectRoot":"x","choices":[],"sources":[],"prefabs":[],"projectFingerprint":"","unityFingerprint":"","steps":[],
             "selection":null,"confirmedDigest":null,"result":null,"error":null,"recovery":null})).unwrap();
-        let run = ProductionRun { sources: vec![
-            source(&["Assets/Meiyun/Meiyun.prefab", "Assets/Meiyun/Textures/Body.png"]),
-            source(&["Assets/Meiyun/Textures/Face.png", "Assets/Tshirt.mat"]),
-        ], ..run };
+        let run = ProductionRun {
+            sources: vec![
+                source(&[
+                    "Assets/Meiyun/Meiyun.prefab",
+                    "Assets/Meiyun/Textures/Body.png",
+                ]),
+                source(&["Assets/Meiyun/Textures/Face.png", "Assets/Tshirt.mat"]),
+            ],
+            ..run
+        };
         // Four files, plus Assets/Meiyun and Assets/Meiyun/Textures.
         assert_eq!(imported_asset_count(&run), 6);
     }
@@ -2102,17 +3489,60 @@ mod tests {
     fn a_material_change_retires_only_the_files_the_previous_materials_alone_used() {
         let project = std::env::temp_dir().join(format!("vua-amf-retire-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&project);
-        let file = |relative: &str| { let path = project.join(relative); std::fs::create_dir_all(path.parent().unwrap()).unwrap(); std::fs::write(path, relative).unwrap(); };
-        for relative in ["Assets/Old/Coat.prefab", "Assets/Old/Coat.prefab.meta", "Assets/Old.meta", "Assets/Shared/Body.mat", "Assets/Shared/Body.mat.meta",
-            "Assets/VUA/Production.unity", "Assets/VUA/Ownership.json", "Assets/VUA.meta", "outside.txt"] { file(relative); }
-        let previous = [PreparedSource { source_id: "old".into(), role: SourceRole::Auto, name: "old.unitypackage".into(), item_name: "old".into(), sha256: String::new(),
-            asset_paths: vec!["Assets/Old/Coat.prefab".into(), "Assets/Shared/Body.mat".into(), "../outside.txt".into()] }];
-        let kept = ["Assets/Shared/Body.mat".to_owned(), "Assets/Shared/Body.mat.meta".to_owned()].into_iter().collect();
+        let file = |relative: &str| {
+            let path = project.join(relative);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, relative).unwrap();
+        };
+        for relative in [
+            "Assets/Old/Coat.prefab",
+            "Assets/Old/Coat.prefab.meta",
+            "Assets/Old.meta",
+            "Assets/Shared/Body.mat",
+            "Assets/Shared/Body.mat.meta",
+            "Assets/VUA/Production.unity",
+            "Assets/VUA/Ownership.json",
+            "Assets/VUA.meta",
+            "outside.txt",
+        ] {
+            file(relative);
+        }
+        let previous = [PreparedSource {
+            source_id: "old".into(),
+            role: SourceRole::Auto,
+            name: "old.unitypackage".into(),
+            item_name: "old".into(),
+            sha256: String::new(),
+            asset_paths: vec![
+                "Assets/Old/Coat.prefab".into(),
+                "Assets/Shared/Body.mat".into(),
+                "../outside.txt".into(),
+            ],
+        }];
+        let kept = [
+            "Assets/Shared/Body.mat".to_owned(),
+            "Assets/Shared/Body.mat.meta".to_owned(),
+        ]
+        .into_iter()
+        .collect();
         retire_previous(&project, &previous, &kept).unwrap();
-        assert!(!project.join("Assets/Old").exists() && !project.join("Assets/Old.meta").exists(), "a folder left empty leaves with its metadata");
-        assert!(project.join("Assets/Shared/Body.mat").is_file() && project.join("Assets/Shared/Body.mat.meta").is_file(), "a file the new materials share stays");
-        assert!(!project.join("Assets/VUA").exists() && !project.join("Assets/VUA.meta").exists(), "the work scene starts fresh");
-        assert!(project.join("outside.txt").is_file(), "only Assets paths are touched");
+        assert!(
+            !project.join("Assets/Old").exists() && !project.join("Assets/Old.meta").exists(),
+            "a folder left empty leaves with its metadata"
+        );
+        assert!(
+            project.join("Assets/Shared/Body.mat").is_file()
+                && project.join("Assets/Shared/Body.mat.meta").is_file(),
+            "a file the new materials share stays"
+        );
+        assert!(
+            !project.join("Assets/VUA").exists() && !project.join("Assets/VUA.meta").exists(),
+            "the work scene starts fresh"
+        );
+        assert!(
+            project.join("outside.txt").is_file(),
+            "only Assets paths are touched"
+        );
         std::fs::remove_dir_all(&project).unwrap();
     }
 
@@ -2120,8 +3550,9 @@ mod tests {
     fn bundled_liltoon_copies_are_recognized_by_their_install_folder() {
         let entries = known_packages::legacy_entries(known_packages::KNOWN_PACKAGES, None);
         let liltoon = |path: &str| {
-            known_packages::legacy_owner(&entries, path)
-                .is_some_and(|owner| known_packages::KNOWN_PACKAGES[owner].id == "jp.lilxyzw.liltoon")
+            known_packages::legacy_owner(&entries, path).is_some_and(|owner| {
+                known_packages::KNOWN_PACKAGES[owner].id == "jp.lilxyzw.liltoon"
+            })
         };
         assert!(liltoon("assets/liltoon"));
         assert!(liltoon("assets/liltoon/shader/lts.shader"));
@@ -2134,17 +3565,38 @@ mod tests {
         let folder = std::env::temp_dir().join(format!("vua-amf-open-{}", std::process::id()));
         std::fs::create_dir_all(&folder).unwrap();
         let receipt = folder.join("amf-open.result.json");
-        let answer = |text: &str| { std::fs::write(&receipt, text).unwrap(); open_receipt(&receipt, "n3-open") };
-        assert_eq!(open_receipt(&receipt, "n3-open").unwrap(), None, "no answer yet");
-        assert_eq!(answer(r#"{"schemaVersion":"0.1","runId":"n3-op"#).unwrap(), None, "a half-written answer");
+        let answer = |text: &str| {
+            std::fs::write(&receipt, text).unwrap();
+            open_receipt(&receipt, "n3-open")
+        };
+        assert_eq!(
+            open_receipt(&receipt, "n3-open").unwrap(),
+            None,
+            "no answer yet"
+        );
+        assert_eq!(
+            answer(r#"{"schemaVersion":"0.1","runId":"n3-op"#).unwrap(),
+            None,
+            "a half-written answer"
+        );
         // The MCP round: Unity selected the Avatar, and the panel stayed closed on screen.
         let value = answer(r#"{"schemaVersion":"0.1","runId":"n3-open","avatarSelected":true,"sdkPanelRequested":false}"#).unwrap().unwrap();
         assert_eq!(value["sdkPanelRequested"], false);
         assert!(answer(r#"{"schemaVersion":"0.1","runId":"n3-open","avatarSelected":true,"sdkPanelRequested":true}"#).unwrap().is_some());
-        assert_eq!(answer(r#"{"schemaVersion":"0.1","runId":"n3-open"}"#).unwrap_err().code, "vua.amf_production.sdk_handoff_incomplete");
+        assert_eq!(
+            answer(r#"{"schemaVersion":"0.1","runId":"n3-open"}"#)
+                .unwrap_err()
+                .code,
+            "vua.amf_production.sdk_handoff_incomplete"
+        );
         assert_eq!(answer(r#"{"schemaVersion":"0.1","runId":"n3-open","avatarSelected":false,"sdkPanelRequested":false,"reason":"editor_unavailable"}"#).unwrap_err().code,
             "vua.amf_production.editor_unavailable");
-        assert_eq!(answer(r#"{"schemaVersion":"0.1","runId":"n3-other","avatarSelected":true}"#).unwrap_err().code, "vua.amf_production.open_failed");
+        assert_eq!(
+            answer(r#"{"schemaVersion":"0.1","runId":"n3-other","avatarSelected":true}"#)
+                .unwrap_err()
+                .code,
+            "vua.amf_production.open_failed"
+        );
         std::fs::remove_dir_all(&folder).unwrap();
     }
 
@@ -2157,7 +3609,9 @@ mod tests {
         let entry = project.join("Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.cs");
         std::fs::write(&entry, "// an older Bridge").unwrap();
         assert_eq!(refresh_bridge_package(&project).unwrap(), 1);
-        assert!(std::fs::read_to_string(&entry).unwrap().contains("class AmfProductionEntryPoint"));
+        assert!(std::fs::read_to_string(&entry)
+            .unwrap()
+            .contains("class AmfProductionEntryPoint"));
         assert_eq!(refresh_bridge_package(&project).unwrap(), 0);
         std::fs::remove_dir_all(&project).unwrap();
     }
@@ -2166,24 +3620,55 @@ mod tests {
     fn package_manager_startup_failure_has_its_own_next_step() {
         let tail = "[Package Manager] UpmClient::Connect -- Could not connect to IPC stream \"Upm-17136\" after 30.0 seconds.\n[Package Manager] Failed to start the Unity Package Manager local server process.";
         let error = classify_bridge_log("Serial number assigned to: private", tail).unwrap();
-        assert_eq!(error.code, "vua.amf_production.unity_package_manager_unavailable");
+        assert_eq!(
+            error.code,
+            "vua.amf_production.unity_package_manager_unavailable"
+        );
         assert!(!serde_json::to_string(&error).unwrap().contains("private"));
     }
 
     #[test]
     fn extracted_copies_of_offered_zip_members_are_listed_once() {
         let source = |id: &str, item: &str, name: &str, member: Option<&str>| ProductionSource {
-            source_id: id.into(), item_id: item.into(), item_name: "Meiyun.zip".into(), name: name.into(),
-            product_ids: Vec::new(), path: PathBuf::from("x"), archive_member: member.map(Into::into),
+            source_id: id.into(),
+            item_id: item.into(),
+            item_name: "Meiyun.zip".into(),
+            name: name.into(),
+            product_ids: Vec::new(),
+            path: PathBuf::from("x"),
+            archive_member: member.map(Into::into),
+            sha256: None,
         };
         let kept = drop_expanded_duplicates(vec![
-            source("cpy-whi-1-aaaaaaaaaaaaaaaaaaaaaaaa", "whi-1", "Meiyun/Meiyun.unitypackage", Some("Meiyun/Meiyun.unitypackage")),
-            source("cpy-zip-1-0", "whi-1", "expanded/cpy-whi-1/Meiyun/Meiyun.unitypackage", None),
-            source("cpy-zip-2-0", "whi-2", "expanded/cpy-whi-9/Other.unitypackage", None),
+            source(
+                "cpy-whi-1-aaaaaaaaaaaaaaaaaaaaaaaa",
+                "whi-1",
+                "Meiyun/Meiyun.unitypackage",
+                Some("Meiyun/Meiyun.unitypackage"),
+            ),
+            source(
+                "cpy-zip-1-0",
+                "whi-1",
+                "expanded/cpy-whi-1/Meiyun/Meiyun.unitypackage",
+                None,
+            ),
+            source(
+                "cpy-zip-2-0",
+                "whi-2",
+                "expanded/cpy-whi-9/Other.unitypackage",
+                None,
+            ),
             source("cpy-whi-3", "whi-3", "Direct.unitypackage", None),
         ]);
         let ids: Vec<_> = kept.iter().map(|s| s.source_id.as_str()).collect();
-        assert_eq!(ids, ["cpy-whi-1-aaaaaaaaaaaaaaaaaaaaaaaa", "cpy-zip-2-0", "cpy-whi-3"]);
+        assert_eq!(
+            ids,
+            [
+                "cpy-whi-1-aaaaaaaaaaaaaaaaaaaaaaaa",
+                "cpy-zip-2-0",
+                "cpy-whi-3"
+            ]
+        );
     }
 
     #[test]
@@ -2210,6 +3695,7 @@ mod tests {
         let adapter = NativeAmfProduction {
             bdl: Arc::new(BdlStore::open(root.join("bdl.db")).unwrap()),
             root: root.join("amf"),
+            read_cache: ProductionReadCache::default(),
             editor_roots: vec![],
             explicit_editor: None,
             unity_hub: None,
@@ -2221,6 +3707,7 @@ mod tests {
             name: "PC/衣装.unitypackage".into(),
             product_ids: Vec::new(),
             path: zip_path.clone(),
+            sha256: None,
             archive_member: Some("PC/衣装.unitypackage".into()),
         };
         let extracted = adapter.package_path(&source).unwrap();
@@ -2237,15 +3724,21 @@ mod tests {
         // Parallel preparations of the same ZIP member share one cache publication path.
         let barrier = std::sync::Barrier::new(3);
         std::thread::scope(|scope| {
-            let jobs: Vec<_> = (0..3).map(|_| scope.spawn(|| {
-                barrier.wait();
-                for _ in 0..3 {
-                    let path = adapter.package_path(&source).unwrap();
-                    assert_eq!(path, extracted);
-                    assert_eq!(fs::read(path).unwrap(), b"original source bytes");
-                }
-            })).collect();
-            for job in jobs { job.join().unwrap(); }
+            let jobs: Vec<_> = (0..3)
+                .map(|_| {
+                    scope.spawn(|| {
+                        barrier.wait();
+                        for _ in 0..3 {
+                            let path = adapter.package_path(&source).unwrap();
+                            assert_eq!(path, extracted);
+                            assert_eq!(fs::read(path).unwrap(), b"original source bytes");
+                        }
+                    })
+                })
+                .collect();
+            for job in jobs {
+                job.join().unwrap();
+            }
         });
         assert!(zip_path.is_file());
         drop(adapter);
@@ -2315,18 +3808,29 @@ mod tests {
         }
         std::fs::write(project.join("Assets/Meiyun.prefab"), "avatar\n").unwrap();
         std::fs::write(project.join("Packages/vpm-manifest.json"), "{}\n").unwrap();
-        std::fs::write(project.join("ProjectSettings/ProjectVersion.txt"), "2022.3.22f1\n").unwrap();
+        std::fs::write(
+            project.join("ProjectSettings/ProjectVersion.txt"),
+            "2022.3.22f1\n",
+        )
+        .unwrap();
         let adapter = NativeAmfProduction {
             bdl: Arc::new(BdlStore::open(root.join("bdl.db")).unwrap()),
             root: root.join("amf"),
+            read_cache: ProductionReadCache::default(),
             editor_roots: vec![],
             explicit_editor: None,
             unity_hub: None,
         };
         let cached = AmfProductionPlatform::fingerprint(&adapter, &project).unwrap();
         assert!(cached.starts_with("vua-project-tree-v2:"), "{cached}");
-        assert_eq!(cached, AmfProductionPlatform::fingerprint(&adapter, &project).unwrap());
-        assert!(project.join(".vua/fingerprint-cache.json").is_file(), "the run leaves a cache behind");
+        assert_eq!(
+            cached,
+            AmfProductionPlatform::fingerprint(&adapter, &project).unwrap()
+        );
+        assert!(
+            project.join(".vua/fingerprint-cache.json").is_file(),
+            "the run leaves a cache behind"
+        );
         let legacy = AmfProductionPlatform::fingerprint_legacy(&adapter, &project).unwrap();
         assert_eq!(
             legacy,
@@ -2338,6 +3842,226 @@ mod tests {
             .unwrap(),
             "the legacy value is exactly what older records carry"
         );
+        drop(adapter);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn avatar_optimizer_installs_pinned_version_offline_and_rejects_incompatible_locks() {
+        use std::io::{Read, Write};
+        let root = std::env::temp_dir().join(format!(
+            "vua-amf-aao-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        let project = root.join("work");
+        for scope in ["Assets", "Packages", "ProjectSettings"] {
+            std::fs::create_dir_all(project.join(scope)).unwrap();
+        }
+        std::fs::write(
+            project.join("ProjectSettings/ProjectVersion.txt"),
+            "m_EditorVersion: 2022.3.22f1c1\n",
+        )
+        .unwrap();
+        std::fs::write(
+            project.join("Packages/manifest.json"),
+            include_str!("amf_project_manifest.json"),
+        )
+        .unwrap();
+        FileSystemProjectStore::initialize(&ProjectRef {
+            id: "n3-aao".into(),
+            root: project.clone(),
+        })
+        .unwrap();
+        let adapter = NativeAmfProduction {
+            bdl: Arc::new(BdlStore::open(root.join("bdl.db")).unwrap()),
+            root: root.join("amf"),
+            read_cache: ProductionReadCache::default(),
+            editor_roots: vec![],
+            explicit_editor: None,
+            unity_hub: None,
+        };
+        let run: ProductionRun = serde_json::from_value(serde_json::json!({
+            "schemaVersion": "0.1",
+            "runId": "n3-aao",
+            "phase": "succeeded",
+            "taskId": "task-1",
+            "editor": {"path": "synthetic-editor", "version": "2022.3.22f1c1"},
+            "projectRoot": project.to_string_lossy(),
+            "choices": [],
+            "sources": [],
+            "prefabs": [],
+            "steps": [],
+            "selection": null,
+            "error": null,
+            "recovery": null,
+            "snapshotId": "snap-1",
+            "unityFingerprint": "scene-1",
+            "projectFingerprint": "vua-project-tree-v2:1",
+            "result": null
+        }))
+        .unwrap();
+
+        // Incompatible SDK lock is rejected before any feed lookup.
+        std::fs::write(
+            project.join("Packages/vpm-manifest.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "dependencies": {"com.vrchat.avatars": {"version": "3.11.0"}},
+                "locked": {
+                    "com.vrchat.avatars": {"version": "3.11.0", "dependencies": {}},
+                    "nadena.dev.ndmf": {"version": "1.10.0", "dependencies": {}}
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            adapter
+                .ensure_avatar_optimizer_installed(&run)
+                .unwrap_err()
+                .code,
+            "vua.amf_production.optimizer_incompatible"
+        );
+
+        // Compatible SDK + NDMF installed in the project, plus a local cached feed and archive server.
+        for (pkg, ver) in [
+            ("com.vrchat.avatars", "3.10.5"),
+            ("nadena.dev.ndmf", "1.10.0"),
+        ] {
+            let dir = project.join("Packages").join(pkg);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                dir.join("package.json"),
+                serde_json::to_vec(
+                    &serde_json::json!({"name": pkg, "version": ver, "displayName": pkg}),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        }
+        std::fs::write(
+            project.join("Packages/vpm-manifest.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "dependencies": {"com.vrchat.avatars": {"version": "3.10.5"}},
+                "locked": {
+                    "com.vrchat.avatars": {"version": "3.10.5", "dependencies": {}},
+                    "nadena.dev.ndmf": {"version": "1.10.0", "dependencies": {}}
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let mut zip_bytes = Vec::new();
+        {
+            let mut archive = zip::ZipWriter::new(std::io::Cursor::new(&mut zip_bytes));
+            let opts = zip::write::SimpleFileOptions::default();
+            archive.start_file("package.json", opts).unwrap();
+            archive
+                .write_all(
+                    &serde_json::to_vec(&serde_json::json!({
+                        "name": "com.anatawa12.avatar-optimizer",
+                        "version": "1.9.21",
+                        "displayName": "Avatar Optimizer",
+                        "vpmDependencies": {
+                            "com.vrchat.avatars": ">=3.7.0 <3.11.0-a",
+                            "nadena.dev.ndmf": ">=1.8.0 <2.0.0-a"
+                        }
+                    }))
+                    .unwrap(),
+                )
+                .unwrap();
+            archive.finish().unwrap();
+        }
+        let actual_sha256: String = Sha256::digest(&zip_bytes)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 2048];
+            let _ = stream.read(&mut buf);
+            let header = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                zip_bytes.len()
+            );
+            stream.write_all(header.as_bytes()).unwrap();
+            stream.write_all(&zip_bytes).unwrap();
+        });
+
+        let env_root = adapter.root.join("vpm-environment");
+        let cache_file = env_root.join("Repos").join(format!(
+            "{}.json",
+            vua_orchestrator::fnv1a_hex(known_packages::AVATAR_OPTIMIZER_FEED.as_bytes())
+        ));
+        std::fs::create_dir_all(cache_file.parent().unwrap()).unwrap();
+        std::fs::write(
+            env_root.join("settings.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "ignoreOfficialRepository": true,
+                "ignoreCuratedRepository": true,
+                "userRepos": [{
+                    "id": "com.anatawa12.vpm",
+                    "name": "anatawa12's VPM repository",
+                    "url": known_packages::AVATAR_OPTIMIZER_FEED,
+                    "localPath": cache_file
+                }]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            &cache_file,
+            serde_json::to_vec(&serde_json::json!({
+                "repo": {
+                    "name": "anatawa12's VPM repository",
+                    "id": "com.anatawa12.vpm",
+                    "url": known_packages::AVATAR_OPTIMIZER_FEED,
+                    "packages": {
+                        "com.anatawa12.avatar-optimizer": {
+                            "versions": {
+                                "1.9.21": {
+                                    "name": "com.anatawa12.avatar-optimizer",
+                                    "version": "1.9.21",
+                                    "displayName": "Avatar Optimizer",
+                                    "url": format!("http://{addr}/com.anatawa12.avatar-optimizer-1.9.21.zip"),
+                                    "zipSHA256": actual_sha256,
+                                    "vpmDependencies": {
+                                        "com.vrchat.avatars": ">=3.7.0 <3.11.0-a",
+                                        "nadena.dev.ndmf": ">=1.8.0 <2.0.0-a"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "vrc-get": {"etag": "\"synthetic\""}
+            })).unwrap(),
+        ).unwrap();
+
+        adapter.ensure_avatar_optimizer_installed(&run).unwrap();
+        server.join().unwrap();
+        assert!(project
+            .join("Packages/com.anatawa12.avatar-optimizer/package.json")
+            .is_file());
+        let updated_manifest: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(project.join("Packages/vpm-manifest.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            updated_manifest["locked"]["com.anatawa12.avatar-optimizer"]["version"],
+            "1.9.21"
+        );
+
+        // Second invocation is an offline no-op when 1.9.21 is already installed.
+        adapter.ensure_avatar_optimizer_installed(&run).unwrap();
+
         drop(adapter);
         std::fs::remove_dir_all(&root).unwrap();
     }

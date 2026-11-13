@@ -34,9 +34,7 @@ use std::fs;
 use std::path::Path;
 
 use serde_json::{json, Value};
-use vua_orchestrator::{
-    AppErrorV1, PackageRequestV1, ProjectRef, TemplateEntryV01, VpmBackend,
-};
+use vua_orchestrator::{AppErrorV1, PackageRequestV1, ProjectRef, TemplateEntryV01, VpmBackend};
 
 fn read_repo_json(relative: &str) -> Value {
     // Tests run from the crate directory; the schemas live at the repo root.
@@ -83,7 +81,7 @@ impl VpmBackend for MinimalBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -129,7 +127,7 @@ impl VpmBackend for FakeTemplatesBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -156,7 +154,9 @@ impl VpmBackend for FakeTemplatesBackend {
         unreachable!("not exercised in this suite")
     }
     fn template_capabilities(&self) -> vua_orchestrator::TemplateCapabilities {
-        vua_orchestrator::TemplateCapabilities { list_templates: true }
+        vua_orchestrator::TemplateCapabilities {
+            list_templates: true,
+        }
     }
     fn list_templates(&self) -> Result<Vec<TemplateEntryV01>, AppErrorV1> {
         // Synthetic facts: Avatar exists under BOTH roots and enumerates ONCE
@@ -189,14 +189,22 @@ fn templates_schema_admits_positive_vectors_and_rejects_negative_ones() {
     let request = read_repo_json(
         "schemas/packages-templates/v0.1/examples/packages-list-templates.request.json",
     );
-    assert!(command.is_valid(&request), "{:?}", violations(&command, &request));
+    assert!(
+        command.is_valid(&request),
+        "{:?}",
+        violations(&command, &request)
+    );
 
     for positive in [
         "schemas/packages-templates/v0.1/examples/packages-list-templates.result.json",
         "schemas/packages-templates/v0.1/examples/packages-list-templates-empty.result.json",
     ] {
         let doc = read_repo_json(positive);
-        assert!(result.is_valid(&doc), "{positive}: {:?}", violations(&result, &doc));
+        assert!(
+            result.is_valid(&doc),
+            "{positive}: {:?}",
+            violations(&result, &doc)
+        );
     }
 
     for negative in [
@@ -251,15 +259,16 @@ fn fake_backend_port_facts_project_onto_the_frozen_templates_wire_shape() {
         },
     });
     let validator = result_validator();
-    assert!(validator.is_valid(&envelope), "{:?}", violations(&validator, &envelope));
+    assert!(
+        validator.is_valid(&envelope),
+        "{:?}",
+        violations(&validator, &envelope)
+    );
 
     let rows = envelope["result"]["templates"].as_array().unwrap();
     assert_eq!(rows.len(), 3);
     // id-ascending order — the frozen presentation fact.
-    let ids: Vec<&str> = rows
-        .iter()
-        .map(|row| row["id"].as_str().unwrap())
-        .collect();
+    let ids: Vec<&str> = rows.iter().map(|row| row["id"].as_str().unwrap()).collect();
     let mut sorted = ids.clone();
     sorted.sort();
     assert_eq!(ids, sorted, "rows stay id-ascending");
@@ -267,10 +276,19 @@ fn fake_backend_port_facts_project_onto_the_frozen_templates_wire_shape() {
     // producer contract the JSON Schema cannot express across keys —
     // pinned HERE against the port facts).
     for row in rows {
-        assert_eq!(row["name"], row["id"], "name is the same-value display projection of id");
+        assert_eq!(
+            row["name"], row["id"],
+            "name is the same-value display projection of id"
+        );
     }
     // The deliberate ceiling: no invented metadata/root facts ride this face.
-    for key in ["description", "sourceRoot", "author", "license", "cacheSourced"] {
+    for key in [
+        "description",
+        "sourceRoot",
+        "author",
+        "license",
+        "cacheSourced",
+    ] {
         assert!(
             rows[0].get(key).is_none(),
             "the v0.1 word list carries NO {key} field — never invented"
@@ -294,7 +312,11 @@ fn empty_listing_is_the_honest_zero_templates_answer() {
         },
     });
     let validator = result_validator();
-    assert!(validator.is_valid(&envelope), "{:?}", violations(&validator, &envelope));
+    assert!(
+        validator.is_valid(&envelope),
+        "{:?}",
+        violations(&validator, &envelope)
+    );
     assert_eq!(
         envelope["result"]["templates"].as_array().unwrap().len(),
         0,

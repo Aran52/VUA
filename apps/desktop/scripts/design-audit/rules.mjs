@@ -21,6 +21,7 @@ export const RULES = {
   "one-accent": { severity: "warning", category: "current", attribution: null },
   "target-size": { severity: "error", category: "current", attribution: "size" },
   "overflow": { severity: "error", category: "current", attribution: null },
+  "caption-overlap": { severity: "error", category: "current", attribution: null },
   "radius-nesting": { severity: "warning", category: "current", attribution: null },
   "surface-nesting": { severity: "warning", category: "current", attribution: null },
   "border-density": { severity: "hint", category: "proposed", attribution: null },
@@ -31,7 +32,7 @@ const ACTIVE_RULES_DEFAULT = Object.keys(RULES);
 // Layout rules cannot differ between themes: the same view's light state would
 // duplicate the dark state's findings, so aggregation counts them once (dark).
 export const THEME_INVARIANT_RULES = new Set([
-  "spacing-grid", "type-scale", "type-weight", "radius-token", "radius-nesting",
+  "spacing-grid", "type-scale", "type-weight", "radius-token", "radius-nesting", "caption-overlap",
   "surface-nesting", "target-size", "overflow", "grid-shape",
 ]);
 
@@ -96,6 +97,10 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
   const active = new Set(rules.filter(id => !exemptRules.includes(id)));
   const findings = [];
   const push = finding => { if (active.has(finding.rule)) findings.push(finding); };
+  for (const overlap of snapshot.captionOverlaps ?? []) {
+    push({ rule: "caption-overlap", severity: RULES["caption-overlap"].severity, category: RULES["caption-overlap"].category, tag: "span", cls: ["vua-graph__label"], text: overlap.text,
+      rect: overlap.rect, details: { other: overlap.other }, message: `caption "${overlap.text}" overlaps ${overlap.other}`, property: null, rootCause: "graph caption placement" });
+  }
   const tokens = snapshot.palette ?? [];
   const familiesSeen = { purple: [], orange: [] };
   const indicators = (snapshot.elements ?? []).filter(el => el.selfSurface && !el.hasText && el.rect.h <= 8);
@@ -163,11 +168,13 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
     }
     if (active.has("spacing-grid")) {
       const offenders = [];
-      (el.paddings ?? []).forEach((v, i) => { if (v !== 0 && !passSpacing(v)) offenders.push([`padding-${MARGIN_SIDES[i]}`, v]); });
+      // A scroll frame's edge makes room for the scrollbar, on top of the grid.
+      const onGrid = v => passSpacing(v) || (el.scrollFrame === true && snapshot.scrollbarSize > 0 && passSpacing(Math.abs(v) - snapshot.scrollbarSize));
+      (el.paddings ?? []).forEach((v, i) => { if (v !== 0 && !onGrid(v)) offenders.push([`padding-${MARGIN_SIDES[i]}`, v]); });
       (el.margins ?? []).forEach((v, i) => {
         if (v === 0) return;
         if (el.autoMargins?.[i]) return;
-        if (!passSpacing(v)) offenders.push([`margin-${MARGIN_SIDES[i]}`, v]);
+        if (!onGrid(v)) offenders.push([`margin-${MARGIN_SIDES[i]}`, v]);
       });
       for (const [kind, v] of [["row-gap", el.rowGap], ["column-gap", el.columnGap]]) {
         if (v !== 0 && !passSpacing(v)) offenders.push([kind, v]);

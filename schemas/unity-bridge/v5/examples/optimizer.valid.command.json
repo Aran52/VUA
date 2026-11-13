@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-optimizer",
+  "projectId": "n3-vector",
+  "operation": "amf_optimizer",
+  "dryRun": false,
+  "expectedProjectFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "payload": {
+    "planRef": ".vua/bridge/n3-vector-optimizer.amf-plan.json",
+    "planHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "avatarGlobalObjectId": "",
+    "avatarArmatureGlobalObjectId": "",
+    "outfitGlobalObjectId": "",
+    "outfitArmatureGlobalObjectId": "",
+    "toggleName": ""
+  }
+}

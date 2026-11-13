@@ -189,6 +189,8 @@
   --vua-scene-fps: 30;
 
   /* ---- Layers: the feedback tiers stack in this order; anything that opens from inside a dialog sits above it ---- */
+  /* The scrollbar's room; a page frame that scrolls inside itself leaves this much at its edge. */
+  --vua-scrollbar-size: 10px;
   --vua-z-browser: 500;
   --vua-z-drawer: 600;
   --vua-z-dialog: 800;
@@ -309,3 +311,8 @@
   --vua-purple: #6557d2;
   --vua-orange: #bb4a10;
 }
+
+/* Han characters take different forms per language, so each language names its own UI font. */
+:root:lang(ja) { --vua-font-family: "Segoe UI Variable", "Segoe UI", "Yu Gothic UI", "Meiryo UI", sans-serif; }
+:root:lang(ko) { --vua-font-family: "Segoe UI Variable", "Segoe UI", "Malgun Gothic", sans-serif; }
+:root:lang(zh-TW) { --vua-font-family: "Segoe UI Variable", "Segoe UI", "Microsoft JhengHei UI", sans-serif; }

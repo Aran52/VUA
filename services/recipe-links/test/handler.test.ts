@@ -6,7 +6,7 @@ import { MemoryStore } from "../src/storage.js";
 import { PublishLimiter } from "../src/rate-limit.js";
 import { app, origin, publish, recipe, request, selection, type Receipt } from "./helpers.js";
 
-for (const [name, declaration] of [["selection", selection()], ["Recipe v0.4", recipe("0.4")], ["Recipe v0.5", recipe("0.5")]] as const) {
+for (const [name, declaration] of [["selection", selection()], ["Recipe v0.4", recipe("0.4")], ["Recipe v0.5", recipe("0.5")], ["Recipe v0.6", recipe("0.6")]] as const) {
   test(`${name}: publish, canonical read, material page, cache and withdrawal`, async () => {
     const handler = app();
     const response = await handler(request("/api/shares", "POST", JSON.stringify(declaration)));

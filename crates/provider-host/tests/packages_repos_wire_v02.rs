@@ -28,7 +28,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde_json::{json, Value};
-use vua_orchestrator::{AppErrorV1, PackageRequestV1, ProjectRef, RepoInfoV01, RepoInfoV02, VpmBackend, VpmCapabilities};
+use vua_orchestrator::{
+    AppErrorV1, PackageRequestV1, ProjectRef, RepoInfoV01, RepoInfoV02, VpmBackend, VpmCapabilities,
+};
 use vua_provider_host::provider_host::PACKAGES_REPOS_SCHEMA_VERSION_V02;
 use vua_provider_host::run_provider_host_full;
 
@@ -75,7 +77,7 @@ impl VpmBackend for ReposV02Backend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn catalog_capabilities(&self) -> vua_orchestrator::CatalogCapabilities {
@@ -155,7 +157,7 @@ impl VpmBackend for ReposV01OnlyBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn catalog_capabilities(&self) -> vua_orchestrator::CatalogCapabilities {
@@ -251,7 +253,10 @@ fn a_v02_declaring_backend_answers_the_v02_family_through_list_repos() {
         "packages.listRepos",
         json!({}),
     );
-    assert_eq!(payload["ok"], true, "wired + declared must succeed: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "wired + declared must succeed: {payload}"
+    );
     let value = &payload["value"];
     // The COMMAND face stays byte-for-byte the frozen v0.1 face: the
     // envelope const stays "0.1" — the increment is a result-document fact.
@@ -259,8 +264,7 @@ fn a_v02_declaring_backend_answers_the_v02_family_through_list_repos() {
     assert_eq!(value["operation"], "packages.listRepos");
     let result = &value["result"];
     assert_eq!(
-        result["schemaVersion"],
-        PACKAGES_REPOS_SCHEMA_VERSION_V02,
+        result["schemaVersion"], PACKAGES_REPOS_SCHEMA_VERSION_V02,
         "the stamped family const tells the consumer which word face answered"
     );
     assert_eq!(PACKAGES_REPOS_SCHEMA_VERSION_V02, "vua.packages-repos/v0.2");
@@ -270,13 +274,20 @@ fn a_v02_declaring_backend_answers_the_v02_family_through_list_repos() {
     );
 
     let rows = result["repos"].as_array().expect("repo rows");
-    assert_eq!(rows.len(), 3, "the row order is the backend's subscription-face order");
+    assert_eq!(
+        rows.len(),
+        3,
+        "the row order is the backend's subscription-face order"
+    );
     // The disabled row is LISTED, never hidden — the subscription face
     // keeps showing every subscribed row with its state bit.
     assert_eq!(rows[0]["repoId"], "repo.example.official");
     assert_eq!(rows[0]["enabled"], true);
     assert_eq!(rows[1]["repoId"], "repo.example.community");
-    assert_eq!(rows[1]["enabled"], false, "disabled = subscribed and listed, never resolved");
+    assert_eq!(
+        rows[1]["enabled"], false,
+        "disabled = subscribed and listed, never resolved"
+    );
     // The id-absent row projects enabled:true ALWAYS — outside the toggle
     // faces' reach, true is its honest permanent fact.
     assert_eq!(rows[2]["repoId"], Value::Null);
@@ -323,8 +334,7 @@ fn a_backend_that_never_adopted_v02_keeps_answering_the_v01_family() {
     let value = &payload["value"];
     assert_eq!(value["schemaVersion"], "0.1");
     assert_eq!(
-        value["result"]["schemaVersion"],
-        "vua.packages-repos/v0.1",
+        value["result"]["schemaVersion"], "vua.packages-repos/v0.1",
         "the frozen v0.1 word face keeps being served untouched"
     );
     let rows = value["result"]["repos"].as_array().expect("repo rows");
@@ -333,7 +343,10 @@ fn a_backend_that_never_adopted_v02_keeps_answering_the_v01_family() {
     // The v0.1 row carries NO enabled bit — a v0.1-family stamp with a
     // v0.2-shaped row would be a version-increment violation (the
     // consumer test pins the negative direction).
-    assert!(rows[0].get("enabled").is_none(), "the v0.1 face invents no state bit");
+    assert!(
+        rows[0].get("enabled").is_none(),
+        "the v0.1 face invents no state bit"
+    );
     fs::remove_dir_all(&root).ok();
 }
 

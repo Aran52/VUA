@@ -2612,6 +2612,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
+name = "ruzstd"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69e4ce4a039f42bf25920b95667e4d789e98749ab11bbb8d2c2936f788421bb5"
+
+[[package]]
 name = "rxing"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3063,7 +3069,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -3510,7 +3516,7 @@ dependencies = [
 
 [[package]]
 name = "vua-amf-provider"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "serde_json",
  "vua-bdl-store",
@@ -3538,9 +3544,12 @@ version = "0.1.0"
 dependencies = [
  "cc",
  "ed25519-dalek",
+ "flate2",
+ "getrandom 0.4.3",
  "jsonschema",
  "reqwest",
  "rusqlite",
+ "ruzstd",
  "semver",
  "serde",
  "serde_json",

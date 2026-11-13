@@ -91,12 +91,17 @@ impl World {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let base =
-            std::env::temp_dir().join(format!("vua-catalog-{label}-{}-{nanos}", std::process::id()));
+        let base = std::env::temp_dir().join(format!(
+            "vua-catalog-{label}-{}-{nanos}",
+            std::process::id()
+        ));
         std::fs::create_dir_all(&base).unwrap();
         let database_path = base.join("bdl.sqlite");
         let store = BdlStore::open(&database_path).expect("store opens");
-        Self { database_path, store }
+        Self {
+            database_path,
+            store,
+        }
     }
 
     /// A second connection to the same file-backed store for auxiliary
@@ -141,11 +146,13 @@ fn insert_tombstone(world: &World, product_id: &str) {
 #[test]
 fn w12_empty_table_answers_the_honest_empty_set() {
     let world = World::open("empty");
-    let result = world.store.catalog_list(&CatalogListParams::default()).unwrap();
+    let result = world
+        .store
+        .catalog_list(&CatalogListParams::default())
+        .unwrap();
     assert_eq!(result.total, 0, "no observation rows yet: 空态即终态");
     assert!(result.entries.is_empty());
-    let serialized =
-        enveloped("catalog.list", serde_json::to_value(&result).unwrap());
+    let serialized = enveloped("catalog.list", serde_json::to_value(&result).unwrap());
     assert!(
         result_validator().is_valid(&serialized),
         "even the empty set must match the frozen result shape"
@@ -161,7 +168,10 @@ fn w12_list_vector_params_drive_the_assembly_and_validate() {
 
     // The frozen positive vector parses into the closed-set params.
     let request = current_request_vector("examples/catalog-list.request.json");
-    assert!(query_validator().is_valid(&request), "positive vector validates");
+    assert!(
+        query_validator().is_valid(&request),
+        "positive vector validates"
+    );
     let params = CatalogListParams::from_value(&request["params"]).unwrap();
 
     // `text: "uniform"` matches no fixture productId: the honest total is 0.
@@ -171,7 +181,10 @@ fn w12_list_vector_params_drive_the_assembly_and_validate() {
 
     // Without the text filter both observed rows assemble, productId
     // ascending, and the result validates against the frozen result schema.
-    let unfiltered = CatalogListParams { text: None, ..params.clone() };
+    let unfiltered = CatalogListParams {
+        text: None,
+        ..params.clone()
+    };
     let result = world.store.catalog_list(&unfiltered).unwrap();
     assert_eq!(result.total, 2);
     assert_eq!(
@@ -183,10 +196,12 @@ fn w12_list_vector_params_drive_the_assembly_and_validate() {
         vec!["booth:1000001", "booth:1000002"],
         "entries are ordered by productId ascending"
     );
-    let serialized =
-        enveloped("catalog.list", serde_json::to_value(&result).unwrap());
+    let serialized = enveloped("catalog.list", serde_json::to_value(&result).unwrap());
     let errors = violations(&result_validator(), &serialized);
-    assert!(errors.is_empty(), "assembled list must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "assembled list must validate: {errors:?}"
+    );
 
     // Honest empty presentation shapes until the pipeline observes them.
     let card = &result.entries[0];
@@ -206,7 +221,11 @@ fn w12_pagination_slices_after_the_total() {
     for id in ["booth:1000001", "booth:1000002", "booth:1000003"] {
         seed(&world, id);
     }
-    let params = CatalogListParams { limit: 2, offset: 1, ..CatalogListParams::default() };
+    let params = CatalogListParams {
+        limit: 2,
+        offset: 1,
+        ..CatalogListParams::default()
+    };
     let result: CatalogListResult = world.store.catalog_list(&params).unwrap();
     assert_eq!(result.total, 3, "total is computed before limit/offset");
     assert_eq!(result.entries.len(), 2);
@@ -233,8 +252,14 @@ fn w12_availability_filters_answer_honestly() {
 
     // No row carries a derived available/unavailable status yet: the filter
     // never fabricates a match.
-    for status in [AvailabilityStatus::Available, AvailabilityStatus::Unavailable] {
-        let params = CatalogListParams { availability_status: Some(status), ..Default::default() };
+    for status in [
+        AvailabilityStatus::Available,
+        AvailabilityStatus::Unavailable,
+    ] {
+        let params = CatalogListParams {
+            availability_status: Some(status),
+            ..Default::default()
+        };
         let result = world.store.catalog_list(&params).unwrap();
         assert_eq!(result.total, 0, "{status:?} filter answers the empty set");
         assert!(result.entries.is_empty());
@@ -247,7 +272,10 @@ fn w12_tombstones_are_never_cards() {
     seed(&world, "booth:1000001");
     insert_tombstone(&world, "booth:1000999");
 
-    let result = world.store.catalog_list(&CatalogListParams::default()).unwrap();
+    let result = world
+        .store
+        .catalog_list(&CatalogListParams::default())
+        .unwrap();
     assert_eq!(result.total, 1, "a 404/410 keepsake is not a catalog card");
     assert_eq!(result.entries[0].product_id, "booth:1000001");
     assert_eq!(world.store.catalog_detail("booth:1000999").unwrap(), None);
@@ -259,19 +287,30 @@ fn w12_detail_validates_against_the_frozen_schema() {
     seed(&world, "booth:1000001");
 
     let request = current_request_vector("examples/catalog-detail.request.json");
-    assert!(query_validator().is_valid(&request), "positive vector validates");
+    assert!(
+        query_validator().is_valid(&request),
+        "positive vector validates"
+    );
     let detail = world
         .store
         .catalog_detail("booth:1000001")
         .unwrap()
         .expect("seeded product serves");
 
-    let serialized =
-        enveloped("catalog.detail", serde_json::to_value(&detail).unwrap());
+    let serialized = enveloped("catalog.detail", serde_json::to_value(&detail).unwrap());
     let errors = violations(&result_validator(), &serialized);
-    assert!(errors.is_empty(), "assembled detail must validate: {errors:?}");
-    assert_eq!(serialized["result"]["product"]["productId"], "booth:1000001");
-    assert_eq!(serialized["result"]["product"]["availabilityStatus"], "unknown");
+    assert!(
+        errors.is_empty(),
+        "assembled detail must validate: {errors:?}"
+    );
+    assert_eq!(
+        serialized["result"]["product"]["productId"],
+        "booth:1000001"
+    );
+    assert_eq!(
+        serialized["result"]["product"]["availabilityStatus"],
+        "unknown"
+    );
     assert_eq!(
         serialized["result"]["product"]["adult"], false,
         "adult is only an explicit badge"
@@ -285,15 +324,23 @@ fn w12_status_is_unknown_until_the_pipeline_counter_exists() {
     let world = World::open("status");
 
     let request = current_request_vector("examples/catalog-status.request.json");
-    assert!(query_validator().is_valid(&request), "positive vector validates");
+    assert!(
+        query_validator().is_valid(&request),
+        "positive vector validates"
+    );
 
     let status = world.store.catalog_status().unwrap();
-    let serialized =
-        enveloped("catalog.status", serde_json::to_value(&status).unwrap());
+    let serialized = enveloped("catalog.status", serde_json::to_value(&status).unwrap());
     let errors = violations(&result_validator(), &serialized);
     assert!(errors.is_empty(), "status must validate: {errors:?}");
-    assert_eq!(serialized["result"]["health"], "unknown", "no pipeline bookkeeping yet");
-    assert_eq!(serialized["result"]["revision"]["catalogUpdatedSeq"], Value::Null);
+    assert_eq!(
+        serialized["result"]["health"], "unknown",
+        "no pipeline bookkeeping yet"
+    );
+    assert_eq!(
+        serialized["result"]["revision"]["catalogUpdatedSeq"],
+        Value::Null
+    );
     assert_eq!(
         serialized["result"]["revision"]["datasetRevision"],
         BDL_FORMAT_VERSION
@@ -302,11 +349,13 @@ fn w12_status_is_unknown_until_the_pipeline_counter_exists() {
     // Once the observation pipeline keeps its counter, health turns ok.
     world
         .aux()
-        .execute("INSERT INTO bdl_meta(key, value) VALUES ('catalog_updated_seq', '42')", [])
+        .execute(
+            "INSERT INTO bdl_meta(key, value) VALUES ('catalog_updated_seq', '42')",
+            [],
+        )
         .unwrap();
     let status = world.store.catalog_status().unwrap();
-    let serialized =
-        enveloped("catalog.status", serde_json::to_value(&status).unwrap());
+    let serialized = enveloped("catalog.status", serde_json::to_value(&status).unwrap());
     assert_eq!(serialized["result"]["health"], "ok");
     assert_eq!(serialized["result"]["revision"]["catalogUpdatedSeq"], 42);
     assert!(result_validator().is_valid(&serialized));
@@ -348,27 +397,40 @@ fn bdl_v03_library_type_persists_and_filters() {
         video_urls: vec![],
         subproducts: vec![],
         source_published_at: None,
-        content_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000".to_owned(),
+        content_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+            .to_owned(),
         observed_at: "2026-10-02T00:00:00.000Z".to_owned(),
         run_id: None,
         processor_version: "test".to_owned(),
         missing_fields: vec![],
     };
-    store.record_product_observation(&base("3001", Some("bought"))).unwrap();
-    store.record_product_observation(&base("3002", Some("gifts"))).unwrap();
-    store.record_product_observation(&base("3003", None)).unwrap();
+    store
+        .record_product_observation(&base("3001", Some("bought")))
+        .unwrap();
+    store
+        .record_product_observation(&base("3002", Some("gifts")))
+        .unwrap();
+    store
+        .record_product_observation(&base("3003", None))
+        .unwrap();
 
     let all = store.catalog_list(&CatalogListParams::default()).unwrap();
     assert_eq!(all.total, 3);
     let gifts = store
-        .catalog_list(&CatalogListParams { library_type: Some("gifts".into()), ..Default::default() })
+        .catalog_list(&CatalogListParams {
+            library_type: Some("gifts".into()),
+            ..Default::default()
+        })
         .unwrap();
     assert_eq!(gifts.total, 1);
     assert_eq!(gifts.entries[0].product_id, "booth:3002");
     assert_eq!(gifts.entries[0].library_type.as_deref(), Some("gifts"));
     // NULL 行只在无筛选时可见
     let bought = store
-        .catalog_list(&CatalogListParams { library_type: Some("bought".into()), ..Default::default() })
+        .catalog_list(&CatalogListParams {
+            library_type: Some("bought".into()),
+            ..Default::default()
+        })
         .unwrap();
     assert_eq!(bought.total, 1);
 
@@ -420,30 +482,75 @@ fn d2_imported_artifacts_count_rides_the_catalog_entries() {
 
     // 未关联:0(仅云端)
     let list = store.catalog_list(&CatalogListParams::default()).unwrap();
-    let e: Vec<_> = list.entries.iter().map(|x| (x.product_id.as_str(), x.imported_artifacts)).collect();
+    let e: Vec<_> = list
+        .entries
+        .iter()
+        .map(|x| (x.product_id.as_str(), x.imported_artifacts))
+        .collect();
     assert!(e.contains(&("booth:4001", 0)));
 
     // 关联一个工件 → importedArtifacts = 1
-    let item = store.create_warehouse_item("D2 artifact", "imported_material", "2026-10-03T00:00:00.000Z").unwrap();
-    let recording = store
-        .record_untrusted_artifact(&vua_bdl_store::NewLocalArtifact {
-            artifact_sha256: "sha256:d2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_owned(),
-            size_bytes: 10,
-            suggested_file_name: Some("x.unitypackage".to_owned()),
-            download_id: None,
-            first_seen_at: "2026-10-03T00:00:00.000Z".to_owned(),
-        })
+    let item = store
+        .create_warehouse_item(
+            "D2 artifact",
+            "imported_material",
+            "2026-10-03T00:00:00.000Z",
+        )
         .unwrap();
-    let _ = store.record_artifact_copy(&item.warehouse_item_id, &recording.artifact.artifact_sha256, "x.unitypackage", "C:/x", vua_bdl_store::CopyRole::Original, "2026-10-03T00:00:00.000Z");
-    store.record_artifact_mapping(&recording.artifact.artifact_sha256, "booth:4001", None, Some("download_adoption"), "2026-10-03T00:00:00.000Z").unwrap();
+    let recording =
+        store
+            .record_untrusted_artifact(&vua_bdl_store::NewLocalArtifact {
+                artifact_sha256:
+                    "sha256:d2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                        .to_owned(),
+                size_bytes: 10,
+                suggested_file_name: Some("x.unitypackage".to_owned()),
+                download_id: None,
+                first_seen_at: "2026-10-03T00:00:00.000Z".to_owned(),
+            })
+            .unwrap();
+    let _ = store.record_artifact_copy(
+        &item.warehouse_item_id,
+        &recording.artifact.artifact_sha256,
+        "x.unitypackage",
+        "C:/x",
+        vua_bdl_store::CopyRole::Original,
+        "2026-10-03T00:00:00.000Z",
+    );
+    store
+        .record_artifact_mapping(
+            &recording.artifact.artifact_sha256,
+            "booth:4001",
+            None,
+            Some("download_adoption"),
+            "2026-10-03T00:00:00.000Z",
+        )
+        .unwrap();
 
     let list2 = store.catalog_list(&CatalogListParams::default()).unwrap();
-    let m: std::collections::HashMap<_, _> = list2.entries.iter().map(|x| (x.product_id.as_str(), x.imported_artifacts)).collect();
+    let m: std::collections::HashMap<_, _> = list2
+        .entries
+        .iter()
+        .map(|x| (x.product_id.as_str(), x.imported_artifacts))
+        .collect();
     assert_eq!(m["booth:4001"], 1, "correlated product counts its artifact");
     assert_eq!(m["booth:4002"], 0, "uncorrelated stays cloud-only");
     // The entry finds its product the same way, for terms checks on production sources.
-    assert_eq!(store.product_ids_for_warehouse_item(&item.warehouse_item_id).unwrap(), ["booth:4001"]);
-    assert_eq!(store.warehouse_item_ids_for_product("booth:4001").unwrap(), vec![item.warehouse_item_id.clone()]);
-    let unmapped = store.create_warehouse_item("D2 other", "imported_material", "2026-10-03T00:00:00.000Z").unwrap();
-    assert!(store.product_ids_for_warehouse_item(&unmapped.warehouse_item_id).unwrap().is_empty());
+    assert_eq!(
+        store
+            .product_ids_for_warehouse_item(&item.warehouse_item_id)
+            .unwrap(),
+        ["booth:4001"]
+    );
+    assert_eq!(
+        store.warehouse_item_ids_for_product("booth:4001").unwrap(),
+        vec![item.warehouse_item_id.clone()]
+    );
+    let unmapped = store
+        .create_warehouse_item("D2 other", "imported_material", "2026-10-03T00:00:00.000Z")
+        .unwrap();
+    assert!(store
+        .product_ids_for_warehouse_item(&unmapped.warehouse_item_id)
+        .unwrap()
+        .is_empty());
 }

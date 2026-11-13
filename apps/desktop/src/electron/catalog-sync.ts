@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import {
-  isCatalogSyncPageResultV03, isCatalogSyncSnapshotV03,
-  type CatalogLibraryType, type CatalogSyncBeginV03, type CatalogSyncFinishV03,
+  isCatalogOrdersPageResultV01, isCatalogOrdersUrl, isCatalogSyncPageResultV03, isCatalogSyncSnapshotV03,
+  type CatalogLibraryType, type CatalogOrdersPageV01, type CatalogSyncBeginV03, type CatalogSyncFinishV03,
   type CatalogSyncPageV03, type CatalogSyncSnapshotV03,
 } from "@vua/contracts";
 
 export const CATALOG_SYNC_DEFAULT_START_URL = "https://accounts.booth.pm/library?page=1";
+export const CATALOG_SYNC_ORDERS_URL = "https://accounts.booth.pm/orders";
 export interface CatalogSyncFetchOutcome { readonly status: number; readonly body: string; readonly finalUrl: string }
 export type CatalogSyncFetch = (url: string, signal: AbortSignal) => Promise<CatalogSyncFetchOutcome>;
 export interface CatalogSyncInvokeResult { readonly ok: boolean; readonly value?: unknown; readonly error?: { readonly code?: string } }
@@ -15,6 +16,8 @@ export interface CatalogSyncRunnerOptions {
   readonly begin: (params: CatalogSyncBeginV03) => Promise<CatalogSyncInvokeResult>;
   readonly invoke: CatalogSyncInvoke;
   readonly finish: (params: CatalogSyncFinishV03) => Promise<CatalogSyncInvokeResult>;
+  /** Bought products' times come from the purchase history; a run without this only reads libraries. */
+  readonly ingestOrders?: (params: CatalogOrdersPageV01) => Promise<CatalogSyncInvokeResult>;
   readonly pageDelayMs?: number;
   readonly maxPages?: number;
   readonly now?: () => Date;
@@ -55,6 +58,13 @@ function nextLibraryUrl(raw: string, current: string, kind: CatalogLibraryType):
     return url.origin === "https://accounts.booth.pm" && url.pathname === path
       && url.username === "" && url.password === "" && url.hash === ""
       && /^\?page=[1-9][0-9]*$/.test(url.search) ? url.href : null;
+  } catch { return null; }
+}
+
+function nextOrdersUrl(raw: string, current: string): string | null {
+  try {
+    const url = new URL(raw, current);
+    return isCatalogOrdersUrl(url.href) ? url.href : null;
   } catch { return null; }
 }
 
@@ -138,7 +148,28 @@ export function startCatalogSync(options: CatalogSyncRunnerOptions, start?: {
       }
     }
     nextPageUrl = null;
+    await readOrders();
     return { ...facts(), status: "completed" };
+  }
+
+  /** The library sync stands whatever happens here: order times are a convenience, kept until a later sync reads them. */
+  async function readOrders(): Promise<void> {
+    const ingest = options.ingestOrders;
+    if (ingest === undefined || !segments.some((segment) => segment.libraryType === "bought")) return;
+    const seen = new Set<string>();
+    let url: string | null = CATALOG_SYNC_ORDERS_URL;
+    while (url !== null && !seen.has(url) && seen.size < maxPages) {
+      seen.add(url);
+      await sleep(options.pageDelayMs ?? 1_500, abort.signal);
+      if (abort.signal.aborted) return;
+      let fetched: CatalogSyncFetchOutcome;
+      try { fetched = await options.fetch(url, AbortSignal.any([abort.signal, AbortSignal.timeout(30_000)])); } catch { return; }
+      if (abort.signal.aborted || fetched.status !== 200 || isSignInPage(fetched.body)) return;
+      let response: CatalogSyncInvokeResult;
+      try { response = await ingest({ schemaVersion: "0.1", sourceUrl: url, html: fetched.body }); } catch { return; }
+      if (!response.ok || !isCatalogOrdersPageResultV01(response.value) || response.value.sourceUrl !== url) return;
+      url = response.value.nextPageUrl === null ? null : nextOrdersUrl(response.value.nextPageUrl, url);
+    }
   }
 
   return { runId, ready, result, stop: () => abort.abort() };

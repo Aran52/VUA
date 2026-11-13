@@ -1,4 +1,6 @@
 import { recipeTransferText } from "./amf-recipe-transfer.js";
+import { createCatalogEnricher, readCatalogProduct, type CatalogEnricher, type CatalogProductReader } from "./catalog-enrich.js";
+import { isCatalogProductIdV01, isCatalogEnrichmentQueueResultV01, isCatalogEnrichmentBeginResultV01 } from "@vua/contracts";
 import { registerRecipeSharing, queueShareLink } from "./recipe-share-ipc.js";
 import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
 import { quitStrings, runningTaskCount } from "./quit-guard.js";
@@ -13,6 +15,7 @@ import path from "node:path";
 import type {
   ApplicationEventV01,
   CatalogSyncBeginV03,
+  CatalogOrdersPageV01,
   CatalogSyncFinishV03,
   CatalogSyncPageV03,
   DownloadEventV01,
@@ -28,7 +31,7 @@ import type {
   RemoteContentViewStateV1,
   AiConnectionLocale,
 } from "@vua/contracts";
-import { APPLICATION_CONTRACT_VERSION, DESKTOP_BROWSER_SITES_V1, desktopBrowserSite, desktopBrowserDisplayUrl, isDesktopBrowserViewportV1, accountGuideDestination, isGameWindowObservationResult, isLibraryDownloadParamsV01, isLibraryDownloadSnapshotV01, isAiUploadConfirmationV01 } from "@vua/contracts";
+import { APPLICATION_CONTRACT_VERSION, DESKTOP_BROWSER_SITES_V1, desktopBrowserSite, desktopBrowserDisplayUrl, isDesktopBrowserViewportV1, accountGuideDestination, isGameWindowObservationResult, isLibraryDownloadParamsV01, isLibraryDownloadSnapshotV01, isAiUploadConfirmationV01, isGuideContentIdV01 } from "@vua/contracts";
 import type { OrchestratorProviderV01 } from "@vua/orchestrator-provider";
 import { routeDesktopGatewayInvoke, type DesktopGatewayRouteContext } from "./gateway-router.js";
 import { vrchatSession, writeSdkSessionFile, type VrchatSessionService } from "./vrchat-session.js";
@@ -122,6 +125,7 @@ import { UpdatePlanUpdater } from "./update-plan-updater.js";
 import { AmfGenerations } from "./amf-generations.js";
 import { AmfHotUpdater } from "./amf-hot-updater.js";
 import { createToolLogos, isToolLogoId } from "./tool-logos.js";
+import { GuideContentService, resolveAllowedGuideBaseUrl } from "./guide-content.js";
 
 function localWindowWebPreferences(preload: string) {
   return {
@@ -167,16 +171,77 @@ let mainWindow: BrowserWindow | null = null;
 let aiTools: AiToolsServer | null = null;
 /** Experimental VRChat sign-in (vrchat-session v0.1), held by Electron Main. */
 let vrchatService: VrchatSessionService | null = null;
+const SPLASH_VISIBLE_MS = 1_760;
+const SPLASH_FLATTENED_HOLD_MS = 320;
 let startupWindow: BrowserWindow | null = null;
+let startupWindowCreatedAt: number | null = null;
+let startupWindowShownAt: number | null = null;
 let startupFallback: ReturnType<typeof setTimeout> | null = null;
+let startupHoldTimer: ReturnType<typeof setTimeout> | null = null;
+let startupCompletion: Promise<void> | null = null;
 
-function completeStartup(): void {
-  if (startupWindow === null) return;
+function finalizeStartupHandoff(): void {
+  if (startupHoldTimer !== null) clearTimeout(startupHoldTimer);
+  startupHoldTimer = null;
   if (startupFallback !== null) clearTimeout(startupFallback);
   startupFallback = null;
-  if (mainWindow !== null && !mainWindow.isDestroyed()) mainWindow.show();
-  if (!startupWindow.isDestroyed()) startupWindow.destroy();
+  if (startupWindow === null) return;
+  const splash = startupWindow;
   startupWindow = null;
+  const revealMain = () => {
+    if (mainWindow !== null && !mainWindow.isDestroyed()) mainWindow.show();
+    if (!splash.isDestroyed()) splash.destroy();
+  };
+  if (mainWindow !== null && !mainWindow.isDestroyed() && mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.once("did-finish-load", revealMain);
+  } else {
+    revealMain();
+  }
+}
+
+function completeStartup(flattened = false): Promise<void> {
+  const splash = startupWindow;
+  if (splash === null) return Promise.resolve();
+  if (startupCompletion !== null) return startupCompletion;
+  if (startupFallback !== null) clearTimeout(startupFallback);
+  startupFallback = null;
+  const budgetMs = flattened ? SPLASH_FLATTENED_HOLD_MS : SPLASH_VISIBLE_MS;
+  startupCompletion = new Promise<void>(resolve => {
+    const scheduleFromAnchor = () => {
+      if (startupWindow === null) {
+        startupCompletion = null;
+        resolve();
+        return;
+      }
+      const anchor = startupWindowShownAt ?? startupWindowCreatedAt ?? performance.now();
+      const remainingMs = Math.max(0, Math.ceil(budgetMs - (performance.now() - anchor)));
+      if (remainingMs === 0) {
+        startupCompletion = null;
+        finalizeStartupHandoff();
+        resolve();
+        return;
+      }
+      startupHoldTimer = setTimeout(() => {
+        startupCompletion = null;
+        finalizeStartupHandoff();
+        resolve();
+      }, remainingMs);
+    };
+    if (startupWindowShownAt !== null || splash.isDestroyed()) {
+      scheduleFromAnchor();
+    } else {
+      let settled = false;
+      const onceShown = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(waitCap);
+        scheduleFromAnchor();
+      };
+      const waitCap = setTimeout(onceShown, 300);
+      splash.once("ready-to-show", onceShown);
+    }
+  });
+  return startupCompletion;
 }
 let systemTray: ReturnType<typeof createVuaTray> | null = null;
 let shellListening = false;
@@ -200,6 +265,59 @@ let downloadPort: DownloadPort | null = null;
 let silentDownloadQueue: ReturnType<typeof createSilentDownloadQueue> | null = null;
 // 账号库同步当前运行(N5 S1):单并发守卫的持有位;结果落 provider 任务面
 let catalogSyncRun: CatalogSyncRun | null = null;
+let catalogEnricher: CatalogEnricher | null = null;
+let catalogProductReads = 0;
+let catalogSearchRunning = false;
+const catalogProductRequests = new Set<AbortController>();
+
+const catalogRequestBase = () => ({ contractVersion: APPLICATION_CONTRACT_VERSION,
+  requestId: crypto.randomUUID(), correlationId: crypto.randomUUID() } as const);
+function catalogProductReader(): CatalogProductReader {
+  return {
+    fetch: (url, signal) => {
+      if (remoteContent === null || !provider?.amfReady()) return Promise.reject(new Error("catalog_unavailable"));
+      return remoteContent.fetchWithSession(url, signal);
+    },
+    observe: async params => {
+      if (!provider?.amfReady()) throw new Error("catalog_unavailable");
+      return provider.invoke({ ...catalogRequestBase(), kind: "command", commandId: crypto.randomUUID(), method: "catalog.observeProduct", params });
+    },
+    observeLegacyHtml: async params => {
+      if (!provider?.amfReady() || params.format !== "html") return false;
+      const response = await provider.invoke({ ...catalogRequestBase(), kind: "command", commandId: crypto.randomUUID(), method: "catalog.ingestLibraryPage",
+        params: { schemaVersion: "0.2", sourceUrl: params.sourceUrl, html: params.body, fetchedAt: params.fetchedAt } });
+      return response.ok && "upsertedCount" in response.value && response.value.upsertedCount === 1
+        && "parsedCount" in response.value && response.value.parsedCount === 1;
+    },
+  };
+}
+function ensureCatalogEnricher(): void {
+  catalogEnricher ??= createCatalogEnricher({
+    canRun: () => !shutdownStarted && provider?.amfReady() === true && remoteContent !== null
+      && catalogSyncRun === null && catalogProductReads === 0 && !catalogSearchRunning && (silentDownloadQueue?.pending() ?? 0) === 0
+      && downloadPort?.hasActiveTransfers() !== true && amfIngestSink?.pending() !== true,
+    queue: async limit => {
+      if (!provider?.amfReady()) throw new Error("catalog_unavailable");
+      const response = await provider.invoke({ ...catalogRequestBase(), kind: "query", method: "catalog.enrichmentQueue", params: { schemaVersion: "0.1", limit } });
+      if (!response.ok || !isCatalogEnrichmentQueueResultV01(response.value)) throw new Error("catalog_enrichment_unavailable");
+      return response.value.productIds;
+    },
+    claim: async productId => {
+      if (!provider?.amfReady()) throw new Error("catalog_unavailable");
+      const response = await provider.invoke({ ...catalogRequestBase(), kind: "command", commandId: crypto.randomUUID(), method: "catalog.beginEnrichment", params: { schemaVersion: "0.1", productId } });
+      if (!response.ok || !isCatalogEnrichmentBeginResultV01(response.value) || response.value.productId !== productId) throw new Error("catalog_enrichment_unavailable");
+      return response.value.claimed;
+    },
+    read: (productId, signal, beforeRead) => readCatalogProduct(productId, catalogProductReader(), signal, beforeRead),
+    refreshed: updated => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed() && isAllowedLocalSender(window.webContents.getURL(), rendererUrl))
+          window.webContents.send("vua:catalog-sync:enriched", { schemaVersion: "0.1", updated });
+      }
+    },
+  });
+  catalogEnricher.scheduleIdle();
+}
 // 最近一次同步运行的终态事实(任务前失败可见性,真机 2026-10-05):首页就
 // 失败的运行在 provider 侧不产生任务,通知中心/任务轮询永远等不到——此处
 // 记下终态码,probe 面据此让渲染层把「已开始」翻成失败提示
@@ -456,7 +574,7 @@ function vrchatRouteFace(host: ModuleProvider): NonNullable<DesktopGatewayRouteC
 }
 
 function registerIpc(provider: ModuleProvider): void {
-  registerRecipeSharing({provider,root:amfDataRoot,assertReady:assertAmfReady,assertSender:event=>assertLocalSender(senderFrameUrl(event)),window:()=>mainWindow});
+  const recipeSharingIpc = registerRecipeSharing({provider,root:amfDataRoot,assertReady:assertAmfReady,assertSender:event=>assertLocalSender(senderFrameUrl(event)),window:()=>mainWindow});
   // Pairing and approval are restricted to the local Main frame; overlays and
   // embedded websites cannot read a token or approve an Agent's proposed write.
   const assertAiSender = (event: Electron.IpcMainInvokeEvent) => {
@@ -563,6 +681,20 @@ function registerIpc(provider: ModuleProvider): void {
     if (!isToolLogoId(id)) throw new Error("invalid tool logo request");
     return toolLogos(id);
   });
+  const guideBaseUrlOverride = app.commandLine.hasSwitch("vua-guide-base-url")
+    ? app.commandLine.getSwitchValue("vua-guide-base-url")
+    : undefined;
+  const guideContent = new GuideContentService({
+    userDataRoot: app.getPath("userData"),
+    clientVersion: app.getVersion(),
+    baseUrl: resolveAllowedGuideBaseUrl(guideBaseUrlOverride, app.commandLine.hasSwitch("vua-smoke-test")),
+    fetchImpl: (url, init) => net.fetch(url, init),
+  });
+  ipcMain.handle("vua:guide-content:read", (event, id: unknown) => {
+    assertLocalSender(senderFrameUrl(event));
+    if (!isGuideContentIdV01(id)) throw new Error("invalid_guide_id");
+    return guideContent.read(id);
+  });
   ipcMain.handle("vua:amf-module:snapshot", (event) => {
     assertLocalSender(senderFrameUrl(event));
     return provider.moduleSnapshot();
@@ -583,7 +715,7 @@ function registerIpc(provider: ModuleProvider): void {
       platform: process.platform as "win32" | "darwin" | "linux",
       rendererUrl,
       resolveMaterialSource: resolveProductionContext,
-      launchAmfEditor: runId => launchAmfEditor(provider, runId),
+      launchAmfEditor: (runId, taskId) => launchAmfEditor(provider, runId, taskId),
       vrchat: vrchatRouteFace(provider),
     },
     senderFrameUrl(event),
@@ -780,10 +912,10 @@ function registerIpc(provider: ModuleProvider): void {
     return createFsDirectory(parentPath, name);
   });
 
-  ipcMain.handle("vua:startup:complete", event => {
+  ipcMain.handle("vua:startup:complete", (event, flattened: unknown) => {
     assertLocalSender(senderFrameUrl(event));
     if (mainWindow === null || event.sender !== mainWindow.webContents || event.senderFrame !== event.sender.mainFrame) throw new Error("startup completion requires the main frame");
-    completeStartup();
+    return completeStartup(flattened === true);
   });
   ipcMain.handle("vua:window:minimize", (event) => {
     assertLocalSender(senderFrameUrl(event));
@@ -996,11 +1128,15 @@ function registerIpc(provider: ModuleProvider): void {
     }));
     assertAmfReady();
     // A folder already contains its explicitly dropped descendants; copy them once.
-    return sources.filter(source => !sources.some(parent => {
+    const filtered = sources.filter(source => !sources.some(parent => {
       if (!parent.directory || parent === source) return false;
       const relative = path.relative(parent.value, source.value);
       return relative !== "" && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
-    })).map(source => source.value);
+    }));
+    if (filtered.length === 1 && !filtered[0]!.directory && /\.(png|jpe?g|gif|webp)$/iu.test(filtered[0]!.value)) {
+      if (await recipeSharingIpc.tryQueueDroppedImage(filtered[0]!.value)) return [];
+    }
+    return filtered.map(source => source.value);
   });
   ipcMain.handle("vua:desktop-browser:open", async (event, siteId: unknown) => {
     assertBrowserSender(event);
@@ -1083,7 +1219,8 @@ function registerIpc(provider: ModuleProvider): void {
   ipcMain.handle("vua:remote-content:sign-in-hint", (event) => {
     assertLocalSender(senderFrameUrl(event));
     assertAmfReady();
-    return remoteContent!.signInHint();
+    if (remoteContent === null) return "unknown";
+    return remoteContent.signInHint();
   });
   // 真实登录判定(2026-10-05,登录浏览器轮询用):抓一次已购库首页按内容
   // 识别登录页——与同步启动门同一判据;探测异常恒 false,不冒充已登录。
@@ -1151,6 +1288,7 @@ function registerIpc(provider: ModuleProvider): void {
       | { readonly method: "catalog.beginLibrarySync"; readonly params: CatalogSyncBeginV03 }
       | { readonly method: "catalog.ingestLibraryPage"; readonly params: CatalogSyncPageV03 }
       | { readonly method: "catalog.finishLibrarySync"; readonly params: CatalogSyncFinishV03 }
+      | { readonly method: "catalog.ingestOrdersPage"; readonly params: CatalogOrdersPageV01 }
     ) => {
       if (provider === null) {
         return Promise.reject(new Error("provider is not running"));
@@ -1170,12 +1308,18 @@ function registerIpc(provider: ModuleProvider): void {
             : { ok: false as const, error: { code: response.error.code } },
         );
     };
+    catalogEnricher?.pause();
     const run = startCatalogSync(
       {
-        fetch: (url, signal) => content.fetchWithSession(url, signal),
+        fetch: async (url, signal) => {
+          catalogEnricher?.noteRead();
+          try { return await content.fetchWithSession(url, signal); }
+          finally { catalogEnricher?.noteRead(); }
+        },
         begin: (params) => invokeCatalogSync({ method: "catalog.beginLibrarySync", params }),
         invoke: (params) => invokeCatalogSync({ method: "catalog.ingestLibraryPage", params }),
         finish: (params) => invokeCatalogSync({ method: "catalog.finishLibrarySync", params }),
+        ingestOrders: (params) => invokeCatalogSync({ method: "catalog.ingestOrdersPage", params }),
       },
       { segments },
     );
@@ -1194,6 +1338,8 @@ function registerIpc(provider: ModuleProvider): void {
     );
     void run.result.finally(() => {
       if (catalogSyncRun === run) catalogSyncRun = null;
+      if (catalogSyncLastTerminal?.runId === run.runId && catalogSyncLastTerminal.code === null)
+        void catalogEnricher?.afterSync();
     });
     await run.ready;
     return { status: "started", runId: run.runId };
@@ -1227,6 +1373,7 @@ function registerIpc(provider: ModuleProvider): void {
       if (!isLibraryDownloadSnapshotV01(response.value) || response.value.batchId !== batchId || response.value.state !== "running"
         || response.value.productId !== beginParams.productId || response.value.files.length !== beginParams.downloadableIds.length
         || response.value.files.some((file) => !beginParams.downloadableIds.includes(file.downloadableId))) throw new Error("library download receipt unconfirmed");
+      catalogEnricher?.pause();
       const accepted = queue.enqueue({ batchId, productId: response.value.productId, downloadableIds: response.value.files.map((file) => file.downloadableId) });
       if (accepted === 0) {
         for (const file of response.value.files) {
@@ -1260,58 +1407,49 @@ function registerIpc(provider: ModuleProvider): void {
       assertLocalSender(senderFrameUrl(event));
       assertAmfReady();
       if (remoteContent === null) throw new Error("remote content is unavailable");
-      if (typeof productId !== "string" || !/^booth:[0-9]+$/.test(productId)) {
+      if (!isCatalogProductIdV01(productId)) {
         throw new Error("invalid product id");
       }
-      const nativeId = productId.slice("booth:".length);
-      const url = `https://booth.pm/zh-cn/items/${nativeId}`;
-      const providerRef = provider;
-      if (providerRef === null) return { ok: false };
+      catalogProductReads += 1;
+      const abort = new AbortController(); catalogProductRequests.add(abort);
+      catalogEnricher?.pause();
+      catalogEnricher?.noteRead();
       try {
-        const outcome = await remoteContent.fetchWithSession(url, AbortSignal.timeout(30_000));
-        const finalPage = new URL(outcome.finalUrl);
-        if (outcome.status !== 200 || finalPage.protocol !== "https:"
-          || !(finalPage.hostname === "booth.pm" || finalPage.hostname.endsWith(".booth.pm"))
-          || /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?items\/([0-9]+)\/?$/i.exec(finalPage.pathname)?.[1] !== nativeId) return { ok: false };
-        const result = await providerRef
-          .invoke({
-            contractVersion: APPLICATION_CONTRACT_VERSION,
-            requestId: crypto.randomUUID(),
-            correlationId: crypto.randomUUID(),
-            commandId: crypto.randomUUID(),
-            kind: "command",
-            method: "catalog.ingestLibraryPage",
-            params: {
-              schemaVersion: "0.2",
-              sourceUrl: url,
-              html: outcome.body,
-              fetchedAt: new Date().toISOString(),
-            },
-          })
-          .then((r) => (r.ok ? { ok: true as const } : { ok: false as const }));
-        return result;
+        return { ok: await readCatalogProduct(productId, catalogProductReader(), AbortSignal.any([abort.signal, AbortSignal.timeout(60_000)])) === "updated" };
       } catch {
         return { ok: false };
+      } finally {
+        catalogProductReads -= 1;
+        catalogProductRequests.delete(abort);
+        catalogEnricher?.noteRead();
+        catalogEnricher?.scheduleIdle();
       }
     },
   );
 
-  let searchRunning = false;
   let lastSearchAt = 0;
   ipcMain.handle("vua:catalog-sync:search-products", async (event, query: unknown) => {
     assertLocalSender(senderFrameUrl(event)); assertAmfReady();
     const remote = remoteContent; const current = provider;
-    if (remote === null || current === null || searchRunning) throw new Error("search_unavailable");
-    searchRunning = true;
+    if (remote === null || current === null || catalogSearchRunning) throw new Error("search_unavailable");
+    catalogSearchRunning = true;
+    catalogEnricher?.pause();
     try {
       const wait = 1500 - (Date.now() - lastSearchAt);
       if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
       assertAmfReady(); lastSearchAt = Date.now();
+      catalogEnricher?.noteRead();
       return await searchPublicBoothProducts(query, {
-        fetch: url => remote.fetchWithSession(url, AbortSignal.timeout(30_000)),
+        fetch: async url => {
+          try { return await remote.fetchWithSession(url, AbortSignal.timeout(30_000)); }
+          finally { catalogEnricher?.noteRead(); }
+        },
         parse: params => current.invoke({ contractVersion: APPLICATION_CONTRACT_VERSION, requestId: crypto.randomUUID(), correlationId: crypto.randomUUID(), kind: "query", method: "catalog.searchProducts", params }),
       });
-    } finally { searchRunning = false; }
+    } finally {
+      catalogSearchRunning = false;
+      catalogEnricher?.scheduleIdle();
+    }
   });
   ipcMain.handle("vua:silent-download:control", (event, batchId: unknown, paused: unknown) => {
     assertLocalSender(senderFrameUrl(event)); assertAmfReady();
@@ -1765,17 +1903,16 @@ async function createWindow(): Promise<void> {
   installLocalContentNavigationPolicy(mainWindow.webContents, {
     rendererUrl,
     allowedOrigins: ["https://booth.pm"],
-    // 延迟读取模块变量:弹窗发生时 remoteContent 已随窗口创建
     navigateCurrentView: (url) => {
-      remoteContent?.openAfterConfirmation(url);
+      if (!remoteContent?.navigateVisibleView(url)) void shell.openExternal(url);
     },
     openExternal: (url) => void shell.openExternal(url),
     confirmNavigation,
   });
+  const openedWithoutSplash = startupWindow === null;
   mainWindow.once("ready-to-show", () => {
-    if (!packagedSmoke && startupWindow === null) mainWindow?.show();
+    if (!packagedSmoke && openedWithoutSplash) mainWindow?.show();
   });
-  if (startupWindow !== null) startupFallback = setTimeout(completeStartup, 8_000);
 
   if (provider?.amfReady()) await ensureAmfShell();
   mainWindow.on("resize", () => { remoteContent?.refreshBounds(); knowledgeBrowser?.refreshBounds(); });
@@ -1807,6 +1944,9 @@ async function createWindow(): Promise<void> {
     startupWindow = null;
     if (startupFallback !== null) clearTimeout(startupFallback);
     startupFallback = null;
+    if (startupHoldTimer !== null) clearTimeout(startupHoldTimer);
+    startupHoldTimer = null;
+    startupCompletion = null;
   });
 
   if (rendererUrl) await mainWindow.loadURL(rendererUrl);
@@ -1853,6 +1993,7 @@ async function ensureAmfShell(): Promise<void> {
     amfIngestSink = ingestSink;
     const downloadSink = {
       emit: (event: DownloadEventV01): void => {
+        catalogEnricher?.pause();
         silentDownloadQueue?.notifyTransport(event);
         if (provider?.amfReady() === true) ingestSink.emit(event);
         else {
@@ -1911,12 +2052,16 @@ async function ensureAmfShell(): Promise<void> {
       confirmNavigation,
       willDownload: (event, item, webContents) => {
         if (!provider?.amfReady()) { event.preventDefault(); return; }
+        catalogEnricher?.pause();
         downloadPort?.handleWillDownload(event, item, webContents);
       },
     });
     remoteContent.setHostWindow(mainWindow);
     remoteContent.setSuspended(pendingNavConfirms.size > 0);
+    ensureCatalogEnricher();
     disposeAmfShell = () => {
+      catalogEnricher?.pause();
+      for (const request of catalogProductRequests) request.abort();
       catalogSyncRun?.stop(); catalogSyncRun = null;
       remoteContent?.dispose(); remoteContent = null;
       ingestSink.dispose(); amfIngestSink = null; silentDownloadQueue?.dispose(); silentDownloadQueue = null;
@@ -1934,10 +2079,12 @@ app.whenReady().then(async () => {
   installImageCacheProtocol();
   installPermissionDenyPolicy(session.defaultSession);
   if (!packagedSmoke) {
-    startupWindow = await createStartupWindow({
+    startupWindowCreatedAt = performance.now();
+    startupWindow = createStartupWindow({
       ...(rendererUrl ? { rendererUrl } : {}),
-      rendererFile: path.join(__dirname, "../renderer/index.html"),
+      rendererFile: path.join(__dirname, "../renderer/splash.html"),
       preferences: localWindowWebPreferences(path.join(__dirname, "preload.js")),
+      onShown: () => { startupWindowShownAt ??= performance.now(); },
     });
     startupWindow.on("close", () => app.quit());
   }
@@ -1960,6 +2107,7 @@ app.whenReady().then(async () => {
   provider = new ModuleProvider({
     host: createDesktopOrchestratorProvider(resolveProviderEndpoint()),
     enabled: amfRegistry.registration.enabled,
+    deferInitialAmf: true,
     persist: enabled => amfRegistry!.save(enabled),
     expectedAmfBuild: () => {
       const generation = amfGenerations.backend;
@@ -1975,25 +2123,24 @@ app.whenReady().then(async () => {
   });
   if (!dataTrialValid) provider.refuseDataTrial();
   else provider.setDataTrial(dataTrialPending);
+  let moduleEventSeq = 0;
   provider.subscribeModule(snapshot => {
+    const seq = ++moduleEventSeq;
+    if (snapshot.state !== "ready") {
+      catalogEnricher?.pause();
+      for (const request of catalogProductRequests) request.abort();
+    }
     void (async () => {
       if (snapshot.state === "ready") await ensureAmfShell();
       else if (snapshot.state === "absent") { disposeAmfShell?.(); disposeAmfShell = null; }
       else deactivateImageCache();
+      if (seq !== moduleEventSeq) return;
       packagedSmoke?.observeAmfReadiness(snapshot.state, provider?.amfReady() === true, disposeAmfShell !== null);
       for (const window of BrowserWindow.getAllWindows()) {
         if (!window.isDestroyed() && isAllowedLocalSender(window.webContents.getURL(), rendererUrl)) window.webContents.send("vua:amf-module:changed", snapshot);
       }
     })().catch(error => console.error("[vua] AMF shell unavailable:", error));
   });
-  try {
-    await provider.start();
-  } catch (error) {
-    /* 启动韧性(2026-09-26):Provider 起不来(如端口被僵尸实例占用)不再
-     * 带走主窗口——历史症状是"启动器打印版本号后永远无窗口"。窗口照常
-     * 开,Gateway 调用经既有拒绝路径如实呈现不可用,恢复手段=重启应用。 */
-    console.error("[vua] provider start failed; main window still opens:", error);
-  }
   provider.subscribe((event) => {
     if (event.kind === "task.cancellationRequested" && event.taskId === catalogSyncRun?.runId) {
       catalogSyncRun.stop();
@@ -2016,17 +2163,28 @@ app.whenReady().then(async () => {
     build: typeof __VUA_BUILD_INFO__ === "undefined" ? (await import("../../scripts/build-info.mjs")).buildInfo : __VUA_BUILD_INFO__,
     invoke: request => routeDesktopGatewayInvoke({ provider: provider!, productVersion: app.getVersion(),
       platform: process.platform as "win32" | "darwin" | "linux", rendererUrl,
-      resolveMaterialSource: resolveProductionContext, launchAmfEditor: runId => launchAmfEditor(provider!, runId),
+      resolveMaterialSource: resolveProductionContext, launchAmfEditor: (runId, taskId) => launchAmfEditor(provider!, runId, taskId),
       vrchat: vrchatRouteFace(provider!) },
       mainWindow?.webContents.getURL() ?? "", request),
   });
   aiTools.subscribe(snapshot => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("vua:ai-tools:changed", snapshot);
   });
+  vrchatService = vrchatSession({ directory: app.getPath("userData"), version: app.getVersion(), secrets: safeStorage, openExternal: url => shell.openExternal(url) });
   registerIpc(provider);
   systemUsage.start(desktopRuntime.providerExecutable);
-  vrchatService = vrchatSession({ directory: app.getPath("userData"), version: app.getVersion(), secrets: safeStorage, openExternal: url => shell.openExternal(url) });
-  await createWindow();
+  /* 启动韧性(2026-09-26)+启动并行(2026-11-11):IPC 先注册,宿主后端与主窗口并行启动,
+   * 握手在途调用由 SupervisedProcessProviderV01 排队;Provider 慢或失败不再阻塞开窗,
+   * AMF 进程创建推迟到主窗口加载完成之后。 */
+  const hostStart = provider.start().catch((error: unknown) => {
+    console.error("[vua] provider start failed; main window still opens:", error);
+  });
+  const windowReady = createWindow();
+  await Promise.allSettled([windowReady, hostStart]);
+  if (startupWindow !== null && startupCompletion === null && startupFallback === null) {
+    startupFallback = setTimeout(() => { void completeStartup(false); }, 8_000);
+  }
+  provider.startInitialAmf();
   if (!packagedSmoke && aiTools.initiallyEnabled) await aiTools.setEnabled(true);
   // 启动会话检查(尽力而为):VRChat 结束的会话在此被发现;记住的密码可续登
   if (!packagedSmoke) void vrchatService.refresh().catch(() => {});
@@ -2084,6 +2242,8 @@ app.on("before-quit", (event) => {
     return;
   }
   systemUsage.stop();
+  catalogEnricher?.dispose();
+  for (const request of catalogProductRequests) request.abort();
   stopGameGuideFollowTimer();
   vrchatService?.clearSdkHandoffs();
   void aiTools?.dispose();

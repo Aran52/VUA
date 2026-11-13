@@ -38,7 +38,7 @@ namespace Vua.Editor.Bridge
         private static bool ValidSwitchGroup(string group) => group != null && group.Length <= 32 && group.All(c => c < 128 && (char.IsLetterOrDigit(c) || c == '_' || c == '-'));
         [Serializable] internal sealed class Selection { public string avatarPrefab; public Outfit[] outfits; }
         [Serializable] internal sealed class ApplyTarget { public string avatarGlobalObjectId; public string newAvatarKey; public string[] writeSourceIds; }
-        [Serializable] internal sealed class Request { public string schemaVersion; public string runId; public Source[] sources; public Selection selection; public ApplyTarget applyTarget; public string[] sdkFixes; public FtPatch faceTrackingPatch; public TextureImportChange[] textureChanges; public OutfitRemoval outfitRemoval; }
+        [Serializable] internal sealed class Request { public string schemaVersion; public string runId; public Source[] sources; public Selection selection; public ApplyTarget applyTarget; public string[] sdkFixes; public FtPatch faceTrackingPatch; public TextureImportChange[] textureChanges; public OutfitRemoval outfitRemoval; public OptimizerRequest optimizer; }
         [Serializable] internal sealed class Candidate
         {
             public string sourceId; public string path; public string name; public string prefabGuid; public List<string> objectPaths = new List<string>(); public bool isAvatar;
@@ -80,6 +80,8 @@ namespace Vua.Editor.Bridge
             public List<TextureMemoryReport> textureMemory = new List<TextureMemoryReport>();
             public List<OutfitRemoval> outfitRemoval = new List<OutfitRemoval>();
             public List<RemovalApplied> outfitRemovalApplied = new List<RemovalApplied>();
+            public OptimizerReport optimizerReport = new OptimizerReport();
+            public List<string> optimizerWarnings = new List<string>();
         }
         [Serializable] internal sealed class AvatarObservation
         {
@@ -132,7 +134,7 @@ namespace Vua.Editor.Bridge
                 throw new InvalidOperationException("AMF requires Bridge v5 and bound command/project identities.");
             if (Application.unityVersion != "2022.3.22f1" && Application.unityVersion != "2022.3.22f1c1")
                 throw new InvalidOperationException("Unsupported actual Editor version: " + Application.unityVersion);
-            if (command.operation != "amf_prepare" && command.operation != "amf_inspect" && command.operation != "amf_assemble" && command.operation != "amf_turntable" && command.operation != "amf_sdk_fix" && command.operation != "amf_ft_patch" && command.operation != "amf_texture_import" && command.operation != "amf_outfit_remove")
+            if (command.operation != "amf_prepare" && command.operation != "amf_inspect" && command.operation != "amf_assemble" && command.operation != "amf_turntable" && command.operation != "amf_sdk_fix" && command.operation != "amf_ft_patch" && command.operation != "amf_texture_import" && command.operation != "amf_outfit_remove" && command.operation != "amf_optimizer")
                 throw new InvalidOperationException("Unknown AMF operation.");
             if (command.operation == "amf_ft_patch" && Application.isBatchMode)
                 throw new InvalidOperationException("Creator patch menus require a dedicated interactive Editor session.");
@@ -174,7 +176,7 @@ namespace Vua.Editor.Bridge
                 EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             }
             var fingerprint = ProjectFingerprint.Compute();
-            if ((command.operation == "amf_assemble" || command.operation == "amf_sdk_fix" || command.operation == "amf_ft_patch" || command.operation == "amf_texture_import" || command.operation == "amf_outfit_remove") && (string.IsNullOrEmpty(command.expectedProjectFingerprint) || command.expectedProjectFingerprint != fingerprint))
+            if ((command.operation == "amf_assemble" || command.operation == "amf_sdk_fix" || command.operation == "amf_ft_patch" || command.operation == "amf_texture_import" || command.operation == "amf_outfit_remove" || command.operation == "amf_optimizer") && (string.IsNullOrEmpty(command.expectedProjectFingerprint) || command.expectedProjectFingerprint != fingerprint))
                 throw new InvalidOperationException("The scene changed. Reinspect and review the plan.");
             if (PlayerSettings.companyName != WorkCompany || PlayerSettings.productName != WorkProduct)
             {
@@ -190,18 +192,22 @@ namespace Vua.Editor.Bridge
             if (command.operation == "amf_assemble") Assemble(request, result);
             if (command.operation == "amf_sdk_fix") ApplySdkFixes(request, result);
             if (command.operation == "amf_outfit_remove") RemoveOutfit(request, result);
+            if (command.operation == "amf_optimizer") ApplyOptimizer(request, result);
             ObserveScene(request, result);
             if (command.operation == "amf_texture_import") { ApplyTextureImports(request, result); ObserveScene(request, result); }
             result.data.textureMemory = MeasureTextureMemory(result.data.avatarGlobalObjectId);
             result.data.outfitRemoval = ObserveOutfitRemoval(request, result.data);
             result.data.faceTracking = ObserveFaceTracking(request, result.data.avatarGlobalObjectId);
+            result.data.optimizerWarnings = ObserveOptimizerWarnings(result.data);
             result.data.missingShaderMaterials = MissingShaderMaterials(request, result.data.avatarGlobalObjectId);
             if (result.data.missingShaderMaterials.Count > 0)
                 result.diagnostics.Add(BridgeDiagnostic.Warning("amf.shaders.missing", result.data.missingShaderMaterials.Count + " materials use a shader that is not in the project."));
             if ((command.operation == "amf_assemble" || command.operation == "amf_outfit_remove") && result.data.observedSelection == null)
                 throw new InvalidOperationException("The saved scene does not retain the verified Avatar relationships.");
-            if (command.operation == "amf_inspect" || command.operation == "amf_assemble" || command.operation == "amf_sdk_fix" || command.operation == "amf_texture_import" || command.operation == "amf_outfit_remove")
+            if (command.operation == "amf_inspect" || command.operation == "amf_assemble" || command.operation == "amf_sdk_fix" || command.operation == "amf_texture_import" || command.operation == "amf_outfit_remove" || command.operation == "amf_optimizer")
                 result.data.sdkReview = ReviewWithSdk(string.IsNullOrEmpty(result.data.avatarGlobalObjectId) ? null : FindOwned(result.data.avatarGlobalObjectId));
+            if (command.operation == "amf_optimizer")
+                result.data.optimizerReport = MeasureOptimizer(request, result.data.avatarGlobalObjectId);
             result.data.projectFingerprint = ProjectFingerprint.Compute();
             if (command.operation == "amf_turntable") BakeTurntable(command, result, root);
             else if (command.operation != "amf_prepare" && command.operation != "amf_ft_patch" && command.operation != "amf_texture_import") RenderPreviews(command, result, root);

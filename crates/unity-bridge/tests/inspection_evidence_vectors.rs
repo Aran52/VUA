@@ -20,7 +20,8 @@ fn schema_path() -> PathBuf {
 }
 
 fn examples_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/inspection-evidence/v0.1/examples")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../schemas/inspection-evidence/v0.1/examples")
 }
 
 fn read_json(path: &PathBuf) -> Value {

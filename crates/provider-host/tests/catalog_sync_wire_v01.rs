@@ -18,10 +18,117 @@ use serde_json::{json, Value};
 use vua_bdl_store::{ArtifactMode, BdlStore};
 use vua_provider_host::{run_provider_host_with_services, WarehouseConfig};
 
+#[path = "catalog_sync_wire_v01/enrichment.rs"]
+mod enrichment_v01;
+
+mod orders_v01 {
+    use super::*;
+
+    fn root() -> PathBuf {
+        schema_dir()
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("catalog-orders/v0.1")
+    }
+    fn vector(name: &str) -> Value {
+        serde_json::from_slice(&fs::read(root().join("examples").join(name)).unwrap()).unwrap()
+    }
+    fn schema(name: &str) -> jsonschema::Validator {
+        jsonschema::validator_for(
+            &serde_json::from_slice::<Value>(&fs::read(root().join(name)).unwrap()).unwrap(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn schemas_and_vectors_agree() {
+        assert!(schema("request.schema.json").is_valid(&vector("page.request.json")));
+        assert!(!schema("request.schema.json").is_valid(&vector("invalid-page.request.json")));
+        assert!(schema("response.schema.json").is_valid(&vector("page.response.json")));
+    }
+
+    #[test]
+    fn a_history_page_dates_the_products_the_library_lists_and_only_those() {
+        let world = make_world("orders");
+        let library: Value = serde_json::from_slice(
+            &fs::read(
+                schema_dir()
+                    .parent()
+                    .unwrap()
+                    .join("v0.3/examples/page.request.json"),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let begin: Value = serde_json::from_slice(
+            &fs::read(
+                schema_dir()
+                    .parent()
+                    .unwrap()
+                    .join("v0.3/examples/begin.request.json"),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let list = json!({"method": "library.list", "params": {"schemaVersion": "0.3", "sort": "added_desc"}});
+        let frames = run_frames(
+            &world,
+            &[
+                begin,
+                library,
+                vector("page.request.json"),
+                vector("invalid-page.request.json"),
+                list,
+            ],
+        );
+        assert_eq!(
+            frames[2]["payload"]["value"],
+            vector("page.response.json"),
+            "{}",
+            frames[2]
+        );
+        assert_eq!(
+            frames[3]["payload"]["error"]["code"],
+            "vua.catalog.invalid_params"
+        );
+        let row = &frames[4]["payload"]["value"]["items"][0];
+        assert_eq!(row["product"]["productId"], "booth:901", "{}", frames[4]);
+        assert_eq!(row["purchasedAt"], row["addedAt"]);
+        assert_eq!(
+            vua_orchestrator::rfc3339_millis(row["purchasedAt"].as_str().unwrap()),
+            vua_orchestrator::rfc3339_millis("2026-10-16T03:00:00Z")
+        );
+        assert!(
+            !world
+                .bdl
+                .library_order_times()
+                .unwrap()
+                .contains_key("booth:999"),
+            "goods outside the library leave no record"
+        );
+    }
+
+    #[test]
+    fn a_document_that_is_not_a_history_page_is_named() {
+        let world = make_world("orders-not-page");
+        let mut request = vector("page.request.json");
+        request["params"]["html"] = json!("<html><body><p>Sign in</p></body></html>");
+        let frames = run_frames(&world, &[request]);
+        assert_eq!(
+            frames[0]["payload"]["error"]["code"],
+            "vua.catalog.not_an_orders_page"
+        );
+    }
+}
+
 mod v03 {
     use super::*;
 
-    fn root() -> PathBuf { schema_dir().parent().unwrap().join("v0.3") }
+    fn root() -> PathBuf {
+        schema_dir().parent().unwrap().join("v0.3")
+    }
     fn vector(name: &str) -> Value {
         serde_json::from_slice(&fs::read(root().join("examples").join(name)).unwrap()).unwrap()
     }
@@ -29,18 +136,56 @@ mod v03 {
         let mut request = vector("page.request.json");
         request["params"]["libraryType"] = json!(kind);
         request["params"]["pageNumber"] = json!(ordinal);
-        request["params"]["sourceUrl"] = json!(format!("https://accounts.booth.pm/library{}?page=1", if kind == "bought" { String::new() } else { format!("/{kind}") }));
-        request["params"]["html"] = json!(request["params"]["html"].as_str().unwrap().replace("901", product));
+        request["params"]["sourceUrl"] = json!(format!(
+            "https://accounts.booth.pm/library{}?page=1",
+            if kind == "bought" {
+                String::new()
+            } else {
+                format!("/{kind}")
+            }
+        ));
+        request["params"]["html"] = json!(request["params"]["html"]
+            .as_str()
+            .unwrap()
+            .replace("901", product));
         request
     }
 
     #[test]
     fn schemas_and_positive_negative_vectors_agree() {
-        let request = jsonschema::validator_for(&serde_json::from_slice::<Value>(&fs::read(root().join("request.schema.json")).unwrap()).unwrap()).unwrap();
-        let response = jsonschema::validator_for(&serde_json::from_slice::<Value>(&fs::read(root().join("response.schema.json")).unwrap()).unwrap()).unwrap();
-        for name in ["begin.request.json", "page.request.json", "finish.request.json", "failed.request.json", "status.request.json"] { assert!(request.is_valid(&vector(name)), "{name}"); }
-        for name in ["invalid-session.request.json", "invalid-page.request.json", "invalid-finish.request.json"] { assert!(!request.is_valid(&vector(name)), "{name}"); }
-        for name in ["page.response.json", "snapshot.response.json"] { assert!(response.is_valid(&vector(name)), "{name}"); }
+        let request = jsonschema::validator_for(
+            &serde_json::from_slice::<Value>(
+                &fs::read(root().join("request.schema.json")).unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let response = jsonschema::validator_for(
+            &serde_json::from_slice::<Value>(
+                &fs::read(root().join("response.schema.json")).unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        for name in [
+            "begin.request.json",
+            "page.request.json",
+            "finish.request.json",
+            "failed.request.json",
+            "status.request.json",
+        ] {
+            assert!(request.is_valid(&vector(name)), "{name}");
+        }
+        for name in [
+            "invalid-session.request.json",
+            "invalid-page.request.json",
+            "invalid-finish.request.json",
+        ] {
+            assert!(!request.is_valid(&vector(name)), "{name}");
+        }
+        for name in ["page.response.json", "snapshot.response.json"] {
+            assert!(response.is_valid(&vector(name)), "{name}");
+        }
         assert!(!response.is_valid(&vector("invalid-page.response.json")));
     }
 
@@ -48,37 +193,84 @@ mod v03 {
     fn all_libraries_finish_only_after_explicit_validated_end() {
         let world = make_world("v03-all");
         let first = page("bought", 1, "901");
-        let frames = run_frames(&world, &[
-            vector("begin.request.json"), first.clone(), vector("status.request.json"),
-            vector("finish.request.json"), page("gifts", 2, "902"), page("free_downloads", 3, "903"),
-            vector("finish.request.json"), vector("finish.request.json"), first, vector("status.request.json"),
-        ]);
+        let frames = run_frames(
+            &world,
+            &[
+                vector("begin.request.json"),
+                first.clone(),
+                vector("status.request.json"),
+                vector("finish.request.json"),
+                page("gifts", 2, "902"),
+                page("free_downloads", 3, "903"),
+                vector("finish.request.json"),
+                vector("finish.request.json"),
+                first,
+                vector("status.request.json"),
+            ],
+        );
         assert_eq!(frames[0]["payload"]["value"]["state"], "running");
         assert_eq!(frames[2]["payload"]["value"]["state"], "running");
-        assert_eq!(frames[2]["payload"]["value"]["completedLibraryTypes"], json!(["bought"]));
-        assert_eq!(frames[3]["payload"]["error"]["code"], "vua.catalog.run_incomplete");
+        assert_eq!(
+            frames[2]["payload"]["value"]["completedLibraryTypes"],
+            json!(["bought"])
+        );
+        assert_eq!(
+            frames[3]["payload"]["error"]["code"],
+            "vua.catalog.run_incomplete"
+        );
         assert_eq!(frames[6]["payload"]["value"]["state"], "succeeded");
         assert_eq!(frames[6]["payload"]["value"]["pages"], 3);
         assert_eq!(frames[6]["payload"]["value"]["upsertedCount"], 3);
         assert_eq!(frames[6]["payload"]["value"], frames[7]["payload"]["value"]);
         assert_eq!(frames[9]["payload"]["value"]["pages"], 3);
-        let response = jsonschema::validator_for(&serde_json::from_slice::<Value>(&fs::read(root().join("response.schema.json")).unwrap()).unwrap()).unwrap();
-        for index in [0, 1, 2, 4, 5, 6, 7, 8, 9] { assert!(response.is_valid(&frames[index]["payload"]["value"]), "response {index}: {}", frames[index]); }
+        let response = jsonschema::validator_for(
+            &serde_json::from_slice::<Value>(
+                &fs::read(root().join("response.schema.json")).unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        for index in [0, 1, 2, 4, 5, 6, 7, 8, 9] {
+            assert!(
+                response.is_valid(&frames[index]["payload"]["value"]),
+                "response {index}: {}",
+                frames[index]
+            );
+        }
     }
 
     #[test]
     fn first_fetch_failure_is_a_durable_zero_page_failure() {
         let world = make_world("v03-first-fail");
-        let frames = run_frames(&world, &[vector("begin.request.json"), vector("failed.request.json"), vector("status.request.json")]);
+        let frames = run_frames(
+            &world,
+            &[
+                vector("begin.request.json"),
+                vector("failed.request.json"),
+                vector("status.request.json"),
+            ],
+        );
         assert_eq!(frames[1]["payload"]["value"]["state"], "failed");
         assert_eq!(frames[2]["payload"]["value"]["pages"], 0);
-        assert_eq!(task_state(&world, "catalog-sync-synthetic").as_deref(), Some("failed"));
+        assert_eq!(
+            task_state(&world, "catalog-sync-synthetic").as_deref(),
+            Some("failed")
+        );
     }
 
     #[test]
     fn partial_failure_keeps_catalog_and_counts_queryable() {
         let world = make_world("v03-partial");
-        let frames = run_frames(&world, &[vector("begin.request.json"), page("bought", 1, "901"), vector("failed.request.json"), vector("status.request.json"), catalog_list_request()]);
+        let frames = run_frames(
+            &world,
+            &[
+                vector("begin.request.json"),
+                page("bought", 1, "901"),
+                vector("failed.request.json"),
+                vector("status.request.json"),
+                catalog_list_request(),
+            ],
+        );
         assert_eq!(frames[3]["payload"]["value"]["state"], "failed");
         assert_eq!(frames[3]["payload"]["value"]["pages"], 1);
         assert_eq!(frames[3]["payload"]["value"]["upsertedCount"], 1);
@@ -91,8 +283,20 @@ mod v03 {
         rusqlite::Connection::open(world.base.join("bdl/bdl.db")).unwrap().execute_batch(
             "CREATE TRIGGER synthetic_rejection BEFORE INSERT ON products WHEN NEW.product_id = 'booth:901' BEGIN SELECT RAISE(FAIL, 'synthetic rejection'); END;"
         ).unwrap();
-        let frames = run_frames(&world, &[vector("begin.request.json"), page("bought", 1, "901"), page("gifts", 2, "902"), page("free_downloads", 3, "903"), vector("finish.request.json")]);
-        assert_eq!(frames[4]["payload"]["value"]["state"], "succeeded_with_warnings");
+        let frames = run_frames(
+            &world,
+            &[
+                vector("begin.request.json"),
+                page("bought", 1, "901"),
+                page("gifts", 2, "902"),
+                page("free_downloads", 3, "903"),
+                vector("finish.request.json"),
+            ],
+        );
+        assert_eq!(
+            frames[4]["payload"]["value"]["state"],
+            "succeeded_with_warnings"
+        );
         assert_eq!(frames[4]["payload"]["value"]["rejectedCount"], 1);
         assert_eq!(frames[4]["payload"]["value"]["upsertedCount"], 2);
     }
@@ -101,9 +305,21 @@ mod v03 {
     fn replayed_pages_do_not_double_count_and_conflicting_replays_fail() {
         let world = make_world("v03-replay");
         let first = page("bought", 1, "901");
-        let frames = run_frames(&world, &[vector("begin.request.json"), first.clone(), first, page("bought", 1, "904"), vector("status.request.json")]);
+        let frames = run_frames(
+            &world,
+            &[
+                vector("begin.request.json"),
+                first.clone(),
+                first,
+                page("bought", 1, "904"),
+                vector("status.request.json"),
+            ],
+        );
         assert_eq!(frames[1]["payload"]["value"], frames[2]["payload"]["value"]);
-        assert_eq!(frames[3]["payload"]["error"]["code"], "vua.catalog.page_conflict");
+        assert_eq!(
+            frames[3]["payload"]["error"]["code"],
+            "vua.catalog.page_conflict"
+        );
         assert_eq!(frames[4]["payload"]["value"]["pages"], 1);
         assert_eq!(frames[4]["payload"]["value"]["upsertedCount"], 1);
     }
@@ -113,8 +329,22 @@ mod v03 {
         let world = make_world("v03-order");
         let mut foreign = page("bought", 1, "901");
         foreign["params"]["sourceUrl"] = json!("https://example.invalid/library?page=1");
-        let frames = run_frames(&world, &[vector("begin.request.json"), page("gifts", 1, "902"), page("bought", 2, "901"), foreign, catalog_list_request()]);
-        for index in [1, 2, 3] { assert_eq!(frames[index]["payload"]["error"]["code"], "vua.catalog.page_out_of_order"); }
+        let frames = run_frames(
+            &world,
+            &[
+                vector("begin.request.json"),
+                page("gifts", 1, "902"),
+                page("bought", 2, "901"),
+                foreign,
+                catalog_list_request(),
+            ],
+        );
+        for index in [1, 2, 3] {
+            assert_eq!(
+                frames[index]["payload"]["error"]["code"],
+                "vua.catalog.page_out_of_order"
+            );
+        }
         assert_eq!(frames[4]["payload"]["value"]["result"]["total"], 0);
     }
 
@@ -123,7 +353,15 @@ mod v03 {
         let world = make_world("v03-cancel");
         let mut finish = vector("finish.request.json");
         finish["params"]["outcome"] = json!("cancelled");
-        let frames = run_frames(&world, &[vector("begin.request.json"), page("bought", 1, "901"), finish, vector("status.request.json")]);
+        let frames = run_frames(
+            &world,
+            &[
+                vector("begin.request.json"),
+                page("bought", 1, "901"),
+                finish,
+                vector("status.request.json"),
+            ],
+        );
         assert_eq!(frames[3]["payload"]["value"]["state"], "cancelled");
         assert_eq!(frames[3]["payload"]["value"]["pages"], 1);
     }
@@ -131,19 +369,50 @@ mod v03 {
     #[test]
     fn restart_preserves_progress_and_refuses_implicit_continuation() {
         let world = make_world("v03-recovery");
-        run_frames(&world, &[vector("begin.request.json"), page("bought", 1, "901")]);
-        let frames = run_frames(&world, &[vector("status.request.json"), page("gifts", 2, "902"), vector("finish.request.json")]);
-        assert_eq!(frames[0]["payload"]["value"]["recoveryDisposition"], "inspect_required");
+        run_frames(
+            &world,
+            &[vector("begin.request.json"), page("bought", 1, "901")],
+        );
+        let frames = run_frames(
+            &world,
+            &[
+                vector("status.request.json"),
+                page("gifts", 2, "902"),
+                vector("finish.request.json"),
+            ],
+        );
+        assert_eq!(
+            frames[0]["payload"]["value"]["recoveryDisposition"],
+            "inspect_required"
+        );
         assert_eq!(frames[0]["payload"]["value"]["pages"], 1);
-        assert_eq!(frames[1]["payload"]["error"]["code"], "vua.catalog.inspect_required");
-        assert_eq!(frames[2]["payload"]["error"]["code"], "vua.catalog.inspect_required");
+        assert_eq!(
+            frames[1]["payload"]["error"]["code"],
+            "vua.catalog.inspect_required"
+        );
+        assert_eq!(
+            frames[2]["payload"]["error"]["code"],
+            "vua.catalog.inspect_required"
+        );
     }
 
     #[test]
     fn invalid_fields_do_not_create_tasks() {
         let world = make_world("v03-fields");
-        let frames = run_frames(&world, &[vector("invalid-session.request.json"), vector("invalid-page.request.json"), vector("invalid-finish.request.json")]);
-        for frame in frames { assert_eq!(frame["payload"]["error"]["code"], "vua.catalog.invalid_params"); }
+        let frames = run_frames(
+            &world,
+            &[
+                vector("invalid-session.request.json"),
+                vector("invalid-page.request.json"),
+                vector("invalid-finish.request.json"),
+            ],
+        );
+        for frame in frames {
+            assert_eq!(
+                frame["payload"]["error"]["code"],
+                "vua.catalog.invalid_params"
+            );
+        }
         assert!(task_state(&world, "catalog-sync-synthetic").is_none());
     }
 }
@@ -188,7 +457,11 @@ fn make_world(label: &str) -> World {
     ));
     fs::create_dir_all(base.join("bdl")).expect("temp layout");
     let bdl = Arc::new(BdlStore::open(base.join("bdl").join("bdl.db")).expect("BDL opens"));
-    World { database_path: base.join("tasks.db"), bdl, base }
+    World {
+        database_path: base.join("tasks.db"),
+        bdl,
+        base,
+    }
 }
 
 fn run_frames(world: &World, requests: &[Value]) -> Vec<Value> {
@@ -196,7 +469,7 @@ fn run_frames(world: &World, requests: &[Value]) -> Vec<Value> {
         .iter()
         .enumerate()
         .map(|(index, request)| {
-            let is_query = matches!(request["method"].as_str(), Some("catalog.librarySyncStatus" | "catalog.list" | "catalog.status" | "catalog.detail" | "dependencies.listByProduct"));
+            let is_query = matches!(request["method"].as_str(), Some("library.list" | "catalog.librarySyncStatus" | "catalog.enrichmentQueue" | "catalog.list" | "catalog.status" | "catalog.detail" | "dependencies.listByProduct"));
             let mut payload = json!({
                 "contractVersion": "0.1", "requestId": format!("req-{index}"), "correlationId": format!("corr-{index}"),
                 "kind": if is_query { "query" } else { "command" }, "method": request["method"], "params": request["params"],
@@ -216,7 +489,9 @@ fn run_frames(world: &World, requests: &[Value]) -> Vec<Value> {
         warehouse_root: world.base.join("warehouse"),
         global_default: ArtifactMode::UseOriginalUnitypackage,
         executor: None,
-        dependencies_queries: Some(Arc::new(vua_orchestrator::BdlDependencyQueries::new(world.bdl.clone()))),
+        dependencies_queries: Some(Arc::new(vua_orchestrator::BdlDependencyQueries::new(
+            world.bdl.clone(),
+        ))),
     };
     let mut output = Vec::new();
     run_provider_host_with_services(
@@ -272,12 +547,17 @@ fn event_frames(requests: &[Value], world: &World) -> Vec<Value> {
             .to_string()
         })
         .collect::<Vec<String>>()
-        .join("
-");
+        .join(
+            "
+",
+        );
     let mut output = Vec::new();
     run_provider_host_with_services(
-        Cursor::new(frames_json + "
-"),
+        Cursor::new(
+            frames_json
+                + "
+",
+        ),
         &mut output,
         &world.database_path,
         None,
@@ -310,15 +590,24 @@ fn frozen_vectors_validate_against_the_schemas() {
         jsonschema::validator_for(&read_schema("response.schema.json")).expect("response schema");
 
     let positive = read_example("library-page.request.json");
-    assert!(request_validator.is_valid(&positive), "positive vector must validate");
+    assert!(
+        request_validator.is_valid(&positive),
+        "positive vector must validate"
+    );
 
     // Negative vector: wrong schemaVersion AND an outlawed extra key (a
     // stand-in for anything session-shaped that must never ride this face).
     let negative = read_example("library-page.invalid-request.json");
-    assert!(!request_validator.is_valid(&negative), "negative vector must fail");
+    assert!(
+        !request_validator.is_valid(&negative),
+        "negative vector must fail"
+    );
 
     let response = read_example("library-page.response.json");
-    assert!(response_validator.is_valid(&response), "response vector must validate");
+    assert!(
+        response_validator.is_valid(&response),
+        "response vector must validate"
+    );
 }
 
 #[test]
@@ -409,9 +698,11 @@ fn wrong_schema_version_is_rejected() {
 fn task_state(world: &World, task_id: &str) -> Option<String> {
     rusqlite::Connection::open(&world.database_path)
         .expect("aux connection opens")
-        .query_row("SELECT state FROM tasks WHERE task_id = ?1", [task_id], |row| {
-            row.get::<_, String>(0)
-        })
+        .query_row(
+            "SELECT state FROM tasks WHERE task_id = ?1",
+            [task_id],
+            |row| row.get::<_, String>(0),
+        )
         .ok()
 }
 
@@ -485,7 +776,10 @@ fn a_new_run_supersedes_orphaned_interrupted_sync_tasks() {
     page_a["pageNumber"] = json!(1);
     let frames = run_frames(&world, &[ingest_request(page_a)]);
     assert_eq!(frames[0]["payload"]["ok"], json!(true));
-    assert_eq!(task_state(&world, "catalog-sync-orphan-a").as_deref(), Some("running"));
+    assert_eq!(
+        task_state(&world, "catalog-sync-orphan-a").as_deref(),
+        Some("running")
+    );
 
     // 运行 B:新同步首页 → A 被如实终结为 cancelled(被取代),B 正常运行
     let mut page_b = vector.clone();
@@ -501,8 +795,14 @@ fn a_new_run_supersedes_orphaned_interrupted_sync_tasks() {
     let frames = run_frames(&world, &[ingest_request(page_b)]);
     assert_eq!(frames[0]["payload"]["ok"], json!(true));
     // B 的夹具是末页(无 rel=next)→ 直接 succeeded;A 被如实终结为 cancelled
-    assert_eq!(task_state(&world, "catalog-sync-fresh-b").as_deref(), Some("succeeded"));
-    assert_eq!(task_state(&world, "catalog-sync-orphan-a").as_deref(), Some("cancelled"));
+    assert_eq!(
+        task_state(&world, "catalog-sync-fresh-b").as_deref(),
+        Some("succeeded")
+    );
+    assert_eq!(
+        task_state(&world, "catalog-sync-orphan-a").as_deref(),
+        Some("cancelled")
+    );
 }
 
 #[test]
@@ -527,7 +827,9 @@ fn fold_events_are_published_as_event_frames() {
         .collect();
     kinds.dedup();
     assert!(
-        events.iter().any(|e| e["payload"]["taskId"] == *"catalog-sync-events-1"),
+        events
+            .iter()
+            .any(|e| e["payload"]["taskId"] == *"catalog-sync-events-1"),
         "events must reference the run's task: {}",
         serde_json::to_string(&events).unwrap_or_default()
     );
@@ -538,12 +840,14 @@ fn fold_events_are_published_as_event_frames() {
     );
 }
 
-
 #[test]
 fn v02_requests_carry_library_type_into_observations() {
     let world = make_world("v02");
     let mut vector = read_example("library-page.request.json");
-    vector.as_object_mut().unwrap().insert("libraryType".into(), serde_json::json!("bought"));
+    vector
+        .as_object_mut()
+        .unwrap()
+        .insert("libraryType".into(), serde_json::json!("bought"));
     let frames = run_frames(&world, &[ingest_request(vector), catalog_list_request()]);
     assert_eq!(frames[0]["payload"]["ok"], json!(true));
     // 全部条目按 bought 类型入库并可按该类型筛出
@@ -574,39 +878,79 @@ fn official_product_reader_does_not_invent_account_memberships() {
     let world = make_world("source-ownership");
     let frames = run_frames(&world, &[product_page_request("901", "")]);
     assert_eq!(frames[0]["payload"]["ok"], true, "{}", frames[0]);
-    assert!(world.bdl.product_library_memberships("booth:901").unwrap().is_empty());
+    assert!(world
+        .bdl
+        .product_library_memberships("booth:901")
+        .unwrap()
+        .is_empty());
     let mut purchased = read_example("library-page.request.json");
     purchased["schemaVersion"] = json!("0.2");
     purchased["libraryType"] = json!("bought");
-    let frames = run_frames(&world, &[ingest_request(purchased), product_page_request("1693144", "")]);
-    assert!(frames.iter().all(|frame| frame["payload"]["ok"] == true), "{frames:?}");
-    assert_eq!(world.bdl.product_library_memberships("booth:1693144").unwrap(), vec!["bought"]);
-    assert!(world.bdl.product_library_memberships("booth:901").unwrap().is_empty());
+    let frames = run_frames(
+        &world,
+        &[
+            ingest_request(purchased),
+            product_page_request("1693144", ""),
+        ],
+    );
+    assert!(
+        frames.iter().all(|frame| frame["payload"]["ok"] == true),
+        "{frames:?}"
+    );
+    assert_eq!(
+        world
+            .bdl
+            .product_library_memberships("booth:1693144")
+            .unwrap(),
+        vec!["bought"]
+    );
+    assert!(world
+        .bdl
+        .product_library_memberships("booth:901")
+        .unwrap()
+        .is_empty());
 }
 
 #[test]
 fn product_description_links_persist_for_a_new_source_and_survive_restart() {
     let world = make_world("description-new-source");
-    let frames = run_frames(&world, &[product_page_request("901", r#"
+    let frames = run_frames(
+        &world,
+        &[product_page_request(
+            "901",
+            r#"
         <a href='https://sample.booth.pm/en/items/902'><span>lilToon</span></a>
         <a href="https://booth.pm/items/902">Same target again</a>
         <a href="https://booth.pm/items/901">Self link</a>
         <a href="https://booth.pm.invalid/items/904">Unrelated host</a>
-    "#)]);
+    "#,
+        )],
+    );
     assert_eq!(frames[0]["payload"]["ok"], true, "{}", frames[0]);
     assert_eq!(frames[0]["payload"]["value"]["upsertedCount"], 1);
 
     let reopened = BdlStore::open(world.base.join("bdl/bdl.db")).unwrap();
     let observations = reopened.dependency_observations("booth:901").unwrap();
-    assert_eq!(observations.len(), 1, "only the unique description target belongs here");
+    assert_eq!(
+        observations.len(),
+        1,
+        "only the unique description target belongs here"
+    );
     let observation = &observations[0];
     assert_eq!(observation.dep_name, "lilToon");
     assert_eq!(observation.dep_kind, "shader");
     assert_eq!(observation.extraction_method, "link");
     assert_eq!(observation.source_span, "description_link");
-    assert_eq!(observation.raw_quote, "https://sample.booth.pm/en/items/902");
+    assert_eq!(
+        observation.raw_quote,
+        "https://sample.booth.pm/en/items/902"
+    );
     assert_eq!(observation.observed_at, "2026-10-08T10:00:00Z");
-    assert!(observation.content_hash.as_ref().unwrap().starts_with("sha256:"));
+    assert!(observation
+        .content_hash
+        .as_ref()
+        .unwrap()
+        .starts_with("sha256:"));
     assert!(observation.resolved_ref_product_id.is_none());
     assert!(!observation.confirmed_by_human);
 }
@@ -614,20 +958,34 @@ fn product_description_links_persist_for_a_new_source_and_survive_restart() {
 #[test]
 fn known_description_targets_reach_the_dependency_query_as_unconfirmed_clues() {
     let world = make_world("description-known-target");
-    let frames = run_frames(&world, &[
-        product_page_request("902", ""),
-        product_page_request("901", r#"<a href="https://booth.pm/ja/items/902">Sample base</a>"#),
-        json!({"method":"dependencies.listByProduct", "params":{"productId":"booth:901"}}),
-    ]);
+    let frames = run_frames(
+        &world,
+        &[
+            product_page_request("902", ""),
+            product_page_request(
+                "901",
+                r#"<a href="https://booth.pm/ja/items/902">Sample base</a>"#,
+            ),
+            json!({"method":"dependencies.listByProduct", "params":{"productId":"booth:901"}}),
+        ],
+    );
     assert_eq!(frames[1]["payload"]["ok"], true, "{}", frames[1]);
     assert_eq!(frames[2]["payload"]["ok"], true, "{}", frames[2]);
     let observations = world.bdl.dependency_observations("booth:901").unwrap();
     assert_eq!(observations.len(), 1);
     assert_eq!(observations[0].dep_kind, "other");
-    assert_eq!(observations[0].resolved_ref_product_id.as_deref(), Some("booth:902"));
-    assert_eq!(observations[0].resolution_evidence.as_ref().unwrap().len(), 1);
+    assert_eq!(
+        observations[0].resolved_ref_product_id.as_deref(),
+        Some("booth:902")
+    );
+    assert_eq!(
+        observations[0].resolution_evidence.as_ref().unwrap().len(),
+        1
+    );
     assert!(!observations[0].confirmed_by_human);
-    let served = frames[2]["payload"]["value"]["result"]["observations"].as_array().unwrap();
+    let served = frames[2]["payload"]["value"]["result"]["observations"]
+        .as_array()
+        .unwrap();
     assert_eq!(served.len(), 1);
     assert_eq!(served[0]["depName"], "Sample base");
 }
@@ -638,13 +996,24 @@ fn dependency_storage_failure_is_returned_instead_of_an_empty_success() {
     rusqlite::Connection::open(world.base.join("bdl/bdl.db")).unwrap().execute_batch(
         "CREATE TRIGGER synthetic_dependency_rejection BEFORE INSERT ON dependency_observations BEGIN SELECT RAISE(FAIL, 'synthetic dependency rejection'); END;"
     ).unwrap();
-    let frames = run_frames(&world, &[product_page_request("901",
-        r#"<a href="https://booth.pm/items/902">Sample base</a>"#,
-    )]);
+    let frames = run_frames(
+        &world,
+        &[product_page_request(
+            "901",
+            r#"<a href="https://booth.pm/items/902">Sample base</a>"#,
+        )],
+    );
     assert_eq!(frames[0]["payload"]["ok"], false);
-    assert_eq!(frames[0]["payload"]["error"]["code"], "vua.catalog.store_failed");
+    assert_eq!(
+        frames[0]["payload"]["error"]["code"],
+        "vua.catalog.store_failed"
+    );
     assert!(world.bdl.catalog_detail("booth:901").unwrap().is_some());
-    assert!(world.bdl.dependency_observations("booth:901").unwrap().is_empty());
+    assert!(world
+        .bdl
+        .dependency_observations("booth:901")
+        .unwrap()
+        .is_empty());
 }
 
 #[test]
@@ -653,9 +1022,13 @@ fn rejected_source_products_do_not_attempt_dependency_writes() {
     rusqlite::Connection::open(world.base.join("bdl/bdl.db")).unwrap().execute_batch(
         "CREATE TRIGGER synthetic_source_rejection BEFORE INSERT ON products BEGIN SELECT RAISE(FAIL, 'synthetic source rejection'); END;"
     ).unwrap();
-    let frames = run_frames(&world, &[product_page_request("901",
-        r#"<a href="https://booth.pm/items/902">Sample base</a>"#,
-    )]);
+    let frames = run_frames(
+        &world,
+        &[product_page_request(
+            "901",
+            r#"<a href="https://booth.pm/items/902">Sample base</a>"#,
+        )],
+    );
     assert_eq!(frames[0]["payload"]["ok"], false);
     assert!(world.bdl.dependency_observations_all().unwrap().is_empty());
 }

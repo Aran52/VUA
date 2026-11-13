@@ -3,24 +3,31 @@ import { AmfRecipeApplyDialog } from "./AmfRecipeApplyDialog.tsx";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { AmfAssemblySelection, AmfOutfitSelection, AmfParameterBudgetPlanV01 } from "@vua/contracts";
 import { Icon, SkinMotif } from "@vua/design-system";
-import { AmfProductionError, useGateway, useTaskCenter, type AmfPrefab, type AmfPlanPrediction, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
+import { AmfProductionError, useGateway, type AmfPrefab, type AmfPlanPrediction, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
+import { useSwapFade } from "../../components/primitives/motion.ts";
+import { SegmentBar } from "../../components/SegmentBar.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import { Alert } from "../../components/primitives/Alert.tsx";
 import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { toast } from "../../components/primitives/toast-store.ts";
-import { strings, presentationCopy, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
+import { currentLocale, strings, presentationCopy, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
+import { structureCopy } from "../../i18n/structure-copy.ts";
 import { openExternalUrl } from "../../app/open-external.ts";
-import { compactSourceLabel } from "./line-presentation.ts";
+import { lineName, rememberLineName, storedLineNames } from "./line-presentation.ts";
+import { AmfRecipeImportDialog } from "./AmfRecipeImportDialog.tsx";
+import { MaterialThumb, useMaterialImages } from "./PlanImages.tsx";
+import { latestProductionList, PRODUCTION_LIST_FRESH_MS, readProductionList, useTaskKey } from "./production-list-read.ts";
 import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import { MaterialPicker } from "./MaterialPicker.tsx";
 import { StatusChip, WorkshopRail, type RailLine } from "./WorkshopRail.tsx";
 import { TextureMemoryCard } from "./TextureMemoryCard.tsx";
 import { OutfitRemovalCard } from "./OutfitRemovalCard.tsx";
 import { LightingCard } from "./LightingCard.tsx";
+import { AvatarOptimizerCard } from "./AvatarOptimizerCard.tsx";
 import { FaceTrackingCard, FtLockNote } from "./FaceTrackingCard.tsx";
 import { RevisionsCard } from "./RevisionsCard.tsx";
 import { FitSaveCard } from "./FitSaveCard.tsx";
@@ -29,7 +36,7 @@ import { recommendAssembly, type AmfRecommendation } from "@vua/contracts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
 import { AmfCandidateGallery, AmfResultViews } from "./AmfPreviews.tsx";
-import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedProductionRun } from "./production-recipe-navigation.ts";
+import { onProductionRunRequested, takeRequestedNewProductionLine, takeRequestedProductionRecipe, takeRequestedProductionRun, requestTurntable } from "./production-recipe-navigation.ts";
 import { requestLicenseStep } from "../deployer/license-step-navigation.ts";
 import { isUnityLicenseFailure, productionErrorMessage } from "./unity-license-failure.ts";
 import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, storedAutomationLevel, type AutomationLevel, type LineStatus, type StationKey, needsFullAutoNotice } from "./factory-model.ts";
@@ -42,6 +49,7 @@ import { formatDuration, lineLabels, queueAhead, runStartedAt } from "./factory-
 const copy = strings.amfProduction;
 const factory = strings.factory;
 const editorClose = strings.amfProduction.editorClose;
+const start = structureCopy[currentLocale].workshop;
 /** The one switch group the workshop offers: main outfits, worn one at a time. */
 const MAIN_GROUP = "main";
 /** The running step's live state: Unity's stage and count, a running clock, the usual time on this computer, and Unity's silence. */
@@ -80,13 +88,21 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const gateway = useGateway(); const port = gateway.amfProduction;
   // Work started elsewhere (an AI request, the release room, another line) changes the task list;
   // the line list and the open line read again whenever a task starts or changes state.
-  const taskKey = useTaskCenter().tasks.map(task => `${task.id}:${task.status}`).join(" ");
+  const taskKey = useTaskKey();
   const [runReload, setRunReload] = useState(0);
-  const [list, setList] = useState<AmfProductionList | null>(null);
+  const [list, setList] = useState<AmfProductionList | null>(() => latestProductionList(port));
   const [sourceIds, setSourceIds] = useState<readonly string[]>(storedMaterials);
+  const askedMaterials = useRef<readonly string[] | null>(null);
   const [editorPath, setEditorPath] = useState("");
   const [requestedRecipe] = useState(takeRequestedProductionRecipe);
-  const [runId, setRunId] = useState(() => takeRequestedProductionRun() ?? (requestedRecipe ? "" : storedRun()));
+  const [runId, setRunId] = useState(() => {
+    const newLine = takeRequestedNewProductionLine();
+    if (newLine !== null && newLine.length > 0) askedMaterials.current = newLine;
+    return takeRequestedProductionRun() ?? (requestedRecipe || newLine !== null ? "" : storedRun());
+  });
+  useEffect(() => { if (askedMaterials.current !== null) { setSourceIds(askedMaterials.current); askedMaterials.current = null; } }, []);
+  // A new line starts from materials or from a saved Recipe; opening a Recipe shows its preview.
+  const [startFrom, setStartFrom] = useState<"materials" | "recipe">("materials");
   useEffect(() => { if (runId) remember(runKey, runId); }, [runId]);
   useEffect(() => onProductionRunRequested(id => { takeRequestedProductionRun(); initialized.current = ""; setRunId(id); setError(null); }), []);
   const [run, setRun] = useState<AmfProductionRun | null>(null);
@@ -98,6 +114,9 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [opened, setOpened] = useState<string | null>(null);
   const [recipeRefresh, setRecipeRefresh] = useState(0);
   const [recipePreview, setRecipePreview] = useState<AmfSavedRecipe | null>(null);
+  const [importingRecipe, setImportingRecipe] = useState(false);
+  const [lineNames, setLineNames] = useState(storedLineNames);
+  const materialImage = useMaterialImages();
   const [sharingRecipe, setSharingRecipe] = useState<string | null>(null);
   const [applyingRecipe, setApplyingRecipe] = useState(false);
   const [savedRecipe, setSavedRecipe] = useState<AmfSavedRecipe | null>(null);
@@ -107,7 +126,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [taskQueued, setTaskQueued] = useState(false);
   const [queuedAhead, setQueuedAhead] = useState(1);
-  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | "restoreRevision" | "texture_memory" | "faceTracking" | "closeEditor" | null>(null);
+  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | "restoreRevision" | "texture_memory" | "faceTracking" | "optimizer" | "closeEditor" | null>(null);
   // A project_open refusal offers saving and closing Unity; the refused action continues afterwards.
   const [closeOffer, setCloseOffer] = useState<{ readonly message: string; readonly retry: (() => void) | null } | null>(null);
   const afterClose = useRef<(() => void) | null>(null);
@@ -123,15 +142,16 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const chooseLevel = (next: AutomationLevel) => { if (next === "full" && level !== "full") setConfirmFull("switch"); else applyLevel(next); };
   const unattended = useRef(new Set<string>());
   const initialized = useRef("");
-  const refreshList = useCallback(async () => {
+  const refreshList = useCallback(async (maxAgeMs = 0, tasks = "") => {
     if (!port) { setError(unavailable); return; }
     try {
-      const observed = await port.list(); setList(observed); setRecipeRefresh(value => value + 1);
+      const observed = await readProductionList(port, maxAgeMs, tasks); setList(observed); setRecipeRefresh(value => value + 1);
       const present = new Set(observed.sources.map(source => source.sourceId));
       setSourceIds(ids => ids.filter(id => present.has(id)));
     } catch (e) { setError(productionErrorMessage(e, unavailable)); }
   }, [port]);
-  useEffect(() => { void refreshList(); setRunReload(value => value + 1); }, [refreshList, taskKey]);
+  // Opening the page reuses a recent list; a task change or an action here reads again.
+  useEffect(() => { void refreshList(PRODUCTION_LIST_FRESH_MS, taskKey); setRunReload(value => value + 1); }, [refreshList, taskKey]);
   useEffect(() => {
     if (!port || !requestedRecipe) return;
     let alive = true; setRequesting(true); remember(runKey, "");
@@ -225,6 +245,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     } catch (e) { fail(e); }
     finally { setRequesting(false); }
   };
+  const openRecipe = (recipeId: string) => {
+    if (!port) return; setRequesting(true); setError(null);
+    void port.getRecipe(recipeId).then(setRecipePreview).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
+  };
   const newPreparation = () => { initialized.current = ""; setChosenStation(null); setChanging(null); setRunId(""); setRun(null); setPlan(null); setRestorePlan(null); setRestored(false); setSelection(blank); setError(null); remember(runKey, ""); void refreshList(); };
   const prepareRecipe = async () => {
     if (!port || busy || !recipePreview) return;
@@ -293,12 +317,14 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
 
   const panels = factory.panels;
   // One card per run, even if a list read ever repeats an entry.
-  const lines: RailLine[] = [...new Map((list?.runs ?? []).map(recent => [recent.runId, recent] as const)).values()].map(recent => ({ runId: recent.runId, name: recent.runId === run?.runId ? objectName : compactSourceLabel(recent.sourceNames[0] ?? "") || ui.unknownAvatar,
+  const lines: RailLine[] = [...new Map((list?.runs ?? []).map(recent => [recent.runId, recent] as const)).values()].map(recent => ({ runId: recent.runId, name: lineName(recent.runId, recent.sourceNames[0] ?? "", lineNames) || ui.unknownAvatar,
     extra: runStartedAt(recent.runId) ? labels.get(recent.runId)?.extra ?? null : null, status: recent.runId === run?.runId && run ? lineStatus(run) : phaseStatus(recent.phase) }));
   // Without a chosen station the page shows where the line is: planning, the finished check, or the running station.
   const shown: StationKey = chosenStation ?? (run === null || states === null ? "prepare" : plan !== null ? "plan"
     : !lineBusy(run) && run.phase === "succeeded" ? "check" : !lineBusy(run) && run.phase === "ready" ? "plan" : currentStation(states));
   const stationsRef = useRef<HTMLOListElement | null>(null);
+  const mainPane = useRef<HTMLDivElement>(null);
+  useSwapFade(runId, mainPane);
   const [stationIndicator, setStationIndicator] = useState<{ x: number; y: number; width: number } | null>(null);
   useLayoutEffect(() => {
     const list = stationsRef.current;
@@ -347,10 +373,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     : run.choices.map(choice => { const source = list?.sources.find(item => item.sourceId === choice.sourceId); return { id: choice.sourceId, item: source?.itemName ?? choice.sourceId, name: source?.name ?? "" }; });
 
   return <div className="vua-page vua-n3 vua-workshop">
-    <WorkshopRail lines={lines} current={runId} onSelect={selectLine} onNew={newPreparation}
+    <WorkshopRail lines={lines} current={runId} onSelect={selectLine} onNew={newPreparation} onRename={(id, name) => setLineNames(rememberLineName(id, name))}
       capacity={list ? { value: list.capacity, changeable: list.running.length === 0 && list.queue.length === 0 } : undefined}
       onDeleting={id => { if (id === runId) newPreparation(); }} onDeleted={() => { void refreshList(); }} onError={setError} refresh={() => { void refreshList(); }} />
-    <div className="vua-workshop__main">
+    <div ref={mainPane} className="vua-workshop__main">
+    {importingRecipe && <AmfRecipeImportDialog onClose={() => setImportingRecipe(false)} onImported={() => setRecipeRefresh(value => value + 1)}
+      onOpen={recipeId => { setImportingRecipe(false); newPreparation(); openRecipe(recipeId); }} />}
     <FullAutoConfirm reason={confirmFull} onCancel={() => setConfirmFull(null)}
       onConfirm={reason => { setConfirmFull(null); if (reason === "switch") applyLevel("full"); else void command("prepare"); }} />
     {taskQueued && taskId !== null && <Alert tone="info" action={<Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button>}>{format(factory.queued.hint, { count: queuedAhead })}</Alert>}
@@ -362,25 +390,53 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
             <Button variant="subtle" disabled={busy} data-nav-id="workshop-close-unity">{closeOffer.retry ? editorClose.actionContinue : editorClose.action}</Button>
           </Popconfirm>
         : <Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button>}>{closeOffer !== null && closeOffer.message === error ? editorClose.held : error}</Alert>}
-    {run === null ? <>
+    {run !== null && list?.runs.find(item => item.runId === run.runId)?.projectGone ? (() => {
+      const goneEntry = list.runs.find(item => item.runId === run.runId);
+      return <>
+        <header className="vua-line__header"><div className="vua-line__object"><h1 className="vua-title">{lineName(run.runId, run.sources[0]?.itemName ?? "", lineNames) || objectName}</h1></div></header>
+        <Card className="vua-line__gone" data-nav-id="workshop-project-gone">
+          <h2>{factory.projectGone.title}</h2>
+          <div className="vua-n3__actions">
+            {goneEntry?.recipeId ? <>
+              <Button variant="primary" data-nav-id="workshop-rebuild-recipe" onClick={() => { const id = goneEntry.recipeId!; newPreparation(); openRecipe(id); }}>{factory.projectGone.rebuildRecipe}</Button>
+              <Button variant="subtle" data-nav-id="workshop-rebuild" onClick={() => { setSourceIds(run.sources.map(item => item.sourceId)); newPreparation(); }}>{factory.projectGone.newLine}</Button>
+            </> : <Button variant="primary" data-nav-id="workshop-rebuild" onClick={() => { setSourceIds(run.sources.map(item => item.sourceId)); newPreparation(); }}>{factory.projectGone.newLine}</Button>}
+          </div>
+        </Card>
+        {port && <AmfResultViews port={port} run={run}/>}
+      </>;
+    })() : run === null ? <>
       <header className="vua-line__header"><div className="vua-page__hero"><h1 className="vua-title">{factory.newLine}</h1></div><PermissionModePicker value={effective} onChoose={chooseLevel} /></header>
-      {!recipePreview && <AmfRecipeLibrary refreshKey={recipeRefresh} disabled={busy} onOpen={recipeId => {
-        if (!port) return; setRequesting(true); setError(null);
-        void port.getRecipe(recipeId).then(setRecipePreview).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
-      }}/>}
       {recipePreview && <Card><Button disabled={busy} onClick={() => setSharingRecipe(recipePreview.recipe.recipeId)}>{copy.shareRecipe}</Button><h2>{recipePreview.recipe.title}</h2><p>{format(copy.recipeSummary,{materials:recipePreview.recipe.materials.length,outfits:recipePreview.recipe.outfits.length})}</p>
         <details><summary>{copy.materials}</summary><ul>{recipePreview.recipe.materials.map(material => <li key={material.id}>{material.packageName}</li>)}</ul></details>
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setRecipePreview(null)}>{copy.back}</Button><Button variant="primary" disabled={busy} onClick={() => { void prepareRecipe(); }}>{copy.recipeReproduce}</Button></div>
       </Card>}
-      {!recipePreview && (list === null ? <Card><EmptyState title={requesting ? copy.loading : unavailable} description={copy.loading} /></Card> : <Card>
-        <MaterialPicker sources={list.sources} chosen={sourceIds} onChange={setSourceIds} disabled={busy} />
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("warehouse")}>{copy.library}</Button><Button variant="primary" disabled={busy || sourceIds.length === 0 || list.editors.length === 0} onClick={() => { if (needsFullAutoNotice(level)) setConfirmFull("start"); else void command("prepare"); }}>{copy.prepare}</Button></div>
-        {list.editors.length === 0 ? <div className="vua-n3__notice"><p>{copy.editorMissing}</p><Button onClick={onPrepareEnv}>{copy.environment}</Button></div> : <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><label>{copy.editor}<select value={editorPath || list.editors[0]?.path || ""} onChange={e => setEditorPath(e.target.value)}>{list.editors.map(editor => <option key={editor.path} value={editor.path}>{editor.version} — {editor.path}</option>)}</select></label></details>}
-        <Button variant="subtle" onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.open}</Button>
-      </Card>)}
+      {!recipePreview && <div className="vua-line__start-row"><div className="vua-line__start-from vua-segments" role="tablist" aria-label={factory.newLine}>
+        <SegmentBar selected={startFrom} />
+        {(["materials", "recipe"] as const).map(option => <button type="button" role="tab" key={option} aria-selected={startFrom === option}
+          data-nav-id={`workshop-start-${option}`} onClick={() => setStartFrom(option)}>{option === "materials" ? start.fromMaterials : start.fromRecipe}</button>)}
+      </div><Button disabled={busy} data-nav-id="workshop-import-recipe" onClick={() => setImportingRecipe(true)}>{copy.importRecipe}</Button></div>}
+      {!recipePreview && startFrom === "recipe" && <AmfRecipeLibrary refreshKey={recipeRefresh} disabled={busy} onOpen={openRecipe}/>}
+      {!recipePreview && startFrom === "materials" && (list === null ? <Card><EmptyState title={requesting || error === null ? copy.loading : unavailable} /></Card>
+        : list.sources.length === 0 ? <Card><EmptyState title={start.noMaterials} action={<Button variant="primary" data-nav-id="workshop-import-materials" onClick={() => onNavigate("warehouse")}>{start.importMaterials}</Button>} /></Card>
+        : <>
+          {list.editors.length === 0 && <Alert tone="warning" title={start.needUnity} action={<Button data-nav-id="workshop-open-unity" onClick={onPrepareEnv}>{start.openUnitySetup}</Button>}>{copy.editorMissing}</Alert>}
+          <Card className="vua-line__materials-card">
+            <p className="vua-caption vua-text-secondary">{start.startHint}</p>
+            <MaterialPicker sources={list.sources} chosen={sourceIds} onChange={setSourceIds} disabled={busy} />
+          </Card>
+          <details className="vua-n3__advanced"><summary>{copy.advanced}</summary>
+            {list.editors.length > 0 && <label>{copy.editor}<select value={editorPath || list.editors[0]?.path || ""} onChange={e => setEditorPath(e.target.value)}>{list.editors.map(editor => <option key={editor.path} value={editor.path}>{editor.version} — {editor.path}</option>)}</select></label>}
+            <Button variant="subtle" onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.title}</Button>
+          </details>
+          <div className="vua-line__start-bar">
+            {sourceIds.length === 0 && <small className="vua-text-secondary" data-start-hint>{start.pickFirst}</small>}
+            <Button variant="primary" data-nav-id="workshop-start-line" disabled={busy || sourceIds.length === 0 || list.editors.length === 0} onClick={() => { if (needsFullAutoNotice(level)) setConfirmFull("start"); else void command("prepare"); }}>{level === "full" ? factory.materialsStart.startFull : factory.materialsStart.start}</Button>
+          </div>
+        </>)}
     </> : <>
       <header className="vua-line__header">
-        <div className="vua-line__object"><h1 className="vua-title">{objectName}</h1><span className="vua-caption vua-text-secondary">{format(ui.materials, { count: materials.length })}</span></div>
+        <div className="vua-line__object"><h1 className="vua-title">{(run && lineName(run.runId, run.sources[0]?.itemName ?? list?.runs.find(item => item.runId === run.runId)?.sourceNames[0] ?? "", lineNames)) || objectName}</h1><span className="vua-caption vua-text-secondary">{format(ui.materials, { count: materials.length })}</span></div>
         {status && <StatusChip status={status}/>}
         <SkinMotif slot="control-panel-corner" className="vua-line__skin-motif" />
         <PermissionModePicker value={effective} onChoose={chooseLevel} />
@@ -394,8 +450,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {stationIndicator && <span key={runId} className="vua-line__station-indicator" aria-hidden="true"
           style={{ width: stationIndicator.width, transform: `translate(${stationIndicator.x}px, ${stationIndicator.y}px)` }} />}
       </ol>}
-      <div className="vua-line__context" role="status"><strong>{format(ui.viewing, { step: factory.stations[shown] })}</strong><span>{executing ? format(ui.executing, { step: factory.stations[executing] }) : ui.idle}</span></div>
-      <details className="vua-line__source-details"><summary>{ui.details}</summary><dl><dt>{ui.lineId}</dt><dd>{run.runId}</dd></dl><ul>{materials.map(material => <li key={material.id}>{material.item}<small>{material.name} · {material.id}</small></li>)}</ul></details>
+      {executing && executing !== shown && <div className="vua-line__context" role="status"><strong>{format(ui.viewing, { step: factory.stations[shown] })}</strong><span>{format(ui.executing, { step: factory.stations[executing] })}</span>
+        <Button variant="subtle" data-nav-id="workshop-follow-line" onClick={() => setChosenStation(null)}>{factory.stations[executing]}</Button></div>}
       {lineBusy(run) && <Card className="vua-line__live" aria-live="polite">
         <div className="vua-line__live-head"><span className="vua-n3__spinner" aria-hidden="true"/>
           <strong>{runningStep ? copy.step[runningStep.key as keyof typeof copy.step] ?? runningStep.name : run.phase === "assembling" ? copy.assembling : run.phase === "restoring" ? copy.restoring : copy.preparing}</strong></div>
@@ -407,7 +463,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {!lineBusy(run) && (status === "attention" || status === "stopped") && <Card className="vua-line__attention" data-status={status}>
         <h2>{status === "stopped" ? factory.status.stopped : factory.attentionTitle}</h2>
         {run.error && isUnityLicenseFailure(run.error) ? <><p role="alert">{strings.unityLicense.retryHint}</p>
-          <Button onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.open}</Button></>
+          <Button variant="primary" data-nav-id="workshop-fix-license" onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.open}</Button></>
           : run.error && <p role="alert">{run.error.replace(/^vua.[a-z_.]+ — detail: /u, "")}</p>}
         {run.recovery && <p className="vua-n3__notice">{run.recovery === "restored" ? copy.recovered : copy.recoveryFailed}</p>}
         {interruptedChange(run) && <p>{factory.interrupted.hint}</p>}
@@ -416,7 +472,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
             if (!port) return; setRequesting(true); setError(null);
             void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
           }} data-nav-id="workshop-restore-interrupted">{factory.interrupted.restore}</Button>}
-          {run.sources.length > 0 && <Button variant="primary" disabled={busy} onClick={() => { void command("reinspect"); }}>{factory.continue}</Button>}</div>
+          {run.sources.length > 0 && <Button variant={run.error && isUnityLicenseFailure(run.error) ? "default" : "primary"} disabled={busy} onClick={() => { void command("reinspect"); }}>{factory.continue}</Button>}</div>
         <details className="vua-n3__advanced"><summary>{factory.details}</summary><ul className="vua-n3__progress">{run.steps.map((item,index) => <li key={`${item.key}-${index}`} data-state={item.state}>
           <span aria-hidden="true">{item.state === "succeeded" ? <Icon name="check" size={16}/> : item.state === "failed" ? <Icon name="warning" size={16}/> : <Icon name="dash" size={16}/>}</span>
           <span>{copy.step[item.key as keyof typeof copy.step] ?? item.name}{item.detail && <small>{item.detail}</small>}</span></li>)}</ul>
@@ -432,9 +488,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       </Card>}
       {shown === "prepare" && <Card className="vua-line__panel">
         <h2>{panels.materials.title}</h2>
-        {changing === null && <ul className="vua-line__materials">{materials.map(item => <li key={item.id}><strong>{item.item}</strong>{item.name && <small>{item.name}</small>}</li>)}</ul>}
+        {changing === null && <ul className="vua-line__materials">{materials.map(item => <li key={item.id}>
+          <MaterialThumb src={materialImage(list?.sources.find(source => source.sourceId === item.id))} />
+          <span><strong>{item.item}</strong>{item.name && <small>{item.name}</small>}</span></li>)}</ul>}
         {ftLocked && <FtLockNote onRestore={ftRestore} onNewLine={newPreparation} disabled={busy} />}
-        {changing === null ? <div className="vua-n3__actions"><Button disabled={!canChange || ftLocked} onClick={() => setChanging(currentIds)} data-nav-id="workshop-change-materials">{panels.materials.change}</Button></div> : <>
+        {changing === null ? <div className="vua-n3__actions"><Button disabled={!canChange || ftLocked} onClick={() => setChanging(currentIds)} data-nav-id="workshop-change-materials">{panels.materials.change}</Button>
+          <Button disabled={busy} data-nav-id="workshop-line-import-recipe" onClick={() => setImportingRecipe(true)}>{copy.importRecipe}</Button></div> : <>
           <h3>{panels.materials.changeTitle}</h3>
           <MaterialPicker sources={list?.sources ?? []} chosen={changing} onChange={setChanging} disabled={busy} />
           {sameMaterials && <p className="vua-caption vua-text-secondary">{panels.materials.unchanged}</p>}
@@ -549,7 +608,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {run.result?.facts?.sdkSignedIn === "no" && <p className="vua-text-secondary">{copy.sdkSignIn}</p>}
         {!!run.result?.facts?.missingReferences && <p className="vua-n3__notice">{copy.warning}</p>}
         {run.result?.diagnostics?.filter(d => d.severity !== "info" && d.code !== "amf.shaders.missing").map(d => <p className="vua-caption vua-text-secondary" key={d.code}>{d.message}</p>)}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("release")} data-nav-id="workshop-to-release">{panels.check.toRelease}</Button><Button variant="primary" disabled={busy} onClick={() => { void command("open"); }} data-nav-id="workshop-open">{taskAction === "open" ? copy.opening : copy.open}</Button></div>
+        <div className="vua-n3__actions"><Button disabled={busy} onClick={() => { void command("open"); }} data-nav-id="workshop-open">{taskAction === "open" ? copy.opening : copy.open}</Button><Button variant="primary" onClick={() => { if (effective === "full") requestTurntable(run.runId); onNavigate("release"); }} data-nav-id="workshop-to-release">{start.toFinished}</Button></div>
         {opened === runId && taskAction !== "open" && <p role="status"><Icon name="check" size={16}/> {copy.opened}</p>}
         {taskAction === "closeEditor" && <p role="status" className="vua-caption vua-text-secondary">{editorClose.closing}</p>}
         {(taskAction === "open" || opened === runId) && <p className="vua-caption vua-text-secondary">{copy.openedPanel}</p>}
@@ -563,6 +622,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         onStarted={taskId => { setTaskId(taskId); setTaskAction("texture_memory"); }} onError={e => fail(e)}/>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <LightingCard port={port} run={run} level={level} disabled={busy}
         onStarted={taskId => { setTaskId(taskId); setTaskAction("lighting"); }} onError={e => fail(e)}/>}
+      {shown === "check" && !restorePlan && run.phase === "succeeded" && port && <AvatarOptimizerCard port={port} run={run} disabled={busy} ftLocked={ftLocked}
+        onStarted={taskId => { setTaskId(taskId); setTaskAction("optimizer"); }} onError={e => fail(e)}/>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <FitSaveCard port={port} run={run} disabled={busy} />}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && run.result?.facts?.observedSelection && <Card>
         <div className="vua-n3__toolbar"><h2>{copy.saveRecipe}</h2><Button disabled={ftLocked} onClick={() => setApplyingRecipe(true)}>{copy.applyRecipe}</Button></div>
@@ -575,7 +636,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           }}><label className="vua-n3__field">{copy.recipeName}<input value={recipeTitle} maxLength={120} placeholder={run.result.facts.avatarName || copy.title} onChange={e => setRecipeTitle(e.target.value)}/></label>
           <Button type="submit" variant="primary" disabled={ftLocked}>{copy.saveRecipe}</Button></form>}
       </Card>}
-      <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><p>{run.editor.version}</p><code>{run.projectRoot}</code></details>
+      <details className="vua-n3__advanced vua-line__source-details"><summary>{ui.details}</summary><dl><dt>{ui.lineId}</dt><dd>{run.runId}</dd><dt>{copy.editor}</dt><dd>{run.editor.version}</dd></dl><code>{run.projectRoot}</code><ul>{materials.map(material => <li key={material.id}>{material.item}<small>{material.name} · {material.id}</small></li>)}</ul></details>
       {shown === "face" && port && <FaceTrackingCard port={port} run={run} disabled={busy} onUnityHolds={e => fail(e)}
         onStarted={id => { setTaskId(id); setTaskAction("faceTracking"); }} onRestore={ftRestore} onNewLine={newPreparation} />}
     </>}
@@ -640,8 +701,8 @@ function PredictionNote({ prediction }: { prediction: AmfPlanPrediction }) {
 function RecommendationNote({ recommendation, prefabs }: { recommendation: AmfRecommendation; prefabs: readonly AmfPrefab[] }) {  const reasons = strings.factory.reasons;
   const prefabName = (path: string) => prefabs.find(prefab => prefab.path === path)?.name ?? path.split("/").pop()?.replace(/\.prefab$/iu, "") ?? path;
   const parts = [
-    ...(recommendation.avatar.path && recommendation.avatar.reason ? [format(reasons[recommendation.avatar.reason], { name: prefabName(recommendation.avatar.path) })] : []),
-    ...recommendation.outfits.flatMap(outfit => outfit.path && outfit.reason ? [format(reasons[outfit.reason], { name: prefabName(outfit.path) })] : []),
+    ...(recommendation.avatar.path && recommendation.avatar.reason && recommendation.avatar.reason !== "only" ? [format(reasons[recommendation.avatar.reason], { name: prefabName(recommendation.avatar.path) })] : []),
+    ...recommendation.outfits.flatMap(outfit => outfit.path && outfit.reason && outfit.reason !== "only" ? [format(reasons[outfit.reason], { name: prefabName(outfit.path) })] : []),
   ];
   if (parts.length === 0) return null;
   return <p className="vua-caption vua-text-secondary">{format(reasons.lead, { reasons: parts.join(reasons.join) })}</p>;

@@ -5,6 +5,7 @@ describe("source fallback labels", () => {
   it("drops archive and version noise without joining every material into a title", () => {
     expect(compactSourceLabel("Avatar_Base_v1.2.3_release.zip")).toBe("Avatar Base");
     expect(compactSourceLabel("Coat_2.0.unitypackage")).toBe("Coat");
+    expect(compactSourceLabel("ChainedCrystal_Material_1.0.unitypackage.zip")).toBe("ChainedCrystal Material");
   });
   it("preserves meaningful digits, names and non-version suffixes", () => {
     expect(compactSourceLabel("Avatar_52.zip")).toBe("Avatar 52");

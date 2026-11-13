@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { strings } from "../../i18n/index.ts";
 import { Button } from "../../components/primitives/Button.tsx";
+import { useSwapFade } from "../../components/primitives/motion.ts";
 import { SiteBrowser } from "../../components/SiteBrowser.tsx";
 import { GuideOverlayView, type GuideRequest } from "../overlay/GuideOverlayView.tsx";
 import { loadGuideReading } from "../guide/guide-target.ts";
@@ -49,14 +50,18 @@ export function EncyclopediaPage({ onBack, guideRequest, acknowledgeGuide }: {
   };
   const clear = () => { setQuery(""); setTopic("all"); setKind("all"); };
 
+  const body = useRef<HTMLDivElement>(null);
+  useSwapFade(catalog, body);
   return <div className="vua-page vua-knowledge" data-focus-scope>
     <header className="vua-page__hero vua-environment-heading">
       <h1 className="vua-title">{copy.guide}</h1>
-      {!catalog ? <Button variant="subtle" data-nav-id="help-catalog" onClick={backToCatalog}>{uiCopy.backToCatalog}</Button> : null}
-      <Button data-nav-id="knowledge-wiki" onClick={() => setWikiOpen(true)}>{strings.browser.wiki}</Button>
-      <Button variant="subtle" data-back data-nav-id="help-child-back" onClick={onBack}>{copy.backToHelp}</Button>
+      <div className="vua-page__actions">
+        {!catalog ? <Button variant="subtle" data-nav-id="help-catalog" onClick={backToCatalog}>{uiCopy.backToCatalog}</Button> : null}
+        <Button data-nav-id="knowledge-wiki" onClick={() => setWikiOpen(true)}>{strings.browser.wiki}</Button>
+        <Button variant="subtle" data-back data-nav-id="help-child-back" onClick={onBack}>{copy.backToHelp}</Button>
+      </div>
     </header>
-    <div className="vua-overlay__body vua-knowledge__body">
+    <div ref={body} className="vua-overlay__body vua-knowledge__body">
       {catalog ? <EncyclopediaHome
         query={query} onQuery={setQuery}
         topic={topic} onTopic={setTopic}

@@ -29,4 +29,5 @@ export interface DesktopToolLogosApiV01 {
 export interface VuaDesktopApiV7 extends VuaDesktopApiV6 {
   readonly amfUiRuntime?: DesktopAmfUiRuntimeApiV01;
   readonly toolLogos?: DesktopToolLogosApiV01;
+  readonly guideContent?: import("./guide-content.js").DesktopGuideContentApiV01;
 }

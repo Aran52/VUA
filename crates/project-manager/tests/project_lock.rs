@@ -13,7 +13,10 @@ use vua_project_manager::{
 };
 
 fn temp_project(label: &str) -> std::path::PathBuf {
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let root = std::env::temp_dir().join(format!("vua-plock-{label}-{nanos}"));
     fs::create_dir_all(root.join("Assets")).unwrap();
     root
@@ -49,7 +52,10 @@ fn plk_001_second_holder_is_refused_with_diagnostics_then_wins_after_release() {
     // The envelope on disk is the versioned diagnostic of the holder.
     let raw = fs::read_to_string(&lock_path).unwrap();
     let envelope: vua_project_manager::LockEnvelopeV1 = serde_json::from_str(&raw).unwrap();
-    assert_eq!(envelope.lock_version, vua_project_manager::PROJECT_LOCK_SCHEMA_VERSION);
+    assert_eq!(
+        envelope.lock_version,
+        vua_project_manager::PROJECT_LOCK_SCHEMA_VERSION
+    );
     assert_eq!(envelope.holder.profile, "profile-a");
 
     guard.release().expect("release");
@@ -77,11 +83,17 @@ fn plk_003_marker_lifecycle_and_leftover_findings() {
     assert_eq!(read_pending_mutation(&root), PendingMutation::None);
 
     let marker = begin_mutation(&root, "material_intake", &holder("a")).expect("begin");
-    assert_eq!(marker.marker_path(), root.join(".vua").join(MARKER_FILE_NAME));
+    assert_eq!(
+        marker.marker_path(),
+        root.join(".vua").join(MARKER_FILE_NAME)
+    );
     match read_pending_mutation(&root) {
         PendingMutation::Leftover(left) => {
             assert_eq!(left.mutation_kind, "material_intake");
-            assert_eq!(left.marker_version, vua_project_manager::MUTATION_MARKER_SCHEMA_VERSION);
+            assert_eq!(
+                left.marker_version,
+                vua_project_manager::MUTATION_MARKER_SCHEMA_VERSION
+            );
             assert_eq!(left.holder.instance_id, "a");
         }
         other => panic!("live marker must read as Leftover, got {other:?}"),
@@ -103,7 +115,11 @@ fn plk_004_unreadable_marker_is_evidence_not_clean() {
     assert_eq!(read_pending_mutation(&root), PendingMutation::Unreadable);
 
     // A future marker version is equally not-understood: inspect first.
-    fs::write(&marker_path, "{\"markerVersion\":99,\"mutationKind\":\"x\"}").unwrap();
+    fs::write(
+        &marker_path,
+        "{\"markerVersion\":99,\"mutationKind\":\"x\"}",
+    )
+    .unwrap();
     assert_eq!(read_pending_mutation(&root), PendingMutation::Unreadable);
 
     // A new mutation overwrites the leftover once the caller decided to
@@ -127,8 +143,10 @@ fn plk_005_lock_and_marker_are_independent_gates() {
     let marker = begin_mutation(&root, "material_intake", &holder("a")).unwrap();
 
     guard.release().unwrap();
-    assert!(matches!(read_pending_mutation(&root), PendingMutation::Leftover(_)),
-        "releasing the lock must not clear crash evidence");
+    assert!(
+        matches!(read_pending_mutation(&root), PendingMutation::Leftover(_)),
+        "releasing the lock must not clear crash evidence"
+    );
 
     marker.release().unwrap();
     let guard2 = acquire_project_lock(&root, holder("b")).expect("re-lock");

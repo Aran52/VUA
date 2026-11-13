@@ -31,7 +31,12 @@ pub fn footprint_valid(footprint: &CandidateFootprint) -> bool {
 
 /// Every candidate's footprint must stay inside its contract before it is stored.
 pub fn validate_prefab_footprints(prefabs: &[PrefabCandidate]) -> Result<(), AppErrorV1> {
-    if prefabs.iter().any(|prefab| prefab.footprint.as_ref().is_some_and(|footprint| !footprint_valid(footprint))) {
+    if prefabs.iter().any(|prefab| {
+        prefab
+            .footprint
+            .as_ref()
+            .is_some_and(|footprint| !footprint_valid(footprint))
+    }) {
         return Err(production_error(
             "receipt_invalid",
             "Footprint evidence exceeds its contract.",
@@ -69,7 +74,10 @@ impl PredictedRow {
 /// so the page can stay honest instead of showing zeros.
 pub fn plan_prediction(run: &ProductionRun, selection: &AssemblySelection) -> serde_json::Value {
     let parameters = estimate_parameters(run, selection);
-    let avatar = run.prefabs.iter().find(|prefab| prefab.is_avatar && prefab.path == selection.avatar_prefab);
+    let avatar = run
+        .prefabs
+        .iter()
+        .find(|prefab| prefab.is_avatar && prefab.path == selection.avatar_prefab);
     let outfits: Vec<(&OutfitSelection, &PrefabCandidate)> = selection
         .outfits
         .iter()
@@ -77,7 +85,9 @@ pub fn plan_prediction(run: &ProductionRun, selection: &AssemblySelection) -> se
             run.prefabs
                 .iter()
                 .find(|prefab| {
-                    !prefab.is_avatar && prefab.source_id == outfit.source_id && prefab.path == outfit.prefab_path
+                    !prefab.is_avatar
+                        && prefab.source_id == outfit.source_id
+                        && prefab.path == outfit.prefab_path
                 })
                 .map(|prefab| (outfit, prefab))
         })
@@ -89,18 +99,28 @@ pub fn plan_prediction(run: &ProductionRun, selection: &AssemblySelection) -> se
         .collect();
     let tolerance = serde_json::json!({"counts":"exact","textureBytes":"decoded_estimate",
         "uncompressedBytes":"within_25_percent"});
-    let document = |available: bool, rows: Vec<serde_json::Value>, total: Option<serde_json::Value>| {
+    let document = |available: bool,
+                    rows: Vec<serde_json::Value>,
+                    total: Option<serde_json::Value>| {
         let mut document = serde_json::json!({"schemaVersion":"0.1","evidence":"unity_source_estimate",
             "platform":PREDICTION_PLATFORM,"available":available,"tolerance":tolerance,"rows":rows});
-        if let Some(total) = total { document["total"] = total; }
+        if let Some(total) = total {
+            document["total"] = total;
+        }
         document
     };
-    if selected.is_empty() || selected.iter().any(|(_, prefab)| prefab.footprint.is_none()) {
+    if selected.is_empty()
+        || selected
+            .iter()
+            .any(|(_, prefab)| prefab.footprint.is_none())
+    {
         return document(false, vec![], None);
     }
     // The Avatar's own parameter row is its Expression Parameters plus its MA Parameters;
     // every outfit's row is the bits that outfit adds, including VUA's own switch.
-    let avatar_bits = parameters.known.then_some(parameters.expression_bits + parameters.avatar_ma_bits);
+    let avatar_bits = parameters
+        .known
+        .then_some(parameters.expression_bits + parameters.avatar_ma_bits);
     let mut rows = Vec::with_capacity(selected.len());
     for (role, prefab) in &selected {
         let footprint = prefab.footprint.expect("checked above");
@@ -109,7 +129,11 @@ pub fn plan_prediction(run: &ProductionRun, selection: &AssemblySelection) -> se
         } else if *role == "avatar" {
             avatar_bits
         } else {
-            parameters.outfits.iter().find(|(source_id, ..)| *source_id == prefab.source_id).map(|(.., bits, _)| *bits)
+            parameters
+                .outfits
+                .iter()
+                .find(|(source_id, ..)| *source_id == prefab.source_id)
+                .map(|(.., bits, _)| *bits)
         };
         rows.push(PredictedRow {
             source_id: prefab.source_id.clone(),
@@ -123,14 +147,17 @@ pub fn plan_prediction(run: &ProductionRun, selection: &AssemblySelection) -> se
             // Everything the built Avatar is charged for that the import can state before
             // assembly: decoded textures plus mesh buffers.
             uncompressed_bytes: footprint.texture_bytes.saturating_add(footprint.mesh_bytes),
-            complete: footprint.texture_complete && footprint.mesh_complete
-                && footprint.phys_bones_known && parameter_bits.is_some(),
+            complete: footprint.texture_complete
+                && footprint.mesh_complete
+                && footprint.phys_bones_known
+                && parameter_bits.is_some(),
         });
     }
     let sum = |value: fn(&PredictedRow) -> u64| rows.iter().map(value).sum::<u64>();
-    let parameter_total = rows.iter().map(|row| row.parameter_bits).try_fold(0u32, |total, bits| {
-        bits.map(|bits| total + bits)
-    });
+    let parameter_total = rows
+        .iter()
+        .map(|row| row.parameter_bits)
+        .try_fold(0u32, |total, bits| bits.map(|bits| total + bits));
     let total = serde_json::json!({
         "triangles": sum(|row| row.triangles),
         "materialSlots": rows.iter().map(|row| row.material_slots).sum::<u32>(),
@@ -140,7 +167,11 @@ pub fn plan_prediction(run: &ProductionRun, selection: &AssemblySelection) -> se
         "uncompressedBytes": sum(|row| row.uncompressed_bytes),
         "complete": rows.iter().all(|row| row.complete),
     });
-    document(true, rows.iter().map(PredictedRow::json).collect(), Some(total))
+    document(
+        true,
+        rows.iter().map(PredictedRow::json).collect(),
+        Some(total),
+    )
 }
 
 #[cfg(test)]
@@ -148,21 +179,60 @@ mod tests {
     use super::*;
 
     fn footprint(triangles: u64, texture: u64, mesh: u64) -> CandidateFootprint {
-        CandidateFootprint { triangles, material_slots: 2, meshes: 2, skinned_meshes: 1,
-            texture_bytes: texture, texture_complete: true, mesh_bytes: mesh, mesh_complete: true,
-            phys_bones: 3, phys_bones_known: true }
+        CandidateFootprint {
+            triangles,
+            material_slots: 2,
+            meshes: 2,
+            skinned_meshes: 1,
+            texture_bytes: texture,
+            texture_complete: true,
+            mesh_bytes: mesh,
+            mesh_complete: true,
+            phys_bones: 3,
+            phys_bones_known: true,
+        }
     }
     fn budget(names: &[(&str, u8)]) -> ParameterBudget {
-        ParameterBudget { expression_parameters_observed: true, expression_parameters: vec![],
-            ma_components: vec![ParameterComponent { path: String::new(),
-                parameters: names.iter().map(|(name, bits)| ParameterEntry { name: (*name).into(), bits: *bits, unique: false }).collect() }],
-            unresolved_prefix_configs: 0, truncated: false }
+        ParameterBudget {
+            expression_parameters_observed: true,
+            expression_parameters: vec![],
+            ma_components: vec![ParameterComponent {
+                path: String::new(),
+                parameters: names
+                    .iter()
+                    .map(|(name, bits)| ParameterEntry {
+                        name: (*name).into(),
+                        bits: *bits,
+                        unique: false,
+                    })
+                    .collect(),
+            }],
+            unresolved_prefix_configs: 0,
+            truncated: false,
+        }
     }
-    fn candidate(source: &str, name: &str, avatar: bool, made: Option<CandidateFootprint>, parameters: Option<ParameterBudget>) -> PrefabCandidate {
-        PrefabCandidate { source_id: source.into(), path: format!("Assets/{source}.prefab"), name: name.into(),
-            is_avatar: avatar, has_skinned_mesh: true, has_merge_armature: !avatar, has_missing_scripts: false,
-            humanoid_bones: vec![], preview: None, parameter_budget: parameters, prefab_guid: None,
-            object_paths: None, footprint: made }
+    fn candidate(
+        source: &str,
+        name: &str,
+        avatar: bool,
+        made: Option<CandidateFootprint>,
+        parameters: Option<ParameterBudget>,
+    ) -> PrefabCandidate {
+        PrefabCandidate {
+            source_id: source.into(),
+            path: format!("Assets/{source}.prefab"),
+            name: name.into(),
+            is_avatar: avatar,
+            has_skinned_mesh: true,
+            has_merge_armature: !avatar,
+            has_missing_scripts: false,
+            humanoid_bones: vec![],
+            preview: None,
+            parameter_budget: parameters,
+            prefab_guid: None,
+            object_paths: None,
+            footprint: made,
+        }
     }
     fn run_of(prefabs: Vec<PrefabCandidate>) -> ProductionRun {
         ProductionRun { run_id: "n3-prediction".into(), prefabs, ..serde_json::from_value(serde_json::json!({
@@ -173,24 +243,56 @@ mod tests {
             "error":null,"recovery":null,"result":null})).expect("synthetic run") }
     }
     fn selection(pairs: &[(&str, &str)]) -> AssemblySelection {
-        AssemblySelection { avatar_prefab: "Assets/avatar.prefab".into(),
-            outfits: pairs.iter().map(|(source, toggle)| OutfitSelection {
-                source_id: (*source).into(), prefab_path: format!("Assets/{source}.prefab"),
-                mode: BindingMode::MergeArmature, bone: String::new(), toggle_name: (*toggle).into(),
-                active: true, saved: true, group: String::new() }).collect() }
+        AssemblySelection {
+            avatar_prefab: "Assets/avatar.prefab".into(),
+            outfits: pairs
+                .iter()
+                .map(|(source, toggle)| OutfitSelection {
+                    source_id: (*source).into(),
+                    prefab_path: format!("Assets/{source}.prefab"),
+                    mode: BindingMode::MergeArmature,
+                    bone: String::new(),
+                    toggle_name: (*toggle).into(),
+                    active: true,
+                    saved: true,
+                    group: String::new(),
+                })
+                .collect(),
+        }
     }
     fn p02() -> ProductionRun {
         run_of(vec![
-            candidate("avatar", "Meiyun", true, Some(footprint(70_000, 120 << 20, 20 << 20)), Some(budget(&[("VRCEmote", 8)]))),
-            candidate("outfit", "TshirtShorts", false, Some(footprint(30_000, 60 << 20, 8 << 20)), Some(budget(&[("Shirt", 1)]))),
-            candidate("costume", "Costume4", false, Some(footprint(25_000, 40 << 20, 6 << 20)), Some(budget(&[("Dress", 1)]))),
+            candidate(
+                "avatar",
+                "Meiyun",
+                true,
+                Some(footprint(70_000, 120 << 20, 20 << 20)),
+                Some(budget(&[("VRCEmote", 8)])),
+            ),
+            candidate(
+                "outfit",
+                "TshirtShorts",
+                false,
+                Some(footprint(30_000, 60 << 20, 8 << 20)),
+                Some(budget(&[("Shirt", 1)])),
+            ),
+            candidate(
+                "costume",
+                "Costume4",
+                false,
+                Some(footprint(25_000, 40 << 20, 6 << 20)),
+                Some(budget(&[("Dress", 1)])),
+            ),
         ])
     }
 
     #[test]
     fn rows_cover_the_avatar_and_every_selected_outfit_with_all_six_values() {
         let run = p02();
-        let plan = plan_prediction(&run, &selection(&[("outfit", "Tshirt"), ("costume", "Costume")]));
+        let plan = plan_prediction(
+            &run,
+            &selection(&[("outfit", "Tshirt"), ("costume", "Costume")]),
+        );
         assert_eq!(plan["available"], true);
         let rows = plan["rows"].as_array().unwrap();
         assert_eq!(rows.len(), 3);
@@ -211,7 +313,10 @@ mod tests {
         assert_eq!(total["triangles"], 125_000u64);
         assert_eq!(total["materialSlots"], 6u32);
         assert_eq!(total["textureBytes"], (120u64 + 60 + 40) << 20);
-        assert_eq!(total["uncompressedBytes"], (120u64 + 60 + 40 + 20 + 8 + 6) << 20);
+        assert_eq!(
+            total["uncompressedBytes"],
+            (120u64 + 60 + 40 + 20 + 8 + 6) << 20
+        );
         assert_eq!(total["parameterBits"], 12u32);
         assert_eq!(total["complete"], true);
     }
@@ -223,7 +328,12 @@ mod tests {
         let plan = plan_prediction(&run, &selection);
         let budget = plan_parameter_budget(&run, &selection);
         assert_eq!(plan["total"]["parameterBits"], budget["estimateBits"]);
-        let row_sum: u32 = plan["rows"].as_array().unwrap().iter().map(|row| row["parameterBits"].as_u64().unwrap() as u32).sum();
+        let row_sum: u32 = plan["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row["parameterBits"].as_u64().unwrap() as u32)
+            .sum();
         assert_eq!(row_sum, budget["estimateBits"].as_u64().unwrap() as u32);
     }
 
@@ -267,8 +377,14 @@ mod tests {
         let mut impossible = run.prefabs[1].footprint.unwrap();
         impossible.skinned_meshes = impossible.meshes + 1;
         run.prefabs[1].footprint = Some(impossible);
-        assert_eq!(validate_prefab_footprints(&run.prefabs).unwrap_err().code, "vua.amf_production.receipt_invalid");
-        run.prefabs[1].footprint = Some(CandidateFootprint { triangles: MAX_TRIANGLES + 1, ..impossible });
+        assert_eq!(
+            validate_prefab_footprints(&run.prefabs).unwrap_err().code,
+            "vua.amf_production.receipt_invalid"
+        );
+        run.prefabs[1].footprint = Some(CandidateFootprint {
+            triangles: MAX_TRIANGLES + 1,
+            ..impossible
+        });
         assert!(validate_prefab_footprints(&run.prefabs).is_err());
         run.prefabs[1].footprint = Some(footprint(1, 1, 1));
         assert!(validate_prefab_footprints(&run.prefabs).is_ok());

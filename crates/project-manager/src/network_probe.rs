@@ -534,13 +534,16 @@ async fn measure_regional_references(
     }
     let mut via_proxies = vec![false; urls.len()];
     let hint_deadline = deadline.min(Instant::now() + PROXY_HINT_TIMEOUT);
-    let _ = tokio::time::timeout(hint_deadline.saturating_duration_since(Instant::now()), async {
-        while let Some(joined) = hints.join_next().await {
-            if let Ok((index, via_proxy)) = joined {
-                via_proxies[index] = via_proxy;
+    let _ = tokio::time::timeout(
+        hint_deadline.saturating_duration_since(Instant::now()),
+        async {
+            while let Some(joined) = hints.join_next().await {
+                if let Ok((index, via_proxy)) = joined {
+                    via_proxies[index] = via_proxy;
+                }
             }
-        }
-    })
+        },
+    )
     .await;
     hints.abort_all();
     let mut regions = Vec::with_capacity(urls.len());
@@ -955,7 +958,9 @@ mod tests {
                 let Ok((mut socket, _)) = listener.accept() else {
                     return;
                 };
-                socket.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+                socket
+                    .set_read_timeout(Some(Duration::from_secs(10)))
+                    .unwrap();
                 let log = log.clone();
                 std::thread::spawn(move || {
                     for (status, delay, close) in script {

@@ -52,6 +52,7 @@ export class SupervisedProcessProviderV01 implements OrchestratorProviderV01 {
   readonly #statusListeners = new Set<(status: ProviderStatusV01) => void>();
   readonly #pending = new Map<string, PendingFrame>();
   #environmentSnapshot: Promise<ApplicationResponseV01> | undefined;
+  #startingHandshake: Promise<void> | undefined;
   #state: ProviderStatusV01["state"] = "stopped";
   #acceptingCalls = false;
   #child: ChildProcessWithoutNullStreams | undefined;
@@ -91,9 +92,16 @@ export class SupervisedProcessProviderV01 implements OrchestratorProviderV01 {
     this.#expectedExit = false;
     this.#stdoutBuffer = Buffer.alloc(0);
     this.#stderr = "";
+    let settleHandshake!: () => void;
+    this.#startingHandshake = new Promise<void>((resolve) => { settleHandshake = resolve; });
     let child: ReturnType<ProviderProcessFactoryV01>;
     try { child = this.#processFactory(this.#options.executablePath, this.#options.databasePath); }
-    catch (error) { this.#fail(asError(error)); throw error; }
+    catch (error) {
+      this.#fail(asError(error));
+      this.#startingHandshake = undefined;
+      settleHandshake();
+      throw error;
+    }
     this.#child = child;
     let exited = false;
     child.stdout.on("data", (chunk: Buffer) => this.#receiveStdout(chunk));
@@ -128,10 +136,16 @@ export class SupervisedProcessProviderV01 implements OrchestratorProviderV01 {
       child.kill();
       this.#fail(asError(error));
       throw error;
+    } finally {
+      this.#startingHandshake = undefined;
+      settleHandshake();
     }
   }
 
   async invoke(request: ApplicationRequestV01): Promise<ApplicationResponseV01> {
+    if (this.#state === "starting" && this.#startingHandshake !== undefined) {
+      await this.#startingHandshake;
+    }
     if (!this.#acceptingCalls || this.#state !== "ready") {
       return {
         contractVersion: this.contractVersion,

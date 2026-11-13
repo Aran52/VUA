@@ -77,7 +77,12 @@ pub const DEP_KIND_OTHER: &str = "other";
 /// line must be SHORT and must not read like a sentence — a long prose line
 /// merely mentioning a heading word is not a heading.
 const HEADING_MARKERS: &[&str] = &[
-    "前提環境", "必要環境", "動作環境", "必須環境", "環境要件", "requirements",
+    "前提環境",
+    "必要環境",
+    "動作環境",
+    "必須環境",
+    "環境要件",
+    "requirements",
 ];
 const HEADING_MAX_CHARS: usize = 24;
 
@@ -303,14 +308,18 @@ fn is_heading_line(trimmed: &str) -> bool {
         return false;
     }
     let lowered = trimmed.to_lowercase();
-    HEADING_MARKERS.iter().any(|marker| lowered.contains(marker))
+    HEADING_MARKERS
+        .iter()
+        .any(|marker| lowered.contains(marker))
 }
 
 fn ends_with_sentence_punctuation(trimmed: &str) -> bool {
-    trimmed
-        .chars()
-        .last()
-        .is_some_and(|c| matches!(c, '。' | '．' | '.' | '、' | ',' | '！' | '!' | '？' | '?' | '：' | ':'))
+    trimmed.chars().last().is_some_and(|c| {
+        matches!(
+            c,
+            '。' | '．' | '.' | '、' | ',' | '！' | '!' | '？' | '?' | '：' | ':'
+        )
+    })
 }
 
 /// Strips a leading bullet marker, returning the remaining text. The dash
@@ -457,9 +466,7 @@ fn scan_version_token(text: &str, start: usize) -> Option<(usize, bool)> {
     }
     if end < bytes.len() && matches!(bytes[end], b'~') {
         end += 1;
-    } else if end + "～".len() <= bytes.len()
-        && text[end..].starts_with('～')
-    {
+    } else if end + "～".len() <= bytes.len() && text[end..].starts_with('～') {
         end += "～".len();
     }
     let clean = match bytes.get(end) {
@@ -504,7 +511,10 @@ fn find_com_package_token(text: &str) -> Option<(usize, usize)> {
         let prev_clean = match start.checked_sub(1) {
             None => true,
             Some(prev) => {
-                !(bytes[prev].is_ascii_alphanumeric() || bytes[prev] == b'.' || bytes[prev] == b'-' || bytes[prev] == b'_')
+                !(bytes[prev].is_ascii_alphanumeric()
+                    || bytes[prev] == b'.'
+                    || bytes[prev] == b'-'
+                    || bytes[prev] == b'_')
             }
         };
         if !prev_clean {

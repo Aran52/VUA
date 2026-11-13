@@ -130,7 +130,7 @@ test("阅读位置持久化:存储往返一致;损坏值/词表漂移安全回�
   }
 });
 
-test("百科和 VUA 指南使用独立阅读键;上传问答分节可直接定位", () => {
+test("上传问答分节可直接定位,使用 VUA 与其他主题共用一个阅读书签", () => {
   const store = new Map<string, string>();
   const storage = {
     getItem: (key: string) => store.get(key) ?? null,
@@ -140,9 +140,8 @@ test("百科和 VUA 指南使用独立阅读键;上传问答分节可直接定�
   Object.defineProperty(globalThis, "localStorage", { value: storage, configurable: true });
   try {
     saveGuideReading({ topic: "guide-safety", section: "trust" });
-    saveGuideReading({ topic: "guide-vua", section: "production-line" }, "vua-vua-guide-reading-v1");
-    assert.deepEqual(loadGuideReading(), { topic: "guide-safety", section: "trust" });
-    assert.deepEqual(loadGuideReading("vua-vua-guide-reading-v1"), { topic: "guide-vua", section: "production-line" });
+    saveGuideReading({ topic: "guide-vua", section: "production-line" });
+    assert.deepEqual(loadGuideReading(), { topic: "guide-vua", section: "production-line" });
     assert.deepEqual(normalizeGuideTarget({ topic: "guide-creator", section: "improve-trust" }), { topic: "guide-creator", section: "improve-trust" });
   } finally {
     delete (globalThis as Record<string, unknown>).localStorage;

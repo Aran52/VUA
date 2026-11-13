@@ -720,7 +720,7 @@ function RecipeLibrarySection({
 export function RecipePage({ onNavigate }: { onNavigate?: (page: PageId) => void } = {}) {
   const gateway = useGateway();
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  if (!gateway.amfProduction) return <RecipeWorkspace />;
+  if (!gateway.amfProduction) return <RecipeWorkspace {...(onNavigate ? { onNavigate } : {})} />;
   const productionCopy = strings.amfProduction;
   return (
     <div className="vua-page">
@@ -740,14 +740,14 @@ export function RecipePage({ onNavigate }: { onNavigate?: (page: PageId) => void
         <Button variant="subtle" aria-expanded={workspaceOpen} aria-controls="recipe-workspace" onClick={() => setWorkspaceOpen(value => !value)}>
           {productionCopy.recipeWorkspace}
         </Button>
-        {workspaceOpen && <div id="recipe-workspace"><RecipeWorkspace /></div>}
+        {workspaceOpen && <div id="recipe-workspace"><RecipeWorkspace {...(onNavigate ? { onNavigate } : {})} /></div>}
       </section>
     </div>
   );
 }
 
 /** Selection drafts and their graph remain available separately from saved production Recipes. */
-export function RecipeWorkspace() {
+export function RecipeWorkspace({ embedded = false, onNavigate }: { embedded?: boolean; onNavigate?: (page: PageId) => void } = {}) {
   const gateway = useGateway();
   const isFixture = useDataSource() === "fixture";
   const [graph, setGraph] = useState<RecipeGraphView | null>(null);
@@ -999,9 +999,9 @@ export function RecipeWorkspace() {
   };
 
   return (
-    <div className="vua-page">
-      <section className="vua-page__hero">
-        <h1 className="vua-title">
+    <div className={embedded ? "vua-page__stack" : "vua-page"}>
+      <section className={embedded ? "vua-recipe-workspace__bar" : "vua-page__hero"}>
+        {embedded ? null : <h1 className="vua-title">
           {termLabel("recipe")}
           {isFixture ? (
             <>
@@ -1009,8 +1009,8 @@ export function RecipeWorkspace() {
               <Badge tone="warning">{strings.common.fixtureBadge}</Badge>
             </>
           ) : null}
-        </h1>
-        <div className="vua-page__actions" role="group" aria-label={copy.viewSwitchAria}>
+        </h1>}
+        {graph?.kind === "graph" ? <div className="vua-page__actions" role="group" aria-label={copy.viewSwitchAria}>
           <Button
             variant={viewMode === "graph" ? "primary" : "default"}
             onClick={() => setViewMode("graph")}
@@ -1042,7 +1042,7 @@ export function RecipeWorkspace() {
               {copy.versions.toggle}
             </Button>
           ) : null}
-        </div>
+        </div> : null}
         {/* 创建入口(029 A1 升格):配方页主路径「创建」(U16 裁决原文词面,
             不与「添加素材/组装」混用)打开搭配草稿弹窗——草稿弹窗保留为创建
             起点之一,两 UI 一保存链纪律不破(019 批 D);创建产物入配方库并可
@@ -1050,9 +1050,6 @@ export function RecipeWorkspace() {
         <div className="vua-page__actions">
           <Button variant="primary" onClick={() => setComposeDialogOpen(true)}>
             {copy.createCta}
-          </Button>
-          <Button variant="default" onClick={() => setComposeDialogOpen(true)}>
-            {strings.nav.pages.composePage}
           </Button>
           {/* B 面环 4(029):反向入口——从已有 VUA 管理工程导出配方草稿;入口
               限定已注册工程集,转正走既有保存链(草稿绝不静默转正) */}
@@ -1062,7 +1059,7 @@ export function RecipeWorkspace() {
         </div>
       </section>
 
-      <RecipeDraftLibrary />
+      <RecipeDraftLibrary {...(onNavigate ? { onNavigate } : {})} />
 
       <Card>
         <RecipeLibrarySection
@@ -1129,7 +1126,7 @@ export function RecipeWorkspace() {
           </div>
         </Card>
       ) : graph.kind === "not-connected" ? (
-        <Card>
+        embedded ? null : <Card>
           <EmptyState title={copy.notConnectedTitle} description={copy.notConnectedDescription} />
         </Card>
       ) : (

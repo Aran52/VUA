@@ -51,13 +51,30 @@ fn apply(store: &RecipeSelectionDrafts, name: &str) -> Value {
 fn recipe_draft_schemas_live_results_restart_and_production_separation() {
     let request = jsonschema::validator_for(&vector("request.schema.json")).unwrap();
     let response = jsonschema::validator_for(&vector("response.schema.json")).unwrap();
-    for name in ["list", "get", "save", "add"] {
+    for name in [
+        "list",
+        "get",
+        "status",
+        "materials",
+        "legacy-census",
+        "migrate-legacy",
+        "save",
+        "add",
+    ] {
         assert!(request.is_valid(&vector(&format!("examples/{name}.request.json"))));
     }
     for name in ["invalid-formal", "invalid-path", "invalid-revision"] {
         assert!(!request.is_valid(&vector(&format!("examples/{name}.request.json"))));
     }
-    for name in ["read", "add", "list"] {
+    for name in [
+        "read",
+        "add",
+        "list",
+        "status",
+        "materials",
+        "legacy-census",
+        "migrate-legacy",
+    ] {
         assert!(response.is_valid(&vector(&format!("examples/{name}.response.json"))));
     }
     assert!(!response.is_valid(&vector("examples/invalid-kind.response.json")));

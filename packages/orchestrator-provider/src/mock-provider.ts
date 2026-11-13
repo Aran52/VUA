@@ -185,9 +185,9 @@ export class MockOrchestratorProviderV01 implements OrchestratorProviderV01 {
         return this.#failure(request, this.#error("vua.terms.unavailable", "unavailable", "errors.terms.failed", request.correlationId, true, false));
       case "environment.unityLicense": case "environment.checkUnityLicense":
         return this.#failure(request, this.#error("vua.unity_license.unavailable", "unavailable", "errors.unityLicense.failed", request.correlationId, false, false));
-      case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
-      case "amf.production.planTextureMemory": case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.revisionPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeMaterialPlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.readShareImage": case "amf.production.exportShareImage": case "amf.production.turntableFrame": case "amf.production.faceTrackingPlan": case "amf.production.planOutfitRemoval": case "amf.production.planLighting": case "amf.production.listFits":
-      case "amf.production.applyTextureMemory": case "amf.production.closeEditor": case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.restoreRevision": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe": case "amf.production.bakeTurntable": case "amf.production.upload": case "amf.production.faceTrackingPatch": case "amf.production.sdkFix": case "amf.production.changeSources": case "amf.production.delete": case "amf.production.setCapacity": case "amf.production.removeOutfit": case "amf.production.applyLighting": case "amf.production.saveFit": case "amf.production.renameFit": case "amf.production.deleteFit":
+      case "environment.listPlaySetups": case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
+      case "amf.production.planTextureMemory": case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.revisionPlan": case "amf.production.listRecipes": case "amf.production.recipeImage": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeMaterialPlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.readShareImage": case "amf.production.exportShareImage": case "amf.production.turntableFrame": case "amf.production.faceTrackingPlan": case "amf.production.planOutfitRemoval": case "amf.production.planLighting": case "amf.production.listFits":
+      case "amf.production.applyTextureMemory": case "amf.production.closeEditor": case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.restoreRevision": case "amf.production.renameRecipe": case "amf.production.deleteRecipe": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe": case "amf.production.localTest": case "amf.production.bakeTurntable": case "amf.production.upload": case "amf.production.faceTrackingPatch": case "amf.production.sdkFix": case "amf.production.changeSources": case "amf.production.delete": case "amf.production.setCapacity": case "amf.production.removeOutfit": case "amf.production.applyLighting": case "amf.production.setOptimizer": case "amf.production.saveFit": case "amf.production.renameFit": case "amf.production.deleteFit":
         return this.#failure(request, this.#error("vua.amf_production.unavailable", "unavailable", "errors.amfProduction.unavailable", request.correlationId, false, false));
       case "application.getSnapshot":
         return this.#success(request, {
@@ -241,6 +241,9 @@ export class MockOrchestratorProviderV01 implements OrchestratorProviderV01 {
       case "tools.observeConnection":
       case "tools.actConnection":
         return this.#failure(request, this.#error("vua.external_tool.unavailable", "unavailable", "errors.externalTool.unavailable", request.correlationId, false, false));
+      case "tools.observeInstaller":
+      case "tools.actInstaller":
+        return this.#failure(request, this.#error("vua.installer_tool.unavailable", "unavailable", "errors.externalTool.unavailable", request.correlationId, false, false));
       case "environment.inspectManagerApps":
         return this.#failure(request, this.#error("vua.manager_apps.unavailable", "unavailable", "errors.playSession.unavailable", request.correlationId, false, false));
       case "environment.planDeployment":
@@ -401,7 +404,11 @@ export class MockOrchestratorProviderV01 implements OrchestratorProviderV01 {
           false,
         ));
       case "catalog.ingestLibraryPage":
+      case "catalog.ingestOrdersPage":
       case "catalog.searchProducts":
+      case "catalog.enrichmentQueue":
+      case "catalog.beginEnrichment":
+      case "catalog.observeProduct":
         // 模拟 Provider 无 catalog-sync 投递域:诚实不可用(同 download.* 纪律,
         // 绝不伪造落账回执)
         return this.#failure(request, this.#error(
@@ -466,6 +473,7 @@ export class MockOrchestratorProviderV01 implements OrchestratorProviderV01 {
       case "library.productFiles":
       case "library.removalPreview": case "library.removeFiles": case "library.removalStatus": case "library.pendingRemovals": case "library.resolveRemoval":
       case "recipeDraft.selectionStatus":
+      case "recipeDraft.materialsForLine": case "recipeDraft.legacyCensus": case "recipeDraft.migrateLegacy":
       case "recipeDraft.list": case "recipeDraft.get": case "recipeDraft.save": case "recipeDraft.addSelection":
         // bdl-queries v0.5(030 §5.7 案 A,数据席第 168 批 FROZEN,桌面消费
         // 准备切片 2026-09-22 登记 TS 方法闭集时的穷尽性最小表态,业务路由

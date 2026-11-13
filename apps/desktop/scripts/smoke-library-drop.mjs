@@ -13,8 +13,8 @@ const home = path.join(output, "home"), profile = path.join(output, "profile");
 for (const directory of [home, profile, path.join(home, "AppData", "Roaming"), path.join(home, "AppData", "Local")]) fs.mkdirSync(directory, { recursive: true });
 app.setPath("home", home); app.setPath("appData", path.join(home, "AppData", "Roaming")); app.setPath("userData", profile);
 process.env.LOCALAPPDATA = path.join(home, "AppData", "Local"); process.env.VUA_DEV_USER_DATA = profile;
-process.env.VUA_PROVIDER_EXECUTABLE = process.env.VUA_TEST_HOST_EXECUTABLE ?? path.resolve(desktop, "../../target/debug/vua-orchestrator-provider.exe");
-process.env.VUA_AMF_EXECUTABLE = process.env.VUA_TEST_AMF_EXECUTABLE ?? path.resolve(desktop, "../../target/debug/vua-amf-provider.exe");
+process.env.VUA_PROVIDER_EXECUTABLE = process.env.VUA_TEST_HOST_EXECUTABLE ?? path.resolve(desktop, "../../target/release/vua-orchestrator-provider.exe");
+process.env.VUA_AMF_EXECUTABLE = process.env.VUA_TEST_AMF_EXECUTABLE ?? path.resolve(desktop, "../../target/release/vua-amf-provider.exe");
 delete process.env.VUA_RENDERER_URL;
 app.getPreferredSystemLanguages = () => ["zh-CN"];
 BrowserWindow.prototype.show = function () {}; BrowserWindow.prototype.focus = function () {};
@@ -53,10 +53,11 @@ async function run() { try {
   await waitFor(() => { window = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().startsWith("file:") && !w.webContents.getURL().includes("surface=")); return window && !window.webContents.isLoading(); }, "renderer");
   const js = source => window.webContents.executeJavaScript(source, true);
   window.webContents.setBackgroundThrottling(false); window.webContents.debugger.attach("1.3");
+  await waitFor(() => js('!!document.querySelector("[data-nav-id=first-use-enter]")'), "first-use notice");
+  await js('document.querySelector("[data-nav-id=first-use-enter]").click()');
   await waitFor(() => js('document.querySelector(".vua-tour")?.dataset.tourStep === "welcome"'), "welcome");
   await js('document.querySelector(".vua-tour__actions button").click()');
-  await waitFor(() => js('!!document.querySelector(".vua-onboarding") && !document.querySelector(".vua-boot-splash")'), "guide");
-  await js('document.querySelector(".vua-journey-top button").click()');
+  await waitFor(() => js('!!document.querySelector(".vua-home") && !document.querySelector(".vua-boot-splash")'), "home");
   const list = () => js('window.vua.gateway.invoke({schemaVersion:1,requestId:crypto.randomUUID(),method:"library.list",params:{schemaVersion:"0.1",source:"local"}})');
   const drop = async files => {
     await js('window.__nativeDrop=null;window.addEventListener("drop",event=>{window.__nativeDrop={types:[...event.dataTransfer.types],count:event.dataTransfer.files.length}},{once:true,capture:true})');
@@ -106,7 +107,7 @@ async function run() { try {
       assert((await list()).value.total === total, "controlled lost-receipt retry never imports the selection twice");
     }
     await waitFor(async () => (await js('window.vua.amfModule.setEnabled(false)')).outcome === "updated", `${locale} disable idle AMF`);
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-enable-amf]")'), `${locale} disabled navigation`);
+    await waitFor(async () => !(await js('window.vua.amfModule.snapshot()')).installed, `${locale} AMF disabled`);
     const disabledFile = path.join(sources, "disabled.txt"); fs.writeFileSync(disabledFile, "retained until explicitly enabled");
     await drop([disabledFile]);
     await waitFor(() => js('!!document.querySelector("[data-drop-action=import]")'), `${locale} AMF prompt`);

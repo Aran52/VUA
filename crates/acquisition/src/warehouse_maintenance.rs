@@ -20,19 +20,15 @@
 //! reported in the task result — the audit trail the adjudication requires.
 
 use crate::artifact_inspection::{hex_lower, sha256_file};
-use vua_bdl_store::bdl_store::{
-    ArtifactMode, BdlStore, BdlStoreError, CopyRole, NewLocalArtifact,
-};
-use vua_orchestrator::{ErrorCategory, ParamValue};
-use vua_unity_bridge::{MaterialCancelToken, MaterialExecutor};
-use vua_orchestrator::{
-    Clock, SubmitRequest, SystemClock, TaskExit, TaskJob, TaskRuntime,
-};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
+use vua_bdl_store::bdl_store::{ArtifactMode, BdlStore, BdlStoreError, CopyRole, NewLocalArtifact};
+use vua_orchestrator::{Clock, SubmitRequest, SystemClock, TaskExit, TaskJob, TaskRuntime};
+use vua_orchestrator::{ErrorCategory, ParamValue};
+use vua_unity_bridge::{MaterialCancelToken, MaterialExecutor};
 
 #[derive(Debug)]
 pub enum MaintenanceError {
@@ -136,7 +132,10 @@ pub struct DeleteOriginalsResult {
     pub kept_generated_sha256: Option<String>,
 }
 
-fn maintenance_error_to_app(error: MaintenanceError, correlation_id: &str) -> vua_orchestrator::AppErrorV1 {
+fn maintenance_error_to_app(
+    error: MaintenanceError,
+    correlation_id: &str,
+) -> vua_orchestrator::AppErrorV1 {
     let (code, category, params): (String, ErrorCategory, Vec<(String, String)>) = match &error {
         MaintenanceError::Store(_) => (
             "vua.warehouse.storeFailed".to_owned().to_owned(),
@@ -161,7 +160,10 @@ fn maintenance_error_to_app(error: MaintenanceError, correlation_id: &str) -> vu
             ErrorCategory::Conflict,
             vec![
                 ("warehouseItemId".to_owned(), entry_id.clone()),
-                ("effectiveMode".to_owned(), effective_mode.name().to_string()),
+                (
+                    "effectiveMode".to_owned(),
+                    effective_mode.name().to_string(),
+                ),
             ],
         ),
         MaintenanceError::GeneratedArtifactMissing { entry_id, reason } => (
@@ -222,12 +224,11 @@ fn verify_generated_copies(
     };
     for copy in &generated {
         let path = PathBuf::from(&copy.stored_path);
-        let digest = sha256_file(&path).map_err(|error| {
-            MaintenanceError::GeneratedArtifactMissing {
+        let digest =
+            sha256_file(&path).map_err(|error| MaintenanceError::GeneratedArtifactMissing {
                 entry_id: entry_id.to_string(),
                 reason: format!("{} is unreadable: {}", copy.stored_path, error),
-            }
-        })?;
+            })?;
         let identity = format!("sha256:{}", hex_lower(&digest));
         if identity != copy.artifact_sha256 {
             return Err(MaintenanceError::GeneratedArtifactMissing {
@@ -312,11 +313,9 @@ fn run_delete_originals(
 /// and in BDL, so a cancelled or failed run resumes with the remaining
 /// originals.
 pub fn delete_originals_job(store: Arc<BdlStore>, spec: Arc<DeleteOriginalsTaskSpec>) -> TaskJob {
-    Box::new(move |ctx| {
-        match run_delete_originals(&store, &spec, ctx) {
-            Ok(exit) => Ok(exit),
-            Err(error) => Err(maintenance_error_to_app(error, &spec.correlation_id)),
-        }
+    Box::new(move |ctx| match run_delete_originals(&store, &spec, ctx) {
+        Ok(exit) => Ok(exit),
+        Err(error) => Err(maintenance_error_to_app(error, &spec.correlation_id)),
     })
 }
 
@@ -367,7 +366,10 @@ pub struct GenerateVpmResult {
     pub import_correlation_id: Option<String>,
 }
 
-fn generate_error_to_app(error: MaintenanceError, correlation_id: &str) -> vua_orchestrator::AppErrorV1 {
+fn generate_error_to_app(
+    error: MaintenanceError,
+    correlation_id: &str,
+) -> vua_orchestrator::AppErrorV1 {
     let (code, category, params): (String, ErrorCategory, Vec<(String, String)>) = match &error {
         MaintenanceError::Store(_) => (
             "vua.warehouse.storeFailed".to_owned(),
@@ -463,7 +465,10 @@ fn run_generate_vpm(
             entry_id: spec.warehouse_item_id.clone(),
         });
     }
-    if copies.iter().any(|copy| copy.role == CopyRole::GeneratedVpm) {
+    if copies
+        .iter()
+        .any(|copy| copy.role == CopyRole::GeneratedVpm)
+    {
         return Err(MaintenanceError::AlreadyGenerated {
             entry_id: spec.warehouse_item_id.clone(),
         });
@@ -526,8 +531,8 @@ fn run_generate_vpm(
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default()
     );
-    let destination = entry_folder_path(&spec.warehouse_root, &detail.folder_name)
-        .join(&relative_path);
+    let destination =
+        entry_folder_path(&spec.warehouse_root, &detail.folder_name).join(&relative_path);
     if let Some(parent) = destination.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -537,7 +542,10 @@ fn run_generate_vpm(
     if archive_sha != generated.artifact.archive_sha256 {
         return Err(MaintenanceError::GenerationFailed {
             code: "vua.warehouse.copy_drift".into(),
-            message: format!("the copied archive {archive_sha} != published {}", generated.artifact.archive_sha256),
+            message: format!(
+                "the copied archive {archive_sha} != published {}",
+                generated.artifact.archive_sha256
+            ),
         });
     }
 
@@ -595,10 +603,12 @@ pub fn generate_vpm_job(
     executor: Arc<MaterialExecutor>,
     spec: Arc<GenerateVpmTaskSpec>,
 ) -> vua_orchestrator::TaskJob {
-    Box::new(move |ctx| match run_generate_vpm(&store, executor.as_ref(), &spec, ctx) {
-        Ok(exit) => Ok(exit),
-        Err(error) => Err(generate_error_to_app(error, &spec.correlation_id)),
-    })
+    Box::new(
+        move |ctx| match run_generate_vpm(&store, executor.as_ref(), &spec, ctx) {
+            Ok(exit) => Ok(exit),
+            Err(error) => Err(generate_error_to_app(error, &spec.correlation_id)),
+        },
+    )
 }
 
 pub fn submit_generate_vpm(
@@ -616,7 +626,6 @@ pub fn submit_generate_vpm(
     })
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -625,12 +634,12 @@ mod tests {
         submit_warehouse_import, submit_warehouse_import_auto, AutoGenerateSpec,
         WarehouseImportTaskSpec,
     };
-    use vua_bdl_store::bdl_store::{CopyRole, NewLocalArtifact};
-    use vua_orchestrator::TaskState;
-    use vua_orchestrator::TaskSnapshot;
-    use vua_orchestrator::{FixedIdGenerator, SystemClock};
     use std::path::Path;
     use std::time::{Duration, Instant};
+    use vua_bdl_store::bdl_store::{CopyRole, NewLocalArtifact};
+    use vua_orchestrator::TaskSnapshot;
+    use vua_orchestrator::TaskState;
+    use vua_orchestrator::{FixedIdGenerator, SystemClock};
 
     fn runtime() -> TaskRuntime {
         TaskRuntime::new(
@@ -677,7 +686,10 @@ mod tests {
 
         let original_path = entry_folder.join("original").join("pack.unitypackage");
         std::fs::write(&original_path, b"PK original fixture").unwrap();
-        let original_sha = format!("sha256:{}", hex_lower(&sha256_file(&original_path).unwrap()));
+        let original_sha = format!(
+            "sha256:{}",
+            hex_lower(&sha256_file(&original_path).unwrap())
+        );
         store
             .record_untrusted_artifact(&NewLocalArtifact {
                 artifact_sha256: original_sha.clone(),
@@ -701,8 +713,10 @@ mod tests {
         let generated_path = entry_folder.join("vpm").join("pack.vpack");
         if with_generated {
             std::fs::write(&generated_path, b"PK generated vpm fixture").unwrap();
-            let generated_sha =
-                format!("sha256:{}", hex_lower(&sha256_file(&generated_path).unwrap()));
+            let generated_sha = format!(
+                "sha256:{}",
+                hex_lower(&sha256_file(&generated_path).unwrap())
+            );
             store
                 .record_untrusted_artifact(&NewLocalArtifact {
                     artifact_sha256: generated_sha.clone(),
@@ -833,12 +847,12 @@ mod tests {
 
     // --- generate-VPM task coverage (proposal 003) ---
 
+    use std::sync::Mutex;
     use vua_orchestrator::{
         AppErrorV1, BridgeError, BuildRecordStore, FileSystemSnapshotStore, FixedClock,
         JournalEntryKind, JournalPayload, MemoryJournal, ProjectRef, ResultStatus, UnityBridge,
         UnityCommand, UnityOperation, UnityResult, VpmBackend, VpmCapabilities,
     };
-    use std::sync::Mutex;
     use vua_unity_bridge::LocalPackageIdentityStore;
 
     /// Synthetic tar.gz stand-in for a downloaded `.unitypackage`: structure
@@ -881,7 +895,10 @@ mod tests {
 
         let original_path = entry_folder.join("original").join("pack.unitypackage");
         write_synthetic_archive(&original_path, &["Assets/fixture/asset.txt"]);
-        let original_sha = format!("sha256:{}", hex_lower(&sha256_file(&original_path).unwrap()));
+        let original_sha = format!(
+            "sha256:{}",
+            hex_lower(&sha256_file(&original_path).unwrap())
+        );
         store
             .record_untrusted_artifact(&NewLocalArtifact {
                 artifact_sha256: original_sha.clone(),
@@ -929,7 +946,9 @@ mod tests {
 
     impl GeneratingBridge {
         fn new() -> Self {
-            Self { commands: Mutex::new(Vec::new()) }
+            Self {
+                commands: Mutex::new(Vec::new()),
+            }
         }
     }
 
@@ -1012,9 +1031,7 @@ mod tests {
         }
     }
 
-    fn make_generate_setup(
-        parent: &Path,
-    ) -> (World, Arc<MaterialExecutor>, Arc<GeneratingBridge>) {
+    fn make_generate_setup(parent: &Path) -> (World, Arc<MaterialExecutor>, Arc<GeneratingBridge>) {
         let world = make_generate_world(parent);
         let bridge = Arc::new(GeneratingBridge::new());
         let executor = Arc::new(MaterialExecutor::new(
@@ -1051,7 +1068,9 @@ mod tests {
 
     fn expect_failed_error(journal: &MemoryJournal, task_id: &str) -> AppErrorV1 {
         match completed_payload(journal, task_id) {
-            JournalPayload::Completed { error: Some(error), .. } => error,
+            JournalPayload::Completed {
+                error: Some(error), ..
+            } => error,
             other => panic!("expected a failed completion, got {other:?}"),
         }
     }
@@ -1091,18 +1110,24 @@ mod tests {
             "generation must succeed, else: {:?}",
             expect_failed_error(&journal, &accepted.task_id)
         );
-        assert_eq!(snapshot.correlation_id, "corr-gen", "the audit binding rides the task row");
+        assert_eq!(
+            snapshot.correlation_id, "corr-gen",
+            "the audit binding rides the task row"
+        );
 
         // Task-row lifecycle: accepted first, completed without error.
         let entries = journal.snapshot();
         assert!(
-            entries
-                .iter()
-                .any(|entry| entry.task_id == accepted.task_id && entry.kind == JournalEntryKind::Accepted),
+            entries.iter().any(|entry| entry.task_id == accepted.task_id
+                && entry.kind == JournalEntryKind::Accepted),
             "acceptance is journaled before the job runs"
         );
         match completed_payload(&journal, &accepted.task_id) {
-            JournalPayload::Completed { state, error, result } => {
+            JournalPayload::Completed {
+                state,
+                error,
+                result,
+            } => {
                 assert_eq!(state, TaskState::Succeeded);
                 assert!(error.is_none(), "a done generation carries no error");
                 let result = result.expect("a done generation carries its audit payload");
@@ -1116,7 +1141,10 @@ mod tests {
                     "the copy lives under the entry's vpm/ folder"
                 );
                 assert!(
-                    result["archiveSha256"].as_str().unwrap().starts_with("sha256:"),
+                    result["archiveSha256"]
+                        .as_str()
+                        .unwrap()
+                        .starts_with("sha256:"),
                     "the receipt carries a content identity"
                 );
                 assert!(
@@ -1130,8 +1158,10 @@ mod tests {
         // BDL: exactly one generated copy, physically consistent with its
         // recorded identity.
         let copies = world.store.entry_copies(&world.entry_id).unwrap();
-        let generated: Vec<_> =
-            copies.iter().filter(|copy| copy.role == CopyRole::GeneratedVpm).collect();
+        let generated: Vec<_> = copies
+            .iter()
+            .filter(|copy| copy.role == CopyRole::GeneratedVpm)
+            .collect();
         assert_eq!(generated.len(), 1, "generation is recorded exactly once");
         let digest = sha256_file(Path::new(&generated[0].stored_path)).unwrap();
         assert_eq!(
@@ -1159,16 +1189,23 @@ mod tests {
             generated_artifact.first_seen_at, "2026-09-06T00:00:00.000Z",
             "first_seen_at is a real reading, not the retired fabricated constant"
         );
-        assert!(world.original_path.exists(), "generation keeps the originals");
+        assert!(
+            world.original_path.exists(),
+            "generation keeps the originals"
+        );
 
         // The staging chain really drove the simulated Unity side.
         let commands = bridge.commands.lock().unwrap();
         assert!(
-            commands.iter().any(|command| command.operation == UnityOperation::MaterializeExtractedPackage),
+            commands
+                .iter()
+                .any(|command| command.operation == UnityOperation::MaterializeExtractedPackage),
             "the original was staged for materialization"
         );
         assert!(
-            commands.iter().any(|command| command.operation == UnityOperation::CreateLocalVpmPackage),
+            commands
+                .iter()
+                .any(|command| command.operation == UnityOperation::CreateLocalVpmPackage),
             "the package was created before publish"
         );
         fs::remove_dir_all(&parent).ok();
@@ -1258,7 +1295,10 @@ mod tests {
             None,
         )
         .unwrap();
-        assert_eq!(wait_for_terminal(&rt, &accepted.task_id).state, TaskState::Failed);
+        assert_eq!(
+            wait_for_terminal(&rt, &accepted.task_id).state,
+            TaskState::Failed
+        );
         assert_eq!(
             expect_failed_error(&journal, &accepted.task_id).code,
             "vua.warehouse.no_original_material"
@@ -1291,17 +1331,18 @@ mod tests {
             None,
         )
         .unwrap();
-        assert_eq!(wait_for_terminal(&rt, &first.task_id).state, TaskState::Succeeded);
+        assert_eq!(
+            wait_for_terminal(&rt, &first.task_id).state,
+            TaskState::Succeeded
+        );
 
-        let second = submit_generate_vpm(
-            &rt,
-            world.store.clone(),
-            executor,
-            spec("corr-gen-2"),
-            None,
-        )
-        .unwrap();
-        assert_eq!(wait_for_terminal(&rt, &second.task_id).state, TaskState::Failed);
+        let second =
+            submit_generate_vpm(&rt, world.store.clone(), executor, spec("corr-gen-2"), None)
+                .unwrap();
+        assert_eq!(
+            wait_for_terminal(&rt, &second.task_id).state,
+            TaskState::Failed
+        );
         assert_eq!(
             expect_failed_error(&journal, &second.task_id).code,
             "vua.warehouse.already_generated",
@@ -1346,7 +1387,10 @@ mod tests {
             None,
         )
         .unwrap();
-        assert_eq!(wait_for_terminal(&rt, &accepted.task_id).state, TaskState::Failed);
+        assert_eq!(
+            wait_for_terminal(&rt, &accepted.task_id).state,
+            TaskState::Failed
+        );
         let app = expect_failed_error(&journal, &accepted.task_id);
         assert_eq!(app.code, "vua.warehouse.entry_not_found");
         assert_eq!(app.category, vua_orchestrator::ErrorCategory::Validation);
@@ -1371,7 +1415,10 @@ mod tests {
             None,
         )
         .unwrap();
-        assert_eq!(wait_for_terminal(&rt, &accepted.task_id).state, TaskState::Failed);
+        assert_eq!(
+            wait_for_terminal(&rt, &accepted.task_id).state,
+            TaskState::Failed
+        );
         let app = expect_failed_error(&journal, &accepted.task_id);
         assert_eq!(app.code, "vua.warehouse.invalid_state");
         assert_eq!(app.category, vua_orchestrator::ErrorCategory::Conflict);
@@ -1387,7 +1434,9 @@ mod tests {
     #[test]
     fn maintenance_error_mapping_is_stable_across_both_tables() {
         let samples: Vec<Box<dyn Fn() -> MaintenanceError>> = vec![
-            Box::new(|| MaintenanceError::Store(BdlStoreError::UnknownWarehouseItem("whi-x".into()))),
+            Box::new(|| {
+                MaintenanceError::Store(BdlStoreError::UnknownWarehouseItem("whi-x".into()))
+            }),
             Box::new(|| MaintenanceError::Io(std::io::Error::other("disk gone"))),
             Box::new(|| MaintenanceError::UnknownEntry("whi-x".into())),
             Box::new(|| MaintenanceError::InvalidState {
@@ -1398,27 +1447,46 @@ mod tests {
                 entry_id: "whi-x".into(),
                 reason: "tampered".into(),
             }),
-            Box::new(|| MaintenanceError::NoOriginalMaterial { entry_id: "whi-x".into() }),
-            Box::new(|| MaintenanceError::AlreadyGenerated { entry_id: "whi-x".into() }),
+            Box::new(|| MaintenanceError::NoOriginalMaterial {
+                entry_id: "whi-x".into(),
+            }),
+            Box::new(|| MaintenanceError::AlreadyGenerated {
+                entry_id: "whi-x".into(),
+            }),
             Box::new(|| MaintenanceError::GenerationFailed {
                 code: "vua.material.staging_failed".into(),
                 message: "the staging chain refused".into(),
             }),
         ];
         let expected: &[(&str, vua_orchestrator::ErrorCategory)] = &[
-            ("vua.warehouse.storeFailed", vua_orchestrator::ErrorCategory::Internal),
+            (
+                "vua.warehouse.storeFailed",
+                vua_orchestrator::ErrorCategory::Internal,
+            ),
             (
                 "vua.warehouse.maintenanceIoFailed",
                 vua_orchestrator::ErrorCategory::ExternalFailure,
             ),
-            ("vua.warehouse.entry_not_found", vua_orchestrator::ErrorCategory::Validation),
-            ("vua.warehouse.invalid_state", vua_orchestrator::ErrorCategory::Conflict),
+            (
+                "vua.warehouse.entry_not_found",
+                vua_orchestrator::ErrorCategory::Validation,
+            ),
+            (
+                "vua.warehouse.invalid_state",
+                vua_orchestrator::ErrorCategory::Conflict,
+            ),
             (
                 "vua.warehouse.generated_artifact_missing",
                 vua_orchestrator::ErrorCategory::Conflict,
             ),
-            ("vua.warehouse.no_original_material", vua_orchestrator::ErrorCategory::Conflict),
-            ("vua.warehouse.already_generated", vua_orchestrator::ErrorCategory::Conflict),
+            (
+                "vua.warehouse.no_original_material",
+                vua_orchestrator::ErrorCategory::Conflict,
+            ),
+            (
+                "vua.warehouse.already_generated",
+                vua_orchestrator::ErrorCategory::Conflict,
+            ),
             (
                 "vua.warehouse.generation_failed",
                 vua_orchestrator::ErrorCategory::ExternalFailure,
@@ -1429,10 +1497,19 @@ mod tests {
             let via_generate = generate_error_to_app(make_error(), "corr-map");
             assert_eq!(via_delete.code, *code, "delete table maps {code}");
             assert_eq!(via_delete.category, *category, "delete table maps {code}");
-            assert!(via_delete.recoverable, "maintenance failures stay recoverable");
+            assert!(
+                via_delete.recoverable,
+                "maintenance failures stay recoverable"
+            );
             assert_eq!(via_generate.code, *code, "generate table maps {code}");
-            assert_eq!(via_generate.category, *category, "generate table maps {code}");
-            assert!(via_generate.recoverable, "maintenance failures stay recoverable");
+            assert_eq!(
+                via_generate.category, *category,
+                "generate table maps {code}"
+            );
+            assert!(
+                via_generate.recoverable,
+                "maintenance failures stay recoverable"
+            );
             assert_eq!(via_generate.correlation_id, "corr-map");
         }
     }
@@ -1473,7 +1550,10 @@ mod tests {
 
         let source = parent.join("incoming");
         fs::create_dir_all(&source).unwrap();
-        write_synthetic_archive(&source.join("pack.unitypackage"), &["Assets/hook/asset.txt"]);
+        write_synthetic_archive(
+            &source.join("pack.unitypackage"),
+            &["Assets/hook/asset.txt"],
+        );
 
         let (rt, journal) = generate_runtime();
         let auto = AutoGenerateSpec {
@@ -1508,7 +1588,10 @@ mod tests {
                     break live.correlation_id.clone();
                 }
             }
-            assert!(std::time::Instant::now() < deadline, "generation did not finish");
+            assert!(
+                std::time::Instant::now() < deadline,
+                "generation did not finish"
+            );
             std::thread::sleep(std::time::Duration::from_millis(10));
         };
 
@@ -1526,7 +1609,10 @@ mod tests {
                 error: None,
                 ..
             } => {
-                assert_eq!(done["importCorrelationId"], serde_json::json!("corr-import-1"));
+                assert_eq!(
+                    done["importCorrelationId"],
+                    serde_json::json!("corr-import-1")
+                );
             }
             other => panic!("expected a successful generation completion, got {other:?}"),
         }
@@ -1572,7 +1658,10 @@ mod tests {
 
         let source = parent.join("incoming");
         fs::create_dir_all(&source).unwrap();
-        write_synthetic_archive(&source.join("pack.unitypackage"), &["Assets/hook/asset.txt"]);
+        write_synthetic_archive(
+            &source.join("pack.unitypackage"),
+            &["Assets/hook/asset.txt"],
+        );
 
         let (rt, _journal) = generate_runtime();
         submit_warehouse_import(
@@ -1592,7 +1681,10 @@ mod tests {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         loop {
             let snapshots = rt.snapshot_all();
-            if snapshots.iter().all(|snapshot| snapshot.state.is_terminal()) {
+            if snapshots
+                .iter()
+                .all(|snapshot| snapshot.state.is_terminal())
+            {
                 assert!(
                     snapshots
                         .iter()
@@ -1601,7 +1693,10 @@ mod tests {
                 );
                 break;
             }
-            assert!(std::time::Instant::now() < deadline, "import did not finish");
+            assert!(
+                std::time::Instant::now() < deadline,
+                "import did not finish"
+            );
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
@@ -1619,7 +1714,10 @@ mod tests {
 
         let source = parent.join("incoming");
         fs::create_dir_all(&source).unwrap();
-        write_synthetic_archive(&source.join("pack.unitypackage"), &["Assets/hook/asset.txt"]);
+        write_synthetic_archive(
+            &source.join("pack.unitypackage"),
+            &["Assets/hook/asset.txt"],
+        );
 
         let (rt, _journal) = generate_runtime();
         submit_warehouse_import_auto(
@@ -1646,7 +1744,10 @@ mod tests {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         loop {
             let snapshots = rt.snapshot_all();
-            if snapshots.iter().all(|snapshot| snapshot.state.is_terminal()) {
+            if snapshots
+                .iter()
+                .all(|snapshot| snapshot.state.is_terminal())
+            {
                 assert!(
                     snapshots
                         .iter()
@@ -1655,7 +1756,10 @@ mod tests {
                 );
                 break;
             }
-            assert!(std::time::Instant::now() < deadline, "import did not finish");
+            assert!(
+                std::time::Instant::now() < deadline,
+                "import did not finish"
+            );
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }

@@ -7,8 +7,8 @@ interface BeginnerConcept {
   readonly setup: PageId;
 }
 
-// The wizard reads the same sections as the encyclopedia and VUA manual.
-// Want this opens a real setup destination; that page owns its plans and consent.
+// The wizard reads the same sections as the encyclopedia.
+// Go to opens a real setup destination; that page owns its plans and consent.
 export const BEGINNER_CONCEPTS: readonly BeginnerConcept[] = [
   { id: "vrchat", target: { topic: "guide-start", section: "what-is-vrchat" }, setup: "env-play" },
   { id: "steam", target: { topic: "guide-start", section: "steam-account" }, setup: "settings-accounts" },
@@ -16,7 +16,7 @@ export const BEGINNER_CONCEPTS: readonly BeginnerConcept[] = [
   { id: "hardware", target: { topic: "guide-hardware", section: "identify-device" }, setup: "env-play" },
   { id: "avatars", target: { topic: "guide-avatars", section: "outfit-assembly" }, setup: "env-create" },
   { id: "materials", target: { topic: "guide-vua", section: "import-paths" }, setup: "warehouse" },
-  { id: "production", target: { topic: "guide-vua", section: "production-line" }, setup: "avatar-hub" },
+  { id: "production", target: { topic: "guide-vua", section: "production-line" }, setup: "workshop" },
   { id: "upload", target: { topic: "guide-creator", section: "upload-eligibility" }, setup: "release" },
 ];
 

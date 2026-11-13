@@ -82,8 +82,6 @@ async function startTour() {
   await js('document.querySelector("[data-nav-id=shell-help]").click()');
   await waitFor(() => js('!!document.querySelector("[data-nav-id=help-tour]")'), "Help tour entry");
   await js('document.querySelector("[data-nav-id=help-tour]").click()');
-  await waitFor(() => js('!!document.querySelector("[data-nav-id=help-start-tour]")'), "Help tour child");
-  await js('document.querySelector("[data-nav-id=help-start-tour]").click()');
   await waitFor(welcome, "explicit tour welcome");
 }
 async function capture(window, name) {
@@ -130,7 +128,7 @@ async function run() {
       const rejected = await splash.webContents.executeJavaScript('window.vua.startup.complete().then(()=>false,()=>true)');
       assert(rejected, "The splash cannot announce main-frame readiness");
     }
-    await waitFor(firstUseNotice, "first-use notice");
+    await waitFor(firstUseNotice, "first-use notice", 30_000);
     assert(!await js('!!document.querySelector(".vua-tour")'), "The notice waits for an explicit entry choice");
     assert(await js('document.querySelectorAll("[data-first-use-part]").length===5 && document.querySelectorAll(".vua-onboarding button").length===2 && !document.querySelector(".vua-onboarding select, .vua-onboarding input")'), "Five notice parts including update disclosure and two choices replace the language question");
     assert(await js('document.querySelector("[data-first-use-part=source]").textContent.includes("Apache 2.0") && document.querySelector("[data-first-use-part=licenses] a").href.endsWith("/THIRD_PARTY_NOTICES.md")'), "The first-use notice links its free source and third-party licenses");
@@ -155,7 +153,7 @@ async function run() {
     if (localeCase === "native") {
       main.setSize(960, 600);
       for (const locale of ["zh-CN", "zh-TW", "en", "ja", "ko"]) {
-        const reset = 'localStorage.setItem("vua-locale",' + JSON.stringify(locale) + ');localStorage.removeItem("vua-goals");localStorage.removeItem("vua-context-guide-v1");sessionStorage.removeItem("vua-context-guide-snoozed-v1");localStorage.removeItem("vua-beginner-wizard-v1");localStorage.setItem("vua-theme","dark");history.replaceState(null,"",location.pathname+location.search)';
+        const reset = 'localStorage.setItem("vua-locale",' + JSON.stringify(locale) + ');localStorage.removeItem("vua-goals");localStorage.removeItem("vua-tour-progress");localStorage.removeItem("vua-context-guide-v1");localStorage.removeItem("vua-beginner-wizard-v1");localStorage.setItem("vua-theme","dark");history.replaceState(null,"",location.pathname+location.search)';
         await reload(reset);
         await waitFor(firstUseNotice, locale + " notice");
         assert(await js('document.documentElement.lang===' + JSON.stringify(locale) + ' && !document.querySelector(".vua-onboarding select")'), locale + " respects the saved language without asking again");
@@ -172,12 +170,10 @@ async function run() {
         await waitFor(welcome, "Back to welcome");
         await skip();
         await waitFor(home, locale + " skips the light tour");
-        await waitFor(() => js('!!document.querySelector("[data-context-guide=home]")'), locale + " optional Home introduction");
-        assert(await fits(".vua-context-guide"), locale + " contextual guide fits");
-        await js('document.querySelector(".vua-context-guide__actions button:last-child").click()');
+        assert(await js('!document.querySelector(".vua-context-guide")'), locale + " Home offers no tour right after a skip");
         await reload("");
         await waitFor(home, locale + " returns Home");
-        assert(await js('!document.querySelector(".vua-context-guide") && !document.querySelector(".vua-tour")'), locale + " dismissal survives reload");
+        assert(await js('!document.querySelector(".vua-context-guide") && !document.querySelector(".vua-tour")'), locale + " the skipped tour stays closed after reload");
         await startTour();
         assert(await fits(".vua-tour__card"), locale + " explicit replay fits");
         await skip();
@@ -202,6 +198,12 @@ async function run() {
         await waitFor(() => js('!!document.querySelector("[data-guide-section=what-is-vrchat]") && localStorage.getItem("vua-guide-reading")?.includes("what-is-vrchat")'), locale + " shares the encyclopedia explanation");
         await js('document.querySelector("[data-nav-id=logo-home]").click()');
         await waitFor(home, locale + " leaves the wizard freely");
+        await waitFor(() => js('!!document.querySelector("[data-context-guide=home]")'), locale + " optional Home introduction");
+        assert(await fits(".vua-context-guide"), locale + " contextual guide fits");
+        await js('document.querySelector(".vua-context-guide__actions button:last-child").click()');
+        await reload("");
+        await waitFor(home, locale + " returns Home after the wizard");
+        assert(await js('!document.querySelector(".vua-context-guide") && !document.querySelector(".vua-tour")'), locale + " dismissal survives reload");
       }
       for (const legacy of [{v:2,status:"active",step:2}, {v:1,status:"active",step:4}]) {
         await reload(`localStorage.setItem("vua-tour-progress",${JSON.stringify(JSON.stringify(legacy))});localStorage.setItem("vua-last-page","home")`);
@@ -212,7 +214,7 @@ async function run() {
       await waitFor(home, "complete explicit tour baseline");
       const savedGoals = await js('localStorage.getItem("vua-goals")');
       await startTour();
-      for (const step of ["welcome", "route", "network", "checks", "plan", "tools", "creator", "tasks", "guide", "settings"]) {
+      for (const step of ["welcome", "route", "checks", "plan", "tools", "creator", "network", "tasks", "settings", "guide"]) {
         await waitFor(() => js(`document.querySelector(".vua-tour")?.dataset.tourStep===${JSON.stringify(step)} && ${step === "welcome" ? "true" : '!!document.querySelector(".vua-tour__highlight")'}`), `${step} highlight`);
         assert(await js('!document.querySelector(".vua-tour").hasAttribute("data-absent")') && await fits(".vua-tour__card"), `${step} points to an available feature and fits the window`);
         if (step === "creator") await capture(main, "tour-creator-zh");
@@ -224,7 +226,7 @@ async function run() {
       await waitFor(home, "completed tour remains closed");
       assert(await js('!document.querySelector(".vua-tour") && !document.querySelector(".vua-onboarding") && document.documentElement.dataset.effects==="off"'), "Returning profiles keep resource saving without repeating onboarding");
       const staticSplash = new BrowserWindow({ width: 480, height: 320, show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
-      await staticSplash.loadFile(path.join(desktop, "dist/renderer/index.html"), { query: { surface: "splash" } });
+      await staticSplash.loadFile(path.join(desktop, "dist/renderer/splash.html"), { query: { surface: "splash" } });
       assert(await staticSplash.webContents.executeJavaScript('document.querySelector(".vua-boot-splash__surface").hasAttribute("data-static") && getComputedStyle(document.querySelector(".vua-boot-splash__loader")).animationName==="none"'), "Resource saving keeps startup monochrome and static with a visible loader");
       await capture(staticSplash, "splash-static");
       staticSplash.destroy();

@@ -6,13 +6,15 @@
 // Usage: pnpm audit:design [--only=<view prefix>] [--locale=<l>] [--theme=dark|light]
 //                          [--out=<dir>] [--check-baseline] [--update-baseline]
 //                          [--no-screens] [--max=<n>] [--list]
+//                          [--changed[=<base>]] [--shard=<i>/<n>] [--resume=<dir>]
+//                          [--deadline-minutes=<n>]
 // Unrelated to component styling: this script never edits UI code.
 
 import { app, BrowserWindow, protocol } from "electron";
 import { createServer } from "vite";
 import react from "@vitejs/plugin-react";
 import { execSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -34,6 +36,7 @@ import { scanStatic } from "./design-audit/static-scan.mjs";
 import { scanCardStyles, countCardImports } from "./design-audit/cards.mjs";
 import { buildSummary, buildOverviewHtml, rankRootCauses } from "./design-audit/report.mjs";
 import { auditCoverage, runPassed, stateKey, stateResult } from "./design-audit/results.mjs";
+import { runDeadlineMs, shardViews, viewsForChanges } from "./design-audit/selection.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.resolve(scriptDir, "..");
@@ -56,7 +59,10 @@ if (!THEME_FAMILIES.includes(THEME_FAMILY)) throw new Error(`Unknown theme famil
 if (THEME_FILTER && !THEME_FAMILY_MODES[THEME_FAMILY].includes(THEME_FILTER)) {
   throw new Error(`${THEME_FAMILY} does not provide ${THEME_FILTER} mode`);
 }
-const OUT = argValue("out", path.join(desktopRoot, "_local_design_audit", new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)));
+const RESUME = argValue("resume", null);
+const CHANGED = hasFlag("changed") ? "main" : argValue("changed", null);
+const SHARD = argValue("shard", null);
+const OUT = RESUME ?? argValue("out", path.join(desktopRoot, "_local_design_audit", new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)));
 const MAX_VIEWS = Number(argValue("max", "0"));
 // One call replaces every emulated feature, so all of them travel together.
 const EMULATED_MEDIA = [
@@ -73,7 +79,7 @@ const BASELINE_PATH = path.join(scriptDir, "design-audit", "baseline.json");
 // floor is passed explicitly.
 // Vite debris pages collect ~3 elements; the sparsest real view collects 10.
 const PER_STATE_ELEMENT_FLOOR = Number(argValue("per-state-elements", "6"));
-const PARTIAL_PLAN = Boolean(ONLY || MAX_VIEWS > 0 || LOCALE_FILTER || THEME_FILTER || THEME_FAMILY !== "grid");
+const PARTIAL_PLAN = Boolean(ONLY || MAX_VIEWS > 0 || LOCALE_FILTER || THEME_FILTER || THEME_FAMILY !== "grid" || CHANGED || SHARD);
 const TOTAL_ELEMENT_FLOOR = Number(argValue("min-total-elements", PARTIAL_PLAN ? "0" : "30000"));
 
 if (hasFlag("list")) {
@@ -84,9 +90,16 @@ if (hasFlag("list")) {
 // ---- plan --------------------------------------------------------------------
 
 const ONLY_PREFIXES = ONLY.split(",").map(p => p.trim()).filter(Boolean);
-const selectedViews = MAX_VIEWS > 0
+/** Files changed since the base branch, committed or not. */
+function changedFiles(base) {
+  const lines = command => execSync(command, { cwd: repoRoot, encoding: "utf8" }).split(/\r?\n/u).filter(Boolean);
+  return [...new Set([...lines(`git diff --name-only ${base}...HEAD`), ...lines("git diff --name-only HEAD"), ...lines("git ls-files --others --exclude-standard")])];
+}
+let selectedViews = MAX_VIEWS > 0
   ? VIEWS.slice(0, MAX_VIEWS)
   : VIEWS.filter(v => ONLY_PREFIXES.length === 0 || ONLY_PREFIXES.some(p => v.id.startsWith(p)));
+if (CHANGED) selectedViews = viewsForChanges(changedFiles(CHANGED), selectedViews);
+if (SHARD) selectedViews = shardViews(selectedViews, SHARD);
 const locales = LOCALE_FILTER ? [LOCALE_FILTER] : [DEFAULT_LOCALE, ...OVERFLOW_LOCALES];
 const themes = THEMES.filter(t => THEME_FAMILY_MODES[THEME_FAMILY].includes(t) && (!THEME_FILTER || t === THEME_FILTER));
 
@@ -119,6 +132,12 @@ try { commit = execSync("git rev-parse --short HEAD", { cwd: repoRoot }).toStrin
 const errors = [];
 const collectionFailures = [];
 const groups = planGroups();
+// A stuck run ends on its own, and a run whose parent went away ends with it.
+const plannedStates = groups.reduce((sum, group) => sum + group.states.length, 0);
+const deadlineMs = runDeadlineMs(plannedStates, Number(argValue("deadline-minutes", "0")));
+setTimeout(() => { console.error(`FAILED: the run passed its ${Math.round(deadlineMs / 60_000)} minute limit`); app.exit(124); }, deadlineMs).unref();
+const parentProcess = process.ppid;
+setInterval(() => { try { process.kill(parentProcess, 0); } catch { app.exit(125); } }, 5000).unref();
 
 // vua-img must be privileged before app ready (library-entries thumbnails).
 protocol.registerSchemesAsPrivileged([{ scheme: "vua-img", privileges: { standard: true, secure: true } }]);
@@ -149,6 +168,8 @@ async function main() {
   await mkdir(shotsDir, { recursive: true });
   await mkdir(jsonDir, { recursive: true });
   await mkdir(snapshotsDir, { recursive: true });
+  const resumeDir = path.join(OUT, "resume");
+  await mkdir(resumeDir, { recursive: true });
 
   const server = await createServer({
     configFile: false,
@@ -266,6 +287,8 @@ async function main() {
       recentConsoleErrors = [];
       shellParams = { locale, theme, themeFamily: THEME_FAMILY };
       const url = viewUrl(view, theme);
+      // What one view remembered, such as the Materials list mode, must not shape the next.
+      await win.webContents.session.clearStorageData({ storages: ["localstorage"] });
       // A Vite re-optimization reloads the page mid-navigation and aborts the
       // load (ERR_ABORTED); one retry after the dust settles.
       try {
@@ -358,7 +381,7 @@ async function main() {
         await writeCapture(win, shotPath);
       }
 
-      collected.push({
+      const record = {
         view: view.id, area: view.area, locale, theme,
         findings,
         metrics: borderDensityMetric(snapshot),
@@ -366,7 +389,9 @@ async function main() {
         viewport: snapshot.viewport,
         shotPath, annotPath,
         rules: rules ?? "all",
-      });
+      };
+      collected.push(record);
+      await writeFile(path.join(resumeDir, `${jsonName(view.id, locale, theme)}.json`), JSON.stringify(record), "utf8");
       console.log(`[${stamp()}] ${view.id} ${locale}/${theme}: ${findings.length} findings, ${snapshot.elementCount} elements`);
     }
   }
@@ -386,7 +411,18 @@ async function main() {
     await writeFile(file, image.toPNG());
   }
 
+  // Each finished state is saved as it completes, so --resume continues an interrupted run.
+  const finished = new Map();
+  if (RESUME) {
+    for (const name of await readdir(resumeDir)) {
+      const record = JSON.parse(await readFile(path.join(resumeDir, name), "utf8"));
+      finished.set(stateKey(record), record);
+    }
+    console.log(`resuming: ${finished.size} states already done`);
+  }
   for (const group of groups) {
+    const done = group.states.map(state => finished.get(stateKey({ view: group.view.id, locale: group.locale, theme: state.theme })));
+    if (done.every(Boolean)) { collected.push(...done); continue; }
     try {
       await withTimeout(auditViewLocale(group), 240_000, `${group.view.id}/${group.locale} timed out`);
     } catch (error) {

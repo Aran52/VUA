@@ -43,7 +43,8 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 
 const MIGRATION_001: &str = include_str!("../../../schemas/bdl/v0.1/001_initial.sql");
-const MIGRATION_002: &str = include_str!("../../../schemas/bdl/v0.2/002_dependency_observations.sql");
+const MIGRATION_002: &str =
+    include_str!("../../../schemas/bdl/v0.2/002_dependency_observations.sql");
 const AUTHORITY_V02: &str = include_str!("../../../schemas/bdl/v0.2/schema.sql");
 
 fn schema_dir() -> PathBuf {
@@ -136,7 +137,14 @@ fn open_v02() -> Connection {
                  title, availability, content_hash, observed_at, processor_version)
              VALUES (?1, ?2, ?3, ?6, ?4, ?5, 'sha256:' || hex(zeroblob(32)),
                  '2026-09-22T00:00:00.000Z', 'dep-0.1')",
-            rusqlite::params![product_id, native_id, source_url, title, availability, status],
+            rusqlite::params![
+                product_id,
+                native_id,
+                source_url,
+                title,
+                availability,
+                status
+            ],
         )
         .unwrap();
     }
@@ -370,7 +378,19 @@ fn lookup_matches(
         .unwrap()
         .map(|result| result.unwrap())
         .map(
-            |(extraction_method, resolved, confirmed, title, availability, product_id, dep_kind, dep_name, version_hint, raw_quote, source_span)| {
+            |(
+                extraction_method,
+                resolved,
+                confirmed,
+                title,
+                availability,
+                product_id,
+                dep_kind,
+                dep_name,
+                version_hint,
+                raw_quote,
+                source_span,
+            )| {
                 let advisory = advisory_rule_v1(
                     conn,
                     &extraction_method,
@@ -445,7 +465,19 @@ fn list_by_product(conn: &Connection, product_id: &str) -> Value {
         .unwrap()
         .map(|result| result.unwrap())
         .map(
-            |(dep_kind, dep_name, version_hint, raw_quote, source_span, extraction_method, extracted_by, observed_at, resolved, confirmed, evidence_json)| {
+            |(
+                dep_kind,
+                dep_name,
+                version_hint,
+                raw_quote,
+                source_span,
+                extraction_method,
+                extracted_by,
+                observed_at,
+                resolved,
+                confirmed,
+                evidence_json,
+            )| {
                 let resolution = resolved.map(|target| {
                     json!({
                         "productId": target,
@@ -572,7 +604,10 @@ fn sql_check_lists(sql: &str, column: &str) -> Vec<Vec<String>> {
         }
         from = start;
     }
-    assert!(!lists.is_empty(), "{column}: at least one CHECK list expected");
+    assert!(
+        !lists.is_empty(),
+        "{column}: at least one CHECK list expected"
+    );
     lists
 }
 
@@ -613,7 +648,12 @@ fn word_faces_equal_the_frozen_bdl_v02_authority() {
     // the compat rebuild and the dependency table) must equal the query
     // face's enum: the vocabulary rides the frozen sets, no drift.
     assert_eq!(
-        sorted(sql_check_lists(AUTHORITY_V02, "dep_kind").into_iter().flatten().collect()),
+        sorted(
+            sql_check_lists(AUTHORITY_V02, "dep_kind")
+                .into_iter()
+                .flatten()
+                .collect()
+        ),
         sorted(dep_kind_enum.clone()),
         "dep_kind enum must equal the frozen four-value set"
     );
@@ -625,7 +665,12 @@ fn word_faces_equal_the_frozen_bdl_v02_authority() {
         );
     }
     assert_eq!(
-        sorted(sql_check_lists(AUTHORITY_V02, "extraction_method").into_iter().flatten().collect()),
+        sorted(
+            sql_check_lists(AUTHORITY_V02, "extraction_method")
+                .into_iter()
+                .flatten()
+                .collect()
+        ),
         sorted(extraction_method_enum.clone()),
         "extraction_method enum must equal the frozen six-value set"
     );
@@ -639,7 +684,12 @@ fn word_faces_equal_the_frozen_bdl_v02_authority() {
     // the constraint authority — and table rebuilds can change constraints,
     // the 002 compat rebuild being the standing precedent).
     assert_eq!(
-        sorted(sql_check_lists(MIGRATION_002, "dep_kind").into_iter().flatten().collect()),
+        sorted(
+            sql_check_lists(MIGRATION_002, "dep_kind")
+                .into_iter()
+                .flatten()
+                .collect()
+        ),
         sorted(dep_kind_enum.clone()),
         "dep_kind enum must equal the executable chain's four-value set"
     );
@@ -651,7 +701,12 @@ fn word_faces_equal_the_frozen_bdl_v02_authority() {
         );
     }
     assert_eq!(
-        sorted(sql_check_lists(MIGRATION_002, "extraction_method").into_iter().flatten().collect()),
+        sorted(
+            sql_check_lists(MIGRATION_002, "extraction_method")
+                .into_iter()
+                .flatten()
+                .collect()
+        ),
         sorted(extraction_method_enum),
         "extraction_method enum must equal the executable chain's six-value set"
     );
@@ -728,7 +783,10 @@ fn two_face_contrast_is_mechanical_and_paths_never_appear() {
         "resolvedProductId",
         "advisory",
     ] {
-        assert!(match_keys.contains(&key.to_owned()), "lookup match carries '{key}'");
+        assert!(
+            match_keys.contains(&key.to_owned()),
+            "lookup match carries '{key}'"
+        );
     }
     for omitted in ["extractedBy", "observedAt", "resolution"] {
         assert!(
@@ -810,7 +868,10 @@ fn lookup_rule_v1_matches_exact_case_folded_and_orders_deterministically() {
     let (total, matches) = lookup_matches(&conn, "LILTOON", None, 200, 0);
     assert_eq!(total, 2, "exactly the two exact rows match");
     assert_eq!(matches.len(), 2);
-    assert_eq!(matches[0]["productId"], "booth:6584744", "productId ascending first");
+    assert_eq!(
+        matches[0]["productId"], "booth:6584744",
+        "productId ascending first"
+    );
     assert_eq!(matches[0]["depName"], "liltoon");
     assert_eq!(matches[1]["productId"], "booth:8179865");
     assert_eq!(matches[1]["depName"], "lilToon");
@@ -820,23 +881,39 @@ fn lookup_rule_v1_matches_exact_case_folded_and_orders_deterministically() {
     // with row order shuffled and compare identities.
     let ordered_ids: Vec<String> = matches
         .iter()
-        .map(|m| format!("{}|{}", m["productId"].as_str().unwrap(), m["depName"].as_str().unwrap()))
+        .map(|m| {
+            format!(
+                "{}|{}",
+                m["productId"].as_str().unwrap(),
+                m["depName"].as_str().unwrap()
+            )
+        })
         .collect();
     assert_eq!(
         ordered_ids,
-        vec!["booth:6584744|liltoon".to_owned(), "booth:8179865|lilToon".to_owned()]
+        vec![
+            "booth:6584744|liltoon".to_owned(),
+            "booth:8179865|lilToon".to_owned()
+        ]
     );
 
     // depKind filter rides the frozen four-value set; non-suggestion rows
     // still list (the evidence face is unfiltered by the gates).
-    let (filter_total, filter_matches) = lookup_matches(&conn, "Lapwing", Some("avatar_base"), 200, 0);
+    let (filter_total, filter_matches) =
+        lookup_matches(&conn, "Lapwing", Some("avatar_base"), 200, 0);
     assert_eq!(filter_total, 1);
     assert_eq!(filter_matches[0]["depKind"], "avatar_base");
-    assert_eq!(filter_matches[0]["resolvedProductId"], Value::Null,
-        "an unconfirmed resolution never surfaces on the lookup wire");
+    assert_eq!(
+        filter_matches[0]["resolvedProductId"],
+        Value::Null,
+        "an unconfirmed resolution never surfaces on the lookup wire"
+    );
     assert_eq!(filter_matches[0]["advisory"], Value::Null);
     let (foreign_total, _) = lookup_matches(&conn, "Unity", Some("avatar_base"), 200, 0);
-    assert_eq!(foreign_total, 0, "depKind filter excludes the 'other' engine pin");
+    assert_eq!(
+        foreign_total, 0,
+        "depKind filter excludes the 'other' engine pin"
+    );
 
     // Pagination: total is computed before limit/offset.
     let (total, page) = lookup_matches(&conn, "LILTOON", None, 1, 0);
@@ -852,7 +929,10 @@ fn lookup_rule_v1_matches_exact_case_folded_and_orders_deterministically() {
         .iter_errors(&lookup_envelope(empty_total, &empty_matches))
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(empty_errors.is_empty(), "the honest empty envelope must validate: {empty_errors:?}");
+    assert!(
+        empty_errors.is_empty(),
+        "the honest empty envelope must validate: {empty_errors:?}"
+    );
 }
 
 #[test]
@@ -892,7 +972,10 @@ fn suggestion_gates_and_the_clue_face_hold_over_the_frozen_schema() {
         .iter_errors(&lookup_envelope(total, &all))
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(errors.is_empty(), "assembled lookup must validate: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "assembled lookup must validate: {errors:?}"
+    );
 
     // The clue face: the SAME store lists the unconfirmed mislink as a
     // labeled clue (confirmed:false) — the two-face contrast.
@@ -904,7 +987,10 @@ fn suggestion_gates_and_the_clue_face_hold_over_the_frozen_schema() {
         .find(|o| o["depName"] == "Lapwing")
         .expect("the mislink clue lists");
     assert_eq!(clue["resolution"]["productId"], "booth:4993931");
-    assert_eq!(clue["resolution"]["confirmed"], false, "the clue is labeled, never a conclusion");
+    assert_eq!(
+        clue["resolution"]["confirmed"], false,
+        "the clue is labeled, never a conclusion"
+    );
     assert_eq!(clue["resolution"]["evidence"].as_array().unwrap().len(), 1);
     let evidence_keys: Vec<&str> = clue["resolution"]["evidence"][0]
         .as_object()
@@ -915,13 +1001,19 @@ fn suggestion_gates_and_the_clue_face_hold_over_the_frozen_schema() {
     for key in ["linkText", "linkUrl", "span", "note"] {
         assert!(evidence_keys.contains(&key), "evidence carries '{key}'");
     }
-    assert!(clue.get("advisory").is_none(), "no advisory on the clue face");
+    assert!(
+        clue.get("advisory").is_none(),
+        "no advisory on the clue face"
+    );
 
     let by_product_errors: Vec<String> = result_validator()
         .iter_errors(&by_product)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(by_product_errors.is_empty(), "assembled listByProduct must validate: {by_product_errors:?}");
+    assert!(
+        by_product_errors.is_empty(),
+        "assembled listByProduct must validate: {by_product_errors:?}"
+    );
 
     // Tombstone honesty: a dead source page lists as productStatus
     // 'missing' and its observations stay readable.
@@ -932,5 +1024,8 @@ fn suggestion_gates_and_the_clue_face_hold_over_the_frozen_schema() {
         .iter_errors(&dead)
         .map(|error| format!("{}: {error}", error.instance_path()))
         .collect();
-    assert!(dead_errors.is_empty(), "tombstone envelope must validate: {dead_errors:?}");
+    assert!(
+        dead_errors.is_empty(),
+        "tombstone envelope must validate: {dead_errors:?}"
+    );
 }

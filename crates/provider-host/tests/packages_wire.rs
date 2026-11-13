@@ -20,8 +20,8 @@ use vua_orchestrator::{
     AppErrorV1, ErrorCategory, InstalledPackageV1, PackageRequestV1, ProjectRef, VpmBackend,
     VpmCapabilities,
 };
-use vua_provider_host::{run_provider_host_full, ProjectOpsConfig};
 use vua_project_manager::ManagerRoots;
+use vua_provider_host::{run_provider_host_full, ProjectOpsConfig};
 
 fn unique_root(label: &str) -> PathBuf {
     let nanos = std::time::SystemTime::now()
@@ -69,7 +69,9 @@ fn seed_registered_project(root: &Path) -> (PathBuf, PathBuf) {
 fn project_ops_config(vcc_settings: &Path) -> ProjectOpsConfig {
     ProjectOpsConfig {
         vcc_settings_candidates: vec![vcc_settings.to_path_buf()],
-        manager_roots: ManagerRoots { alcom_settings_candidates: Vec::new() },
+        manager_roots: ManagerRoots {
+            alcom_settings_candidates: Vec::new(),
+        },
         editor_roots: Vec::new(),
     }
 }
@@ -128,7 +130,7 @@ impl VpmBackend for FakeVpm {
             list_packages: self.list_packages_cap,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -282,7 +284,10 @@ fn absent_wiring_answers_the_typed_honest_absence_and_unavailable_capability() {
     assert_eq!(payload["ok"], false, "absence is a typed failure");
     assert_eq!(payload["error"]["code"], "vua.packages.unavailable");
     assert_eq!(payload["error"]["category"], "unavailable");
-    assert_eq!(payload["error"]["messageKey"], "errors.packages.unavailable");
+    assert_eq!(
+        payload["error"]["messageKey"],
+        "errors.packages.unavailable"
+    );
     assert!(
         payload.get("result").is_none(),
         "absence never carries a fabricated listing"
@@ -308,13 +313,19 @@ fn wired_route_projects_the_fake_listing_inside_the_frozen_envelope() {
         "packages.listInstalled",
         json!({ "projectPath": project.to_string_lossy() }),
     );
-    assert_eq!(payload["ok"], true, "wired + registered must succeed: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "wired + registered must succeed: {payload}"
+    );
     let value = &payload["value"];
     assert_eq!(value["schemaVersion"], "0.1");
     assert_eq!(value["operation"], "packages.listInstalled");
     let result = &value["result"];
     assert_eq!(result["schemaVersion"], "vua.packages-installed/v0.1");
-    assert_eq!(result["projectPath"], project.to_string_lossy().into_owned());
+    assert_eq!(
+        result["projectPath"],
+        project.to_string_lossy().into_owned()
+    );
     let rows = result["packages"].as_array().expect("package rows");
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0]["packageId"], "com.vrchat.avatars");
@@ -346,7 +357,10 @@ fn unregistered_path_reuses_the_013_not_found_code() {
     // Same fact, same code: the reused 013 typed not-found (validation).
     assert_eq!(payload["error"]["code"], "vua.project.project_not_found");
     assert_eq!(payload["error"]["category"], "validation");
-    assert_eq!(payload["error"]["messageKey"], "errors.project.projectNotFound");
+    assert_eq!(
+        payload["error"]["messageKey"],
+        "errors.project.projectNotFound"
+    );
     fs::remove_dir_all(&root).ok();
 }
 
@@ -370,7 +384,10 @@ fn params_violations_answer_invalid_params_never_absence() {
             "packages.listInstalled",
             params.clone(),
         );
-        assert_eq!(payload["error"]["code"], "vua.packages.invalid_params", "{params}");
+        assert_eq!(
+            payload["error"]["code"], "vua.packages.invalid_params",
+            "{params}"
+        );
         assert_eq!(payload["error"]["category"], "validation");
     }
     fs::remove_dir_all(&root).ok();

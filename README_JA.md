@@ -1,8 +1,8 @@
-# VUA — Virtual Unified Assistant
+# VUA
 
 [English](README.md) | [简体中文](README_ZH.md) | 日本語 | [한국어](README_KO.md)
 
-**VUA（Virtual Unified Assistant）** は、VRChat プレイヤー向けの Windows 優先・ローカル優先の
+**VUA** は、VRChat プレイヤー向けの Windows 優先・ローカル優先の
 シナリオ導入・管理・起動アプリです。シナリオは目的、必要なソフト、準備・起動・復旧の手順を
 まとめたものです。PC 画面でのプレイ、PICO へのストリーミング、選んだモジュールでの Avatar 編集など、
 やりたいことから次の手順を案内します。
@@ -47,23 +47,23 @@ AMF が管理し、無効にしてもデータは残ります。
 
 ## 開発状況
 
-[v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0) はホスト初の安定版で、個別更新の **AMF 0.3.0 Beta** を同梱します。素材移行プランナー、制作の見積もり、初回ガイドを追加し、ツール詳細、環境確認の再利用、VN3 更新を修正しました。Windows x64 のオンライン・オフラインインストーラーを提供します。
+[v1.1.0 Getting on Track](https://github.com/VUA-Project/VUA/releases/tag/v1.1.0) は安定版ホストの更新で、個別更新の **AMF 0.4.0 Beta** を同梱します。単一カード型のネイティブインストーラー・アンインストーラー、3 プラットフォーム・15 構成に対応する目的別の起動画面、Steam および公式インストーラーの外部ツール連携、任意の Avatar Optimizer とローカル SDK テスト、Recipe v0.6、署名付きガイド、`v0.3` 圧縮更新を追加し、導入後のディスク使用量を約半分に削減しました。Windows x64 のオンライン・オフラインインストーラーを提供します。
 
-[リリースノート](docs/release/v1.0.0_JA.md)に提供範囲と未確認の実機・人手のチェックを記載しています。公開だけで [N1–N7 の受入](docs/development-outline.md)は完了しません。
+提供範囲と未確認の実機・人手チェックは [v1.1.0 リリースノート](docs/release/v1.1.0_JA.md)に記載しています。公開だけで [N1–N7 の受入](docs/development-outline.md)は完了しません。
 
 ### 現在の提供状況と開始方法
 
-- [GitHub リリース](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0)から **VUA-1.0.0-windows-x64-setup.exe** を取得します。ランタイム同梱版は **VUA-1.0.0-windows-x64-offline.exe** です。[公式ミラー](https://ph-r.com/vua/downloads/)には現在の提供版が表示されます。インストール後、スタートメニューから VUA を開きます。Node、pnpm、Rust、ソースは不要です。Authenticode 未署名のため、Windows が不明な発行元の警告を表示する場合があります。
-- 初回の機能ツアーとガイドから始めるか、プレイ・ツール・Avatar 編集を直接開きます。新規ユーザーの AMF は有効で、設定 → モジュールから無効にできます。Steam/PICO/Unity とアカウント操作は公式アプリで行います。
+- [GitHub リリース](https://github.com/VUA-Project/VUA/releases/tag/v1.1.0)から **VUA-1.1.0-windows-x64-setup.exe** を取得します。ランタイム同梱版は **VUA-1.1.0-windows-x64-offline.exe** です。[公式ミラー](https://ph-r.com/vua/downloads/)には現在の提供版が表示されます。インストーラーを実行すると完了後に VUA が自動で開き、スタートメニューにも登録されます。Node、pnpm、Rust、ソースは不要です。Authenticode 未署名のため、Windows が不明な発行元の警告を表示する場合があります。
+- 初回の機能ツアーとガイドから始めるか、起動・ツール・工房を直接開きます。新規ユーザーの AMF は有効で、設定 → モジュールから無効にできます。Steam/PICO/Unity とアカウント操作は公式アプリで行います。
 - VUA の更新時は作業を終えてアプリを終了し、新しいインストーラーを実行します。AMF は設定 → モジュールまたは「このアプリについて」で個別に更新し、明示的に再起動できます。データは %APPDATA%\VUA に保持され、ZIP 版から移行しても同じプロファイルを使用できます。未検証の手順や手動の引き継ぎはリリースノートに記載し、問題は [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) で受け付けます。
 - 開発者は[依存関係の導入・アプリ起動・検査](apps/desktop/README.md#development-commands)と[コントリビューション](CONTRIBUTING.md)を参照してください。
 
 ## ドキュメント
 
-- [ドキュメントガイド](docs/README.md)——タスクごとの最小ルート
+- [ドキュメントガイド](docs/README.md) — タスクごとの最小ルート
 - [プロダクト境界](docs/product-boundary.md)
 - [アーキテクチャ](docs/architecture/system.md)
-- [v1.0.0 リリースノート](docs/release/v1.0.0_JA.md)
+- [v1.1.0 リリースノート](docs/release/v1.1.0_JA.md) · [v1.0.0 リリースノート](docs/release/v1.0.0_JA.md)
 - [1.0.0 最小ガイド（候補版、五言語）](docs/user-guide/v1.0.0/ja.md)
 - [コントリビューション](CONTRIBUTING.md) · [セキュリティポリシー](SECURITY.md)
 
@@ -81,6 +81,8 @@ AMF が管理し、無効にしてもデータは残ります。
 | 2026-10-17 | [60 フレームのターンテーブルとアップロードを備えたリリースルーム](https://github.com/Aran52/VUA/pull/4) |
 | 2026-10-18 | [VN3 規約の読み取りと用途別チェック](https://github.com/Aran52/VUA/pull/31) |
 | 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)：アバター制作の流れを含む最初のリリース |
+| 2026-11-05 | [v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0)：ホスト初の安定版リリース（AMF 0.3.0 Beta 同梱） |
+| 2026-11-13 | [v1.1.0 Getting on Track](https://github.com/VUA-Project/VUA/releases/tag/v1.1.0)：ネイティブ導入カード、目的別起動画面、Avatar Optimizer、ローカル SDK テスト、圧縮更新（AMF 0.4.0 Beta 同梱） |
 
 ## ライセンス
 

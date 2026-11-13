@@ -16,7 +16,8 @@
 use vua_bdl_store::{BdlStore, ProductObservation, ProductObservationStatus};
 
 const MIGRATION_001: &str = include_str!("../../../schemas/bdl/v0.1/001_initial.sql");
-const MIGRATION_002: &str = include_str!("../../../schemas/bdl/v0.2/002_dependency_observations.sql");
+const MIGRATION_002: &str =
+    include_str!("../../../schemas/bdl/v0.2/002_dependency_observations.sql");
 const MIGRATION_003: &str = include_str!("../../../schemas/bdl/v0.3/003_library_type.sql");
 const MIGRATION_004: &str = include_str!("../../../schemas/bdl/v0.3/004_variant_name.sql");
 
@@ -45,7 +46,8 @@ fn seed_product(store: &BdlStore, id: &str) {
             video_urls: vec![],
             subproducts: vec![],
             source_published_at: None,
-            content_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000".to_owned(),
+            content_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+                .to_owned(),
             observed_at: "2026-10-05T00:00:00.000Z".to_owned(),
             run_id: None,
             processor_version: "test".to_owned(),
@@ -59,10 +61,16 @@ fn fresh_store_applies_current_chain_with_empty_downloadables_read() {
     let store = BdlStore::open_in_memory().unwrap();
     assert_eq!(vua_bdl_store::BDL_FORMAT_VERSION, "0.11");
     seed_product(&store, "1001");
-    assert!(store.downloadables_for_product("booth:1001").unwrap().is_empty());
+    assert!(store
+        .downloadables_for_product("booth:1001")
+        .unwrap()
+        .is_empty());
     // Unknown product is an honest empty read (the download-time flow
     // re-captures from the library page), never an error.
-    assert!(store.downloadables_for_product("booth:9999").unwrap().is_empty());
+    assert!(store
+        .downloadables_for_product("booth:9999")
+        .unwrap()
+        .is_empty());
 }
 
 #[test]
@@ -77,9 +85,7 @@ fn v03_database_migrates_to_current_chain_and_serves_downloadables() {
         connection.execute_batch(MIGRATION_002).unwrap();
         connection.execute_batch(MIGRATION_003).unwrap();
         connection.execute_batch(MIGRATION_004).unwrap();
-        connection
-            .pragma_update(None, "user_version", 4)
-            .unwrap();
+        connection.pragma_update(None, "user_version", 4).unwrap();
     }
     let store = BdlStore::open(&db).unwrap();
     seed_product(&store, "2002");
@@ -148,15 +154,19 @@ fn re_sighting_updates_last_seen_but_never_first_seen_or_known_library() {
     // raw connection — the read face deliberately does not expose capture
     // bookkeeping).
     let reader = rusqlite::Connection::open(&db).unwrap();
-    let (first_seen, last_seen, library_type, run_id): (String, String, Option<String>, Option<String>) =
-        reader
-            .query_row(
-                "SELECT first_seen_at, last_seen_at, library_type, last_seen_run_id
+    let (first_seen, last_seen, library_type, run_id): (
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+    ) = reader
+        .query_row(
+            "SELECT first_seen_at, last_seen_at, library_type, last_seen_run_id
                  FROM product_downloadables WHERE downloadable_id = 700001",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-            )
-            .unwrap();
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .unwrap();
     assert_eq!(first_seen, "2026-10-05T01:00:00.000Z");
     assert_eq!(last_seen, "2026-10-05T02:00:00.000Z");
     assert_eq!(library_type.as_deref(), Some("bought"));

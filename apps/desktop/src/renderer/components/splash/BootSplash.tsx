@@ -14,29 +14,30 @@ function flattenStartupMotion(): boolean {
 }
 
 /** Real renderer/Gateway/provider/paint readiness, independent of its native presentation. */
-export function BootGate({ onDone }: { onDone: () => void }) {
+export function BootGate({ onDone, native = false }: { onDone: () => void; native?: boolean }) {
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
   useEffect(() => {
     const started = performance.now();
     const flattened = flattenStartupMotion();
-    const budgetMs = splashVisibleMs(flattened);
+    const budgetMs = native ? 0 : splashVisibleMs(flattened);
     let finished = false;
     const check = () => {
       if (finished || !splashShouldExit({ elapsedMs: performance.now() - started, budgetMs, flattened, allReached: bootProgress.allReached() })) return;
       finished = true;
       onDoneRef.current();
     };
-    const budgetTimer = window.setTimeout(check, budgetMs + 1);
+    check();
+    const budgetTimer = budgetMs > 0 ? window.setTimeout(check, budgetMs + 1) : undefined;
     const capTimer = window.setTimeout(check, BOOT_PROGRESS_CAP_MS + 1);
     const unsubscribe = bootProgress.subscribe(check);
     return () => {
       finished = true;
       unsubscribe();
-      window.clearTimeout(budgetTimer);
+      if (budgetTimer !== undefined) window.clearTimeout(budgetTimer);
       window.clearTimeout(capTimer);
     };
-  }, []);
+  }, [native]);
   return null;
 }
 

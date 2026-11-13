@@ -107,7 +107,10 @@ fn engine_and_vcc_settings_reader_produce_the_vcc_create_zone_item() {
     let base2 = unique_dir("vcc-item-missing");
     let engine = engine_with(synthetic_roots(&base2));
     let items = engine.inspect_zone(Zone::Create);
-    assert_eq!(find(&items, "vcc").presence, EnvironmentPresence::NotDetected);
+    assert_eq!(
+        find(&items, "vcc").presence,
+        EnvironmentPresence::NotDetected
+    );
 
     // Unparseable settings → detection failure with the stable code.
     fs::write(&settings_path, "{ not json").unwrap();

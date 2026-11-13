@@ -209,14 +209,16 @@ export function ReleaseAlbum({ spreads, index, onIndex }: { spreads: readonly Al
     onKeyDown={onKeyDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
     <div className="vua-album__binder">
       <AlbumBook spreads={spreads} index={index} turn={turn} progress={progress.current} bookRef={book} onCorner={onCorner} onStep={steps => go(index + steps)} />
-      {spreads.length > 1 && <ol className="vua-album__tabs" aria-label={copy.albumLabel}>
-        {spreads.map((spread, at) => <li key={spread.key}><AlbumTab active={at === index} title={spread.tab} number={at + 1} onSelect={() => go(at)}/></li>)}
-      </ol>}
+      {spreads.length > 1 && <div className="vua-album__side">
+        <ol className="vua-album__tabs" aria-label={copy.albumLabel}>
+          {spreads.map((spread, at) => <li key={spread.key}><AlbumTab active={at === index} title={spread.tab} number={at + 1} onSelect={() => go(at)}/></li>)}
+        </ol>
+        <nav className="vua-album__nav" aria-label={copy.albumLabel}>
+          <button type="button" onClick={() => go(index - 1)} disabled={index === 0 || turn !== null} aria-label={copy.previous}><Icon name="arrow-left" size={16} /></button>
+          <span aria-live="polite">{format(copy.pageOf, { page: index + 1, total: spreads.length })}</span>
+          <button type="button" onClick={() => go(index + 1)} disabled={index >= spreads.length - 1 || turn !== null} aria-label={copy.next}><Icon name="arrow-right" size={16} /></button>
+        </nav>
+      </div>}
     </div>
-    <nav className="vua-album__nav" aria-label={copy.albumLabel}>
-      <button type="button" onClick={() => go(index - 1)} disabled={index === 0 || turn !== null} aria-label={copy.previous}><Icon name="arrow-left" size={16} /></button>
-      <span aria-live="polite">{format(copy.pageOf, { page: index + 1, total: spreads.length })}</span>
-      <button type="button" onClick={() => go(index + 1)} disabled={index >= spreads.length - 1 || turn !== null} aria-label={copy.next}><Icon name="arrow-right" size={16} /></button>
-    </nav>
   </section>;
 }

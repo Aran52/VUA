@@ -163,7 +163,6 @@ export const FIXTURES = {
 
 // AMF/preview views, including the unavailable repository-action layout.
 const FACTORY_VIEWS = [
-  "stations",
   "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-mode-menu",
   "workshop-full-access", "workshop-attention", "workshop-interrupted", "workshop-finished",
   "workshop-materials", "workshop-inspect", "workshop-line-menu", "workshop-delete",
@@ -175,7 +174,7 @@ const FACTORY_VIEWS = [
   "control-recipes", "control-recipes-still", "control-recipes-selected", "control-recipes-part",
   "control-recipes-list", "control-recipes-many", "control-recipes-empty", "control-fits",
   "control-packages", "control-packages-project", "control-packages-project-smart",
-  "control-packages-project-full", "control-packages-unlisted", "control-packages-repos", "control-packages-repos-disabled",
+  "control-packages-project-full", "control-packages-unlisted", "control-packages-repos", "control-packages-repos-add", "control-packages-repos-disabled",
   "release-album", "release-stills", "release-turn", "release-confirm", "release-signin",
   "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty",
   "release-sdk", "release-vrchat", "release-vrchat-signin", "release-queued", "release-terms",
@@ -189,7 +188,6 @@ const FACTORY_VIEWS = [
 ];
 
 function factoryArea(view) {
-  if (view === "stations") return "factory-map";
   if (view.startsWith("workshop")) return "workshop";
   if (view.startsWith("control")) return "control-center";
   if (view.startsWith("release")) return "release-room";
@@ -201,9 +199,7 @@ function factoryArea(view) {
   return "other";
 }
 
-// The base map composes four room colors by design (design-standard §8.1/§8.2
-// wording for the map composition), so the one-accent rule is exempt there.
-const ONE_ACCENT_EXEMPT = new Set(FACTORY_VIEWS.filter(v => v === "stations"));
+const ONE_ACCENT_EXEMPT = new Set();
 
 function factoryView(id) {
   const review = ["workshop-running", "workshop-waiting", "workshop-finished", "control-packages-repos", "control-packages-repos-disabled"].includes(id);

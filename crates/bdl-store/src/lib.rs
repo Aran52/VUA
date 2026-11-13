@@ -15,22 +15,20 @@ pub use bdl_queries::{
     CatalogStatusResult, CatalogSubproduct, CompletedDownloadRow, BDL_QUERIES_SCHEMA_VERSION,
 };
 pub use bdl_store::{
-    ArtifactInspectionState, ArtifactMappingOutcome, ArtifactMode, ArtifactRecording,
-    ArtifactRecordingOutcome, BdlStore, BdlStoreError, CopyRole, DependencyProductRow,
-    DependencyResolutionEvidence, EventAppendence, NewDependencyObservation,
-    NewLocalArtifact, ManagedLibraryFile, ManagedLibraryDelivery, LibraryCopyEvidence, ProductObservation, ProductObservationStatus, StoredArtifact,
-    StoredArtifactCopy, StoredDependencyObservation, StoredDownloadEvent,
-    ArchiveMember, StoredArchiveMember,
-    LibraryEntryMetadata, LibraryEntryMetadataUpdate,
-    RemoveLocalEntries, RemovedLocalEntries,
-    LibraryCardTarget, RemoveLibraryCards,
-    StoredWarehouseItem, SubproductObservation, WarehouseArtifactFact,
-    WarehouseArtifactRef, WarehouseEntryCard, WarehouseEntryDetail, WAREHOUSE_ITEM_KINDS,
-    BDL_FORMAT_VERSION,
+    ArchiveMember, ArtifactInspectionState, ArtifactMappingOutcome, ArtifactMode,
+    ArtifactRecording, ArtifactRecordingOutcome, BdlStore, BdlStoreError, CopyRole,
+    DependencyProductRow, DependencyResolutionEvidence, EventAppendence, LibraryCardTarget,
+    LibraryCopyEvidence, LibraryEntryMetadata, LibraryEntryMetadataUpdate, LibraryProductDates,
+    ManagedLibraryDelivery, ManagedLibraryFile, NewDependencyObservation, NewLocalArtifact,
+    ProductObservation, ProductObservationStatus, RemoveLibraryCards, RemoveLocalEntries,
+    RemovedLocalEntries, StoredArchiveMember, StoredArtifact, StoredArtifactCopy,
+    StoredDependencyObservation, StoredDownloadEvent, StoredWarehouseItem, SubproductObservation,
+    WarehouseArtifactFact, WarehouseArtifactRef, WarehouseEntryCard, WarehouseEntryDetail,
+    BDL_FORMAT_VERSION, WAREHOUSE_ITEM_KINDS,
 };
 pub use dependency_extract::{
-    extract_dependency_leads, lead_to_new_observation, DependencyLead, EXTRACTOR_ID,
-    METHOD_BULLET, METHOD_EXPLICIT_HEADING, METHOD_ONE_LINE, SPAN_BODY,
+    extract_dependency_leads, lead_to_new_observation, DependencyLead, EXTRACTOR_ID, METHOD_BULLET,
+    METHOD_EXPLICIT_HEADING, METHOD_ONE_LINE, SPAN_BODY,
 };
 pub use download_events::{
     backoff_for_attempt, fold_lifecycle, retry_decision, ConsumerError, DownloadEventConsumer,

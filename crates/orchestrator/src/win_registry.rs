@@ -54,10 +54,8 @@ impl FakeRegistrySource {
     }
 
     pub fn with(mut self, hive: RegistryHive, subkey: &str, value: &str, data: &str) -> Self {
-        self.entries.insert(
-            (hive, subkey.to_owned(), value.to_owned()),
-            data.to_owned(),
-        );
+        self.entries
+            .insert((hive, subkey.to_owned(), value.to_owned()), data.to_owned());
         self
     }
 

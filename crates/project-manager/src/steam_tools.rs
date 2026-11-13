@@ -146,7 +146,12 @@ impl ToolPlatform for SteamToolPlatform {
         let common = discovery
             .map(|(_, roots)| roots)
             .unwrap_or_else(|| self.fallback.clone());
-        Ok(inspect_libraries(&common, steam_ready, unreadable, self.spec))
+        Ok(inspect_libraries(
+            &common,
+            steam_ready,
+            unreadable,
+            self.spec,
+        ))
     }
     fn processes(&self) -> Result<Vec<ToolProcess>, &'static str> {
         crate::play_session::os::processes_matching(|name| name == self.spec.process_name)
@@ -185,6 +190,10 @@ impl ToolPlatform for SteamToolPlatform {
             }
             ToolAction::Start => {
                 let url = format!("steam://run/{}", self.spec.app_id);
+                command.args(["-url", url.as_str()]);
+            }
+            ToolAction::Reinstall => {
+                let url = format!("steam://uninstall/{}", self.spec.app_id);
                 command.args(["-url", url.as_str()]);
             }
             _ => return Err("unavailable"),

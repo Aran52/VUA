@@ -34,6 +34,7 @@ export interface DesktopGatewayHost {
   readonly componentUpdates?: import("@vua/contracts").DesktopComponentUpdatesApiV02;
   readonly updatePlans?: import("@vua/contracts").DesktopUpdatePlansApiV01;
   readonly amfUiRuntime?: import("@vua/contracts").DesktopAmfUiRuntimeApiV01;
+  readonly guideContent?: import("@vua/contracts").DesktopGuideContentApiV01;
   gateway: { invoke(request: DesktopGatewayRequestV1): Promise<unknown> };
   events: { subscribe(listener: (event: ApplicationEventV01) => void): Unsubscribe };
 }

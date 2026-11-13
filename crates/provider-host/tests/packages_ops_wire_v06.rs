@@ -41,11 +41,11 @@ use vua_orchestrator::{
     AppErrorV1, ErrorCategory, PackageRequestV1, ProjectRef, RepoLifecycleCapabilities,
     RepoRefreshOutcomeV01, SqliteTaskStore, VpmBackend, VpmCapabilities,
 };
+use vua_project_manager::ManagerRoots;
 use vua_provider_host::provider_host::{
     PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V06, PACKAGES_OPS_SCHEMA_VERSION_V06,
 };
 use vua_provider_host::{run_provider_host_full, ProjectOpsConfig};
-use vua_project_manager::ManagerRoots;
 
 fn read_ops_schema(name: &str) -> Value {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -79,7 +79,9 @@ fn unique_root(label: &str) -> PathBuf {
 fn empty_ops_config() -> ProjectOpsConfig {
     ProjectOpsConfig {
         vcc_settings_candidates: Vec::new(),
-        manager_roots: ManagerRoots { alcom_settings_candidates: Vec::new() },
+        manager_roots: ManagerRoots {
+            alcom_settings_candidates: Vec::new(),
+        },
         editor_roots: Vec::new(),
     }
 }
@@ -152,7 +154,7 @@ impl VpmBackend for FakeLifecycle {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn repo_lifecycle_capabilities(&self) -> RepoLifecycleCapabilities {
@@ -192,7 +194,9 @@ impl VpmBackend for FakeLifecycle {
             return Err(error.clone());
         }
         assert_eq!(repo_id, "repo.example", "verbatim repoId transport");
-        Ok(RepoRefreshOutcomeV01 { cache_updated: self.refresh_cache_updated })
+        Ok(RepoRefreshOutcomeV01 {
+            cache_updated: self.refresh_cache_updated,
+        })
     }
     fn preview_install(
         &self,
@@ -318,7 +322,10 @@ fn wait_done(database_path: &Path, task_id: &str) -> Value {
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         let store = SqliteTaskStore::open(database_path).expect("store opens");
-        let task = store.task(task_id).expect("store readable").expect("task exists");
+        let task = store
+            .task(task_id)
+            .expect("store readable")
+            .expect("task exists");
         if task.state.is_terminal() {
             assert_eq!(
                 serde_json::to_value(task.state).unwrap(),
@@ -328,7 +335,10 @@ fn wait_done(database_path: &Path, task_id: &str) -> Value {
             );
             return task.result.expect("done payload");
         }
-        assert!(Instant::now() < deadline, "the lifecycle task did not finish");
+        assert!(
+            Instant::now() < deadline,
+            "the lifecycle task did not finish"
+        );
         drop(store);
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -350,7 +360,10 @@ fn absent_lifecycle_wiring_answers_the_typed_honest_absence_and_unavailable_row(
     ] {
         let payload = run_frame(&database, None, None, "command", method, lifecycle_params());
         assert_eq!(payload["ok"], false, "{method}: absence is a typed failure");
-        assert_eq!(payload["error"]["code"], "vua.packages.unavailable", "{method}");
+        assert_eq!(
+            payload["error"]["code"], "vua.packages.unavailable",
+            "{method}"
+        );
         assert_eq!(payload["error"]["category"], "unavailable", "{method}");
         assert!(
             payload.get("result").is_none(),
@@ -381,14 +394,26 @@ fn wired_enable_accepts_and_the_reflux_carries_the_minimal_enabled_receipt() {
     assert_eq!(payload["ok"], true, "the wired command accepts: {payload}");
     let acceptance = &payload["value"];
     assert_eq!(acceptance["operation"], "packages.enableRepo");
-    assert_eq!(acceptance["schemaVersion"], PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V06);
+    assert_eq!(
+        acceptance["schemaVersion"],
+        PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V06
+    );
     let task_id = acceptance["taskId"].as_str().expect("taskId").to_owned();
-    assert!(!acceptance["correlationId"].as_str().unwrap_or_default().is_empty());
+    assert!(!acceptance["correlationId"]
+        .as_str()
+        .unwrap_or_default()
+        .is_empty());
 
     let done = wait_done(&database, &task_id);
-    assert_eq!(done["schemaVersion"], PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V06);
+    assert_eq!(
+        done["schemaVersion"],
+        PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V06
+    );
     assert_eq!(done["operation"], "packages.enableRepo");
-    assert!(validator.is_valid(&done), "receipt must match the frozen result schema: {done}");
+    assert!(
+        validator.is_valid(&done),
+        "receipt must match the frozen result schema: {done}"
+    );
     let receipt = &done["result"];
     assert_eq!(receipt["schemaVersion"], PACKAGES_OPS_SCHEMA_VERSION_V06);
     assert_eq!(receipt["kind"], "enabled");
@@ -397,8 +422,12 @@ fn wired_enable_accepts_and_the_reflux_carries_the_minimal_enabled_receipt() {
     // face, never duplicated into the receipt (additionalProperties:false
     // makes an invented toggle timestamp or previous-state echo a schema
     // violation, not a nitpick).
-    let receipt_keys: Vec<String> =
-        receipt.as_object().expect("receipt object").keys().cloned().collect();
+    let receipt_keys: Vec<String> = receipt
+        .as_object()
+        .expect("receipt object")
+        .keys()
+        .cloned()
+        .collect();
     assert_eq!(receipt_keys, vec!["schemaVersion", "kind", "repoId"]);
     assert_eq!(receipt["repoId"], "repo.example");
 
@@ -423,18 +452,28 @@ fn wired_disable_accepts_and_the_reflux_carries_the_minimal_disabled_receipt() {
         lifecycle_params(),
     );
     assert_eq!(payload["ok"], true, "the wired command accepts: {payload}");
-    let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = payload["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
 
     let done = wait_done(&database, &task_id);
-    assert_eq!(done["schemaVersion"], PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V06);
+    assert_eq!(
+        done["schemaVersion"],
+        PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V06
+    );
     assert_eq!(done["operation"], "packages.disableRepo");
     assert!(validator.is_valid(&done), "{done}");
     let receipt = &done["result"];
     assert_eq!(receipt["kind"], "disabled");
     // The disabled row stays subscribed and listed — the receipt carries
     // the echo only, no state snapshot is invented.
-    let receipt_keys: Vec<String> =
-        receipt.as_object().expect("receipt object").keys().cloned().collect();
+    let receipt_keys: Vec<String> = receipt
+        .as_object()
+        .expect("receipt object")
+        .keys()
+        .cloned()
+        .collect();
     assert_eq!(receipt_keys, vec!["schemaVersion", "kind", "repoId"]);
     assert_eq!(receipt["repoId"], "repo.example");
     fs::remove_dir_all(&root).ok();
@@ -451,23 +490,36 @@ fn wired_refresh_accepts_and_both_cache_updated_arms_are_successes() {
     let payload = run_frame(
         &database,
         Some(&config),
-        Some(Arc::new(FakeLifecycle { refresh_cache_updated: true, ..FakeLifecycle::wired_all() })),
+        Some(Arc::new(FakeLifecycle {
+            refresh_cache_updated: true,
+            ..FakeLifecycle::wired_all()
+        })),
         "command",
         "packages.refreshRepo",
         lifecycle_params(),
     );
     assert_eq!(payload["ok"], true, "the wired command accepts: {payload}");
     let done = wait_done(&database, payload["value"]["taskId"].as_str().unwrap());
-    assert_eq!(done["schemaVersion"], PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V06);
+    assert_eq!(
+        done["schemaVersion"],
+        PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V06
+    );
     assert!(validator.is_valid(&done), "{done}");
     let receipt = &done["result"];
     assert_eq!(receipt["kind"], "refreshed");
     // The REQUIRED refresh-outcome fact — the receipt without it is
     // invalid by schema, and so is one padded with fetched-byte counts or
     // package lists.
-    let receipt_keys: Vec<String> =
-        receipt.as_object().expect("receipt object").keys().cloned().collect();
-    assert_eq!(receipt_keys, vec!["schemaVersion", "kind", "repoId", "cacheUpdated"]);
+    let receipt_keys: Vec<String> = receipt
+        .as_object()
+        .expect("receipt object")
+        .keys()
+        .cloned()
+        .collect();
+    assert_eq!(
+        receipt_keys,
+        vec!["schemaVersion", "kind", "repoId", "cacheUpdated"]
+    );
     assert_eq!(receipt["repoId"], "repo.example");
     assert_eq!(receipt["cacheUpdated"], true);
     fs::remove_dir_all(&root).ok();
@@ -479,12 +531,18 @@ fn wired_refresh_accepts_and_both_cache_updated_arms_are_successes() {
     let payload = run_frame(
         &database,
         Some(&config),
-        Some(Arc::new(FakeLifecycle { refresh_cache_updated: false, ..FakeLifecycle::wired_all() })),
+        Some(Arc::new(FakeLifecycle {
+            refresh_cache_updated: false,
+            ..FakeLifecycle::wired_all()
+        })),
         "command",
         "packages.refreshRepo",
         lifecycle_params(),
     );
-    assert_eq!(payload["ok"], true, "the unchanged arm still ACCEPTS as a task");
+    assert_eq!(
+        payload["ok"], true,
+        "the unchanged arm still ACCEPTS as a task"
+    );
     let done = wait_done(&database, payload["value"]["taskId"].as_str().unwrap());
     assert!(validator.is_valid(&done), "{done}");
     assert_eq!(done["result"]["kind"], "refreshed");
@@ -526,9 +584,22 @@ fn lifecycle_param_violations_answer_invalid_params() {
         ),
     ];
     for (method, params) in violations {
-        let payload = run_frame(&database, Some(&config), vpm.clone(), "command", method, params);
-        assert_eq!(payload["ok"], false, "{method}: violations are typed failures");
-        assert_eq!(payload["error"]["code"], "vua.packages.invalid_params", "{method}: {payload}");
+        let payload = run_frame(
+            &database,
+            Some(&config),
+            vpm.clone(),
+            "command",
+            method,
+            params,
+        );
+        assert_eq!(
+            payload["ok"], false,
+            "{method}: violations are typed failures"
+        );
+        assert_eq!(
+            payload["error"]["code"], "vua.packages.invalid_params",
+            "{method}: {payload}"
+        );
         assert_eq!(payload["error"]["category"], "validation", "{method}");
     }
     fs::remove_dir_all(&root).ok();
@@ -546,10 +617,20 @@ fn lifecycle_gate_is_per_method_and_declared_none_stays_unavailable() {
         "packages.disableRepo",
         "packages.refreshRepo",
     ] {
-        let payload = run_frame(&database, Some(&config), none.clone(), "command", method, lifecycle_params());
+        let payload = run_frame(
+            &database,
+            Some(&config),
+            none.clone(),
+            "command",
+            method,
+            lifecycle_params(),
+        );
         assert_eq!(payload["ok"], false, "{method}");
         // The generic capability-missing arm, answered BEFORE submit.
-        assert_eq!(payload["error"]["code"], "vua.vpm.capability_missing", "{method}");
+        assert_eq!(
+            payload["error"]["code"], "vua.vpm.capability_missing",
+            "{method}"
+        );
         assert_eq!(payload["error"]["category"], "unavailable", "{method}");
         assert!(
             payload["value"].is_null(),
@@ -576,11 +657,23 @@ fn three_independent_bits_serve_a_subset_backend() {
     let refresh_only = Some(Arc::new(FakeLifecycle::refresh_only()) as Arc<dyn VpmBackend>);
 
     for method in ["packages.enableRepo", "packages.disableRepo"] {
-        let payload =
-            run_frame(&database, Some(&config), refresh_only.clone(), "command", method, lifecycle_params());
+        let payload = run_frame(
+            &database,
+            Some(&config),
+            refresh_only.clone(),
+            "command",
+            method,
+            lifecycle_params(),
+        );
         assert_eq!(payload["ok"], false, "{method}");
-        assert_eq!(payload["error"]["code"], "vua.vpm.capability_missing", "{method}");
-        assert!(payload["value"].is_null(), "{method}: absence never reaches a task");
+        assert_eq!(
+            payload["error"]["code"], "vua.vpm.capability_missing",
+            "{method}"
+        );
+        assert!(
+            payload["value"].is_null(),
+            "{method}: absence never reaches a task"
+        );
     }
 
     let payload = run_frame(
@@ -591,13 +684,19 @@ fn three_independent_bits_serve_a_subset_backend() {
         "packages.refreshRepo",
         lifecycle_params(),
     );
-    assert_eq!(payload["ok"], true, "the served subset method accepts: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "the served subset method accepts: {payload}"
+    );
     let done = wait_done(&database, payload["value"]["taskId"].as_str().unwrap());
     assert!(validator.is_valid(&done), "{done}");
     assert_eq!(done["result"]["kind"], "refreshed");
 
     let row = lifecycle_capability_row(&database, refresh_only);
-    assert_eq!(row["availability"], "available", "ANY declared bit keeps the row honest");
+    assert_eq!(
+        row["availability"], "available",
+        "ANY declared bit keeps the row honest"
+    );
     fs::remove_dir_all(&root).ok();
 }
 
@@ -628,7 +727,10 @@ fn lifecycle_refusals_fold_into_execution_failed_with_port_provenance() {
         lifecycle_params(),
     );
     let done = wait_done(&database, payload["value"]["taskId"].as_str().unwrap());
-    assert!(validator.is_valid(&done), "the refusal is a frozen result document: {done}");
+    assert!(
+        validator.is_valid(&done),
+        "the refusal is a frozen result document: {done}"
+    );
     let rejected = &done["result"];
     assert_eq!(rejected["kind"], "rejected");
     assert_eq!(rejected["guard"], "execution_failed");
@@ -661,7 +763,10 @@ fn lifecycle_refusals_fold_into_execution_failed_with_port_provenance() {
     assert!(validator.is_valid(&done), "{done}");
     let rejected = &done["result"];
     assert_eq!(rejected["guard"], "execution_failed");
-    assert!(rejected["detail"].as_str().unwrap().contains("vua.vpm.repo_write_failed"));
+    assert!(rejected["detail"]
+        .as_str()
+        .unwrap()
+        .contains("vua.vpm.repo_write_failed"));
     fs::remove_dir_all(&root).ok();
 
     // refreshRepo → repo_fetch_failed (the inherent network segment).
@@ -688,7 +793,10 @@ fn lifecycle_refusals_fold_into_execution_failed_with_port_provenance() {
     assert!(validator.is_valid(&done), "{done}");
     let rejected = &done["result"];
     assert_eq!(rejected["guard"], "execution_failed");
-    assert!(rejected["detail"].as_str().unwrap().contains("vua.vpm.repo_fetch_failed"));
+    assert!(rejected["detail"]
+        .as_str()
+        .unwrap()
+        .contains("vua.vpm.repo_fetch_failed"));
     fs::remove_dir_all(&root).ok();
 }
 
@@ -710,7 +818,7 @@ fn unimplemented_lifecycle_port_capability_missing_folds_into_execution_failed()
                 list_packages: false,
                 remove_packages: false,
                 project_registry: false,
-            resolve_project: false,
+                resolve_project: false,
             }
         }
         fn repo_lifecycle_capabilities(&self) -> RepoLifecycleCapabilities {
@@ -757,7 +865,10 @@ fn unimplemented_lifecycle_port_capability_missing_folds_into_execution_failed()
         "packages.enableRepo",
         lifecycle_params(),
     );
-    let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = payload["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
 
     let done = wait_done(&database, &task_id);
     let rejected = &done["result"];
@@ -810,7 +921,10 @@ fn the_frozen_v04_row_keeps_serving_untouched_beside_the_v06_row() {
         lifecycle_params(),
     );
     assert_eq!(payload["ok"], true, "{payload}");
-    assert_eq!(payload["value"]["schemaVersion"], "0.4", "the A4 envelope stays 0.4");
+    assert_eq!(
+        payload["value"]["schemaVersion"], "0.4",
+        "the A4 envelope stays 0.4"
+    );
     let done = wait_done(&database, payload["value"]["taskId"].as_str().unwrap());
     assert_eq!(done["result"]["schemaVersion"], "vua.packages-ops/v0.4");
     assert_eq!(done["result"]["kind"], "removed");

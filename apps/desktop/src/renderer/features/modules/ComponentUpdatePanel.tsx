@@ -20,6 +20,7 @@ export function ComponentUpdatePanel({ component }: { component: UpdateComponent
     if (view.error === "work_is_running") return amfAction ? amfCopy.busy : common.busy;
     if (view.state === "verifying") return amfCopy.verifying;
     if (view.state === "staged" && view.error === "feed_unavailable") return amfCopy.checkFailed;
+    if (view.error === "update_withdrawn") return copy.withdrawn;
     if (view.state === "failed" || (view.error && !["cancelled", "update_recovered"].includes(view.error))) return common.failed;
     if (view.state === "staged") return common.staged;
     if (view.state === "interrupted") return common.interrupted;

@@ -1,6 +1,6 @@
 # Controls and motion
 
-> Updated: 2026-11-01
+> Updated: 2026-11-07
 > Scope: control sizes, the shape language a theme defines, states, elevation and motion
 > Status: approved direction (author, 2026-10-25); the Grid values below are the default theme
 
@@ -49,6 +49,20 @@ The Workshop automation selector shows its label above the current mode in a
 New line button share that height and baseline; new lines expose the selector
 before work starts (author follow-up, 2026-10-31).
 
+### Page frame
+
+Every page uses one frame, so a page change never moves the title or the edges. The content is at
+most 1180 px wide and centred; a page narrower than the window keeps this width and never centres
+itself on a different one. A title row at least 40 px high comes first, with the title on the left and
+the page's view switch or actions on the right. A text button ending the row lines its text up with
+the frame's right edge. The next block starts 24 px below the row.
+
+Titles are `title` type; Home alone uses `display`. Section headings are `body` at weight 600 on every
+page, one step below the title.
+
+Views of one page use one 32 px segmented group (`.vua-segments`), whose fill and light bar travel
+between options. Card grids keep the same space between rows wherever a closed drawer sits.
+
 ### Size steps
 
 Controls come in three steps; a page uses one step for its main controls and may use a smaller
@@ -85,16 +99,23 @@ titles share a vertical centre; a long title truncates inside its own column. Th
 remain inside the icon slot, with the glyph inset into Jirai's heart rather than filling or
 extending beyond it (author follow-up, 2026-11-01).
 
+### Selects and scrollbars
+
+Every `<select>` uses `appearance: base-select`, so its list opens in the page and follows the theme, while
+keyboard use and typing to jump to an option stay the browser's own. A list long enough to need searching gets
+a dedicated control when one appears. Scrollbars use the designed thin look, sized by `--vua-scrollbar-size`. A
+page frame that scrolls inside itself leaves that room at its edge and marks itself `data-scroll-frame`, which
+the design audit reads.
+
 ### Corners
 
 Grid uses rectangles and rounded rectangles only, with small radii, and the same geometry in the
 VUA host and in AMF content (author ruling, 2026-10-28; it replaces the 2026-10-25 cut-corner
 direction). Only the module accent colour differs between host and AMF pages.
 The material card's upper-left status/action marker is a named exception: a 40 px
-triangle attached to the corner, restored by the author ruling of 2026-10-31.
-Its 72 px decorative tail fades to transparency down-right at 45 degrees and passes
-pointer input through to the preview. The marker paints above the card frame in resting,
-hover and selected states. Its triangular outline appears only for keyboard focus;
+triangle attached to the corner (author rulings, 2026-10-31 and 2026-11-07). It carries no tail.
+Colour marks what stands out: a product still on BOOTH is a low-saturation grey at rest and green under
+the pointer. The marker paints above the card frame in resting, hover and selected states. Its triangular outline appears only for keyboard focus;
 the card itself keeps the container geometry (author follow-up, 2026-10-31).
 
 Corners are set per **role group**, one radius per group:
@@ -193,8 +214,9 @@ keeps glass only on the shell and on level 2–4 overlays.
 
 The author's adopted third-party review (2026-10-25) supersedes the earlier selected-station
 shadow exception. Viewing (`aria-pressed`) and execution (`aria-current="step"`) are independent.
-Only a step awaiting user input uses amber; future steps stay neutral. The detail area names
-both the viewed step and the running step, or explicitly says no step is running.
+Only a step awaiting user input uses amber; future steps stay neutral. The station row marks both
+the viewed step and the running step; the detail area names the running step when it is elsewhere and
+offers to follow it.
 
 ### Iconography
 
@@ -234,8 +256,12 @@ of the design standard's earlier §7:
 | dialog | fade with an 8 px rise, slow; backdrop fade, normal |
 | drawer | slide from its edge, slow |
 | toast | slide 8 px from the stack edge with fade, normal; leaves by fading |
-| tab or segment change | the selected bar moves over normal; content cross-fades over normal |
+| tab or segment change | the selected fill and bar move over normal; content cross-fades over normal |
+| sidebar selection | the highlight travels to the chosen item over normal, and the item takes over with no fade |
 | page change | content fades over normal; no sliding pages |
+| content changing in place (a wizard page, a guide topic, another production line, a station's panel) | content fades over normal, without remounting |
+| details and disclosures | height opens over normal with entrance easing and closes in two thirds of it; the triangle turns over fast |
+| a block opening in the flow (a card's drawer, the line menu) | neighbours move with it over normal; a drawer then scrolls into view if needed |
 | row added or removed | fade over normal; neighbours move over normal |
 | progress | determinate bars move over normal; indeterminate shimmer only while active |
 | stepper | one shared viewing indicator slides to the selected station over 240 ms with `--vua-motion-ease-station` (`cubic-bezier(0.55, 0, 1, 0.45)`), an ease-in/accelerating curve; execution state does not move |

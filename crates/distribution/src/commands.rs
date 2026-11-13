@@ -20,6 +20,22 @@ pub fn report(progress: Progress) {
         json!({"schemaVersion":"0.1", "kind":"progress", "progress":progress})
     );
 }
+pub(crate) fn active_component_versions(installation: &Installation) -> Option<(String, String)> {
+    let active = installation.active().ok()?;
+    Some((
+        installation
+            .manifest(&active.host_manifest)
+            .ok()?
+            .host
+            .version,
+        installation
+            .manifest(&active.amf_manifest)
+            .ok()?
+            .amf
+            .version,
+    ))
+}
+
 pub async fn execute(
     args: &[String],
     cancel: Arc<AtomicBool>,
@@ -53,15 +69,7 @@ pub async fn execute(
             installation.register_data_profile(Path::new(profile))?;
         }
     }
-    let versions = installation
-        .active()
-        .and_then(|active| {
-            Ok((
-                installation.manifest(&active.host_manifest)?.host.version,
-                installation.manifest(&active.amf_manifest)?.amf.version,
-            ))
-        })
-        .ok();
+    let versions = active_component_versions(&installation);
     let mut transfer = Transfer::with_versions(
         cancel,
         progress,
@@ -320,7 +328,13 @@ fn launch_trial(installation: &Installation, args: &[String]) -> Result<()> {
         }
     }
 }
+fn unix_epoch_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_millis() as u64)
+}
 fn launch(installation: &Installation, args: &[String], trial: bool) -> Result<()> {
+    let launcher_started_ms = unix_epoch_ms();
     if !trial {
         match installation.recover_component_activation() {
             Ok(_) => {}
@@ -360,33 +374,73 @@ fn launch(installation: &Installation, args: &[String], trial: bool) -> Result<(
         .iter()
         .find(|file| file.path == "electron.exe")
         .ok_or_else(|| Error("incomplete_runtime".into()))?;
+    let electron_executable = owned_path(&runtime_root, "electron.exe")?;
     let runtime_executable = owned_path(&runtime_root, "VUA.Runtime.exe")?;
-    if !crate::transfer::verified_file(&runtime_executable, executable.bytes, &executable.sha256) {
+    if !crate::paths::same_regular_file(&electron_executable, &runtime_executable)
+        && !crate::transfer::verified_file(
+            &runtime_executable,
+            executable.bytes,
+            &executable.sha256,
+        )
+    {
         return Err(Error("runtime_launch_alias_needs_repair".into()));
     }
     let mut child = Command::new(runtime_executable);
     child.current_dir(&installation.root);
     for (name, _) in std::env::vars_os() {
-        let name_text = name.to_string_lossy();
-        if name_text.starts_with("ELECTRON_")
-            || name_text == "NODE_OPTIONS"
-            || name_text == "NODE_PATH"
-            || name_text.starts_with("VUA_")
+        let upper = name.to_string_lossy().to_ascii_uppercase();
+        if upper.starts_with("ELECTRON_")
+            || upper == "NODE_OPTIONS"
+            || upper == "NODE_PATH"
+            || upper.starts_with("VUA_")
         {
             child.env_remove(name);
         }
     }
+    let mut nonce_bytes = [0u8; 32];
+    getrandom::fill(&mut nonce_bytes).map_err(|_| Error("random_source_unavailable".into()))?;
+    let launch_nonce = crate::paths::hex(&nonce_bytes);
+    let launch_receipt = owned_path(&installation.root, "cache/launch-verified.json")?;
+    if let Some(parent) = launch_receipt.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    crate::paths::atomic_json(
+        &launch_receipt,
+        &json!({
+            "schemaVersion": "0.1",
+            "hostManifest": active.host_manifest,
+            "hostPackSha256": host.host.pack.sha256,
+            "issuedAtMs": unix_epoch_ms(),
+            "tokenSha256": crate::paths::digest(launch_nonce.as_bytes()),
+        }),
+    )?;
+    child.env("VUA_LAUNCH_VERIFIED", &launch_nonce);
+    let mut smoke_directory: Option<PathBuf> = None;
     for arg in args {
         if let Some(directory) = arg.strip_prefix("--vua-smoke-test=") {
-            if !Path::new(directory).is_absolute() {
+            let parsed = Path::new(directory);
+            if !parsed.is_absolute() {
+                let _ = std::fs::remove_file(&launch_receipt);
                 return Err(Error("invalid_smoke_directory".into()));
             }
+            smoke_directory = Some(parsed.to_path_buf());
             child.arg(arg);
         }
+    }
+    if let Some(directory) = &smoke_directory {
+        let _ = std::fs::create_dir_all(directory);
+        let _ = std::fs::write(
+            directory.join("launcher-timing.json"),
+            serde_json::to_vec(&json!({
+                "launcherStartedAtMs": launcher_started_ms,
+                "electronSpawnedAtMs": unix_epoch_ms(),
+            }))?,
+        );
     }
     let mut child = match child.spawn() {
         Ok(child) => child,
         Err(error) => {
+            let _ = std::fs::remove_file(&launch_receipt);
             drop(running);
             if trial {
                 installation.recover_component_activation()?;
@@ -395,6 +449,7 @@ fn launch(installation: &Installation, args: &[String], trial: bool) -> Result<(
             return Err(error.into());
         }
     };
+    let session_started = std::time::Instant::now();
     if trial {
         let started = std::time::Instant::now();
         loop {
@@ -423,6 +478,9 @@ fn launch(installation: &Installation, args: &[String], trial: bool) -> Result<(
     let status = child.wait()?;
     drop(running);
     if !status.success() {
+        if session_started.elapsed() >= std::time::Duration::from_secs(30) {
+            return Err(Error("application_terminated".into()));
+        }
         return Err(Error("installed_application_failed".into()));
     }
     Ok(())

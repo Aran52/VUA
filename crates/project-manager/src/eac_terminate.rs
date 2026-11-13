@@ -30,8 +30,8 @@ use serde::Serialize;
 
 use crate::eac_allowlist::AllowlistEntryV01;
 use crate::eac_probe::probe_eac;
-use crate::environment_managers::ManagerRoots;
 use crate::eac_verify::{verify_candidate, Verdict};
+use crate::environment_managers::ManagerRoots;
 
 pub const EAC_TERMINATE_SCHEMA_VERSION: &str = "vua.eac-terminate/v0.1";
 
@@ -236,8 +236,8 @@ fn terminate_open_and_wait(
 ) -> TerminationReceiptV01 {
     use windows_sys::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0};
     use windows_sys::Win32::System::Threading::{
-        OpenProcess, TerminateProcess, WaitForSingleObject,
-        PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
+        OpenProcess, TerminateProcess, WaitForSingleObject, PROCESS_QUERY_LIMITED_INFORMATION,
+        PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
     };
 
     // PROCESS_SYNCHRONIZE is required for the exit wait; QUERY for any
@@ -251,7 +251,10 @@ fn terminate_open_and_wait(
             task_correlation,
             pre,
             TerminationGuard::OpenFailed,
-            format!("OpenProcess(PROCESS_TERMINATE) failed: {}", std::io::Error::last_os_error()),
+            format!(
+                "OpenProcess(PROCESS_TERMINATE) failed: {}",
+                std::io::Error::last_os_error()
+            ),
         );
     }
 
@@ -266,7 +269,10 @@ fn terminate_open_and_wait(
             task_correlation,
             pre,
             TerminationGuard::TerminateFailed,
-            format!("TerminateProcess failed: {}", std::io::Error::last_os_error()),
+            format!(
+                "TerminateProcess failed: {}",
+                std::io::Error::last_os_error()
+            ),
         );
     }
 
@@ -345,4 +351,3 @@ fn terminate_open_and_wait(
         "the termination step requires Windows",
     )
 }
-

@@ -1,0 +1,15 @@
+{
+  "contractVersion": "0.1",
+  "requestId": "sop-mismatch",
+  "correlationId": "sop-mismatch",
+  "kind": "query",
+  "method": "environment.getScenarioSop",
+  "params": {
+    "schemaVersion": "0.2",
+    "selection": {
+      "platform": "vrchat",
+      "device": "quest",
+      "connection": "pico-connect"
+    }
+  }
+}

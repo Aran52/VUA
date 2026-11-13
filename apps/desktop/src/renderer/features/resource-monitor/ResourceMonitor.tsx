@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { SystemResourceUsageV2 } from "@vua/contracts";
 import { Icon } from "@vua/design-system";
+import { POPOVER_ENTER, POPOVER_EXIT, usePresenceMotion } from "../../components/primitives/motion.ts";
 import { format, strings } from "../../i18n/index.ts";
 import { formatGigabytes, usagePercents } from "./resource-monitor-model.ts";
 import "./resource-monitor.css";
@@ -28,6 +29,7 @@ export function ResourceMonitor() {
   const [open, setOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const shown = usePresenceMotion(open, panelRef, POPOVER_ENTER, POPOVER_EXIT);
   useEffect(() => {
     const system = window.vua?.system;
     if (system === undefined) return;
@@ -80,7 +82,7 @@ export function ResourceMonitor() {
         <span className="vua-shell__usage-state" data-state={view.loadState}>{state}</span>
       </> : null}
     </button>
-    {open ? createPortal(<div ref={panelRef} className="vua-usage-panel" data-vua-native-occluder role="region" aria-label={copy.title} tabIndex={-1}>
+    {shown ? createPortal(<div ref={panelRef} className="vua-usage-panel" data-vua-native-occluder role="region" aria-label={copy.title} tabIndex={-1}>
       <div className="vua-usage-panel__header">
         <span className="vua-usage-panel__title">{copy.title}</span>
         <button type="button" className="vua-usage-panel__close" aria-label={copy.closeAria} onClick={() => setOpen(false)}><Icon name="close" size={16} /></button>

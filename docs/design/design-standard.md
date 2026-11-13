@@ -1,7 +1,7 @@
 # VUA design standard
 
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation
-> Updated: 2026-10-28
+> Updated: 2026-11-07
 
 ## 0. Position of this version
 
@@ -72,6 +72,9 @@ mounts or introducing replacement character art.
 
 ## 3. Platform and information architecture
 
+The [interaction structure](interaction-structure.md) owns the directory, page names, Home and where
+a task's main action sits. Where a paragraph below describes them differently, that document applies.
+
 | Scope | Baseline |
 | --- | --- |
 | Windows windows, focus, common controls | Microsoft Fluent 2 |
@@ -85,8 +88,8 @@ left VUA logo is the Home action; do not add a separate Home button. The logo us
 purple in Environment, Avatar orange in Avatar work, and the three-color mark elsewhere, using
 theme tokens in light/dark mode. Home and the feature directory do not change with wizard
 choices. Main navigation tiles contain an icon and a title, without explanatory subtitles.
-Unavailable peers such as Quest and Unity 6 remain at the same level with a top-right
-**In development** badge; unavailable actions are disabled and make no capability claim.
+Unavailable peers such as Quest and Unity 6 remain at the same level and say **In development**
+where their action would be; unavailable actions are disabled and make no capability claim.
 Scenario cards can still expand an explanatory description on their left side.
 VR device choices use their recognizable brand glyphs: Simple Icons for Meta, HTC Vive and
 Valve, and the author-supplied PICO wordmark. Keep unavailable peers visually equal.
@@ -107,7 +110,7 @@ Theme/tray entries, alternate layouts and directional shell navigation. Ignore a
 mode preferences; a legacy native command cannot reactivate it. Language selection sits above
 **Search**, with a translation glyph at its left, a shorter selector and a visible gap between
 the two rows. Remove the separate Goal reselection, Language, Version and Donation pages;
-old goal links open Help's VUA guide. About includes the existing version/update
+old goal links open the VRChat beginner wizard. About includes the existing version/update
 and diagnostic controls.
 
 Settings → Theme → Appearance uses three connected native buttons in the order Dark, Light,
@@ -119,7 +122,7 @@ the frame movement without changing selection, keyboard access or theme propagat
 The 2026-10-11 ruling restores **Help** to the topbar beside Settings, using the same parallelogram
 button and pressed styling. Remove its Environment-sidebar entry; keep Tools above Avatar editing.
 Help stays selected throughout its child pages and remains accessible through Home and Search.
-Help starts with common VRChat questions, then offers the VUA guide, optional app tour,
+Help starts with common VRChat questions, then offers the VUA feature tour, the VRChat beginner wizard,
 encyclopedia, game assistant and optional AI tools. The encyclopedia is a page inside Help with an
 explicit return to Help, sharing Main's appearance. Hardware introductions are a peer chapter;
 Play's "What device do I have?" link opens it directly.
@@ -151,8 +154,8 @@ Leaving an import browser still dismisses its modal. Close controls, website his
 remain reachable. Local confirmation cards take precedence over native
 content. Respect the current domain colour, appearance, glass, matrix and resource-saving settings.
 All Help cards open main-window child pages. Each child supports mouse-side-button
-Back/Forward; encyclopedia chapter choices participate in history, while the VUA guide
-keeps its reading position separate. Tour and game-assistant child pages retain explicit buttons for their existing
+Back/Forward; encyclopedia chapter choices participate in history, and the beginner wizard
+keeps its own page. Tour and game-assistant child pages retain explicit buttons for their existing
 highlight overlay and floating window, respectively.
 Tools groups tracking, translation, VR utilities and capture entries. Unwired integrations stay
 unavailable on the action side, with the same development badge as other unavailable peers.
@@ -178,12 +181,12 @@ capability. Finished Avatars uses the same title in its card, sidebar and page h
 
 The environment directory contains **Play** and **Avatar editing** (游玩 / 改模), plus Tools
 and Help. Remove
-Software & connections as a separate feature. Play owns network diagnostics and runtime facts.
-Its network tile sits above the environment grid and has the same height as an environment card.
+Software & connections as a separate feature. Play owns runtime facts; latency sits in the top bar.
 Play cards are half their former height: 88 px.
 Arrange the icon/title and state/action compactly without clipping content or merging the halves.
-Each environment card has two equal halves separated by one thin line: the left toggles
-details, and the right combines current status with the current action. Show + for missing
+Each environment card has two parts separated by one thin line: the left, two thirds wide, toggles
+details and names the item with one line on what it is; the right combines current status with the
+current action in words. Show + for missing
 software, a spinner for preparation/start/close, a warning triangle for problems, Play after
 fresh file verification, and × for an active card session. Keep details accessible during work.
 A normal manual game exit is not a warning. Label × **Close** even when only this card's
@@ -231,7 +234,7 @@ connection guidance and the official handoff. Save reading position separately f
 revisiting preparation requires reinspection. Account help opens Settings → Accounts and returns to
 the source step. Registration and linking have dedicated guides.
 
-Help exposes common VRChat questions, the VUA guide, an optional app tour, the encyclopedia and the
+Help exposes common VRChat questions, the VUA feature tour, the VRChat beginner wizard, the encyclopedia and the
 game guide. Contextual help opens its destination directly. The [guidance architecture](../architecture/guidance.md) owns the
 window behavior and independent progress. In the transparent game guide, fade only the matrix/background
 and preserve readable text/controls; a dragged relative position survives automatic hiding/restoration.
@@ -454,8 +457,8 @@ changelog history already uses.
   restores the previous filters, page, mode, selection and scroll, including after an empty or
   failed query. Recorded links are evidence, never a guarantee of production compatibility.
   Card media's upper-left corner replaces cloud/local text badges: purple computer for local
-  import, green cloud for cloud-only content, orange computer for linked local files, red cross
-  for missing/failed content. Hover shows a short explanation; green cloud becomes a download
+  import, grey cloud for cloud-only content, orange computer for linked local files, red cross
+  for missing/failed content. Hover shows a short explanation; the grey cloud turns green and becomes a download
   arrow. During actual transfer, click pauses; yellow pause continues the same transfer. Local
   purple hover becomes a refresh arrow and requests public BOOTH keyword lookup. The arrow spins
   only while searching. An uncertain result remains a yellow question until the next library
@@ -786,10 +789,10 @@ changelog history already uses.
   (capability_missing) and engine absence (unavailable) are presented distinctly; repeated
   toggles claim no idempotence and refusals surface as refusals.
 - **Guidance and overlays:** use a transparent highlight layer over actual VUA controls for the
-  explicitly started app tour, a main-window encyclopedia and VUA guide, and a compact translucent
+  explicitly started app tour, a main-window encyclopedia and beginner wizard, and a compact translucent
   guide associated with VRChat for in-game steps. Help first presents common VRChat questions with
   local answers and official links. The encyclopedia supports long-form content and keyboard reading
-  inside its own scroll container; the VUA guide has an independent bookmark and does not write
+  inside its own scroll container; the beginner wizard keeps its own page and does not write
   encyclopedia history. The game guide has short instructions, readable controls and the
   following/transparency preferences defined in [guidance architecture](../architecture/guidance.md).
   Do not apply its transparency default to the encyclopedia or app-tour mask. Facts may be shared,

@@ -9,7 +9,7 @@
   border-radius: var(--vua-radius-control);
   background: var(--vua-bg-panel);
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background var(--vua-motion-fast) ease, border-color var(--vua-motion-fast) ease;
 }
 
 .vua-toggle::after {

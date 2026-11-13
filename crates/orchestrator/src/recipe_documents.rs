@@ -31,7 +31,10 @@ impl std::fmt::Display for RecipeSaveError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::RevisionConflict { current_revision } => {
-                write!(formatter, "revision conflict: stored revision is {current_revision}")
+                write!(
+                    formatter,
+                    "revision conflict: stored revision is {current_revision}"
+                )
             }
             Self::InvalidId => write!(formatter, "invalid recipe id"),
             Self::StoreIo { detail } => write!(formatter, "recipe store io: {detail}"),
@@ -44,9 +47,7 @@ impl From<RecipeSaveError> for io::Error {
         match error {
             RecipeSaveError::RevisionConflict { .. }
             | RecipeSaveError::InvalidId
-            | RecipeSaveError::StoreIo { .. } => {
-                io::Error::other(format!("{error:?}"))
-            }
+            | RecipeSaveError::StoreIo { .. } => io::Error::other(format!("{error:?}")),
         }
     }
 }
@@ -81,7 +82,14 @@ pub struct RecipeDocumentStore {
 
 impl RecipeDocumentStore {
     pub fn new(root: impl Into<PathBuf>, now: Box<dyn Fn() -> String + Send + Sync>) -> Self {
-        Self { root: root.into(), now }
+        Self {
+            root: root.into(),
+            now,
+        }
+    }
+
+    pub fn root(&self) -> &Path {
+        &self.root
     }
 
     /// Production constructor: `updatedAt` is the real store clock, stamped
@@ -119,7 +127,9 @@ impl RecipeDocumentStore {
             (None, 0) => {}
             (None, other) => {
                 let _ = other;
-                return Err(RecipeSaveError::RevisionConflict { current_revision: 0 });
+                return Err(RecipeSaveError::RevisionConflict {
+                    current_revision: 0,
+                });
             }
             (Some(existing), base) if existing.revision == base => {}
             (Some(existing), _) => {
@@ -133,30 +143,54 @@ impl RecipeDocumentStore {
             revision: base_revision + 1,
             updated_at: (self.now)(),
         };
-        fs::create_dir_all(&self.root).map_err(|error| {
-            RecipeSaveError::StoreIo { detail: error.to_string() }
+        fs::create_dir_all(&self.root).map_err(|error| RecipeSaveError::StoreIo {
+            detail: error.to_string(),
         })?;
         let temporary = self.root.join(format!(".{recipe_id}.tmp"));
-        let bytes = serde_json::to_vec_pretty(&stored)
-            .map_err(|error| RecipeSaveError::StoreIo { detail: error.to_string() })?;
+        let bytes =
+            serde_json::to_vec_pretty(&stored).map_err(|error| RecipeSaveError::StoreIo {
+                detail: error.to_string(),
+            })?;
         {
             let mut output = OpenOptions::new()
                 .create(true)
                 .write(true)
                 .truncate(true)
                 .open(&temporary)
-                .map_err(|error| RecipeSaveError::StoreIo { detail: error.to_string() })?;
-            output.write_all(&bytes).map_err(|error| {
-                RecipeSaveError::StoreIo { detail: error.to_string() }
-            })?;
-            output.sync_all().map_err(|error| RecipeSaveError::StoreIo { detail: error.to_string() })?;
+                .map_err(|error| RecipeSaveError::StoreIo {
+                    detail: error.to_string(),
+                })?;
+            output
+                .write_all(&bytes)
+                .map_err(|error| RecipeSaveError::StoreIo {
+                    detail: error.to_string(),
+                })?;
+            output
+                .sync_all()
+                .map_err(|error| RecipeSaveError::StoreIo {
+                    detail: error.to_string(),
+                })?;
         }
         // Replace is safe here: recipes are mutable documents (unlike
         // evidence/records), fenced by the baseRevision check above.
-        fs::rename(&temporary, &path).map_err(|error| {
-            RecipeSaveError::StoreIo { detail: error.to_string() }
+        fs::rename(&temporary, &path).map_err(|error| RecipeSaveError::StoreIo {
+            detail: error.to_string(),
         })?;
         Ok(stored)
+    }
+
+    /// Deletes only the exact stored revision. Missing documents conflict at revision zero.
+    pub fn delete(&self, recipe_id: &str, expected_revision: u64) -> Result<(), RecipeSaveError> {
+        let path = self.path_for(recipe_id)?;
+        let current_revision = self
+            .read_metadata(recipe_id)?
+            .map_or(0, |stored| stored.revision);
+        if current_revision == 0 || current_revision != expected_revision {
+            return Err(RecipeSaveError::RevisionConflict { current_revision });
+        }
+        fs::remove_file(path).map_err(|error| RecipeSaveError::StoreIo {
+            detail: error.to_string(),
+        })
     }
 
     /// Reads one stored document (latest revision).
@@ -164,10 +198,14 @@ impl RecipeDocumentStore {
         let path = self.path_for(recipe_id)?;
         match fs::read(&path) {
             Ok(bytes) => Ok(Some(serde_json::from_slice(&bytes).map_err(|error| {
-                RecipeSaveError::StoreIo { detail: error.to_string() }
+                RecipeSaveError::StoreIo {
+                    detail: error.to_string(),
+                }
             })?)),
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(RecipeSaveError::StoreIo { detail: error.to_string() }),
+            Err(error) => Err(RecipeSaveError::StoreIo {
+                detail: error.to_string(),
+            }),
         }
     }
 
@@ -178,11 +216,15 @@ impl RecipeDocumentStore {
         let directory = match fs::read_dir(&self.root) {
             Ok(directory) => directory,
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(entries),
-            Err(error) => return Err(RecipeSaveError::StoreIo { detail: error.to_string() }),
+            Err(error) => {
+                return Err(RecipeSaveError::StoreIo {
+                    detail: error.to_string(),
+                })
+            }
         };
         for entry in directory {
-            let entry = entry.map_err(|error| {
-                RecipeSaveError::StoreIo { detail: error.to_string() }
+            let entry = entry.map_err(|error| RecipeSaveError::StoreIo {
+                detail: error.to_string(),
             })?;
             let name = entry.file_name();
             let name = name.to_string_lossy().into_owned();
@@ -236,7 +278,10 @@ fn read_metadata_at(path: &Path) -> io::Result<Option<(u64, String)>> {
 }
 
 impl RecipeDocumentStore {
-    fn read_metadata(&self, recipe_id: &str) -> Result<Option<StoredRecipeDocument>, RecipeSaveError> {
+    fn read_metadata(
+        &self,
+        recipe_id: &str,
+    ) -> Result<Option<StoredRecipeDocument>, RecipeSaveError> {
         self.get(recipe_id)
     }
 }
@@ -279,10 +324,10 @@ mod tests {
 
     #[test]
     fn absent_store_is_empty_but_an_unreadable_store_remains_an_error() {
-        let root=unique_root("absent").join("not-created");
-        let store=RecipeDocumentStore::new_with_system_clock(&root);
+        let root = unique_root("absent").join("not-created");
+        let store = RecipeDocumentStore::new_with_system_clock(&root);
         assert!(store.list().unwrap().is_empty());
-        fs::write(&root,b"not a directory").unwrap();
+        fs::write(&root, b"not a directory").unwrap();
         assert!(store.list().is_err());
     }
 
@@ -292,7 +337,9 @@ mod tests {
         // Create requires base_revision 0.
         assert!(matches!(
             store.save(ID, &doc("one"), 3),
-            Err(RecipeSaveError::RevisionConflict { current_revision: 0 })
+            Err(RecipeSaveError::RevisionConflict {
+                current_revision: 0
+            })
         ));
         let created = store.save(ID, &doc("one"), 0).unwrap();
         assert_eq!(created.revision, 1);
@@ -303,7 +350,9 @@ mod tests {
         // conflict that names the current revision.
         assert!(matches!(
             store.save(ID, &doc("three"), 1),
-            Err(RecipeSaveError::RevisionConflict { current_revision: 2 })
+            Err(RecipeSaveError::RevisionConflict {
+                current_revision: 2
+            })
         ));
         let read = store.get(ID).unwrap().unwrap();
         assert_eq!(read.revision, 2);
@@ -313,9 +362,13 @@ mod tests {
     #[test]
     fn list_returns_identity_entries_sorted_by_update() {
         let store = RecipeDocumentStore::new_with_system_clock(unique_root("list"));
-        store.save("019e0000-0000-7000-8000-00000000000a", &doc("alpha"), 0).unwrap();
+        store
+            .save("019e0000-0000-7000-8000-00000000000a", &doc("alpha"), 0)
+            .unwrap();
         std::thread::sleep(std::time::Duration::from_millis(5));
-        store.save("019e0000-0000-7000-8000-00000000000b", &doc("beta"), 0).unwrap();
+        store
+            .save("019e0000-0000-7000-8000-00000000000b", &doc("beta"), 0)
+            .unwrap();
         let entries = store.list().unwrap();
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].title, "beta", "updatedAt descending");
@@ -355,9 +408,18 @@ mod tests {
         assert_eq!(&stamp[16..17], ":", "shape: {stamp}");
         assert_eq!(&stamp[19..20], ".", "shape: {stamp}");
         assert!(stamp.ends_with('Z'), "shape: {stamp}");
-        assert!(stamp[..4].bytes().all(|b| b.is_ascii_digit()), "shape: {stamp}");
-        assert!(stamp[5..7].bytes().all(|b| b.is_ascii_digit()), "shape: {stamp}");
-        assert!(stamp[8..10].bytes().all(|b| b.is_ascii_digit()), "shape: {stamp}");
+        assert!(
+            stamp[..4].bytes().all(|b| b.is_ascii_digit()),
+            "shape: {stamp}"
+        );
+        assert!(
+            stamp[5..7].bytes().all(|b| b.is_ascii_digit()),
+            "shape: {stamp}"
+        );
+        assert!(
+            stamp[8..10].bytes().all(|b| b.is_ascii_digit()),
+            "shape: {stamp}"
+        );
         // Chronology: real now sorts after the data-seat measured instant
         // 2026-09-19T20:16:59.769Z (the old approximation produced
         // 2026-07-16…, which sorts BEFORE it).

@@ -11,14 +11,25 @@ fn root() -> PathBuf {
 fn removal_is_a_bound_mutation_with_optional_bounded_inventory_and_exact_proof() {
     use vua_orchestrator::amf_production::validate_outfit_removal_facts;
     validate_outfit_removal_facts(&read("examples/assembly.valid.result.json")["data"]).unwrap();
-    validate_outfit_removal_facts(&read("examples/outfit-removal.valid.result.json")["data"]).unwrap();
-    validate_outfit_removal_facts(&read("examples/outfit-removed.valid.result.json")["data"]).unwrap();
-    for file in ["invalid-outfit-removal-manual.result.json", "invalid-outfit-removal-duplicate.result.json", "invalid-outfit-removal-no-proof.result.json"] {
+    validate_outfit_removal_facts(&read("examples/outfit-removal.valid.result.json")["data"])
+        .unwrap();
+    validate_outfit_removal_facts(&read("examples/outfit-removed.valid.result.json")["data"])
+        .unwrap();
+    for file in [
+        "invalid-outfit-removal-manual.result.json",
+        "invalid-outfit-removal-duplicate.result.json",
+        "invalid-outfit-removal-no-proof.result.json",
+    ] {
         assert!(validate_outfit_removal_facts(&read(&format!("examples/{file}"))["data"]).is_err());
     }
-    let command: UnityCommand = serde_json::from_value(read("examples/outfit-removal.valid.command.json")).unwrap();
+    let command: UnityCommand =
+        serde_json::from_value(read("examples/outfit-removal.valid.command.json")).unwrap();
     assert_eq!(command.operation, UnityOperation::AmfOutfitRemove);
-    assert!(command.operation.is_mutating() && !command.dry_run && command.expected_project_fingerprint.is_some());
+    assert!(
+        command.operation.is_mutating()
+            && !command.dry_run
+            && command.expected_project_fingerprint.is_some()
+    );
 }
 fn read(file: &str) -> Value {
     serde_json::from_slice(&fs::read(root().join(file)).unwrap()).unwrap()
@@ -29,27 +40,40 @@ fn recipe_inspection_has_optional_validated_guid_object_and_material_evidence() 
     use vua_orchestrator::amf_recipe_materials::validate_inspection;
     validate_inspection(&read("examples/inspection-full.valid.result.json")["data"]).unwrap();
     validate_inspection(&read("examples/recipe-inspection.valid.result.json")["data"]).unwrap();
-    for file in ["invalid-prefab-guid.result.json","invalid-prefab-object-paths.result.json"] {
+    for file in [
+        "invalid-prefab-guid.result.json",
+        "invalid-prefab-object-paths.result.json",
+    ] {
         assert!(validate_inspection(&read(&format!("examples/{file}"))["data"]).is_err());
     }
 }
 
 #[test]
 fn face_tracking_is_optional_source_evidence_and_patch_requires_a_bound_write() {
-    let old: UnityResult = serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
+    let old: UnityResult =
+        serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
     assert!(old.data.get("faceTracking").is_none());
     let value = read("examples/face-tracking.valid.result.json");
-    vua_orchestrator::amf_production::validate_face_tracking(&value["data"]["faceTracking"]).unwrap();
-    for file in ["invalid-face-tracking-runtime.result.json", "invalid-face-tracking-cost.result.json"] {
-        assert!(vua_orchestrator::amf_production::validate_face_tracking(&read(&format!("examples/{file}"))["data"]["faceTracking"]).is_err());
+    vua_orchestrator::amf_production::validate_face_tracking(&value["data"]["faceTracking"])
+        .unwrap();
+    for file in [
+        "invalid-face-tracking-runtime.result.json",
+        "invalid-face-tracking-cost.result.json",
+    ] {
+        assert!(vua_orchestrator::amf_production::validate_face_tracking(
+            &read(&format!("examples/{file}"))["data"]["faceTracking"]
+        )
+        .is_err());
     }
     let command = read("examples/face-tracking.valid.command.json");
     let operation: UnityOperation = serde_json::from_value(command["operation"].clone()).unwrap();
     assert_eq!(operation, UnityOperation::AmfFtPatch);
     assert!(operation.is_mutating() && command["dryRun"] == false);
     assert!(command["expectedProjectFingerprint"].is_string());
-    let patch: vua_orchestrator::amf_production::FaceTrackingPatch =
-        serde_json::from_value(read("examples/face-tracking.valid.plan.json")["faceTrackingPatch"].clone()).unwrap();
+    let patch: vua_orchestrator::amf_production::FaceTrackingPatch = serde_json::from_value(
+        read("examples/face-tracking.valid.plan.json")["faceTrackingPatch"].clone(),
+    )
+    .unwrap();
     assert!(patch.confirm_trusted_code);
 }
 
@@ -77,20 +101,36 @@ fn candidate_bridge_schemas_refuse_legacy_ops_drift_and_false_sdk_claims() {
 
 #[test]
 fn parameter_budget_evidence_is_optional_bounded_and_source_attributed() {
-    let old: UnityResult = serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
-    assert!(old.data["prefabs"].as_array().unwrap().iter().all(|candidate| candidate.get("parameterBudget").is_none()));
+    let old: UnityResult =
+        serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
+    assert!(old.data["prefabs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|candidate| candidate.get("parameterBudget").is_none()));
     let value = read("examples/parameter-budget.valid.result.json");
     let prefabs: Vec<vua_orchestrator::amf_production::PrefabCandidate> =
         serde_json::from_value(value["data"]["prefabs"].clone()).unwrap();
-    assert!(prefabs.iter().all(|candidate| candidate.parameter_budget.is_some()));
+    assert!(prefabs
+        .iter()
+        .all(|candidate| candidate.parameter_budget.is_some()));
     vua_orchestrator::amf_production::validate_prefab_parameter_budgets(&prefabs).unwrap();
-    assert_eq!(prefabs[0].parameter_budget.as_ref().unwrap().expression_parameters.len(), 3);
+    assert_eq!(
+        prefabs[0]
+            .parameter_budget
+            .as_ref()
+            .unwrap()
+            .expression_parameters
+            .len(),
+        3
+    );
     for file in [
         "invalid-parameter-budget-entry-bits.result.json",
         "invalid-parameter-budget-unobserved.result.json",
     ] {
         let invalid: Vec<vua_orchestrator::amf_production::PrefabCandidate> =
-            serde_json::from_value(read(&format!("examples/{file}"))["data"]["prefabs"].clone()).unwrap();
+            serde_json::from_value(read(&format!("examples/{file}"))["data"]["prefabs"].clone())
+                .unwrap();
         assert_eq!(
             vua_orchestrator::amf_production::validate_prefab_parameter_budgets(&invalid)
                 .unwrap_err()
@@ -160,10 +200,22 @@ fn full_inspection_result_carries_the_sdk_review_and_every_observed_field() {
         data["observedSelection"]["outfits"][1]["mode"],
         "attach_to_bone"
     );
-    assert_eq!(data["avatars"][0]["globalObjectId"], data["avatarGlobalObjectId"]);
-    assert_eq!(data["avatars"][0]["observedSelection"]["outfits"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        data["avatars"][0]["globalObjectId"],
+        data["avatarGlobalObjectId"]
+    );
+    assert_eq!(
+        data["avatars"][0]["observedSelection"]["outfits"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
     assert_eq!(data["usedSourceIds"][0], "source-avatar");
-    assert_eq!(data["missingShaderMaterials"][0], "Assets/Synthetic/Broken.mat");
+    assert_eq!(
+        data["missingShaderMaterials"][0],
+        "Assets/Synthetic/Broken.mat"
+    );
     assert_eq!(data["sdkFixesApplied"].as_array().unwrap().len(), 0);
     let material_use = data["materialUse"].as_array().unwrap();
     assert_eq!(material_use.len(), 4);
@@ -188,13 +240,22 @@ fn fit_facts_are_optional_and_bounded() {
     assert_eq!(result.data["fitSkipped"][0]["sourceId"], "source-accessory");
     assert_eq!(result.data["fitSkipped"][0]["paths"][0], "Clips#2");
     let mut without = full.clone();
-    without["data"].as_object_mut().unwrap().remove("fitChanges");
-    without["data"].as_object_mut().unwrap().remove("fitSkipped");
+    without["data"]
+        .as_object_mut()
+        .unwrap()
+        .remove("fitChanges");
+    without["data"]
+        .as_object_mut()
+        .unwrap()
+        .remove("fitSkipped");
     assert!(validator.is_valid(&without));
     let mut empty = full.clone();
     empty["data"]["fitChanges"] = Value::Array(vec![]);
     empty["data"]["fitSkipped"] = Value::Array(vec![]);
-    assert!(validator.is_valid(&empty), "JsonUtility always emits both lists");
+    assert!(
+        validator.is_valid(&empty),
+        "JsonUtility always emits both lists"
+    );
     let mut broken = full;
     broken["data"]["fitChanges"][0]["moved"][0]
         .as_object_mut()
@@ -209,10 +270,14 @@ fn material_use_is_optional_and_bounded() {
     let validator = jsonschema::validator_for(&read("result.schema.json")).unwrap();
     let full = read("examples/inspection-full.valid.result.json");
     let mut without = full.clone();
-    without["data"].as_object_mut().unwrap().remove("materialUse");
+    without["data"]
+        .as_object_mut()
+        .unwrap()
+        .remove("materialUse");
     assert!(validator.is_valid(&without));
     let mut foreign = full.clone();
-    foreign["data"]["materialUse"][0]["material"] = Value::String("Resources/unity_builtin_extra".into());
+    foreign["data"]["materialUse"][0]["material"] =
+        Value::String("Resources/unity_builtin_extra".into());
     assert!(!validator.is_valid(&foreign));
     let mut over = full;
     let entries = vec![over["data"]["materialUse"][0].clone(); 513];
@@ -246,26 +311,68 @@ fn creator_menu_schema_accepts_custom_roots_without_native_commands_or_shortcuts
         result["data"]["faceTracking"]["patchMenus"][0]["menuPath"] = path.into();
         assert!(validator.is_valid(&result), "{path}");
     }
-    for path in ["Assets/Apply", "Window/Apply", "Tools//Apply", "Tools/Apply %g", "Tools/Apply _g", "Tools/"] {
+    for path in [
+        "Assets/Apply",
+        "Window/Apply",
+        "Tools//Apply",
+        "Tools/Apply %g",
+        "Tools/Apply _g",
+        "Tools/",
+    ] {
         result["data"]["faceTracking"]["patchMenus"][0]["menuPath"] = path.into();
         assert!(!validator.is_valid(&result), "{path}");
     }
 }
 
-
 #[test]
 fn texture_inventory_is_optional_but_new_facts_and_writes_are_checked() {
-    let old: UnityResult = serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
+    let old: UnityResult =
+        serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
     assert!(old.data.get("textureMemory").is_none());
     let value = read("examples/texture-memory.valid.result.json");
-    let reports = vua_orchestrator::amf_production::validate_texture_memory(&value["data"]["textureMemory"]).unwrap();
+    let reports =
+        vua_orchestrator::amf_production::validate_texture_memory(&value["data"]["textureMemory"])
+            .unwrap();
     assert_eq!(reports[0].total_bytes, 89_478_484);
-    assert_eq!(reports[0].rank, vua_orchestrator::amf_production::TextureRank::Medium);
-    for file in ["invalid-texture-bytes.result.json", "invalid-texture-format.result.json"] {
-        assert!(vua_orchestrator::amf_production::validate_texture_memory(&read(&format!("examples/{file}"))["data"]["textureMemory"]).is_err());
+    assert_eq!(
+        reports[0].rank,
+        vua_orchestrator::amf_production::TextureRank::Medium
+    );
+    for file in [
+        "invalid-texture-bytes.result.json",
+        "invalid-texture-format.result.json",
+    ] {
+        assert!(vua_orchestrator::amf_production::validate_texture_memory(
+            &read(&format!("examples/{file}"))["data"]["textureMemory"]
+        )
+        .is_err());
     }
-    let command: UnityCommand = serde_json::from_value(read("examples/texture-import.valid.command.json")).unwrap();
+    let command: UnityCommand =
+        serde_json::from_value(read("examples/texture-import.valid.command.json")).unwrap();
     assert_eq!(command.operation, UnityOperation::AmfTextureImport);
     assert!(command.operation.is_mutating() && !command.dry_run);
     assert!(command.expected_project_fingerprint.is_some());
+}
+
+#[test]
+fn avatar_optimizer_facts_require_local_measurement_and_forbid_official_sdk_claims() {
+    use vua_orchestrator::amf_production::validate_optimizer_facts;
+    let mut old: UnityResult =
+        serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
+    validate_optimizer_facts(&mut old.data, false).unwrap();
+    let mut valid: UnityResult =
+        serde_json::from_value(read("examples/optimizer.valid.result.json")).unwrap();
+    assert_eq!(valid.data["officialSdkChecks"], "not_run");
+    validate_optimizer_facts(&mut valid.data, true).unwrap();
+    assert_eq!(valid.data["optimizerReport"]["localMeasurementOnly"], true);
+    let mut invalid = read("examples/invalid-optimizer-official-claim.result.json");
+    assert!(validate_optimizer_facts(&mut invalid["data"], true).is_err());
+    let command: UnityCommand =
+        serde_json::from_value(read("examples/optimizer.valid.command.json")).unwrap();
+    assert_eq!(command.operation, UnityOperation::AmfOptimizer);
+    assert!(
+        command.operation.is_mutating()
+            && !command.dry_run
+            && command.expected_project_fingerprint.is_some()
+    );
 }

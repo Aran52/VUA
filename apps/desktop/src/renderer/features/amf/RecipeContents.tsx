@@ -16,5 +16,5 @@ export function RecipeContents({recipe,sources,revision=0}:{recipe:AmfRecipeDocu
   return <section className="vua-recipe-contents"><ul>{products.map(material=>{const detail=material.productId?details[material.productId]:null;return <li key={material.materialId}>
     <strong>{detail?.title??copy.titleUnknown}</strong><small>{material.packageName}</small><small>{detail?.shopName??material.shopName??copy.shopUnknown}</small>
     {material.productId?<button className="vua-recipe-contents__link" type="button" onClick={()=>{void openExternalUrl(`https://booth.pm/items/${material.productId!.slice(6)}`);}}>BOOTH · {material.productId.slice(6)}</button>:<small>{copy.noProducts}</small>}
-  </li>;})}</ul><h4>{copy.settings}</h4><dl className="vua-recipe-contents__settings">{(["bindings","merge","attach","switches","fits","lighting","sdkFixes"] as const).map(kind=><div key={kind}><dt>{copy[kind]}</dt><dd>{settings[kind]}</dd></div>)}</dl><p className="vua-caption">{copy.files}</p></section>;
+  </li>;})}</ul><h4>{copy.settings}</h4><dl className="vua-recipe-contents__settings">{(["bindings","merge","attach","switches","fits","lighting","sdkFixes",...(settings.optimizer>0?["optimizer" as const]:[])] as const).map(kind=><div key={kind}><dt>{copy[kind]}</dt><dd>{settings[kind]}</dd></div>)}</dl><p className="vua-caption">{copy.files}</p></section>;
 }

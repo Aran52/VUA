@@ -306,7 +306,7 @@ test("theme-invariant classification covers the layout rules only", () => {
   for (const rule of ["color-token", "contrast", "shadow-panel", "one-accent", "border-density"]) {
     assert.ok(!isThemeInvariant(rule), `${rule} is theme-dependent`);
   }
-  assert.equal(THEME_INVARIANT_RULES.size, 9);
+  assert.equal(THEME_INVARIANT_RULES.size, 10);
 });
 
 test("Grid roles keep one radius on every corner and never cut a corner", () => {
@@ -485,4 +485,19 @@ test("parseCssBlocks reads nested rules with at-rule context and line numbers", 
   assert.equal(blocks[1].selector, ".b");
   assert.equal(blocks[1].atRules.length, 1);
   assert.equal(blocks[1].line, 3);
+});
+
+test("a scroll frame may add the scrollbar to the grid; other elements may not", () => {
+  const element = { path: [0], tag: "div", cls: ["frame"], text: "", rect: { x: 0, y: 0, w: 100, h: 100 }, paddings: [0, 18, 0, 0], margins: [0, -10, 0, 0], rowGap: 0, columnGap: 0 };
+  const spacing = (scrollFrame, scrollbarSize) => evaluateSnapshot({ elements: [{ ...element, scrollFrame }], scrollbarSize }, { rules: ["spacing-grid"] }).length;
+  assert.equal(spacing(true, 10), 0);
+  assert.equal(spacing(false, 10), 2);
+  assert.equal(spacing(true, 0), 2);
+});
+
+test("a caption over a node or another caption is an error", () => {
+  const findings = evaluateSnapshot({ elements: [], captionOverlaps: [{ text: "Shinano", rect: { x: 0, y: 0, w: 40, h: 16 }, other: "caption \"Meiyun\"" }] }, { rules: ["caption-overlap"] });
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].severity, "error");
+  assert.match(findings[0].message, /Shinano/u);
 });

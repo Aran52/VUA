@@ -10,14 +10,14 @@ import { describe, expect, it, vi } from "vitest";
  * CAPABILITIES 落实,provider 面无 desktop.remoteBrowser 行可断言。
  */
 
-const { exposed } = vi.hoisted(() => ({ exposed: vi.fn() }));
+const { exposed, on, removeListener } = vi.hoisted(() => ({ exposed: vi.fn(), on: vi.fn(), removeListener: vi.fn() }));
 
 vi.mock("electron", () => ({
   contextBridge: { exposeInMainWorld: (...args: unknown[]) => exposed(...args) },
   ipcRenderer: {
     invoke: vi.fn(),
-    on: vi.fn(),
-    removeListener: vi.fn(),
+    on,
+    removeListener,
   },
 }));
 
@@ -33,5 +33,24 @@ describe("shell capability single source of truth", () => {
     ];
     expect(channel).toBe("vua");
     expect(api.capabilities.remoteBrowser).toBe(SHELL_CAPABILITIES.remoteBrowser);
+  });
+
+  it("passes only bounded enrichment counts and removes its exact subscription", () => {
+    const api = exposed.mock.calls[0][1] as {
+      catalogSync: { subscribeEnrichment: (listener: (event: { schemaVersion: "0.1"; updated: number }) => void) => () => void };
+    };
+    const listener = vi.fn();
+    const unsubscribe = api.catalogSync.subscribeEnrichment(listener);
+    const [channel, wrapped] = on.mock.calls.at(-1)! as [string, (event: unknown, value: unknown) => void];
+    expect(channel).toBe("vua:catalog-sync:enriched");
+    for (const value of [null, [], {}, { schemaVersion: "0.2", updated: 1 }, { schemaVersion: "0.1", updated: 1, productIds: ["booth:1"] }, ...[0, 61, 1.5, NaN, "1"].map(updated => ({ schemaVersion: "0.1", updated }))]) {
+      wrapped({}, value);
+    }
+    expect(listener).not.toHaveBeenCalled();
+    wrapped({}, { schemaVersion: "0.1", updated: 1 });
+    wrapped({}, { schemaVersion: "0.1", updated: 60 });
+    expect(listener.mock.calls).toEqual([[{ schemaVersion: "0.1", updated: 1 }], [{ schemaVersion: "0.1", updated: 60 }]]);
+    unsubscribe();
+    expect(removeListener).toHaveBeenCalledWith(channel, wrapped);
   });
 });

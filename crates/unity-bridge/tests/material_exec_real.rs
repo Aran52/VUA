@@ -21,12 +21,13 @@ use vua_orchestrator::{
     UnityBridge, VpmBackend,
 };
 use vua_unity_bridge::{
-    MaterialCancelToken, MaterialExecutor, MaterialIntakeConfirmationV01, MaterialIntakeEngine,
-    MaterialIntakeStepKind, MaterialExecutionStatus, RiskDecisionV01, RollbackOutcome,
+    MaterialCancelToken, MaterialExecutionStatus, MaterialExecutor, MaterialIntakeConfirmationV01,
+    MaterialIntakeEngine, MaterialIntakeStepKind, RiskDecisionV01, RollbackOutcome,
     UnityBatchBridge,
 };
 
-const UNITY_VERSION_LINE: &str = "m_EditorVersion: 2022.3.22f1\nm_EditorVersionWithEdition: 2022.3.22f1\n";
+const UNITY_VERSION_LINE: &str =
+    "m_EditorVersion: 2022.3.22f1\nm_EditorVersionWithEdition: 2022.3.22f1\n";
 
 /// Type-complete Modular Avatar stub: the Bridge's install_outfit and
 /// create_toggle reference these members, so the staging/target compile
@@ -111,7 +112,11 @@ fn build_target_project(label: &str) -> (PathBuf, ProjectRef) {
     fs::create_dir_all(root.join("Assets")).unwrap();
     fs::create_dir_all(root.join("ProjectSettings")).unwrap();
     fs::create_dir_all(root.join("Packages")).unwrap();
-    fs::write(root.join("ProjectSettings/ProjectVersion.txt"), UNITY_VERSION_LINE).unwrap();
+    fs::write(
+        root.join("ProjectSettings/ProjectVersion.txt"),
+        UNITY_VERSION_LINE,
+    )
+    .unwrap();
     fs::write(
         root.join("Packages/manifest.json"),
         serde_json::to_string_pretty(&serde_json::json!({
@@ -145,8 +150,11 @@ fn build_target_project(label: &str) -> (PathBuf, ProjectRef) {
         &root.join("Packages/com.ph-r.vua/Editor"),
     )
     .unwrap();
-    fs::copy(bridge_package_src.join("package.json"), root.join("Packages/com.ph-r.vua/package.json"))
-        .unwrap();
+    fs::copy(
+        bridge_package_src.join("package.json"),
+        root.join("Packages/com.ph-r.vua/package.json"),
+    )
+    .unwrap();
     // Stub package satisfying the Bridge asmdef reference — fallback only:
     // with the real MA stack present (copied above) the stub would collide
     // with the real nadena.dev.modular-avatar.core assembly.
@@ -175,17 +183,27 @@ fn write_unitypackage(path: &Path, entries: &[(&str, &str)]) {
         let meta_bytes = format!("fileFormatVersion: 2\nguid: {guid}\n").into_bytes();
         meta.set_size(meta_bytes.len() as u64);
         meta.set_cksum();
-        tar.append_data(&mut meta, format!("{guid}/asset.meta"), meta_bytes.as_slice()).unwrap();
+        tar.append_data(
+            &mut meta,
+            format!("{guid}/asset.meta"),
+            meta_bytes.as_slice(),
+        )
+        .unwrap();
         let mut body = Header::new_gnu();
         body.set_size(b"synthetic asset payload".len() as u64);
         body.set_cksum();
-        tar.append_data(&mut body, format!("{guid}/asset"), b"synthetic asset payload".as_slice())
-            .unwrap();
+        tar.append_data(
+            &mut body,
+            format!("{guid}/asset"),
+            b"synthetic asset payload".as_slice(),
+        )
+        .unwrap();
         let mut path_header = Header::new_gnu();
         let path_bytes = pathname.as_bytes();
         path_header.set_size(path_bytes.len() as u64);
         path_header.set_cksum();
-        tar.append_data(&mut path_header, format!("{guid}/pathname"), path_bytes).unwrap();
+        tar.append_data(&mut path_header, format!("{guid}/pathname"), path_bytes)
+            .unwrap();
     }
     tar.finish().unwrap();
 }
@@ -221,9 +239,15 @@ fn seed_vrc_sdk(vcc_project: &Path, root: &Path) -> bool {
         }
     }
     if seeded {
-        if let Ok(candidate_manifest) = fs::read_to_string(vcc_project.join("Packages/manifest.json")) {
+        if let Ok(candidate_manifest) =
+            fs::read_to_string(vcc_project.join("Packages/manifest.json"))
+        {
             if let Ok(manifest) = serde_json::from_str::<Value>(&candidate_manifest) {
-                if let Some(deps) = manifest.get("dependencies").and_then(Value::as_object).cloned() {
+                if let Some(deps) = manifest
+                    .get("dependencies")
+                    .and_then(Value::as_object)
+                    .cloned()
+                {
                     let manifest_path = root.join("Packages/manifest.json");
                     let mut merged =
                         serde_json::json!({ "dependencies": { "com.unity.textmeshpro": "3.0.6" } });
@@ -232,12 +256,19 @@ fn seed_vrc_sdk(vcc_project: &Path, root: &Path) -> bool {
                             merged = value;
                         }
                     }
-                    if let Some(target) = merged.get_mut("dependencies").and_then(Value::as_object_mut) {
+                    if let Some(target) = merged
+                        .get_mut("dependencies")
+                        .and_then(Value::as_object_mut)
+                    {
                         for (key, dep) in deps {
                             target.insert(key, dep);
                         }
                     }
-                    fs::write(&manifest_path, serde_json::to_string_pretty(&merged).unwrap()).unwrap();
+                    fs::write(
+                        &manifest_path,
+                        serde_json::to_string_pretty(&merged).unwrap(),
+                    )
+                    .unwrap();
                 }
             }
         }
@@ -285,9 +316,10 @@ fn write_ma_stub(packages_dir: &Path) {
 }
 
 fn unity_executable() -> PathBuf {
-    PathBuf::from(std::env::var("VUA_UNITY_EXECUTABLE").expect(
-        "VUA_UNITY_EXECUTABLE must point at Unity.exe (2022.3.22f1)",
-    ))
+    PathBuf::from(
+        std::env::var("VUA_UNITY_EXECUTABLE")
+            .expect("VUA_UNITY_EXECUTABLE must point at Unity.exe (2022.3.22f1)"),
+    )
 }
 
 fn fingerprint(bridge: &dyn UnityBridge, project: &ProjectRef) -> String {
@@ -316,7 +348,9 @@ fn fingerprint(bridge: &dyn UnityBridge, project: &ProjectRef) -> String {
 
 use serde_json::Value;
 
-fn confirmation_for(plan: &vua_unity_bridge::MaterialIntakePlanV01) -> MaterialIntakeConfirmationV01 {
+fn confirmation_for(
+    plan: &vua_unity_bridge::MaterialIntakePlanV01,
+) -> MaterialIntakeConfirmationV01 {
     MaterialIntakeConfirmationV01 {
         plan: plan.clone(),
         risk_decision: RiskDecisionV01 {
@@ -387,7 +421,10 @@ fn m3_real_direct_vertical_slice_succeeds_and_records() {
         vua_unity_bridge::MaterialExecutionStatus::Succeeded,
         "report: {report:?}"
     );
-    assert_eq!(report.rollback, vua_unity_bridge::RollbackOutcome::NotNeeded);
+    assert_eq!(
+        report.rollback,
+        vua_unity_bridge::RollbackOutcome::NotNeeded
+    );
     assert!(report
         .completed_steps
         .contains(&MaterialIntakeStepKind::WriteBuildRecord));
@@ -396,7 +433,10 @@ fn m3_real_direct_vertical_slice_succeeds_and_records() {
         .read(&report.build_record_id.expect("record id"))
         .expect("receipt published");
     let validation = record.validation.expect("validation evidence");
-    assert!(validation.unity_validated, "a real Unity validated the assets");
+    assert!(
+        validation.unity_validated,
+        "a real Unity validated the assets"
+    );
     let import_job = record
         .bridge_jobs
         .iter()
@@ -562,8 +602,10 @@ impl VpmBackend for NoVpm {
 #[ignore = "manual: launches real Unity 2022.3.22f1 and the real vrc-get lib (VUA_UNITY_EXECUTABLE + VUA_REAL_SOURCE_FOLDER)"]
 fn m3_real_local_reusable_vertical_slice() {
     let unity = unity_executable();
-    let source = PathBuf::from(std::env::var("VUA_REAL_SOURCE_FOLDER")
-        .expect("VUA_REAL_SOURCE_FOLDER must hold the .unitypackage files"));
+    let source = PathBuf::from(
+        std::env::var("VUA_REAL_SOURCE_FOLDER")
+            .expect("VUA_REAL_SOURCE_FOLDER must hold the .unitypackage files"),
+    );
     let correlation = "real-corr";
     let vcc_project = find_vcc_project_with_sdk();
 
@@ -597,7 +639,11 @@ fn m3_real_local_reusable_vertical_slice() {
         staging_template.join("Packages/com.ph-r.vua/package.json"),
     )
     .unwrap();
-    fs::write(staging_template.join("Packages/manifest.json"), r#"{ "dependencies": {} }"#).unwrap();
+    fs::write(
+        staging_template.join("Packages/manifest.json"),
+        r#"{ "dependencies": {} }"#,
+    )
+    .unwrap();
     let staging_sdk_seeded = vcc_project
         .as_deref()
         .map(|project| seed_vrc_sdk(project, &staging_template))
@@ -647,7 +693,8 @@ fn m3_real_local_reusable_vertical_slice() {
     let identity = vua_unity_bridge::LocalPackageIdentityStore::new(base.join("identities.json"))
         .resolve(&source, "outfit")
         .expect("identity resolves");
-    let identity_store = vua_unity_bridge::LocalPackageIdentityStore::new(base.join("identities.json"));
+    let identity_store =
+        vua_unity_bridge::LocalPackageIdentityStore::new(base.join("identities.json"));
     let executor = MaterialExecutor::new(
         bridge,
         FileSystemSnapshotStore,
@@ -684,12 +731,15 @@ fn m3_real_local_reusable_vertical_slice() {
         MaterialIntakeStepKind::ValidateMinimumStructure,
         MaterialIntakeStepKind::WriteBuildRecord,
     ] {
-        assert!(report.completed_steps.contains(&expected), "missing {expected:?}");
+        assert!(
+            report.completed_steps.contains(&expected),
+            "missing {expected:?}"
+        );
     }
 
     // The staging project is destroyed — no leftovers.
-    let staging_expected = vua_unity_bridge::staging_root(&base.join("temp"), correlation)
-        .expect("valid session id");
+    let staging_expected =
+        vua_unity_bridge::staging_root(&base.join("temp"), correlation).expect("valid session id");
     assert!(
         !staging_expected.exists(),
         "staging leftovers poison later runs"
@@ -698,12 +748,21 @@ fn m3_real_local_reusable_vertical_slice() {
     // The identity machine id owns the installed package folder in the
     // target project.
     let installed = project_root.join("Packages").join(&identity.package_id);
-    assert!(installed.join("package.json").is_file(), "installed package.json must exist");
-    assert!(installed.join("Runtime").is_dir(), "the Editor/Runtime layout must survive install");
+    assert!(
+        installed.join("package.json").is_file(),
+        "installed package.json must exist"
+    );
+    assert!(
+        installed.join("Runtime").is_dir(),
+        "the Editor/Runtime layout must survive install"
+    );
 
     // The target's VPM manifest records the install.
     let manifest = fs::read_to_string(project_root.join("Packages/vpm-manifest.json")).unwrap();
-    assert!(manifest.contains(&identity.package_id), "vpm-manifest must record the install");
+    assert!(
+        manifest.contains(&identity.package_id),
+        "vpm-manifest must record the install"
+    );
 
     // The receipt carries the local VPM evidence.
     let record = vua_orchestrator::BuildRecordStore::new(project_root.join(".vua/records"))
@@ -732,7 +791,10 @@ fn synthetic_source(label: &str) -> PathBuf {
     fs::create_dir_all(&source).unwrap();
     write_unitypackage(
         &source.join("synthetic-pack.unitypackage"),
-        &[("cccccccccccccccccccccccccccccccc", "Assets/VuaSynthetic/Cell.txt")],
+        &[(
+            "cccccccccccccccccccccccccccccccc",
+            "Assets/VuaSynthetic/Cell.txt",
+        )],
     );
     source
 }
@@ -886,7 +948,10 @@ fn m3_real_direct_cancel_at_step_boundary_records_facts() {
         &project_root.join(".vua/artifacts"),
         &token,
     );
-    println!("cancelled run completed steps: {:?}", report.completed_steps);
+    println!(
+        "cancelled run completed steps: {:?}",
+        report.completed_steps
+    );
     assert_eq!(
         report.status,
         MaterialExecutionStatus::Cancelled,
@@ -904,7 +969,10 @@ fn m3_real_direct_cancel_at_step_boundary_records_facts() {
     let record = vua_orchestrator::BuildRecordStore::new(project_root.join(".vua/records"))
         .read(report.build_record_id.as_deref().expect("record id"))
         .expect("receipt published");
-    assert_eq!(record.status, vua_orchestrator::BuildRecordStatus::Cancelled);
+    assert_eq!(
+        record.status,
+        vua_orchestrator::BuildRecordStatus::Cancelled
+    );
 
     if project_root.exists() {
         fs::remove_dir_all(&project_root).unwrap();
@@ -1149,7 +1217,11 @@ fn p2_harness(label: &str) -> P2Harness {
         staging_template.join("Packages/com.ph-r.vua/package.json"),
     )
     .unwrap();
-    fs::write(staging_template.join("Packages/manifest.json"), r#"{ "dependencies": {} }"#).unwrap();
+    fs::write(
+        staging_template.join("Packages/manifest.json"),
+        r#"{ "dependencies": {} }"#,
+    )
+    .unwrap();
     let vcc_project = find_vcc_project_with_sdk();
     // The staging scaffold needs the same real dependency stack as the
     // target: the VRC SDK (its embedded Managed dlls carry
@@ -1243,20 +1315,29 @@ fn m3_real_local_reusable_cancel_at_step_boundary_records_facts() {
         &harness.project_root.join(".vua/artifacts"),
         &token,
     );
-    println!("cancelled P2 run completed steps: {:?}", report.completed_steps);
+    println!(
+        "cancelled P2 run completed steps: {:?}",
+        report.completed_steps
+    );
     assert_eq!(
         report.status,
         MaterialExecutionStatus::Cancelled,
         "report: {report:?}"
     );
     assert_eq!(report.error_code.as_deref(), Some("vua.material.cancelled"));
-    assert!(report.build_record_id.is_some(), "cancelled runs get a receipt");
+    assert!(
+        report.build_record_id.is_some(),
+        "cancelled runs get a receipt"
+    );
     let staging_expected = vua_unity_bridge::staging_root(
         &harness.base.join("temp"),
         &harness.confirmation.correlation_id,
     )
     .expect("valid session id");
-    assert!(!staging_expected.exists(), "cancelled staging must be destroyed");
+    assert!(
+        !staging_expected.exists(),
+        "cancelled staging must be destroyed"
+    );
 
     let _ = fs::remove_dir_all(&harness.base);
     let _ = fs::remove_dir_all(&harness.project_root);
@@ -1269,9 +1350,7 @@ fn m3_real_local_reusable_cancel_at_step_boundary_records_facts() {
 fn m3_real_local_reusable_source_drift_fails_the_run() {
     let harness = p2_harness("vpm-drift");
     // Drift one archive after confirm, before execute.
-    let pack = harness
-        .source
-        .join("Cineon_Meiyun_v1.00.unitypackage");
+    let pack = harness.source.join("Cineon_Meiyun_v1.00.unitypackage");
     let mut bytes = fs::read(&pack).unwrap();
     bytes.extend_from_slice(b"drift");
     fs::write(&pack, &bytes).unwrap();
@@ -1381,9 +1460,7 @@ fn m3_real_local_reusable_staging_rejection_restores_target() {
                 }
             }
             if manifests.len() >= 2 {
-                manifests.sort_by_key(|path| {
-                    fs::metadata(path).and_then(|m| m.modified()).ok()
-                });
+                manifests.sort_by_key(|path| fs::metadata(path).and_then(|m| m.modified()).ok());
                 if let Some(latest) = manifests.last() {
                     let mut bytes = fs::read(latest).unwrap_or_default();
                     bytes.truncate(bytes.len().saturating_sub(64));
@@ -1459,9 +1536,7 @@ fn m3_real_local_reusable_rollback_failure_is_recorded_not_hidden() {
                 }
             }
             if manifests.len() >= 2 {
-                manifests.sort_by_key(|path| {
-                    fs::metadata(path).and_then(|m| m.modified()).ok()
-                });
+                manifests.sort_by_key(|path| fs::metadata(path).and_then(|m| m.modified()).ok());
                 if let Some(latest) = manifests.last() {
                     let mut bytes = fs::read(latest).unwrap_or_default();
                     bytes.truncate(bytes.len().saturating_sub(64));
@@ -1537,7 +1612,10 @@ fn m3_real_local_reusable_replay_of_succeeded_receipt_skips_unity() {
         &MaterialCancelToken::new(),
     );
     println!("P2 replay wall time: {:?}", started.elapsed());
-    assert!(second.replayed, "a succeeded receipt must replay: {second:?}");
+    assert!(
+        second.replayed,
+        "a succeeded receipt must replay: {second:?}"
+    );
     assert_eq!(second.status, MaterialExecutionStatus::Succeeded);
     assert_eq!(second.completed_steps, Vec::new());
     assert_eq!(second.build_record_id, first.build_record_id);

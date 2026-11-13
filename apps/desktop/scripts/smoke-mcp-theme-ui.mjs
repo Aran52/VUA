@@ -61,12 +61,18 @@ async function main() { try {
         const rect=node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};
         return {id:card.dataset.card,card:rect(card),details:rect(card.querySelector('.vua-environment-card__details')),
           icon:rect(card.querySelector('.vua-route-tile__icon')),logo:rect(card.querySelector('.vua-route-tile__icon > svg')),
-          title:rect(card.querySelector('strong')),action:rect(card.querySelector('.vua-environment-card__action'))};
+          title:rect(card.querySelector('.vua-environment-card__name')),action:rect(card.querySelector('.vua-environment-card__action'))};
       }))`);
       geometry.push({ family, width, cards });
       await writeFile(path.join(evidence, "geometry.json"), JSON.stringify(geometry, null, 2));
       await writeFile(path.join(evidence, `play-${family}-${width}.png`), (await win.webContents.capturePage()).toPNG());
-      assert.ok(cards.length >= 5);
+      assert.ok(cards.length >= 1);
+      const tiles = await evaluate(`([...document.querySelectorAll('.vua-setup__device .vua-route-tile__icon')].map(icon=>{
+        const frame=icon.getBoundingClientRect(), logo=icon.querySelector('svg').getBoundingClientRect();
+        return {x:frame.x,y:frame.y,right:frame.right,bottom:frame.bottom,logoX:logo.x,logoY:logo.y,logoRight:logo.right,logoBottom:logo.bottom};
+      }))`);
+      assert.ok(tiles.length >= 5, `${family}/${width}: device choices`);
+      for (const tile of tiles) assert.ok(tile.logoX >= tile.x - 0.5 && tile.logoRight <= tile.right + 0.5 && tile.logoY >= tile.y - 0.5 && tile.logoBottom <= tile.bottom + 0.5, `${family}/${width}: a device logo fits its frame`);
       const titleInset = cards[0].title.x - cards[0].card.x;
       for (const item of cards) {
         assert.ok(Math.abs(item.title.x - item.card.x - titleInset) < 1, `${family}/${width}/${item.id}: title column`);

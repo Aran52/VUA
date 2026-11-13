@@ -43,7 +43,8 @@ use vua_bdl_store::{
 };
 
 const MIGRATION_001: &str = include_str!("../../../schemas/bdl/v0.1/001_initial.sql");
-const MIGRATION_002: &str = include_str!("../../../schemas/bdl/v0.2/002_dependency_observations.sql");
+const MIGRATION_002: &str =
+    include_str!("../../../schemas/bdl/v0.2/002_dependency_observations.sql");
 
 // ---------------------------------------------------------------------------
 // The frozen vector files: the machine-readable data source.
@@ -139,8 +140,9 @@ fn insert_raw(conn: &Connection, case: &VectorCase) -> rusqlite::Result<usize> {
         .iter()
         .map(|c| match &case.values[c] {
             Value::String(s) => Box::new(s.clone()) as Box<dyn rusqlite::ToSql>,
-            Value::Number(n) => Box::new(n.as_i64().expect("vector integers are i64"))
-                as Box<dyn rusqlite::ToSql>,
+            Value::Number(n) => {
+                Box::new(n.as_i64().expect("vector integers are i64")) as Box<dyn rusqlite::ToSql>
+            }
             Value::Null => Box::new(rusqlite::types::Null) as Box<dyn rusqlite::ToSql>,
             other => panic!("vector values are string/int/null only, got: {other}"),
         })
@@ -180,16 +182,21 @@ fn as_str_value(key: &str, values: &Map<String, Value>) -> String {
 }
 
 fn opt_str_value(key: &str, values: &Map<String, Value>) -> Option<String> {
-    values
-        .get(key)
-        .and_then(|v| if v.is_null() { None } else { Some(v.as_str().expect(key).to_string()) })
+    values.get(key).and_then(|v| {
+        if v.is_null() {
+            None
+        } else {
+            Some(v.as_str().expect(key).to_string())
+        }
+    })
 }
 
 fn typed_observation(values: &Map<String, Value>) -> NewDependencyObservation {
     let resolution_evidence = match values.get("resolution_evidence") {
         None | Some(Value::Null) => Vec::new(),
-        Some(Value::String(text)) => serde_json::from_str(text)
-            .expect("vector evidence parses into the frozen shape"),
+        Some(Value::String(text)) => {
+            serde_json::from_str(text).expect("vector evidence parses into the frozen shape")
+        }
         other => panic!("vector evidence is a JSON string, got {other:?}"),
     };
     NewDependencyObservation {
@@ -222,13 +229,29 @@ fn evidence_of(values: &Map<String, Value>) -> Vec<DependencyResolutionEvidence>
 
 /// The stored row must carry every vector fact verbatim — the round trip
 /// through real SQLite loses nothing and invents nothing.
-fn assert_row_matches_vector(name: &str, stored: &StoredDependencyObservation, values: &Map<String, Value>) {
+fn assert_row_matches_vector(
+    name: &str,
+    stored: &StoredDependencyObservation,
+    values: &Map<String, Value>,
+) {
     assert!(stored.observation_id > 0, "{name}: row identity assigned");
-    assert_eq!(stored.product_id, as_str_value("product_id", values), "{name}");
+    assert_eq!(
+        stored.product_id,
+        as_str_value("product_id", values),
+        "{name}"
+    );
     assert_eq!(stored.dep_kind, as_str_value("dep_kind", values), "{name}");
     assert_eq!(stored.dep_name, as_str_value("dep_name", values), "{name}");
-    assert_eq!(stored.raw_quote, as_str_value("raw_quote", values), "{name}");
-    assert_eq!(stored.source_span, as_str_value("source_span", values), "{name}");
+    assert_eq!(
+        stored.raw_quote,
+        as_str_value("raw_quote", values),
+        "{name}"
+    );
+    assert_eq!(
+        stored.source_span,
+        as_str_value("source_span", values),
+        "{name}"
+    );
     assert_eq!(
         stored.version_hint.as_deref(),
         opt_str_value("version_hint", values).as_deref(),
@@ -256,23 +279,49 @@ fn assert_row_matches_vector(name: &str, stored: &StoredDependencyObservation, v
                 "{name}: resolution evidence round-trips the frozen shape"
             );
         }
-        (expected, stored) => panic!("{name}: evidence presence mismatch {expected:?} vs {stored:?}"),
+        (expected, stored) => {
+            panic!("{name}: evidence presence mismatch {expected:?} vs {stored:?}")
+        }
     }
     assert_eq!(
         stored.confirmed_by_human,
-        values.get("confirmed_by_human").and_then(Value::as_i64).unwrap_or(0) == 1,
+        values
+            .get("confirmed_by_human")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            == 1,
         "{name}: confirmed only where the vector (the confirmation) says 1"
     );
-    assert_eq!(stored.extraction_method, as_str_value("extraction_method", values), "{name}");
-    assert_eq!(stored.extracted_by, as_str_value("extracted_by", values), "{name}");
-    assert_eq!(stored.observed_at, as_str_value("observed_at", values), "{name}");
-    assert_eq!(stored.processor_version, as_str_value("processor_version", values), "{name}");
+    assert_eq!(
+        stored.extraction_method,
+        as_str_value("extraction_method", values),
+        "{name}"
+    );
+    assert_eq!(
+        stored.extracted_by,
+        as_str_value("extracted_by", values),
+        "{name}"
+    );
+    assert_eq!(
+        stored.observed_at,
+        as_str_value("observed_at", values),
+        "{name}"
+    );
+    assert_eq!(
+        stored.processor_version,
+        as_str_value("processor_version", values),
+        "{name}"
+    );
     assert_eq!(
         stored.content_hash.as_deref(),
         opt_str_value("content_hash", values).as_deref(),
         "{name}"
     );
-    assert_eq!(stored.run_id.as_deref(), opt_str_value("run_id", values).as_deref(), "{name}");
+    assert_eq!(
+        stored.run_id.as_deref(),
+        opt_str_value("run_id", values).as_deref(),
+        "{name}"
+    );
 }
 
 fn constraint_violation(error: &BdlStoreError) -> bool {
@@ -289,7 +338,10 @@ fn constraint_violation(error: &BdlStoreError) -> bool {
 
 #[test]
 fn accept_vectors_land_through_the_store_faces_and_read_back() {
-    for (name, vector) in load_vectors().into_iter().filter(|(_, v)| v.expect == "accept") {
+    for (name, vector) in load_vectors()
+        .into_iter()
+        .filter(|(_, v)| v.expect == "accept")
+    {
         let path = store_path("accept");
         let store = open_seeded_store(&path);
         let mut landed: Vec<(i64, &VectorCase)> = Vec::new();
@@ -304,7 +356,10 @@ fn accept_vectors_land_through_the_store_faces_and_read_back() {
                     .unwrap_or_else(|e| panic!("{name} must land through the store: {e}"));
                 landed.push((stored.observation_id, case));
             } else {
-                assert_eq!(case.table, "compatibility_observations", "{name}: routed table");
+                assert_eq!(
+                    case.table, "compatibility_observations",
+                    "{name}: routed table"
+                );
                 compat_cases.push(case);
             }
         }
@@ -320,7 +375,10 @@ fn accept_vectors_land_through_the_store_faces_and_read_back() {
                     &evidence_of(&case.values),
                 )
                 .unwrap_or_else(|e| panic!("{name} must confirm through the action face: {e}"));
-            assert!(confirmed.confirmed_by_human, "{name}: the confirmation flips the flag");
+            assert!(
+                confirmed.confirmed_by_human,
+                "{name}: the confirmation flips the flag"
+            );
         }
 
         drop(store);
@@ -360,9 +418,7 @@ fn accept_vectors_land_through_the_store_faces_and_read_back() {
                 )
                 .unwrap();
             let served: Vec<(String, String, String)> = statement
-                .query_map([], |row| {
-                    Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-                })
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
                 .unwrap()
                 .map(|r| r.unwrap())
                 .collect();
@@ -374,7 +430,11 @@ fn accept_vectors_land_through_the_store_faces_and_read_back() {
             for ((quote, span, observed_at), case) in served.iter().zip(&compat_cases) {
                 assert_eq!(quote, case.values["raw_quote"].as_str().unwrap(), "{name}");
                 assert_eq!(span, case.values["source_span"].as_str().unwrap(), "{name}");
-                assert_eq!(observed_at, case.values["observed_at"].as_str().unwrap(), "{name}");
+                assert_eq!(
+                    observed_at,
+                    case.values["observed_at"].as_str().unwrap(),
+                    "{name}"
+                );
             }
         }
         drop(store);
@@ -388,7 +448,10 @@ fn accept_vectors_land_through_the_store_faces_and_read_back() {
 
 #[test]
 fn reject_vectors_are_refused_by_the_real_constraints() {
-    for (name, vector) in load_vectors().into_iter().filter(|(_, v)| v.expect == "reject") {
+    for (name, vector) in load_vectors()
+        .into_iter()
+        .filter(|(_, v)| v.expect == "reject")
+    {
         let path = store_path("reject");
         let store = open_seeded_store(&path);
         let mut raw_cases: Vec<&VectorCase> = Vec::new();
@@ -436,7 +499,10 @@ fn reject_vectors_are_refused_by_the_real_constraints() {
         let error = store
             .record_dependency_observation(&typed_observation(&case.values))
             .expect_err("the frozen dep_kind ruling refuses the draft member");
-        assert!(constraint_violation(&error), "N1: CHECK refusal, got: {error}");
+        assert!(
+            constraint_violation(&error),
+            "N1: CHECK refusal, got: {error}"
+        );
     }
 }
 
@@ -451,14 +517,20 @@ fn fresh_stores_apply_current_chain_and_v01_databases_migrate_on_open() {
     {
         let store = BdlStore::open(&born_path).unwrap();
         let status = store.catalog_status().unwrap();
-        assert_eq!(status.revision.dataset_revision, vua_bdl_store::BDL_FORMAT_VERSION);
+        assert_eq!(
+            status.revision.dataset_revision,
+            vua_bdl_store::BDL_FORMAT_VERSION
+        );
     }
     {
         let raw = reopen_raw(&born_path);
         let user_version: i64 = raw
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
-        assert_eq!(user_version, 12, "the host-owned fence includes migrations 001-012");
+        assert_eq!(
+            user_version, 12,
+            "the host-owned fence includes migrations 001-012"
+        );
     }
 
     // Existing v0.1 database: opens, migrates, keeps every row verbatim.
@@ -505,7 +577,10 @@ fn fresh_stores_apply_current_chain_and_v01_databases_migrate_on_open() {
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .unwrap();
-        assert_eq!((quote.as_str(), span.as_str(), confirmed), ("・liltoon 2.3.2~", "body", 1));
+        assert_eq!(
+            (quote.as_str(), span.as_str(), confirmed),
+            ("・liltoon 2.3.2~", "body", 1)
+        );
         // The rebuilt table admits the old AND the new word face (P9's law).
         raw.execute(
             "INSERT INTO compatibility_observations
@@ -534,7 +609,10 @@ fn fresh_stores_apply_current_chain_and_v01_databases_migrate_on_open() {
             run_id: None,
         })
         .unwrap();
-    assert!(stored.observation_id > 0, "the migrated store serves the v0.2 write face");
+    assert!(
+        stored.observation_id > 0,
+        "the migrated store serves the v0.2 write face"
+    );
     drop(store);
     fs::remove_file(&born_path).ok();
     fs::remove_file(&migrate_path).ok();
@@ -631,11 +709,19 @@ fn the_confirmation_write_action_is_the_only_confirmed_writer() {
     store.seed_product("booth:3087170", "3087170").unwrap();
 
     // A resolution lands as a CLUE — even with evidence, the flag is 0.
-    let stored = store.record_dependency_observation(&clue_observation()).unwrap();
-    assert!(!stored.confirmed_by_human, "rows land unconfirmed (DEFAULT 0)");
+    let stored = store
+        .record_dependency_observation(&clue_observation())
+        .unwrap();
+    assert!(
+        !stored.confirmed_by_human,
+        "rows land unconfirmed (DEFAULT 0)"
+    );
     let rows = store.dependency_observations("booth:6584744").unwrap();
     assert_eq!(rows.len(), 1);
-    assert!(!rows[0].confirmed_by_human, "the read face serves the clue as a clue");
+    assert!(
+        !rows[0].confirmed_by_human,
+        "the read face serves the clue as a clue"
+    );
 
     // Unknown observation: refused with its identity.
     assert!(matches!(
@@ -655,10 +741,17 @@ fn the_confirmation_write_action_is_the_only_confirmed_writer() {
 
     // The explicit confirm flips exactly this row and pins the resolution.
     let confirmed = store
-        .confirm_dependency_resolution(stored.observation_id, "booth:3087170", &[evidence_element()])
+        .confirm_dependency_resolution(
+            stored.observation_id,
+            "booth:3087170",
+            &[evidence_element()],
+        )
         .unwrap();
     assert!(confirmed.confirmed_by_human);
-    assert_eq!(confirmed.resolved_ref_product_id.as_deref(), Some("booth:3087170"));
+    assert_eq!(
+        confirmed.resolved_ref_product_id.as_deref(),
+        Some("booth:3087170")
+    );
     assert_eq!(
         confirmed.resolution_evidence.as_deref(),
         Some(&[evidence_element()][..]),
@@ -672,7 +765,11 @@ fn the_confirmation_write_action_is_the_only_confirmed_writer() {
     // every guard still holds on the repeat path (no second write face, no
     // guard bypass once a row is already confirmed).
     let reconfirmed = store
-        .confirm_dependency_resolution(stored.observation_id, "booth:6584744", &[evidence_element()])
+        .confirm_dependency_resolution(
+            stored.observation_id,
+            "booth:6584744",
+            &[evidence_element()],
+        )
         .unwrap();
     assert!(reconfirmed.confirmed_by_human);
     assert_eq!(
@@ -684,14 +781,24 @@ fn the_confirmation_write_action_is_the_only_confirmed_writer() {
         reconfirmed.resolution_evidence.as_deref(),
         Some(&[evidence_element()][..])
     );
-    assert!(matches!(
-        store.confirm_dependency_resolution(stored.observation_id, "booth:9999999", &[evidence_element()]),
-        Err(BdlStoreError::UnknownProduct(_))
-    ), "the unknown-target guard holds on the repeat path too");
-    assert!(matches!(
-        store.confirm_dependency_resolution(stored.observation_id, "booth:3087170", &[]),
-        Err(BdlStoreError::InvalidResolution(_))
-    ), "the empty-evidence guard holds on the repeat path too");
+    assert!(
+        matches!(
+            store.confirm_dependency_resolution(
+                stored.observation_id,
+                "booth:9999999",
+                &[evidence_element()]
+            ),
+            Err(BdlStoreError::UnknownProduct(_))
+        ),
+        "the unknown-target guard holds on the repeat path too"
+    );
+    assert!(
+        matches!(
+            store.confirm_dependency_resolution(stored.observation_id, "booth:3087170", &[]),
+            Err(BdlStoreError::InvalidResolution(_))
+        ),
+        "the empty-evidence guard holds on the repeat path too"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -704,7 +811,9 @@ fn corrupt_stored_evidence_surfaces_as_corruption() {
     let path = store_path("corrupt");
     {
         let store = open_seeded_store(&path);
-        store.record_dependency_observation(&clue_observation()).unwrap();
+        store
+            .record_dependency_observation(&clue_observation())
+            .unwrap();
     }
     {
         let raw = reopen_raw(&path);
@@ -717,7 +826,10 @@ fn corrupt_stored_evidence_surfaces_as_corruption() {
     let store = BdlStore::open(&path).unwrap();
     assert!(matches!(
         store.dependency_observations("booth:6584744"),
-        Err(BdlStoreError::CorruptValue { field: "resolution_evidence", .. })
+        Err(BdlStoreError::CorruptValue {
+            field: "resolution_evidence",
+            ..
+        })
     ));
     fs::remove_file(&path).ok();
 }

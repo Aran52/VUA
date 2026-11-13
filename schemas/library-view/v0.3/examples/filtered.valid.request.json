@@ -1,0 +1,15 @@
+{
+  "method": "library.list",
+  "params": {
+    "schemaVersion": "0.3",
+    "sort": "added_desc",
+    "vn3": {
+      "state": "readable",
+      "items": [
+        "C",
+        "J"
+      ],
+      "includeContact": true
+    }
+  }
+}

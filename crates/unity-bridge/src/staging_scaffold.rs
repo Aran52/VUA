@@ -21,6 +21,8 @@ pub const MA_STUB_PACKAGE_ID: &str = "nadena.dev.modular-avatar.core";
 /// Candidate N3 files require the real MA package. They are deliberately
 /// excluded from conversion scaffolds that use the minimal compile stub.
 pub static AMF_PRODUCTION_BRIDGE_FILES: &[(&str, &str)] = &[
+    ("Editor/Amf/AmfProductionEntryPoint.LocalTest.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.LocalTest.cs")),
+    ("Editor/Amf/AmfProductionEntryPoint.LocalTest.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.LocalTest.cs.meta")),
     ("Editor/Amf/AmfProductionEntryPoint.Close.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Close.cs")),
     ("Editor/Amf/AmfProductionEntryPoint.Close.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Close.cs.meta")),
     ("Editor/Amf/AmfFaceTracking.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfFaceTracking.cs")),
@@ -44,6 +46,8 @@ pub static AMF_PRODUCTION_BRIDGE_FILES: &[(&str, &str)] = &[
     ("Editor/Amf/AmfProductionEntryPoint.TextureMemory.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.TextureMemory.cs.meta")),
     ("Editor/Amf/AmfProductionEntryPoint.Footprint.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Footprint.cs")),
     ("Editor/Amf/AmfProductionEntryPoint.Footprint.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Footprint.cs.meta")),
+    ("Editor/Amf/AmfProductionEntryPoint.Optimizer.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Optimizer.cs")),
+    ("Editor/Amf/AmfProductionEntryPoint.Optimizer.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Optimizer.cs.meta")),
 ];
 
 pub const MA_STUB_PACKAGE_JSON: &str =
@@ -137,7 +141,9 @@ pub static BRIDGE_PACKAGE_FILES: &[(&str, &str)] = &[
     ),
     (
         "Editor/Bridge/BridgeCommandProcessor.cs",
-        include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Bridge/BridgeCommandProcessor.cs"),
+        include_str!(
+            "../../../unity/Packages/com.ph-r.vua/Editor/Bridge/BridgeCommandProcessor.cs"
+        ),
     ),
     (
         "Editor/Bridge/BridgeCommandProcessor.cs.meta",
@@ -167,7 +173,9 @@ pub static BRIDGE_PACKAGE_FILES: &[(&str, &str)] = &[
     ),
     (
         "Editor/Bridge/BridgePreviewBake.cs.meta",
-        include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Bridge/BridgePreviewBake.cs.meta"),
+        include_str!(
+            "../../../unity/Packages/com.ph-r.vua/Editor/Bridge/BridgePreviewBake.cs.meta"
+        ),
     ),
     (
         "Editor/Bridge/BridgeResultJson.cs",
@@ -209,7 +217,8 @@ mod package_coverage {
 
     /// Every file the package keeps in a folder, relative to the package root.
     fn package_files(folder: &str) -> Vec<String> {
-        let package = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../unity/Packages/com.ph-r.vua");
+        let package =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../unity/Packages/com.ph-r.vua");
         let mut files: Vec<String> = std::fs::read_dir(package.join(folder))
             .unwrap()
             .map(|entry| format!("{folder}/{}", entry.unwrap().file_name().to_string_lossy()))
@@ -222,9 +231,15 @@ mod package_coverage {
     /// leaves Unity without code the rest of the package calls.
     #[test]
     fn every_bridge_and_amf_package_file_reaches_the_work_project() {
-        for (folder, list) in [("Editor/Amf", AMF_PRODUCTION_BRIDGE_FILES), ("Editor/Bridge", BRIDGE_PACKAGE_FILES)] {
+        for (folder, list) in [
+            ("Editor/Amf", AMF_PRODUCTION_BRIDGE_FILES),
+            ("Editor/Bridge", BRIDGE_PACKAGE_FILES),
+        ] {
             for file in package_files(folder) {
-                assert!(list.iter().any(|(relative, _)| *relative == file), "{file} is missing from the embedded package files");
+                assert!(
+                    list.iter().any(|(relative, _)| *relative == file),
+                    "{file} is missing from the embedded package files"
+                );
             }
         }
     }

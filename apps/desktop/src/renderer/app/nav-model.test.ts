@@ -86,7 +86,7 @@ test("every page belongs to exactly its own module", () => {
   assert.equal(moduleOf("tools-calibration"), "env");
   assert.equal(moduleOf("tools-installed"), "env");
   assert.equal(moduleOf("settings-about"), "settings");
-  for (const page of ["help-wizard", "help-tour", "help-game-assistant", "help-encyclopedia"] as const) assert.equal(moduleOf(page), "env");
+  for (const page of ["help-wizard", "help-encyclopedia"] as const) assert.equal(moduleOf(page), "env");
   for (const retired of ["settings-version", "settings-language", "settings-donate"]) assert.equal(isPageId(retired), false);
   assert.equal(moduleOf("settings-experimental"), "settings");
   assert.equal(isPageId("settings-goals"), false);
@@ -158,7 +158,7 @@ test("label keys resolve in the string table and term ids are valid", () => {
 
 test("sidebar labels use localized names without English prefixes", () => {
   const warehouse = allPages.find((p) => p.id === "warehouse");
-  assert.equal(warehouse ? pageLabel(warehouse) : "", "仓储");
+  assert.equal(warehouse ? pageLabel(warehouse) : "", "素材");
   // 2026-09-25 用户裁决:车间侧栏标签由复合术语序列(装配 → 生产 → 检测)
   // 改为直给词面「车间」
   const workshop = allPages.find((p) => p.id === "workshop");

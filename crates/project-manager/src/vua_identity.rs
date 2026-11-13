@@ -109,10 +109,7 @@ pub fn write_identity(project_root: &Path, identity: &VuaProjectIdentityV1) -> i
 /// First-marks a project VUA-native (import-copy completion). If an
 /// identity already exists its note is preserved; otherwise the note is
 /// empty — marking never invents a note.
-pub fn mark_vua_native(
-    project_root: &Path,
-    marked_at: &str,
-) -> io::Result<VuaProjectIdentityV1> {
+pub fn mark_vua_native(project_root: &Path, marked_at: &str) -> io::Result<VuaProjectIdentityV1> {
     let note = match read_identity(project_root) {
         VuaIdentity::Present(existing) => existing.note,
         VuaIdentity::Absent | VuaIdentity::Unreadable => None,
@@ -142,10 +139,16 @@ impl std::fmt::Display for SetNoteError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SetNoteError::NotVuaNative => {
-                write!(f, "project has no VUA identity file; notes attach to VUA-native projects only")
+                write!(
+                    f,
+                    "project has no VUA identity file; notes attach to VUA-native projects only"
+                )
             }
             SetNoteError::Unreadable => {
-                write!(f, "VUA identity file is unreadable; resolve it before editing the note")
+                write!(
+                    f,
+                    "VUA identity file is unreadable; resolve it before editing the note"
+                )
             }
             SetNoteError::Io(error) => write!(f, "VUA identity io error: {error}"),
         }
@@ -160,7 +163,10 @@ impl From<io::Error> for SetNoteError {
 
 /// Sets (or clears, with `None`) the user note on a VUA-native project.
 /// The identity document is the only note store (ruling 12).
-pub fn set_note(project_root: &Path, note: Option<&str>) -> Result<VuaProjectIdentityV1, SetNoteError> {
+pub fn set_note(
+    project_root: &Path,
+    note: Option<&str>,
+) -> Result<VuaProjectIdentityV1, SetNoteError> {
     let identity = match read_identity(project_root) {
         VuaIdentity::Present(identity) => identity,
         VuaIdentity::Absent => return Err(SetNoteError::NotVuaNative),

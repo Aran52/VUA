@@ -14,7 +14,7 @@ const { routeDesktopGatewayInvoke } = require("../dist/electron/gateway-router.j
 const workspace = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const evidence = path.join(workspace, "docs/plans/_agent-local", `native-${Date.now()}`);
 await mkdir(evidence, { recursive: true });
-const host = createDesktopOrchestratorProvider({ role: "host", executablePath: path.join(workspace, "target/release/vua-orchestrator-provider.exe"), databasePath: path.join(evidence, "host-tasks.db"),
+const host = createDesktopOrchestratorProvider({ role: "host", executablePath: process.env.VUA_TEST_HOST_EXECUTABLE ?? path.join(workspace, "target/release/vua-orchestrator-provider.exe"), databasePath: path.join(evidence, "host-tasks.db"),
   profileRoots: { home: process.env.USERPROFILE, localAppData: process.env.LOCALAPPDATA, appData: process.env.APPDATA } });
 let activated = false;
 const provider = new ModuleProvider({ host, enabled: false, persist: () => {}, createAmf: () => { activated = true; throw new Error("AMF must remain absent"); } });

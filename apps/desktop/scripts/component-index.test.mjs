@@ -2,18 +2,27 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createPrivateKey, createPublicKey } from "node:crypto";
-import { validateIndex, verifyIndex, sealEnvelope, verifyInventory, appendRelease } from "../distribution/component-index.mjs";
+import { validateIndex, validateIndexV03, validateTransfer, verifyIndex, verifyIndexV03, sealEnvelope, verifyInventory, appendRelease } from "../distribution/component-index.mjs";
 
 const seed = Buffer.alloc(32, 7);
 const privateKey = createPrivateKey({ key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), seed]), type: "pkcs8", format: "der" });
 const trustedKey = createPublicKey(privateKey).export({ type: "spki", format: "der" }).subarray(-32).toString("hex");
 const cases = JSON.parse(fs.readFileSync(new URL("../../../schemas/windows-distribution/v0.2/vectors/cases.json", import.meta.url)));
+const casesV03 = JSON.parse(fs.readFileSync(new URL("../../../schemas/windows-distribution/v0.3/vectors/cases.json", import.meta.url)));
 const old = JSON.parse(fs.readFileSync(new URL("../../../schemas/windows-distribution/v0.1/vectors/cases.json", import.meta.url)));
 
-for (const vector of cases) test(`Component producer agrees with native vector: ${vector.name}`, () => {
+for (const vector of cases) test(`Component publication policy consumes vector: ${vector.name}`, () => {
   const run = () => vector.schema === "index" ? validateIndex(vector.value)
     : verifyIndex(Buffer.from(JSON.stringify(vector.value)), trustedKey, vector.component);
-  if (vector.nativeValid) assert.doesNotThrow(run);
+  if (vector.publisherValid ?? vector.nativeValid) assert.doesNotThrow(run);
+  else assert.throws(run);
+});
+
+for (const vector of casesV03) test(`Component v0.3 publication policy consumes vector: ${vector.name}`, () => {
+  const run = () => vector.schema === "index" ? validateIndexV03(vector.value)
+    : vector.schema === "transfer" ? validateTransfer(vector.value)
+    : verifyIndexV03(Buffer.from(JSON.stringify(vector.value)), trustedKey, vector.component);
+  if (vector.publisherValid ?? vector.nativeValid) assert.doesNotThrow(run);
   else assert.throws(run);
 });
 

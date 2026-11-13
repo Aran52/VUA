@@ -1,6 +1,6 @@
 # Contract and decision registry
 
-> Updated: 2026-10-29
+> Updated: 2026-11-13
 
 Contracts, schema directories and decisions with their version, status, owner and last review date. [Documentation governance](meta/documentation-governance.md) defines the statuses and when a row changes. Earlier registry contents, including other document versions, remain in Git history and [the archive](archive/2026-09-29/registry-before-simplification.md).
 
@@ -12,11 +12,12 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/path-configuration.md | ADR | Accepted | Integration | 2026-09-12 |
 | docs/decisions/vua-instance-identity.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
-| docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-23 |
-| docs/protocols/ai-tools-v0.1.md | 0.11.0 | Candidate | Integration | 2026-11-01 |
-| docs/protocols/amf-production-v0.1.md | 0.39.0 | Candidate | AMF | 2026-11-01 |
+| docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-11-11 |
+| docs/protocols/ai-tools-v0.1.md | 0.15.0 | Candidate | Integration | 2026-11-12 |
+| docs/protocols/amf-production-v0.1.md | 0.43.0 | Candidate | AMF | 2026-11-12 |
 | docs/protocols/amf-recipe-v0.4.md | 0.6.0 | Candidate | AMF | 2026-10-24 |
-| docs/protocols/amf-recipe-v0.5.md | 0.2.0 | Candidate | AMF | 2026-10-25 |
+| docs/protocols/amf-recipe-v0.5.md | 0.2.1 | Candidate | AMF | 2026-11-11 |
+| docs/protocols/amf-recipe-v0.6.md | 0.1.0 | Candidate | AMF | 2026-11-11 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
 | docs/protocols/bdl-commands-v0.4.md | 0.4 | Frozen | Data | 2026-09-09 |
 | docs/protocols/bdl-commands-v0.5.md | 0.5 | Frozen | Data | 2026-10-03 |
@@ -24,11 +25,13 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/bdl-queries-v0.4.md | 0.4 | Frozen | Data | 2026-09-15 |
 | docs/protocols/bdl-queries-v0.5.md | 0.5 | Frozen | Data | 2026-09-22 |
 | docs/protocols/bdl-queries-v0.6.md | 0.6 | Frozen | Data | 2026-10-02 |
-| docs/protocols/terms-v0.1.md | 0.3.0 | Candidate | AMF | 2026-11-01 |
+| docs/protocols/terms-v0.1.md | 0.3.1 | Candidate | AMF | 2026-11-06 |
 | docs/protocols/booth-search-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/catalog-sync-v0.1.md | 0.1 | Frozen | Data | 2026-10-02 |
 | docs/protocols/catalog-sync-v0.2.md | 0.2 | Frozen | Data | 2026-10-02 |
 | docs/protocols/catalog-sync-v0.3.md | 0.3 | Implementation baseline | AMF | 2026-10-07 |
+| docs/protocols/catalog-enrichment-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-11-11 |
+| docs/protocols/catalog-orders-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-11-07 |
 | docs/protocols/desktop-browser-v0.1.md | 1.1.0 | Candidate | Desktop | 2026-10-11 |
 | docs/protocols/desktop-library-v0.1.md | 1.4.0 | Candidate | Desktop | 2026-10-12 |
 | docs/protocols/desktop-resource-v0.2.md | 1.0.0 | Candidate | Desktop | 2026-10-10 |
@@ -36,22 +39,27 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/desktop-window-v0.2.md | 1.0.2 | Candidate | Desktop | 2026-10-10 |
 | docs/protocols/download-events-v0.1.md | 0.1 | Frozen | Data | 2026-09-06 |
 | docs/protocols/editor-verify-v0.1.md | 0.1 | Frozen | Environment | 2026-09-13 |
-| docs/protocols/environment-deployment-v0.1.md | 0.1 | Candidate | Environment | 2026-09-30 |
+| docs/protocols/environment-deployment-v0.1.md | 0.1 | Candidate | Environment | 2026-11-11 |
 | docs/protocols/environment-network-v0.1.md | 0.1 | Candidate | Environment | 2026-10-03 |
 | docs/protocols/external-tool-v0.1.md | 0.1 | Superseded (→ docs/protocols/external-tool-v0.2.md) | Environment | 2026-10-10 |
-| docs/protocols/external-tool-v0.2.md | 0.1.0 | Candidate | Environment | 2026-10-14 |
+| docs/protocols/external-tool-v0.2.md | 0.1.2 | Superseded (→ docs/protocols/external-tool-v0.3.md) | Environment | 2026-10-14 |
+| docs/protocols/external-tool-v0.3.md | 0.1.0 | Superseded (→ docs/protocols/external-tool-v0.4.md) | Environment | 2026-11-11 |
+| docs/protocols/external-tool-v0.4.md | 0.1.0 | Candidate | Environment | 2026-11-11 |
+| docs/protocols/guide-content-v0.1.md | 0.1.0 | Candidate | Desktop | 2026-11-11 |
 | docs/protocols/inspection-evidence-v0.1.md | 0.1 | Frozen | Production | 2026-09-13 |
 | docs/protocols/inspection-queries-v0.1.md | 0.1 | Frozen | Data | 2026-09-13 |
+| docs/protocols/installer-tool-v0.1.md | 0.1.0 | Candidate | Environment | 2026-11-11 |
 | docs/protocols/library-download-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-08 |
 | docs/protocols/library-entry-metadata-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-intake-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-intake-v0.2.md | 0.2 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/library-migration-v0.1.md | 0.1.0 | Candidate | AMF | 2026-10-30 |
-| docs/protocols/library-maintenance-v0.1.md | 0.2.0 | Implementation baseline | AMF | 2026-10-09 |
+| docs/protocols/library-maintenance-v0.1.md | 0.3.0 | Implementation baseline | AMF | 2026-11-11 |
 | docs/protocols/library-records-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-records-v0.2.md | 0.2 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/library-view-v0.1.md | 0.8 | Implementation baseline | AMF | 2026-10-12 |
-| docs/protocols/library-view-v0.2.md | 0.2.0 | Candidate | AMF | 2026-10-29 |
+| docs/protocols/library-view-v0.2.md | 0.2.1 | Candidate | AMF | 2026-11-06 |
+| docs/protocols/library-view-v0.3.md | 0.3.0 | Candidate | AMF | 2026-11-07 |
 | docs/protocols/material-intake-v0.1.md | 0.1 | Implementation baseline | Production | 2026-09-06 |
 | docs/protocols/material-intake-v0.2.md | 0.2.1 | Frozen | Core | 2026-09-21 |
 | docs/protocols/packages-catalog-v0.2.md | 0.2 | Frozen | Core | 2026-09-17 |
@@ -72,14 +80,15 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/production-use-case-v0.2.md | 0.2 | Frozen | Core | 2026-09-09 |
 | docs/protocols/project-inspection-v0.2.md | 0.2 | Frozen | Environment | 2026-09-09 |
 | docs/protocols/project-ops-v0.2.md | 0.2 | Frozen | Core | 2026-09-12 |
-| docs/protocols/provider-process-v0.1.md | 0.3 | Implementation baseline | Core | 2026-10-10 |
+| docs/protocols/provider-process-v0.1.md | 0.4 | Implementation baseline | Core | 2026-11-10 |
 | docs/protocols/recipe-image-share-v0.1.md | 0.1.0 | Candidate | AMF | 2026-10-29 |
 | docs/protocols/recipe-export-v0.1.md | 0.1.2 | Frozen | Core | 2026-09-22 |
-| docs/protocols/recipe-selection-draft-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-08 |
+| docs/protocols/recipe-selection-draft-v0.1.md | 0.2.0 | Implementation baseline | AMF | 2026-11-11 |
 | docs/protocols/share-links-v0.1.md | 0.1.0 | Candidate | AMF / Hosting | 2026-10-28 |
 | docs/protocols/release-handoff-v0.1.md | 0.1 | Frozen | Core | 2026-09-16 |
 | docs/protocols/release-handoff-v0.2.md | 0.2 | Frozen | Core | 2026-09-21 |
 | docs/protocols/scenario-environment-v0.1.md | 0.1.0 | Candidate | Environment | 2026-10-13 |
+| docs/protocols/scenario-environment-v0.2.md | 0.1.0 | Candidate | Environment | 2026-11-11 |
 | docs/protocols/unity-license-v0.1.md | 0.1.0 | Candidate | Environment | 2026-10-19 |
 | docs/protocols/superseded/bdl-commands-v0.1.md | 0.1 | Superseded | Data | 2026-09-07 |
 | docs/protocols/superseded/bdl-commands-v0.2.md | 0.2 | Superseded | Data | 2026-09-08 |
@@ -94,19 +103,21 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/unity-bridge-v2.md | v2 | Frozen | Production | 2026-09-08 |
 | docs/protocols/unity-bridge-v3.md | v3 | Frozen | Production | 2026-09-13 |
 | docs/protocols/unity-bridge-v4.md | v4 | Frozen | Production | 2026-09-20 |
-| docs/protocols/unity-bridge-v5.md | 0.22.0 | Candidate | Production | 2026-10-30 |
+| docs/protocols/unity-bridge-v5.md | 0.24.0 | Candidate | Production | 2026-11-12 |
 | docs/protocols/website-tests-v0.1.md | 0.4 | Candidate | Environment | 2026-10-20 |
 | docs/protocols/windows-distribution-v0.1.md | 0.1 | Candidate | Integration | 2026-10-13 |
-| docs/protocols/windows-distribution-v0.2.md | 0.2 | Candidate | Integration | 2026-10-26 |
+| docs/protocols/windows-distribution-v0.2.md | 0.3 | Candidate | Integration | 2026-11-09 |
+| docs/protocols/windows-distribution-v0.3.md | 0.1 | Candidate | Integration | 2026-11-11 |
 | docs/protocols/windows-update-plans-v0.1.md | 0.1 | Candidate | Integration | 2026-10-26 |
 | docs/protocols/amf-ui-runtime-v0.1.md | 0.1 | Candidate | Integration | 2026-10-26 |
 | docs/protocols/amf-data-recovery-v0.1.md | 0.1 | Candidate | Integration | 2026-10-26 |
 | schemas/share-links/v0.1 | 0.1 | Candidate code vectors | AMF | 2026-10-29 |
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |
 | schemas/amf-production/v0.2 | 0.2 | Frozen | Core | 2026-09-10 |
-| schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-10-29 |
+| schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-11-12 |
 | schemas/amf-recipe/v0.4 | 0.4 | Candidate | AMF | 2026-10-20 |
 | schemas/amf-recipe/v0.5 | 0.5 | Candidate | AMF | 2026-10-24 |
+| schemas/amf-recipe/v0.6 | 0.6 | Candidate | AMF | 2026-11-11 |
 | schemas/application-contract/v0.1 | 0.1 | Frozen | Core | 2026-09-15 |
 | schemas/bdl/v0.11 | 0.11 | Implementation baseline | Data | 2026-10-19 |
 | schemas/bdl/v0.10 | 0.10 | Implementation baseline | Data | 2026-10-12 |
@@ -124,15 +135,22 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/catalog-sync/v0.1 | 0.1 | Frozen | Data | 2026-10-02 |
 | schemas/catalog-sync/v0.2 | 0.2 | Frozen | Data | 2026-10-02 |
 | schemas/catalog-sync/v0.3 | 0.3 | Implementation baseline | AMF | 2026-10-07 |
+| schemas/catalog-enrichment/v0.1 | 0.1 | Implementation baseline | AMF | 2026-11-10 |
+| schemas/catalog-orders/v0.1 | 0.1 | Implementation baseline | AMF | 2026-11-07 |
 | schemas/eac-allowlist/v0.1 | 0.1 | Frozen | Environment | 2026-09-10 |
 | schemas/eac-probe/v0.1 | 0.1 | Frozen | Environment | 2026-09-10 |
 | schemas/eac-terminate/v0.1 | 0.1 | Frozen | Environment | 2026-09-10 |
 | schemas/editor-verify/v0.1 | 0.1 | Frozen | Environment | 2026-09-13 |
+| schemas/environment-deployment/v0.1 | 0.1 | Candidate | Environment | 2026-11-11 |
 | schemas/environment-managers/v0.1 | 0.1 | Frozen | Environment | 2026-09-10 |
 | schemas/environment-network/v0.1/ | 0.1 | Candidate | Environment | 2026-10-03 |
 | schemas/external-tool/v0.1/ | 0.1 | Superseded (→ schemas/external-tool/v0.2/) | Environment | 2026-10-10 |
-| schemas/external-tool/v0.2/ | 0.2 | Candidate | Environment | 2026-10-14 |
+| schemas/external-tool/v0.2/ | 0.2 | Superseded (→ schemas/external-tool/v0.3/) | Environment | 2026-10-14 |
+| schemas/external-tool/v0.3/ | 0.3 | Superseded (→ schemas/external-tool/v0.4/) | Environment | 2026-11-06 |
+| schemas/external-tool/v0.4/ | 0.4 | Candidate | Environment | 2026-11-11 |
+| schemas/installer-tool/v0.1/ | 0.1 | Candidate | Environment | 2026-11-11 |
 | schemas/game-window-observe/v0.1/ | 0.1 | Candidate | Environment | 2026-10-08 |
+| schemas/guide-content/v0.1/ | 0.1 | Candidate | Desktop | 2026-11-11 |
 | schemas/inspection-queries/v0.1 | 0.1 | Frozen | Data | 2026-09-13 |
 | schemas/library-download/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-08 |
 | schemas/library-entry-metadata/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-09 |
@@ -143,6 +161,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/library-records/v0.2 | 0.2 | Implementation baseline | AMF | 2026-10-12 |
 | schemas/library-view/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-12 |
 | schemas/library-view/v0.2 | 0.2 | Candidate | AMF | 2026-10-29 |
+| schemas/library-view/v0.3 | 0.3 | Candidate | AMF | 2026-11-06 |
 | schemas/manager-apps/v0.1/ | 0.1 | Candidate | Environment | 2026-10-09 |
 | schemas/packages-catalog/v0.1 | 0.1 | Frozen | Core | 2026-09-17 |
 | schemas/packages-catalog/v0.2 | 0.2 | Frozen | Core | 2026-09-17 |
@@ -165,16 +184,18 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/project-ops/v0.2 | 0.2 | Frozen | Core | 2026-09-12 |
 | schemas/recipe/v0.3 | 0.3 | Frozen | Core | 2026-09-10 |
 | schemas/recipe-export/v0.1 | 0.1 | Frozen | Core | 2026-09-22 |
-| schemas/recipe-selection-draft/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-08 |
+| schemas/recipe-selection-draft/v0.1 | 0.1 | Implementation baseline | AMF | 2026-11-11 |
 | schemas/selection-share/v0.1 | 0.1 | Candidate | AMF / Hosting | 2026-10-28 |
 | schemas/release-handoff/v0.1 | 0.1 | Frozen | Core | 2026-09-16 |
 | schemas/release-handoff/v0.2 | 0.2 | Frozen | Core | 2026-09-21 |
 | schemas/scenario-environment/v0.1 | 0.1 | Candidate | Environment | 2026-10-13 |
+| schemas/scenario-environment/v0.2/ | 0.2 | Candidate | Environment | 2026-11-11 |
 | schemas/unity-license/v0.1 | 0.1 | Candidate | Environment | 2026-10-19 |
 | schemas/unity-bridge/handshake/v1.0 | 1.0 | Frozen | Production | 2026-09-16 |
 | schemas/unity-bridge/v4 | v4 | Frozen | Production | 2026-09-20 |
-| schemas/unity-bridge/v5 | 5 | Candidate | Production | 2026-10-24 |
+| schemas/unity-bridge/v5 | 5 | Candidate | Production | 2026-11-12 |
 | schemas/website-tests/v0.1/ | 0.1 | Candidate | Environment | 2026-10-07 |
 | schemas/windows-distribution/v0.1/ | 0.1 | Candidate | Integration | 2026-10-13 |
-| schemas/windows-distribution/v0.2/ | 0.2 | Candidate | Integration | 2026-10-26 |
+| schemas/windows-distribution/v0.2/ | 0.2 | Candidate | Integration | 2026-11-09 |
+| schemas/windows-distribution/v0.3/ | 0.3 | Candidate | Integration | 2026-11-11 |
 | schemas/windows-update-plans/v0.1/ | 0.1 | Candidate | Integration | 2026-10-26 |

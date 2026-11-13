@@ -4,7 +4,7 @@ import { createUnityLicensePort } from "./unity-license-port.ts";
 import { createAmfModulePort } from "./amf-module-port.ts";
 import { createDistributionPort } from "./distribution-port.ts";
 import { createLivePlayPort } from "./live-play-port.ts";
-import { createLiveToolPort } from "./live-tool-port.ts";
+import { createLiveInstallerToolPort, createLiveToolPort } from "./live-tool-port.ts";
 import { createCreatorInventoryPort } from "./creator-inventory-port.ts";
 import { createLiveNetworkPort } from "./live-network-port.ts";
 import type { ApplicationEventV01, TaskEventV01 } from "@vua/contracts";
@@ -81,8 +81,8 @@ function createLiveTaskPort(client: GatewayClient): TaskPort {
       };
       // 事件只是事实通知;权威状态一律经 task.list 重取(契约"revision 与事件")
       const unsubscribe = client.subscribe((event) => {
-        if (!isTaskEvent(event)) return;
-        progress.observe(event);
+        if (isTaskEvent(event)) progress.observe(event);
+        else if (event.kind !== "capability.changed") return;
         pending = true; void refresh();
       });
       return () => { active = false; unsubscribe(); };
@@ -172,6 +172,7 @@ function createLiveEnvironmentPort(client: GatewayClient): EnvironmentPort {
     unityLicense: createUnityLicensePort(client),
     play: createLivePlayPort(client),
     tools: createLiveToolPort(client),
+    installerTools: createLiveInstallerToolPort(client),
     managers: createCreatorInventoryPort(client),
     network: createLiveNetworkPort(client),
     snapshot: fetchView,
@@ -238,6 +239,7 @@ export function createElectronGateway(
     componentUpdates: host?.componentUpdates,
     updatePlans: host?.updatePlans,
     amfUiRuntime: host?.amfUiRuntime,
+    guideContent: host?.guideContent,
     environment: createLiveEnvironmentPort(client),
     task: createLiveTaskPort(client),
     tutorial: notRun.tutorial,

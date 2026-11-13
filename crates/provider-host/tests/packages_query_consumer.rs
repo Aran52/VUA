@@ -120,14 +120,13 @@ fn offline_backend(base: &Path) -> VrcGetLibBackend {
 /// `invalid-*` file must FAIL its schema, every other file must validate.
 #[test]
 fn frozen_example_vectors_match_the_schemas() {
-    let examples_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../schemas/packages-query/v0.1/examples");
+    let examples_dir =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/packages-query/v0.1/examples");
     let mut checked = 0;
     for entry in fs::read_dir(&examples_dir).expect("examples directory exists") {
         let path = entry.unwrap().path();
         let name = path.file_name().unwrap().to_string_lossy().into_owned();
-        let instance: Value =
-            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        let instance: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         let (validator, kind) = if name.ends_with(".request.json") {
             (command_validator(), "command")
         } else {
@@ -167,9 +166,7 @@ fn list_packages_output_matches_the_frozen_result_schema() {
 
     let rows: Vec<Value> = packages
         .iter()
-        .map(|package| {
-            serde_json::to_value(package).expect("InstalledPackageV1 serializes")
-        })
+        .map(|package| serde_json::to_value(package).expect("InstalledPackageV1 serializes"))
         .collect();
     let result = json!({
         "schemaVersion": "vua.packages-installed/v0.1",
@@ -189,7 +186,10 @@ fn list_packages_output_matches_the_frozen_result_schema() {
         violations(&validator, &envelope)
     );
 
-    assert_eq!(envelope["result"]["schemaVersion"], "vua.packages-installed/v0.1");
+    assert_eq!(
+        envelope["result"]["schemaVersion"],
+        "vua.packages-installed/v0.1"
+    );
     let listed = envelope["result"]["packages"].as_array().unwrap();
     assert_eq!(listed.len(), 2, "both locked packages are listed");
     assert_eq!(listed[0]["packageId"], "com.demo.avatar-kit");

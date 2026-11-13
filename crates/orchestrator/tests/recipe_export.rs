@@ -97,7 +97,9 @@ enum MissingDimensionV01 {
 }
 
 fn result_of(vector: &Value) -> &Value {
-    vector.get("result").expect("result envelope carries result")
+    vector
+        .get("result")
+        .expect("result envelope carries result")
 }
 
 #[test]
@@ -221,17 +223,20 @@ fn typed_draft_consumes_every_positive_result() {
     let draft: ProjectDraftV01 =
         serde_json::from_value(result_of(&full).clone()).expect("full draft must deserialize");
     assert_eq!(draft.schema_version, "vua.recipe-export/v0.1");
-    assert_eq!(draft.origin.vua_identity_status, VuaIdentityStatusV01::Present);
+    assert_eq!(
+        draft.origin.vua_identity_status,
+        VuaIdentityStatusV01::Present
+    );
     assert_eq!(
         draft.environment.unity_version_constraint.as_deref(),
         Some("2022.3.22f1")
     );
     assert_eq!(draft.dependencies.len(), 3);
-    assert_eq!(draft.dependencies[0].locked_version.as_deref(), Some("3.7.12"));
     assert_eq!(
-        draft.dependencies[1].locked_version,
-        Option::<String>::None
+        draft.dependencies[0].locked_version.as_deref(),
+        Some("3.7.12")
     );
+    assert_eq!(draft.dependencies[1].locked_version, Option::<String>::None);
     assert_eq!(draft.missing.len(), 9);
     assert!(!draft
         .missing
@@ -240,7 +245,10 @@ fn typed_draft_consumes_every_positive_result() {
     let non_vua = read_json("examples/recipe-export-project-draft.non-vua.result.json");
     let draft: ProjectDraftV01 = serde_json::from_value(result_of(&non_vua).clone())
         .expect("non-VUA draft must deserialize");
-    assert_eq!(draft.origin.vua_identity_status, VuaIdentityStatusV01::Absent);
+    assert_eq!(
+        draft.origin.vua_identity_status,
+        VuaIdentityStatusV01::Absent
+    );
     assert_eq!(draft.origin.project_name, None);
 
     let unreadable = read_json("examples/recipe-export-project-draft.unity-unreadable.result.json");

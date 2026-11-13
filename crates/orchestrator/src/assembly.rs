@@ -106,7 +106,10 @@ impl Display for BridgeError {
             Self::UnityFailed(code) => write!(formatter, "Unity exited unsuccessfully ({code:?})"),
             Self::TimedOut => write!(formatter, "Unity did not finish within the budget"),
             Self::Cancelled => write!(formatter, "Unity was stopped on request"),
-            Self::ProcessTreeUnclean => write!(formatter, "Unity child-process cleanup could not be verified"),
+            Self::ProcessTreeUnclean => write!(
+                formatter,
+                "Unity child-process cleanup could not be verified"
+            ),
             Self::MissingResult => write!(formatter, "Unity did not write a bridge result"),
             Self::InvalidResult(_) => write!(formatter, "Unity wrote an invalid bridge result"),
         }

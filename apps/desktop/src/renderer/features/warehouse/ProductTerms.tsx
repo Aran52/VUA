@@ -66,9 +66,16 @@ export function ProductTerms({ productId, title, onUpdated }: { productId: strin
   const documentSource = terms.sources.find(source => source.document !== null && source.status === "parsed") ?? terms.sources.find(source => source.status !== "link_only") ?? null;
   const document = documentSource?.document ?? null;
   const links = terms.state === "link_only" ? terms.sources.filter(source => source.status === "link_only") : [];
-  return <section className="vua-terms" aria-label={copy.title}>
-    <h3 className="vua-warehouse-detail__section-title">{copy.title}</h3>
-    {terms.state !== "parsed" && <p className="vua-text-secondary">{copy.state[terms.state]}</p>}
+  return <section className="vua-terms vua-warehouse-detail__section" aria-label={copy.title}>
+    <div className="vua-warehouse-detail__section-head">
+      <h3>{copy.title}</h3>
+      <span className="vua-warehouse-detail__section-actions">
+        {documentSource && <Button variant="subtle" onClick={() => { void openExternalUrl(documentSource.sourceUrl); }}>{copy.open}</Button>}
+        <Button variant={terms.state === "not_observed" ? "default" : "subtle"} disabled={reading !== null} data-nav-id="warehouse-terms-read" onClick={() => { void read(); }}>
+          {reading !== null ? copy.reading : terms.state === "not_observed" ? copy.read : copy.readAgain}</Button>
+      </span>
+    </div>
+    {terms.state !== "parsed" && terms.state !== "not_observed" && <p className="vua-caption vua-text-secondary">{copy.state[terms.state]}</p>}
     {links.map(source => <button key={source.sourceId} type="button" className="vua-terms__link" onClick={() => { void openExternalUrl(source.sourceUrl); }}>{source.sourceUrl}</button>)}
     {readable && <>
       <ul className="vua-terms__uses" aria-label={copy.uses}>{TERMS_PRESET_IDS.map(presetId => {
@@ -80,7 +87,7 @@ export function ProductTerms({ productId, title, onUpdated }: { productId: strin
         </li>;
       })}</ul>
       {terms.specialNotes.map(note => <div key={note.sourceId} className="vua-terms__note"><p>{copy.special}</p><blockquote lang={note.language ?? undefined}>{note.text}</blockquote></div>)}
-      <details className="vua-terms__items">
+      <details className="vua-terms__items" open>
         <summary>{copy.items}</summary>
         <dl>{terms.effectiveItems.filter(item => item.item !== "X").map(item => <div key={item.item} data-value={item.value}>
           <dt><span aria-hidden="true">{item.item}</span> {copy.names[item.item as keyof typeof copy.names]}</dt>
@@ -89,11 +96,7 @@ export function ProductTerms({ productId, title, onUpdated }: { productId: strin
       </details>
     </>}
     {documentSource && document?.vn3Version && documentSource.fetchedAt && <p className="vua-caption vua-text-secondary">
-      {format(document.licensor ? copy.sourceBy : copy.source, { licensor: document.licensor ?? "", version: document.vn3Version, date: formatDateMinute(documentSource.fetchedAt) })}</p>}
-    {documentSource && <p className="vua-caption"><button type="button" className="vua-terms__link" onClick={() => { void openExternalUrl(documentSource.sourceUrl); }}>{copy.open}</button></p>}
-    {readable && <p className="vua-caption vua-text-secondary">{copy.final}</p>}
-    <div><Button variant={terms.state === "not_observed" ? "default" : "subtle"} disabled={reading !== null} onClick={() => { void read(); }}>
-      {reading !== null ? copy.reading : terms.state === "not_observed" ? copy.read : copy.readAgain}</Button></div>
+      {format(document.licensor ? copy.sourceBy : copy.source, { licensor: document.licensor ?? "", version: document.vn3Version, date: formatDateMinute(documentSource.fetchedAt) })}{readable ? ` · ${copy.final}` : ""}</p>}
     {failed && <p role="alert" className="vua-caption">{failed}</p>}
   </section>;
 }

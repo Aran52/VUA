@@ -4,17 +4,17 @@
 //! `.unitypackage` below that folder is included, so inspection, risk consent,
 //! and drift binding cover exactly the bytes that may later reach Unity.
 
-use vua_orchestrator::{
-    AppErrorV1, DeclaredDependencyV01, ErrorCategory, ExecutableRiskEvidence, ExecutableRiskKind,
-    MaterialEntryMode, ParamValue, RiskDecisionChoice, SourceFolderInspectionV01,
-    SourcePackageEvidenceV01,
-};
 use flate2::read::GzDecoder;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
+use vua_orchestrator::{
+    AppErrorV1, DeclaredDependencyV01, ErrorCategory, ExecutableRiskEvidence, ExecutableRiskKind,
+    MaterialEntryMode, ParamValue, RiskDecisionChoice, SourceFolderInspectionV01,
+    SourcePackageEvidenceV01,
+};
 
 /// The inspection (source) word face. v0.1 unchanged since B3: this batch
 /// (W25 real-machine finding) touches only the PLAN step set, so the
@@ -197,15 +197,16 @@ impl MaterialIntakeEngine {
         }
         risks.sort();
         risks.dedup();
-        let declared_dependencies =
-            read_declared_dependencies(&canonical).map_err(|error| {
-                source_error(error_codes::DEPS_INVALID, correlation_id, error)
-            })?;
+        let declared_dependencies = read_declared_dependencies(&canonical)
+            .map_err(|error| source_error(error_codes::DEPS_INVALID, correlation_id, error))?;
         // The declarations reach the produced package.json, so they are part
         // of the source identity: editing the deps file after planning is
         // drift, caught by verify_source_unchanged's re-inspection.
         let source_fingerprint = digest_json(
-            &SourceDigestInput { packages: &packages, declared_dependencies: &declared_dependencies },
+            &SourceDigestInput {
+                packages: &packages,
+                declared_dependencies: &declared_dependencies,
+            },
             correlation_id,
         )?;
         let risk_fingerprint = digest_json(&risks, correlation_id)?;
@@ -400,10 +401,16 @@ fn read_declared_dependencies(source_folder: &Path) -> io::Result<Vec<DeclaredDe
         }
     }
     let value: serde_json::Value = serde_json::from_str(&raw).map_err(|error| {
-        io::Error::new(io::ErrorKind::InvalidData, format!("not valid JSON: {error}"))
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("not valid JSON: {error}"),
+        )
     })?;
     let map = value.as_object().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidData, "expected a JSON object of id → range")
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            "expected a JSON object of id → range",
+        )
     })?;
     let mut declared = Vec::with_capacity(map.len());
     for (package_id, version) in map {
@@ -517,9 +524,7 @@ fn scan_unitypackage(
         if logical_path.starts_with("Packages/") {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!(
-                    "archive entry targets Packages/ (VPM channel boundary): {logical_path}"
-                ),
+                format!("archive entry targets Packages/ (VPM channel boundary): {logical_path}"),
             ));
         }
         classify_risks(package_path, &logical_path, output);

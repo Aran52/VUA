@@ -91,7 +91,7 @@ slice.
 
 - Electron's isolated Session holds login, cookies, orders, and download tokens. AMF receives the
   normalized events, observations, and result metadata needed for the use case; BDL receives the
-  approved persistent metadata subset.
+  approved persistent metadata subset. From the purchase history that is one time per bought product.
 - AMF owns task source, destination, progress, recovery, and validation.
 - Downloads enter AMF as untrusted `LocalArtifact` values and require inspection before use.
 - After inspection, AMF may submit source identity, file identity, check summary, and Warehouse

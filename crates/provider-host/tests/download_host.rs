@@ -50,7 +50,9 @@ fn frames_input(frames: Vec<serde_json::Value>) -> Paced {
         bytes.extend_from_slice(frame.to_string().as_bytes());
         bytes.push(b'\n');
     }
-    Paced { inner: std::io::Cursor::new(bytes) }
+    Paced {
+        inner: std::io::Cursor::new(bytes),
+    }
 }
 
 fn frame(id: &str, payload: serde_json::Value) -> serde_json::Value {
@@ -116,10 +118,7 @@ fn download_event(
     event
 }
 
-fn ingest_request(
-    request_id: &str,
-    events: Vec<serde_json::Value>,
-) -> serde_json::Value {
+fn ingest_request(request_id: &str, events: Vec<serde_json::Value>) -> serde_json::Value {
     request(
         request_id,
         "download.ingest",
@@ -168,24 +167,54 @@ const TASK_A1: &str = "dl-01hexample0000000000000a-a1";
 fn duplicate_receipt_repairs_a_missing_task_journal_without_repeating_delivery() {
     use vua_bdl_store::{DownloadEventConsumer, DownloadEventV01};
     let world = make_world("journal-repair");
-    let started = download_event(DOWNLOAD, "download.started", 1, "2026-10-08T00:00:00Z", serde_json::json!({"receivedBytes":0}));
-    let completed = download_event(DOWNLOAD, "download.completed", 1, "2026-10-08T00:00:01Z", serde_json::json!({"receivedBytes":10,"storedPath":"C:\\synthetic\\staging\\file.zip"}));
+    let started = download_event(
+        DOWNLOAD,
+        "download.started",
+        1,
+        "2026-10-08T00:00:00Z",
+        serde_json::json!({"receivedBytes":0}),
+    );
+    let completed = download_event(
+        DOWNLOAD,
+        "download.completed",
+        1,
+        "2026-10-08T00:00:01Z",
+        serde_json::json!({"receivedBytes":10,"storedPath":"C:\\synthetic\\staging\\file.zip"}),
+    );
     {
         let bdl = BdlStore::open(&world.bdl_path).unwrap();
         for value in [&started, &completed] {
-            DownloadEventConsumer::new(&bdl).ingest(&serde_json::from_value::<DownloadEventV01>(value.clone()).unwrap()).unwrap();
+            DownloadEventConsumer::new(&bdl)
+                .ingest(&serde_json::from_value::<DownloadEventV01>(value.clone()).unwrap())
+                .unwrap();
         }
     }
-    let frames = run(&world, vec![frame("f1", ingest_request("repair", vec![completed.clone(), completed]))]);
+    let frames = run(
+        &world,
+        vec![frame(
+            "f1",
+            ingest_request("repair", vec![completed.clone(), completed]),
+        )],
+    );
     let receipt = response_payload(&frames, "repair");
     assert_eq!(receipt["folded"], 0);
     assert_eq!(receipt["duplicates"], 2);
     assert_eq!(receipt["rejected"], serde_json::json!([]));
 
     let tasks = vua_orchestrator::SqliteTaskStore::open(&world.database).unwrap();
-    assert_eq!(tasks.task(TASK_A1).unwrap().unwrap().state, vua_orchestrator::TaskState::Succeeded);
+    assert_eq!(
+        tasks.task(TASK_A1).unwrap().unwrap().state,
+        vua_orchestrator::TaskState::Succeeded
+    );
     assert_eq!(tasks.events_after(TASK_A1, 0).unwrap().len(), 6);
-    assert_eq!(BdlStore::open(&world.bdl_path).unwrap().download_events(DOWNLOAD).unwrap().len(), 2);
+    assert_eq!(
+        BdlStore::open(&world.bdl_path)
+            .unwrap()
+            .download_events(DOWNLOAD)
+            .unwrap()
+            .len(),
+        2
+    );
     drop(tasks);
     fs::remove_dir_all(&world.base).ok();
 }
@@ -193,11 +222,26 @@ fn duplicate_receipt_repairs_a_missing_task_journal_without_repeating_delivery()
 #[test]
 fn a_policy_failure_before_started_still_has_a_visible_failed_task() {
     let world = make_world("early-policy");
-    let denied = download_event(DOWNLOAD, "download.failed", 1, "2026-10-08T00:00:00Z", serde_json::json!({"failureKind":"policy","resumable":false}));
-    let frames = run(&world, vec![frame("f1", ingest_request("deny", vec![denied]))]);
-    assert_eq!(response_payload(&frames, "deny")["rejected"], serde_json::json!([]));
+    let denied = download_event(
+        DOWNLOAD,
+        "download.failed",
+        1,
+        "2026-10-08T00:00:00Z",
+        serde_json::json!({"failureKind":"policy","resumable":false}),
+    );
+    let frames = run(
+        &world,
+        vec![frame("f1", ingest_request("deny", vec![denied]))],
+    );
+    assert_eq!(
+        response_payload(&frames, "deny")["rejected"],
+        serde_json::json!([])
+    );
     let tasks = vua_orchestrator::SqliteTaskStore::open(&world.database).unwrap();
-    assert_eq!(tasks.task(TASK_A1).unwrap().unwrap().state, vua_orchestrator::TaskState::Failed);
+    assert_eq!(
+        tasks.task(TASK_A1).unwrap().unwrap().state,
+        vua_orchestrator::TaskState::Failed
+    );
     drop(tasks);
     fs::remove_dir_all(&world.base).ok();
 }
@@ -253,13 +297,22 @@ fn b4_dl_001_ingest_folds_events_creates_tasks_and_answers_receipts() {
     assert_eq!(receipt["rejected"], serde_json::json!([]));
 
     // Transfer presentation uses the frozen progress envelope and public metadata only.
-    let progress: Vec<_> = frames.iter().filter(|frame| frame["payload"]["kind"] == "task.progressed")
-        .map(|frame| &frame["payload"]["payload"]).collect();
+    let progress: Vec<_> = frames
+        .iter()
+        .filter(|frame| frame["payload"]["kind"] == "task.progressed")
+        .map(|frame| &frame["payload"]["payload"])
+        .collect();
     assert!(!progress.is_empty());
-    assert!(progress.iter().any(|payload| payload["params"]["receivedBytes"] == 512));
-    assert!(progress.iter().all(|payload| payload["messageKey"] == "tasks.download.transfer"
-        && payload["completed"].is_number() && payload["params"]["operation"] == "download.transfer"
-        && payload["params"].get("storedPath").is_none() && payload["params"].get("sourceUrl").is_none()));
+    assert!(progress
+        .iter()
+        .any(|payload| payload["params"]["receivedBytes"] == 512));
+    assert!(progress
+        .iter()
+        .all(|payload| payload["messageKey"] == "tasks.download.transfer"
+            && payload["completed"].is_number()
+            && payload["params"]["operation"] == "download.transfer"
+            && payload["params"].get("storedPath").is_none()
+            && payload["params"].get("sourceUrl").is_none()));
 
     // The attempt task folded to Succeeded.
     let store = BdlStore::open(&world.bdl_path).unwrap();
@@ -270,16 +323,27 @@ fn b4_dl_001_ingest_folds_events_creates_tasks_and_answers_receipts() {
 #[test]
 fn b4_dl_002_redelivery_is_counted_as_duplicates_never_refolded() {
     let world = make_world("dedup");
-    let event = download_event(DOWNLOAD, "download.started", 1, "2026-09-06T08:15:00.000Z",
-        serde_json::json!({ "storedPath": r"C:\staging\pack.zip", "receivedBytes": 0 }));
+    let event = download_event(
+        DOWNLOAD,
+        "download.started",
+        1,
+        "2026-09-06T08:15:00.000Z",
+        serde_json::json!({ "storedPath": r"C:\staging\pack.zip", "receivedBytes": 0 }),
+    );
 
-    let first = run(&world, vec![frame("f1", ingest_request("req-1", vec![event.clone()]))]);
+    let first = run(
+        &world,
+        vec![frame("f1", ingest_request("req-1", vec![event.clone()]))],
+    );
     let receipt = response_payload(&first, "req-1");
     assert_eq!(receipt["folded"], 1);
 
     // Run 2 is a fresh host process redelivering the same event: the
     // receipt answers honestly — nothing new folded, one duplicate.
-    let second = run(&world, vec![frame("f2", ingest_request("req-2", vec![event]))]);
+    let second = run(
+        &world,
+        vec![frame("f2", ingest_request("req-2", vec![event]))],
+    );
     let receipt = response_payload(&second, "req-2");
     assert_eq!(receipt["folded"], 0);
     assert_eq!(receipt["duplicates"], 1);
@@ -289,31 +353,53 @@ fn b4_dl_002_redelivery_is_counted_as_duplicates_never_refolded() {
 #[test]
 fn b4_dl_003_a_failed_download_folds_its_task_and_retry_queues_an_intent() {
     let world = make_world("retry");
-    let started = download_event(DOWNLOAD, "download.started", 1, "2026-09-06T08:15:00.000Z",
-        serde_json::json!({ "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 0, "resumable": false }));
-    let failure = download_event(DOWNLOAD, "download.failed", 1, "2026-09-06T08:16:00.000Z",
-        serde_json::json!({ "failureKind": "unknown", "resumable": false, "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 512 }));
+    let started = download_event(
+        DOWNLOAD,
+        "download.started",
+        1,
+        "2026-09-06T08:15:00.000Z",
+        serde_json::json!({ "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 0, "resumable": false }),
+    );
+    let failure = download_event(
+        DOWNLOAD,
+        "download.failed",
+        1,
+        "2026-09-06T08:16:00.000Z",
+        serde_json::json!({ "failureKind": "unknown", "resumable": false, "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 512 }),
+    );
 
     let frames = run(
         &world,
         vec![
             frame("f1", ingest_request("req-ingest", vec![started, failure])),
-            frame("f2", request("req-retry", "download.retry",
-                serde_json::json!({ "taskId": TASK_A1 }))),
-            frame("f3", ingest_request("req-attempt-2", vec![
-                download_event(DOWNLOAD, "download.started", 2, "2026-09-06T08:17:00.000Z",
-                    serde_json::json!({ "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 0, "resumable": true })),
-            ])),
+            frame(
+                "f2",
+                request(
+                    "req-retry",
+                    "download.retry",
+                    serde_json::json!({ "taskId": TASK_A1 }),
+                ),
+            ),
+            frame(
+                "f3",
+                ingest_request(
+                    "req-attempt-2",
+                    vec![download_event(
+                        DOWNLOAD,
+                        "download.started",
+                        2,
+                        "2026-09-06T08:17:00.000Z",
+                        serde_json::json!({ "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 0, "resumable": true }),
+                    )],
+                ),
+            ),
         ],
     );
 
     // The attempt task folded to failed with the honest failure kind.
     let task_frame = frames
         .iter()
-        .find(|frame| {
-            frame["kind"] == "response"
-                && frame["payload"]["requestId"] == "req-ingest"
-        })
+        .find(|frame| frame["kind"] == "response" && frame["payload"]["requestId"] == "req-ingest")
         .expect("ingest response");
 
     let retry = response_payload(&frames, "req-retry");
@@ -323,9 +409,7 @@ fn b4_dl_003_a_failed_download_folds_its_task_and_retry_queues_an_intent() {
     // The intent rode the event channel with a monotonic sequence.
     let intent = frames
         .iter()
-        .find(|frame| {
-            frame["kind"] == "event" && frame["payload"]["kind"] == "download.intent"
-        })
+        .find(|frame| frame["kind"] == "event" && frame["payload"]["kind"] == "download.intent")
         .expect("an intent event frame");
     assert_eq!(intent["payload"]["downloadId"], DOWNLOAD);
     assert_eq!(intent["payload"]["intent"], "retry");
@@ -353,15 +437,29 @@ fn b4_dl_004_illegal_sequences_are_rejected_in_the_receipt_never_folded() {
     let world = make_world("illegal");
     let frames = run(
         &world,
-        vec![frame("f1", ingest_request("req-1", vec![
-            // progress without a started event: a port violation.
-            download_event(DOWNLOAD, "download.progress", 1, "2026-09-06T08:15:00.000Z",
-                serde_json::json!({ "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 10 })),
-        ]))],
+        vec![frame(
+            "f1",
+            ingest_request(
+                "req-1",
+                vec![
+                    // progress without a started event: a port violation.
+                    download_event(
+                        DOWNLOAD,
+                        "download.progress",
+                        1,
+                        "2026-09-06T08:15:00.000Z",
+                        serde_json::json!({ "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 10 }),
+                    ),
+                ],
+            ),
+        )],
     );
     let receipt = response_payload(&frames, "req-1");
     assert_eq!(receipt["folded"], 0);
-    assert_eq!(receipt["rejected"][0]["code"], "vua.download.illegal_sequence");
+    assert_eq!(
+        receipt["rejected"][0]["code"],
+        "vua.download.illegal_sequence"
+    );
     fs::remove_dir_all(&world.base).ok();
 }
 
@@ -371,12 +469,27 @@ fn b4_dl_005_user_cancellation_folds_to_an_abandon_intent() {
     let frames = run(
         &world,
         vec![
-            frame("f1", ingest_request("req-ingest", vec![
-                download_event(DOWNLOAD, "download.started", 1, "2026-09-06T08:15:00.000Z",
-                    serde_json::json!({ "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 0 })),
-            ])),
-            frame("f2", request("req-cancel", "task.requestCancellation",
-                serde_json::json!({ "taskId": TASK_A1 }))),
+            frame(
+                "f1",
+                ingest_request(
+                    "req-ingest",
+                    vec![download_event(
+                        DOWNLOAD,
+                        "download.started",
+                        1,
+                        "2026-09-06T08:15:00.000Z",
+                        serde_json::json!({ "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 0 }),
+                    )],
+                ),
+            ),
+            frame(
+                "f2",
+                request(
+                    "req-cancel",
+                    "task.requestCancellation",
+                    serde_json::json!({ "taskId": TASK_A1 }),
+                ),
+            ),
         ],
     );
     let cancel = response_payload(&frames, "req-cancel");
@@ -384,9 +497,7 @@ fn b4_dl_005_user_cancellation_folds_to_an_abandon_intent() {
 
     let intent = frames
         .iter()
-        .find(|frame| {
-            frame["kind"] == "event" && frame["payload"]["kind"] == "download.intent"
-        })
+        .find(|frame| frame["kind"] == "event" && frame["payload"]["kind"] == "download.intent")
         .expect("an abandon intent event frame");
     assert_eq!(intent["payload"]["downloadId"], DOWNLOAD);
     assert_eq!(intent["payload"]["intent"], "abandon");
@@ -401,14 +512,36 @@ fn b4_dl_006_retry_answers_give_up_outside_the_bound() {
     let frames = run(
         &world,
         vec![
-            frame("f1", ingest_request("req-ingest", vec![
-                download_event(DOWNLOAD, "download.started", 1, "2026-09-06T08:15:00.000Z",
-                    serde_json::json!({ "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 0 })),
-                download_event(DOWNLOAD, "download.cancelled", 1, "2026-09-06T08:16:00.000Z",
-                    serde_json::json!({ "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 100 })),
-            ])),
-            frame("f2", request("req-retry", "download.retry",
-                serde_json::json!({ "taskId": TASK_A1 }))),
+            frame(
+                "f1",
+                ingest_request(
+                    "req-ingest",
+                    vec![
+                        download_event(
+                            DOWNLOAD,
+                            "download.started",
+                            1,
+                            "2026-09-06T08:15:00.000Z",
+                            serde_json::json!({ "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 0 }),
+                        ),
+                        download_event(
+                            DOWNLOAD,
+                            "download.cancelled",
+                            1,
+                            "2026-09-06T08:16:00.000Z",
+                            serde_json::json!({ "storedPath": "C:\\staging\\pack.zip", "receivedBytes": 100 }),
+                        ),
+                    ],
+                ),
+            ),
+            frame(
+                "f2",
+                request(
+                    "req-retry",
+                    "download.retry",
+                    serde_json::json!({ "taskId": TASK_A1 }),
+                ),
+            ),
         ],
     );
     let retry_frame = frames
@@ -417,8 +550,7 @@ fn b4_dl_006_retry_answers_give_up_outside_the_bound() {
         .expect("retry response");
     assert_eq!(retry_frame["payload"]["ok"], false);
     assert_eq!(
-        retry_frame["payload"]["error"]["code"],
-        "vua.download.not_retryable",
+        retry_frame["payload"]["error"]["code"], "vua.download.not_retryable",
         "a user-cancelled download is not machine-retried"
     );
     fs::remove_dir_all(&world.base).ok();
@@ -431,8 +563,11 @@ fn b4_dl_007_without_configuration_the_surface_answers_honestly_unavailable() {
     vua_provider_host::run_provider_host_with(
         frames_input(vec![frame(
             "f1",
-            request("req-1", "download.ingest",
-                serde_json::json!({ "schemaVersion": "0.1", "events": [] })),
+            request(
+                "req-1",
+                "download.ingest",
+                serde_json::json!({ "schemaVersion": "0.1", "events": [] }),
+            ),
         )]),
         &mut output_buffer,
         world.database.clone(),
@@ -445,10 +580,8 @@ fn b4_dl_007_without_configuration_the_surface_answers_honestly_unavailable() {
         .find(|frame| frame["kind"] == "response" && frame["payload"]["requestId"] == "req-1")
         .expect("ingest response frame");
     assert_eq!(
-        response_frame["payload"]["error"]["code"],
-        "vua.download.unavailable",
+        response_frame["payload"]["error"]["code"], "vua.download.unavailable",
         "honest absence, never a silent success"
     );
     fs::remove_dir_all(&world.base).ok();
 }
-

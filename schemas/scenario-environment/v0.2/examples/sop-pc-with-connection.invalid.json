@@ -1,0 +1,15 @@
+{
+  "contractVersion": "0.1",
+  "requestId": "sop-pc-conn",
+  "correlationId": "sop-pc-conn",
+  "kind": "query",
+  "method": "environment.getScenarioSop",
+  "params": {
+    "schemaVersion": "0.2",
+    "selection": {
+      "platform": "vrchat",
+      "device": "pc",
+      "connection": "steam-link"
+    }
+  }
+}

@@ -23,25 +23,27 @@ function remember<T>(cache: Map<string, Promise<T>>, key: string, load: () => Pr
   return pending;
 }
 
-function useStill(port: AmfProductionPort, runId: string, path: string | undefined): string | null {
-  const [src, setSrc] = useState<string | null>(null);
+function useStill(port: AmfProductionPort, runId: string, path: string | undefined): { readonly src: string | null; readonly failed: boolean } {
+  const [state, setState] = useState<{ readonly src: string | null; readonly failed: boolean }>({ src: null, failed: false });
   useEffect(() => {
-    setSrc(null);
+    setState({ src: null, failed: false });
     if (path === undefined) return;
     let alive = true;
-    void remember(stills, `${runId}\n${path}`, () => port.previewImage(runId, path), 48).then(url => { if (alive) setSrc(url); }, () => {});
+    void remember(stills, `${runId}\n${path}`, () => port.previewImage(runId, path), 48).then(
+      url => { if (alive) setState({ src: url, failed: false }); },
+      () => { if (alive) setState({ src: null, failed: true }); });
     return () => { alive = false; };
   }, [port, runId, path]);
-  return src;
+  return state;
 }
 
 /** The front view as a still picture, for pages that turn and for the turntable while it loads. */
-export function StagePhoto({ port, run, view = "front", label }: { port: AmfProductionPort; run: AmfProductionRun; view?: StillView; label: string }) {
+export function StagePhoto({ port, run, view = "front", label, projectGone = false }: { port: AmfProductionPort; run: AmfProductionRun; view?: StillView; label: string; projectGone?: boolean }) {
   const path = run.result?.facts?.previews?.find(preview => preview.view === view)?.path;
-  const src = useStill(port, run.runId, path);
+  const { src, failed } = useStill(port, run.runId, path);
   return src !== null
     ? <img className="vua-album__still" src={src} alt={label} draggable={false} />
-    : <span className="vua-album__still vua-album__still--empty" aria-busy={path !== undefined || undefined}>{path === undefined ? copy.stage.noPreview : null}</span>;
+    : <span className="vua-album__still vua-album__still--empty" aria-busy={path !== undefined && !failed || undefined}>{failed || projectGone && path === undefined ? copy.stage.pictureGone : path === undefined ? copy.stage.noPreview : null}</span>;
 }
 
 function loadTurntable(port: AmfReleasePort, runId: string, turntable: AmfTurntable, onLoaded: (count: number) => void): Promise<string[]> {
@@ -92,7 +94,7 @@ function TurntableStage({ production, release, run, turntable, title }: {
   return <TurntablePlayer manifestPath="turntable/manifest.json" manifest={manifest} urlFor={urlFor} onStatus={() => {}} />;
 }
 
-function StillsStage({ production, run, title }: { production: AmfProductionPort; run: AmfProductionRun; title: string }) {
+function StillsStage({ production, run, title, projectGone }: { production: AmfProductionPort; run: AmfProductionRun; title: string; projectGone: boolean }) {
   const views = STILL_VIEWS.filter(view => run.result?.facts?.previews?.some(preview => preview.view === view));
   const [view, setView] = useState<StillView>("front");
   const drag = useRef<{ pointer: number; x: number; from: StillView } | null>(null);
@@ -116,7 +118,7 @@ function StillsStage({ production, run, title }: { production: AmfProductionPort
   };
   return <div className="vua-album__stills" tabIndex={views.length > 1 ? 0 : -1} aria-label={copy.stage.dragViews} onKeyDown={onKeyDown}
     onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd}>
-    <StagePhoto port={production} run={run} view={shown} label={`${title} · ${copy.stage.views[shown]}`} />
+    <StagePhoto port={production} run={run} view={shown} label={`${title} · ${copy.stage.views[shown]}`} projectGone={projectGone} />
     {views.length > 1 && <>
       <button type="button" className="vua-album__turn" data-side="left" aria-label={copy.stage.turnLeft} onClick={() => turn(-1)} onPointerDown={event => event.stopPropagation()}>
         <Icon name="arrow-left" size={16} /></button>
@@ -128,8 +130,8 @@ function StillsStage({ production, run, title }: { production: AmfProductionPort
 }
 
 /** The photo mounted on the left page. A turning page shows the front still only. */
-export function ReleaseStage({ production, release, run, turntable, title, live }: {
-  production: AmfProductionPort; release: AmfReleasePort; run: AmfProductionRun; turntable: AmfTurntable | null; title: string; live: boolean;
+export function ReleaseStage({ production, release, run, turntable, title, live, projectGone = false }: {
+  production: AmfProductionPort; release: AmfReleasePort; run: AmfProductionRun; turntable: AmfTurntable | null; title: string; live: boolean; projectGone?: boolean;
 }) {
   const current = turntable?.current ? turntable : null;
   return <figure className="vua-album__photo" data-stage>
@@ -138,9 +140,9 @@ export function ReleaseStage({ production, release, run, turntable, title, live 
     </span>
     <div className="vua-album__print">
       <span className="vua-album__backdrop" data-skin-slot="album-stage-backdrop" />
-      {!live ? <StagePhoto port={production} run={run} label={title} />
+      {!live ? <StagePhoto port={production} run={run} label={title} projectGone={projectGone} />
         : current ? <TurntableStage production={production} release={release} run={run} turntable={current} title={title} />
-        : <StillsStage production={production} run={run} title={title} />}
+        : <StillsStage production={production} run={run} title={title} projectGone={projectGone} />}
     </div>
   </figure>;
 }

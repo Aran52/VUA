@@ -1,27 +1,36 @@
-import { useRef, useState } from "react";
-import { EnvironmentCard } from "../home/EnvironmentCard.tsx";
-import { Button } from "../../components/primitives/Button.tsx";
-import { strings } from "../../i18n/index.ts";
+import { useCallback, useRef, useState } from "react";
+import type { IconName } from "@vua/design-system";
+import type { ExternalToolId } from "@vua/contracts";
+import { currentLocale, strings } from "../../i18n/index.ts";
+import { structureCopy } from "../../i18n/structure-copy.ts";
 import { VrcftCard } from "./VrcftCard.tsx";
 import { SteamToolCard } from "./SteamToolCard.tsx";
-import { ToolLogo } from "./ToolLogo.tsx";
+import { InstallerToolCard } from "./InstallerToolCard.tsx";
+import { PlannedToolCard } from "./PlannedToolCard.tsx";
+import { isInstallerTool, isPlannedTool } from "./planned-tools.ts";
 import { SlideDrawer } from "../../components/SlideDrawer.tsx";
+import { useEscapeClose } from "../../components/use-escape-close.ts";
 import { useGridColumns } from "../../components/use-grid-columns.ts";
-import { ToolDetails, ToolDetailsContext } from "./ToolDetails.tsx";
+import { ToolDetailsContext } from "./ToolDetails.tsx";
 import "./tools.css";
 
-/** The six fixed Steam entries share the Candidate connection (VRCFT adds device guidance); VRCS and LIV retain their roadmap entrances. */
+/** Connected Steam entries share the Candidate connection (VRCFT adds device guidance); planned tools describe themselves and link out. */
+const hints = structureCopy[currentLocale].toolHints;
+const platforms = structureCopy[currentLocale].platforms;
 const groups = [
-  { key: "toolTracking", icon: "avatar", tools: [{ id: "vrcft", title: "VRCFaceTracking" }, { id: "space", title: "OpenVR Space Calibrator" }] },
-  { key: "toolTranslation", icon: "question", tools: [{ id: "vrcs", title: "VRCS" }, { id: "translator", title: "OVR Overlay Translator" }] },
-  { key: "toolUtilities", icon: "flask", tools: [{ id: "advanced", title: "OVR Advanced Settings" }, { id: "toolkit", title: "OVR Toolkit" }, { id: "oyasumi", title: "OyasumiVR" }] },
+  { key: "toolTracking", icon: "avatar", tools: [{ id: "vrcft", title: "VRCFaceTracking" }, { id: "space", title: "OpenVR Space Calibrator" }, { id: "slimevr", title: "SlimeVR Server" }] },
+  { key: "toolTranslation", icon: "question", tools: [{ id: "vrcs", title: "VRCS" }, { id: "translator", title: "OVR Overlay Translator" }, { id: "vrct", title: "VRCT" }] },
+  { key: "toolUtilities", icon: "flask", tools: [{ id: "advanced", title: "OVR Advanced Settings" }, { id: "toolkit", title: "OVR Toolkit" }, { id: "oyasumi", title: "OyasumiVR" }, { id: "xsoverlay", title: "XSOverlay" }, { id: "desktopplus", title: "Desktop+" }, { id: "fpsvr", title: "fpsVR" }] },
+  { key: "toolSocial", icon: "avatar", tools: [{ id: "vrcx", title: "VRCX" }] },
   { key: "toolCapture", icon: "anim", tools: [{ id: "liv", title: "LIV" }] },
 ] as const;
 
-function ToolGroup({ group, selected, onSelect, onPrepareSteam }: {
-  group: (typeof groups)[number]; selected: string | null; onSelect(id: string | null): void; onPrepareSteam(): void;
+interface ToolGroupItem { readonly id: string; readonly title: string }
+/** A titled row of tool cards with one shared details drawer. */
+export function ToolGroup({ title, group, selected, onSelect, onPrepareSteam }: {
+  title: string; group: { readonly icon: IconName; readonly tools: readonly ToolGroupItem[] }; selected: string | null; onSelect(id: string | null): void; onPrepareSteam(): void;
 }) {
-  const [shown, setShown] = useState<string>(group.tools[0].id);
+  const [shown, setShown] = useState<string>(group.tools[0]!.id);
   const [host, setHost] = useState<HTMLDivElement | null>(null);
   const grid = useRef<HTMLDivElement>(null);
   const columns = useGridColumns(grid);
@@ -33,20 +42,16 @@ function ToolGroup({ group, selected, onSelect, onPrepareSteam }: {
     <div ref={setHost} />
   </SlideDrawer>;
   const cards = group.tools.map(tool => <div className="vua-card-entry" data-card-entry={`tool-${tool.id}`} key={tool.id}>
-    {tool.id === "vrcft" ? <VrcftCard selected={selected === tool.id} onDetails={() => toggle(tool.id)} onReveal={() => reveal(tool.id)} onPrepareSteam={onPrepareSteam} />
-      : tool.id === "vrcs" || tool.id === "liv" ? <>
-        <EnvironmentCard title={tool.title} icon={group.icon} logo={<ToolLogo id={tool.id} icon={group.icon} />}
-          id={`tool-${tool.id}`} action="unknown" status="" developing iconOnlyAction actionHint={strings.journey.developingTip}
-          selected={selected === tool.id} onDetails={() => toggle(tool.id)} />
-        <ToolDetails id={tool.id} title={tool.title} selected={selected === tool.id}>
-          <header className="vua-environment-heading"><h2>{tool.title}</h2><Button variant="subtle" data-back onClick={() => onSelect(null)}>{strings.environmentCards.closeDetails}</Button></header>
-          <p>{strings.helpUi[tool.id]}</p>
-        </ToolDetails>
-      </> : <SteamToolCard toolId={tool.id} title={tool.title} icon={group.icon} selected={selected === tool.id}
+    {tool.id === "vrcft" ? <VrcftCard hint={hints.vrcft} selected={selected === tool.id} onDetails={() => toggle(tool.id)} onReveal={() => reveal(tool.id)} onPrepareSteam={onPrepareSteam} />
+      : isPlannedTool(tool.id) ? <PlannedToolCard id={tool.id} title={tool.title} hint={hints[tool.id as keyof typeof hints]} icon={group.icon}
+          selected={selected === tool.id} onDetails={() => toggle(tool.id)} onClose={() => onSelect(null)} />
+      : isInstallerTool(tool.id) ? <InstallerToolCard toolId={tool.id} title={tool.title} hint={hints[tool.id as keyof typeof hints]} icon={group.icon} selected={selected === tool.id}
+          onDetails={() => toggle(tool.id)} onReveal={() => reveal(tool.id)} />
+      : <SteamToolCard toolId={tool.id as ExternalToolId} title={tool.title} hint={hints[tool.id as keyof typeof hints] ?? platforms[tool.id as keyof typeof platforms]} icon={group.icon} selected={selected === tool.id}
         onDetails={() => toggle(tool.id)} onReveal={() => reveal(tool.id)} onPrepareSteam={onPrepareSteam} />}
   </div>);
   return <section className="vua-environment-section">
-    <h2>{strings.journey[group.key]}</h2>
+    <h2>{title}</h2>
     <ToolDetailsContext.Provider value={{ host, shown }}>
       <div className="vua-environment-grid" ref={grid}>{cards.flatMap((card, index) => index === drawerAfter ? [card, drawer] : [card])}</div>
     </ToolDetailsContext.Provider>
@@ -55,8 +60,10 @@ function ToolGroup({ group, selected, onSelect, onPrepareSteam }: {
 
 export function ToolsHub({ onPrepareSteam }: { onPrepareSteam(): void }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const close = useCallback(() => setSelected(null), []);
+  useEscapeClose(selected !== null, close);
   return <div className="vua-page vua-route-page vua-tools-hub vua-compact-environments" data-focus-scope>
     <header className="vua-page__hero"><h1 className="vua-title">{strings.journey.tools}</h1></header>
-    {groups.map(group => <ToolGroup key={group.key} group={group} selected={selected} onSelect={setSelected} onPrepareSteam={onPrepareSteam} />)}
+    {groups.map(group => <ToolGroup key={group.key} title={strings.journey[group.key]} group={group} selected={selected} onSelect={setSelected} onPrepareSteam={onPrepareSteam} />)}
   </div>;
 }

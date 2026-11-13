@@ -96,9 +96,18 @@ impl TemplatesVpm {
         Self {
             template_cap: true,
             templates: vec![
-                TemplateEntryV01 { id: "Avatar".into(), name: "Avatar".into() },
-                TemplateEntryV01 { id: "Base".into(), name: "Base".into() },
-                TemplateEntryV01 { id: "World".into(), name: "World".into() },
+                TemplateEntryV01 {
+                    id: "Avatar".into(),
+                    name: "Avatar".into(),
+                },
+                TemplateEntryV01 {
+                    id: "Base".into(),
+                    name: "Base".into(),
+                },
+                TemplateEntryV01 {
+                    id: "World".into(),
+                    name: "World".into(),
+                },
             ],
             failure: None,
         }
@@ -139,11 +148,13 @@ impl VpmBackend for TemplatesVpm {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn template_capabilities(&self) -> TemplateCapabilities {
-        TemplateCapabilities { list_templates: self.template_cap }
+        TemplateCapabilities {
+            list_templates: self.template_cap,
+        }
     }
     fn preview_install(
         &self,
@@ -301,7 +312,10 @@ fn wired_route_projects_the_frozen_word_face_over_the_real_frame_loop() {
         "packages.listTemplates",
         json!({}),
     );
-    assert_eq!(payload["ok"], true, "wired + declared must succeed: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "wired + declared must succeed: {payload}"
+    );
     let value = &payload["value"];
     assert_eq!(
         value["schemaVersion"],
@@ -314,7 +328,10 @@ fn wired_route_projects_the_frozen_word_face_over_the_real_frame_loop() {
         schema_violations(&validator, value)
     );
     let result = &value["result"];
-    assert_eq!(result["schemaVersion"], PACKAGES_TEMPLATES_SCHEMA_VERSION_V01);
+    assert_eq!(
+        result["schemaVersion"],
+        PACKAGES_TEMPLATES_SCHEMA_VERSION_V01
+    );
     let rows = result["templates"].as_array().expect("template rows");
     assert_eq!(rows.len(), 3);
     // id-ascending — the frozen presentation fact (the duplicate-name rule
@@ -326,20 +343,29 @@ fn wired_route_projects_the_frozen_word_face_over_the_real_frame_loop() {
     // producer contract the JSON Schema cannot express across keys — the
     // consumers never fabricate a friendlier label).
     for row in rows {
-        assert_eq!(row["name"], row["id"], "name is the same-value projection of id");
+        assert_eq!(
+            row["name"], row["id"],
+            "name is the same-value projection of id"
+        );
     }
     // The deliberate ceiling: the v0.1 word list carries EXACTLY id + name —
     // no metadata fact, no per-row root disclosure, no cacheSourced (the
     // face is zero-network; a constant informational field is not a fact).
     for row in rows {
-        let keys: Vec<&str> = row.as_object().unwrap().keys().map(String::as_str).collect();
-        assert_eq!(keys, ["id", "name"], "no invented fields at the v0.1 word face");
+        let keys: Vec<&str> = row
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(
+            keys,
+            ["id", "name"],
+            "no invented fields at the v0.1 word face"
+        );
     }
 
-    let row = templates_capability_row(
-        &database,
-        Some(Arc::new(TemplatesVpm::declaring())),
-    );
+    let row = templates_capability_row(&database, Some(Arc::new(TemplatesVpm::declaring())));
     assert_eq!(row["availability"], "available");
     fs::remove_dir_all(&root).ok();
 }
@@ -392,9 +418,15 @@ fn port_refusals_travel_verbatim() {
         "packages.listTemplates",
         json!({}),
     );
-    assert_eq!(payload["ok"], false, "the refusal travels as a typed failure");
+    assert_eq!(
+        payload["ok"], false,
+        "the refusal travels as a typed failure"
+    );
     assert_eq!(payload["error"]["code"], "vua.vpm.template_scan_failed");
-    assert_eq!(payload["error"]["messageKey"], "errors.vpm.templateScanFailed");
+    assert_eq!(
+        payload["error"]["messageKey"],
+        "errors.vpm.templateScanFailed"
+    );
     assert_eq!(payload["error"]["category"], "external_failure");
     assert!(
         payload.get("result").is_none(),
@@ -484,7 +516,10 @@ fn envelope_consts_are_detectable_and_match_the_frozen_schema_consts() {
         json!(PACKAGES_TEMPLATES_SCHEMA_VERSION_V01),
         "the family const equals the frozen result def's const"
     );
-    assert_eq!(PACKAGES_TEMPLATES_SCHEMA_VERSION_V01, "vua.packages-templates/v0.1");
+    assert_eq!(
+        PACKAGES_TEMPLATES_SCHEMA_VERSION_V01,
+        "vua.packages-templates/v0.1"
+    );
 
     // The live stamp: the one response carries both consts (pinned against
     // the constants, not against string literals).

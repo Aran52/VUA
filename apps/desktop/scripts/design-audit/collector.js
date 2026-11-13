@@ -25,6 +25,7 @@ export function collectAuditSnapshot(options) {
   function paintedRect(element, rectangle) {
     let left = rectangle.left, right = rectangle.right, top = rectangle.top, bottom = rectangle.bottom;
     let escapingPosition = null;
+    let scrollerX = null, scrollerY = null;
     for (let node = element; node; node = node.parentElement) {
       const style = styleOf(node);
       if (style.display === "none" || (node === element && style.visibility !== "visible") || Number(style.opacity) === 0) return null;
@@ -50,9 +51,14 @@ export function collectAuditSnapshot(options) {
       const clipX = /^(hidden|clip)$/.test(style.overflowX);
       const clipY = /^(hidden|clip)$/.test(style.overflowY);
       if (node !== element && !escapingPosition && (clipX || clipY)) {
+        // A scroller inside this frame can still bring the content into view.
         const clip = node.getBoundingClientRect();
-        if (clipX) { left = Math.max(left, clip.left); right = Math.min(right, clip.right); }
-        if (clipY) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom); }
+        if (clipX && !(scrollerX && scrollerX.left >= clip.left - 1 && scrollerX.right <= clip.right + 1)) { left = Math.max(left, clip.left); right = Math.min(right, clip.right); }
+        if (clipY && !(scrollerY && scrollerY.top >= clip.top - 1 && scrollerY.bottom <= clip.bottom + 1)) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom); }
+      }
+      if (node !== element && !escapingPosition) {
+        if (/^(auto|scroll)$/.test(style.overflowX) && node.scrollWidth > node.clientWidth + 1) scrollerX ??= node.getBoundingClientRect();
+        if (/^(auto|scroll)$/.test(style.overflowY) && node.scrollHeight > node.clientHeight + 1) scrollerY ??= node.getBoundingClientRect();
       }
       // Overflow between a positioned descendant and its containing block does
       // not clip it. Visibility and zero-opacity ancestors still apply above.
@@ -441,6 +447,7 @@ export function collectAuditSnapshot(options) {
       backdropFilter: cs.backdropFilter || cs.webkitBackdropFilter || "none",
       borders,
       radius: ["TopLeft", "TopRight", "BottomRight", "BottomLeft"].map(k => parseRadius(cs["border" + k + "Radius"])),
+      scrollFrame: el.hasAttribute("data-scroll-frame"),
       paddings: ["Top", "Right", "Bottom", "Left"].map(k => Math.round(parseFloat(cs["padding" + k]) || 0)),
       margins: ["Top", "Right", "Bottom", "Left"].map(k => Math.round(parseFloat(cs["margin" + k]) || 0)),
       autoMargins: ["top", "right", "bottom", "left"].map(side => typedStyle?.get(`margin-${side}`)?.toString() === "auto"),
@@ -490,6 +497,22 @@ export function collectAuditSnapshot(options) {
   // collection failure instead of auditing the overlay page.
   const errorOverlay = Boolean(document.querySelector("vite-error-overlay"));
 
+
+  // Captions placed over a node or over one another hide what they name.
+  function captionOverlaps() {
+    const shown = [...document.querySelectorAll('[data-audit-caption="true"]')].filter(node => node.dataset.shown !== "false");
+    const boxes = shown.map(node => ({ node, rect: node.getBoundingClientRect() }));
+    const avoid = [...document.querySelectorAll("[data-audit-caption-avoid]")].map(node => ({ node, rect: node.getBoundingClientRect() }));
+    const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+    const found = [];
+    boxes.forEach((box, index) => {
+      const text = box.node.textContent.slice(0, 40);
+      const rect = { x: Math.round(box.rect.left), y: Math.round(box.rect.top), w: Math.round(box.rect.width), h: Math.round(box.rect.height) };
+      for (const other of boxes.slice(index + 1)) if (hit(box.rect, other.rect)) found.push({ text, rect, other: `caption "${other.node.textContent.slice(0, 40)}"` });
+      for (const other of avoid) if (other.node.dataset.nodeId !== box.node.dataset.nodeId && hit(box.rect, other.rect)) found.push({ text, rect, other: `node "${other.node.dataset.nodeId}"` });
+    });
+    return found;
+  }
   return {
     viewport: { w: window.innerWidth, h: window.innerHeight },
     scroll: { x: window.scrollX, y: window.scrollY },
@@ -499,6 +522,8 @@ export function collectAuditSnapshot(options) {
     errorOverlay,
     accentModuleScope, accentRootScope,
     palette, shadowTokens, radiusTokens, tokenRaw,
+    scrollbarSize: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--vua-scrollbar-size")) || 0,
+    captionOverlaps: captionOverlaps(),
     elementCount: elements.length,
     elements,
   };

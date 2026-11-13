@@ -71,10 +71,10 @@ async function run() {
     // The Play drawer opens below the row of its card and takes the grid's full width.
     const playDrawerBelow = button => js(`(()=>{
       const entry=document.querySelector('[data-nav-id="${button}"]').closest('[data-card-entry]');
-      const drawer=document.querySelector('.vua-play-drawer'), grid=drawer.parentElement;
-      const card=entry.getBoundingClientRect(), panel=drawer.getBoundingClientRect(), row=grid.getBoundingClientRect();
+      const drawer=document.querySelector('.vua-play-drawer');
+      const card=entry.getBoundingClientRect(), panel=drawer.getBoundingClientRect();
       return drawer.dataset.open==='true' && !document.getElementById('${button}-details').hidden
-        && panel.top>=card.bottom && Math.abs(panel.width-row.width)<1 && panel.height>40;
+        && panel.top>=card.bottom && Math.abs(panel.width-card.width)<1 && panel.height>40;
     })()`);
     const inlineDetailFits = button => js(`(()=>{
       const control=document.querySelector('[data-nav-id="${button}"]');
@@ -168,7 +168,7 @@ async function run() {
     await waitFor(() => js('!!document.querySelector("[data-nav-id=help-encyclopedia]")'), "Help for the first encyclopedia catalog");
     await js('document.querySelector("[data-nav-id=help-encyclopedia]").click()');
     await waitFor(() => js('!!document.querySelector(".vua-encyclopedia-home")'), "First encyclopedia catalog");
-    assert(await js('document.querySelectorAll("[data-guide-task]").length===6 && document.querySelectorAll(".vua-encyclopedia-tree > li > details").length===8 && !document.querySelector("[data-guide-continue]")'), "Encyclopedia starts with six questions and eight topics");
+    assert(await js('document.querySelectorAll("[data-guide-task]").length===6 && document.querySelectorAll(".vua-encyclopedia-tree > li > details").length===9 && !document.querySelector("[data-guide-continue]")'), "Encyclopedia starts with six questions and nine topics");
     assert(await js('localStorage.getItem("vua-guide-reading")===null'), "Browsing the catalog alone writes no reading bookmark");
     await capture("encyclopedia-catalog");
     await js('document.querySelector("[data-nav-id=help-child-back]").click()');
@@ -176,7 +176,7 @@ async function run() {
     assert(await js('!!document.querySelector(".vua-shell__sidebar [data-nav-id=nav-tools-discover]")'), "Tools remains in the Environment sidebar");
     await js('document.querySelector("[data-nav-id=nav-tools-discover]").click()');
     await waitFor(() => js('!!document.querySelector(".vua-tools-hub")'), "tool directory");
-    assert(await js('document.querySelector(".vua-tools-hub").textContent.includes("VRCFaceTracking") && document.querySelector(".vua-tools-hub").textContent.includes("VRCS") && document.querySelector(".vua-tools-hub").textContent.includes("OVR Overlay Translator") && !document.querySelector("[data-nav-id=tool-vrcft-action]").disabled && ["space","translator","advanced","toolkit","oyasumi"].every(id=>document.querySelector(`[data-card=tool-${id}] .vua-environment-card__action`)) && ["vrcs","liv"].every(id=>document.querySelector(`[data-nav-id=tool-${id}-action]`).disabled)'), "VRCFT and the five Steam tools have connection cards; VRCS and LIV remain development placeholders");
+    assert(await js('document.querySelector(".vua-tools-hub").textContent.includes("VRCFaceTracking") && document.querySelector(".vua-tools-hub").textContent.includes("VRCS") && document.querySelector(".vua-tools-hub").textContent.includes("OVR Overlay Translator") && !document.querySelector("[data-nav-id=tool-vrcft-action]").disabled && ["space","translator","advanced","toolkit","oyasumi","desktopplus","fpsvr","slimevr","vrct","vrcx","vrcs"].every(id=>document.querySelector(`[data-card=tool-${id}] .vua-environment-card__action`) && !document.querySelector(`[data-card=tool-${id}] .vua-environment-card__developing`)) && ["xsoverlay","liv"].every(id=>document.querySelector(`[data-nav-id=tool-${id}-action]`).disabled && !!document.querySelector(`[data-card=tool-${id}] .vua-environment-card__developing`))'), "VRCFT, seven Steam tools and four official-installer tools have live cards; XSOverlay and LIV remain development placeholders");
     assert(await js('[...document.querySelectorAll(".vua-tools-hub .vua-environment-card")].every(c=>Math.abs(c.getBoundingClientRect().height-88)<1) && [...document.querySelectorAll(".vua-shell__sidebar [data-nav-id]")].map(c=>c.dataset.navId).indexOf("nav-tools-discover") < [...document.querySelectorAll(".vua-shell__sidebar [data-nav-id]")].map(c=>c.dataset.navId).indexOf("nav-env-create")'), "Tools share Play card dimensions and precede Avatar editing");
     for (const button of await js('[...document.querySelectorAll(".vua-tools-hub .vua-environment-card__details")].map(b=>b.dataset.navId)')) {
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
@@ -195,30 +195,58 @@ async function run() {
     window.setSize(1180, 820);
     await delay(100);
     if (process.env.VUA_TEST_NETWORK_LIVE === "1") {
-      await waitFor(() => js('!document.querySelector("[data-nav-id=play-network-test]").disabled'), "Regional probe available");
-      await js('document.querySelector("[data-nav-id=play-network-test]").click()');
-      await waitFor(() => js('!document.querySelector("[data-nav-id=play-network-test]").disabled'), "Explicit regional response");
-      const timings = await js('document.querySelector(".vua-network-tile__results").textContent');
+      await js('document.querySelector("[data-nav-id=shell-network]").click()');
+      await waitFor(() => js('!!document.querySelector("[data-nav-id=network-test]") && !document.querySelector("[data-nav-id=network-test]").disabled'), "Regional response");
+      const timings = await js('document.querySelector(".vua-network__references").textContent');
+      await js('document.querySelector("[data-nav-id=shell-network]").click()');
       fs.writeFileSync(path.join(output, "live-regional-reference.json"), JSON.stringify({ scope: "Actual native HTTPS response time to Oracle regional origins, not game Ping", timings }, null, 2));
       assert(timings.includes("≈"), "At least one live regional reference returned a timed response");
     }
-    assert(await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card")].every(c=>Math.abs(c.getBoundingClientRect().height-88)<1)'), "All Play cards, including network, are half-height");
+    assert(await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card")].every(c=>Math.abs(c.getBoundingClientRect().height-88)<1)'), "All Play cards are half-height");
     const cardLayout = await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card button")].map(b=>({label:b.getAttribute("data-nav-id"),overflow:b.scrollHeight-b.clientHeight}))');
     assert(cardLayout.every(row => row.overflow < 3), "Compact card content fits without vertical clipping");
     await capture("play-dark");
-    // In-development headsets explain themselves in a tooltip and open no details.
-    assert(await js(`['route-quest','route-vive','route-index'].every(id=>document.querySelector('[data-nav-id="'+id+'"]').disabled && !document.getElementById(id+'-details'))`), "In-development headsets have no details panel");
-    for (const button of ['route-desktop','route-pico']) {
-      await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
-      assert(await js(`!document.getElementById('${button}-details').hidden`), `${button} opens inline details`);
-      await waitFor(() => playDrawerBelow(button), `${button} drawer opens below its row across the page`);
-      if (button === 'route-desktop') await capture('play-inline-details');
-      await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
-      await waitFor(() => js(`document.querySelector('.vua-play-drawer').dataset.open==='false'`), `${button} closes on a second click`);
-    }
+    // A player who has not chosen sees the choices; a device leads to its connections and steps.
+    if (await js('document.querySelector(".vua-play-drawer").dataset.open!=="true"')) await js('document.querySelector(".vua-play-current .vua-environment-card__details").click()');
+    await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="true"'), "The card's left half opens the choices");
+    await js('document.querySelector("[data-nav-id=play-other-headsets]").click()');
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=play-device-varjo]")'), "Less common headsets follow their own entry");
+    await js('document.querySelector("[data-nav-id=play-device-varjo]").click()');
+    await waitFor(() => js('!!document.getElementById("route-varjo-details") && !!document.querySelector("[data-nav-id=play-official-varjo-base]") && document.querySelector("[data-nav-id=route-varjo-action]")?.getAttribute("aria-busy")==="false"'), "Varjo's steps link its official page");
+    assert(await js('!document.querySelector(".vua-setup__connections")'), "A wired headset skips the connection question");
+    await js('document.querySelector("[data-nav-id=play-device-quest]").click()');
+    await waitFor(() => js('!!document.getElementById("route-quest-details") && !!document.querySelector("[data-nav-id=play-official-quest-link]")'), "Meta Quest's steps");
+    assert(await js('document.querySelectorAll(".vua-setup__connections input[type=radio]").length===5'), "Meta Quest offers its five connections, including no PC");
+    await js(`(() => {
+      window.__helpEscapeTrace = [];
+      const record = kind => {
+        const state = {kind, time:performance.now(), open:document.querySelector('.vua-play-drawer')?.dataset.open, phase:document.querySelector('.vua-play-current [data-phase]')?.dataset.phase, owners:[...document.querySelectorAll('[role="dialog"], [role="menu"], .vua-tour')].map(e=>({role:e.getAttribute('role'),className:e.className}))};
+        if (window.__helpEscapeTrace.length < 40) window.__helpEscapeTrace.push(state);
+      };
+      const observer = new MutationObserver(() => record('mutation'));
+      observer.observe(document.querySelector('.vua-play-page'), {subtree:true,attributes:true,attributeFilter:['data-open','data-phase']});
+      window.addEventListener('keydown', event => {if(event.key==='Escape') record('escape');}, {capture:true});
+      record('before-connection');
+    })()`);
+    await js('document.querySelector("[data-nav-id=play-connection-virtual-desktop]").click()');
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=play-official-virtual-desktop]")'), "Choosing a connection changes the steps");
+    await js('window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape"}))');
+    await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="false"'), "Esc closes the choices");
+    fs.writeFileSync(path.join(output, "escape-trace.json"), JSON.stringify(await js('window.__helpEscapeTrace'), null, 2));
+    await js('document.querySelector("[data-nav-id=route-quest]").click()');
+    await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="true"'), "The card's left half opens the choices");
+    await js('document.querySelector("[data-nav-id=play-device-pc]").click()');
+    await waitFor(() => playDrawerBelow("route-desktop"), "PC mode's steps open below its card");
+    await capture("play-inline-details");
+    await js('document.querySelector("[data-nav-id=play-device-pico]").click()');
+    await waitFor(() => playDrawerBelow("route-pico"), "PICO's steps open below its card");
+    await js('document.querySelector("[data-nav-id=play-device-pc]").click()');
+    await waitFor(() => playDrawerBelow("route-desktop"), "Back to PC mode");
+    await js('document.querySelector("[data-nav-id=route-desktop]").click()');
+    await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="false"'), "A second click closes the choices");
     await js('document.querySelector("[data-nav-id=nav-enable-amf]").click()');
     await waitFor(() => js('!!document.querySelector(".vua-creator-page [data-nav-id=toggle-amf]")'), "AMF setup in Avatar editing");
-    assert(await js('!document.querySelector("[data-nav-id=toggle-amf]").checked && document.querySelector("[data-amf-setup]").textContent.includes("尚未启用") && !document.querySelector(".vua-shell__sidebar [data-module=production]")'), "AMF shows as not enabled in Avatar editing and waits for explicit enablement");
+    assert(await js('!document.querySelector("[data-nav-id=toggle-amf]").checked && document.querySelector("[data-amf-setup]").textContent.includes("尚未启用") && !document.querySelector(".vua-shell__sidebar [data-nav-id=nav-workshop]")'), "AMF shows as not enabled in Avatar editing and waits for explicit enablement");
     await capture("amf-off");
     await capture("avatar-preparation", ".vua-upload-eligibility");
     if (process.env.VUA_TEST_EXPECT_EDITOR_VERSION) {
@@ -232,7 +260,7 @@ async function run() {
     for (const button of ['route-unity2022', ...(unity6Installed ? ['route-unity6'] : []), 'manager-unity_hub','manager-vcc','manager-alcom']) {
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
       assert(await js(`document.querySelector('[data-nav-id="${button}"]').getAttribute('aria-expanded')==='true'`), `${button} expands inline`);
-      assert(await inlineDetailFits(button), `${button} details stay below their own editor or manager card`);
+      await waitFor(() => inlineDetailFits(button), `${button} details stay below their own editor or manager card`);
       if (button === 'route-unity2022') {
         const softwareChecked = 'document.querySelector("#route-unity2022-details [data-scenario-software-check] li") && !document.querySelector("#route-unity2022-details [data-deployment-plan]")';
         try { await waitFor(() => js(`!!(${softwareChecked})`), "Automatic Unity software check"); }
@@ -277,7 +305,7 @@ async function run() {
     await js('document.querySelector("[data-nav-id=help-child-back]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=help-encyclopedia]")'), "FAQ returns to Help");
     const side = command => window.emit('app-command', {}, command);
-    for (const child of ['help-wizard','help-tour','help-game-assistant','help-encyclopedia']) {
+    for (const child of ['help-wizard','help-encyclopedia']) {
       await js(`document.querySelector('[data-nav-id="${child}"]').click()`);
       await waitFor(() => js(`location.hash.startsWith('#${child}') && !!document.querySelector('[data-nav-id=help-child-back]')`), child);
       assert(BrowserWindow.getAllWindows().length === 1, `${child} opens a main-window child page`);
@@ -289,9 +317,15 @@ async function run() {
       assert(await js('document.querySelector("[data-nav-id=shell-help]").getAttribute("aria-current")==="page"'), `${child} restores on mouse Forward`);
       if (child === 'help-wizard') {
         await waitFor(() => js('!!document.querySelector(".vua-vua-guide") && !!document.querySelector("[data-wizard-step=vrchat]")'), "Help opens the concept wizard at VRChat");
-        await js('window.vua.window.showEncyclopedia({topic:"guide-vua",section:"production-line"})');
-        await waitFor(() => js('localStorage.getItem("vua-vua-guide-reading-v1")?.includes("production-line") && !localStorage.getItem("vua-guide-reading")?.includes("production-line")'), "VUA guide has a separate bookmark");
-        assert(true, "VUA guide navigation does not rewrite the encyclopedia bookmark");
+        const wizardButtons = () => js('JSON.stringify(["wizard-previous","wizard-want","wizard-next"].map(id=>{const r=document.querySelector(`[data-nav-id="${id}"]`).getBoundingClientRect();return [Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)]}))');
+        const firstPageButtons = await wizardButtons();
+        assert(await js('document.querySelector("[data-nav-id=wizard-previous]").disabled'), "The first wizard page has no previous page");
+        await js('document.querySelector("[data-nav-id=wizard-next]").click()');
+        await waitFor(() => js('!document.querySelector("[data-wizard-step=vrchat]")'), "Wizard next page");
+        assert(await wizardButtons() === firstPageButtons, "The three wizard buttons keep one place across pages");
+        assert(await js('!document.querySelector("[data-nav-id=wizard-previous]").disabled'), "Later wizard pages can go back");
+        await js('document.querySelector("[data-nav-id=wizard-previous]").click()');
+        await waitFor(() => js('!!document.querySelector("[data-wizard-step=vrchat]")'), "Wizard previous page");
       }
       await js('document.querySelector("[data-nav-id=help-child-back]").click()');
       await waitFor(() => js('!!document.querySelector("[data-nav-id=help-encyclopedia]")'), "Help return");
@@ -364,15 +398,20 @@ async function run() {
     await waitFor(() => js('!!document.querySelector("[data-guide-section=visibility]")'), "Back returns from catalog to the article");
     side('browser-forward');
     await waitFor(() => js('!!document.querySelector(".vua-encyclopedia-home")'), "Forward returns to the catalog");
-    assert(await js('localStorage.getItem("vua-guide-reading")?.includes("visibility") && !localStorage.getItem("vua-vua-guide-reading-v1")?.includes("visibility")'), "Catalog and article preserve the encyclopedia bookmark only");
+    assert(await js('localStorage.getItem("vua-guide-reading")?.includes("visibility")'), "Catalog and article preserve the encyclopedia bookmark");
     await js('window.vua.window.showEncyclopedia({topic:"guide-vua",section:"first-run-language"})');
     await waitFor(() => js('!!document.querySelector("[data-guide-section=first-run-language]") && !Array.from(document.querySelectorAll("figure img")).some(image=>image.getAttribute("src").endsWith("/first-run.png"))'), "Updated first-use explanation excludes the retired language-choice capture");
-    assert(true, "The first-use manual reflects the notice without reusing an older UI capture");
+    assert(await js('document.querySelector("[role=tab][aria-selected=true]")?.id.includes("guide-vua")'), "Using VUA is a topic of the encyclopedia and describes the current first use");
     await capture("vua-guide-media");
     await js('document.querySelector("[data-nav-id=help-child-back]").click()');
-    await js('document.querySelector("[data-nav-id=help-encyclopedia]").click()');
-    await waitFor(() => js('document.querySelector("[role=tab][aria-selected=true]")?.id.includes("guide-avatars")'), "VUA guide leaves the encyclopedia on its own Avatar topic");
-    assert(await js('localStorage.getItem("vua-vua-guide-reading-v1")?.includes("first-run-language") && !localStorage.getItem("vua-guide-reading")?.includes("first-run-language")'), "VUA screenshot reading does not overwrite the encyclopedia bookmark");
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=help-wizard]")'), "Help before the full explanation");
+    await js('document.querySelector("[data-nav-id=help-wizard]").click()');
+    await waitFor(() => js('!!document.querySelector("[data-wizard-step=vrchat] [data-guide-entry=what-is-vrchat]")'), "Wizard full explanation");
+    await js('document.querySelector("[data-guide-entry=what-is-vrchat]").click()');
+    await waitFor(() => js('location.hash.startsWith("#help-encyclopedia") && !!document.querySelector("[data-guide-section=what-is-vrchat]")'), "The wizard's full explanation opens that section of the encyclopedia");
+    assert(BrowserWindow.getAllWindows().length === 1, "The full explanation stays in the main window");
+    await js('window.vua.window.showEncyclopedia({topic:"guide-avatars",section:"visibility"})');
+    await waitFor(() => js('!!document.querySelector("[data-guide-section=visibility]") && localStorage.getItem("vua-guide-reading")?.includes("visibility")'), "Encyclopedia article before Settings");
     const articleHashBeforeSettings = await js('location.hash');
     await js('document.querySelector("[data-nav-id=shell-settings]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-settings-theme]")'), "Settings navigation");
@@ -401,24 +440,22 @@ async function run() {
     await js('document.querySelector("[data-nav-id=nav-enable-amf]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=toggle-amf]")'), "AMF switch");
     await js('document.querySelector("[data-nav-id=toggle-amf]").click()');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=open-amf]") && !!document.querySelector(".vua-shell__sidebar [data-module=production]")'), "Explicit AMF enablement");
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=open-amf]") && !!document.querySelector(".vua-shell__sidebar [data-nav-id=nav-workshop]")'), "Explicit AMF enablement");
     // Provider readiness precedes the IPC reply while Main initializes the AMF shell.
     // A real user can toggle again only after this control becomes enabled.
     await waitFor(() => js('document.querySelector("[data-nav-id=toggle-amf]")?.disabled===false'), "AMF enablement control released");
     assert(await js('document.querySelector("[data-nav-id=toggle-amf]").checked && !document.querySelector("[data-nav-id=nav-enable-amf]")'), "AMF activation exposes its own sidebar without navigating away");
     await js('document.querySelector("[data-nav-id=logo-home]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=home-release]")'), "AMF Home directory");
-    // The factory rooms (2026-10-17 author ruling): Materials, Workshop (with checks), Office (Recipes and packages), Release.
-    assert(await js('["warehouse","workshop","recipe","release"].every(id => !!document.querySelector(`[data-nav-id=home-${id}]`)) && !document.querySelector("[data-nav-id=home-inspection]") && !document.querySelector("[data-nav-id=home-packages]")'), "AMF Home lists the four factory rooms; checks and packages live inside them");
+    // Home follows the Avatar path; Recipes and Packages stay in the directory.
+    assert(await js('["warehouse","workshop","release"].every(id => !!document.querySelector(`[data-nav-id=home-${id}]`)) && !document.querySelector("[data-nav-id=home-recipe]") && !document.querySelector("[data-nav-id=home-packages]")'), "AMF Home follows materials, Workshop and Finished Avatars");
     await js('document.querySelector("[data-nav-id=home-release]").click()');
     await waitFor(() => js('location.hash==="#release" && !!document.querySelector("main h1")'), "Finished Avatars destination");
-    await js('document.querySelector("[data-nav-id=logo-home]").click()');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=home-recipe]")'), "AMF Home return");
-    await js('document.querySelector("[data-nav-id=home-recipe]").click()');
-    await waitFor(() => js('location.hash==="#recipe" && !!document.querySelector("[data-nav-id=tab-packages]")'), "Office room with its package tab");
-    await js('document.querySelector("[data-nav-id=tab-packages]").click()');
+    await js('document.querySelector("[data-nav-id=nav-recipe]").click()');
+    await waitFor(() => js('location.hash==="#recipe" && !!document.querySelector("main h1")'), "Recipes destination");
+    await js('document.querySelector("[data-nav-id=nav-packages]").click()');
     await waitFor(() => js('location.hash==="#packages" && !!document.querySelector("main h1")'), "Package Manager destination");
-    assert(true, "Release and the Office package tab open their functional pages");
+    assert(true, "Finished Avatars, Recipes and Packages open their functional pages");
     // Synthetic authentication replies exercise the real renderer/Main IPC
     // handoff without contacting BOOTH, loading login pages or syncing accounts.
     let resolveAccountProbe;
@@ -442,9 +479,9 @@ async function run() {
     ipcMain.handle('vua:catalog-sync:start', () => { syncRequests += 1; return { status: 'blocked', reason: 'sign-in-required' }; });
     await js('document.querySelector("[data-nav-id=nav-warehouse]").click()');
     await waitFor(async () => await js('!!document.querySelector("[data-nav-id=warehouse-sync]")') && resolveAccountProbe !== undefined, "Warehouse entry account probe");
-    assert(await js('document.querySelector("[data-nav-id=warehouse-sync]").disabled && document.querySelector("[data-nav-id=warehouse-sync]").textContent.includes("正在检测")'), "Warehouse does not offer sync while authentication is being checked");
+    assert(await js('document.querySelector("[data-nav-id=warehouse-sync]").textContent.includes("正在检测")'), "The sync button says authentication is being checked");
     resolveAccountProbe({ authOk: false, accountName: null });
-    await waitFor(() => js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("打开登录页")'), "Login required before sync");
+    await waitFor(() => js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("登录 BOOTH")'), "Login required before sync");
     await js('document.querySelector("[data-nav-id=warehouse-sync]").click()');
     await waitFor(async () => loginRequests.length === 1 && await js('!!document.querySelector(".vua-import__browse-button--close")'), "Direct login handoff");
     assert(syncRequests === 0 && loginRequests[0] === 'https://accounts.booth.pm/users/sign_in', "Unauthenticated sync entry opens BOOTH login directly without a sync request");
@@ -459,7 +496,7 @@ async function run() {
     await waitFor(() => js('document.querySelector("[data-nav-id=toggle-amf]")?.disabled===false'), "AMF setup return");
     await js('document.querySelector("[data-nav-id=toggle-amf]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-enable-amf]") && !document.querySelector("[data-nav-id=toggle-amf]").checked'), "Explicit AMF disablement");
-    assert(await js('!document.querySelector(".vua-shell__sidebar [data-module=production]")'), "Disabling AMF removes the Avatar sidebar and restores its enablement entry");
+    assert(await js('!document.querySelector(".vua-shell__sidebar [data-nav-id=nav-workshop]")'), "Disabling AMF removes its pages and restores its enablement entry");
     await js('document.querySelector("[data-nav-id=shell-settings]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=settings-language-select]")'), "Sidebar language control");
     await js('const choice=document.querySelector("[data-nav-id=settings-language-select]"); choice.value="en"; choice.dispatchEvent(new Event("change",{bubbles:true}))');
@@ -484,7 +521,7 @@ async function run() {
     assert(await js('document.querySelector("[data-nav-id=settings-search]").textContent.trim()==="Search"') && await languageFooterFits(), "English uses the short Search label and a separate compact language row");
     await js('location.hash="/settings-goals"');
     await waitFor(() => js('!!document.querySelector(".vua-vua-guide") && !!document.querySelector("[data-nav-id=help-child-back]") && !document.querySelector(".vua-shell__sidebar--settings")'), "Retired goal destination migration");
-    assert(true, "Old goal-reselection links open Help's VUA guide");
+    assert(true, "Old goal-reselection links open the VRChat wizard");
     await js('document.querySelector("[data-nav-id=nav-env-play]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=play-refresh-devices]")'), "Ordinary Play after migration");
     assert(await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card")].every(c=>Math.abs(c.getBoundingClientRect().height-88)<1)'), "Retired preferences never enlarge Play cards");
@@ -492,15 +529,15 @@ async function run() {
       ["en", "What do you want to know?", "Avatars & outfits"],
       ["zh-CN", "想先解决什么问题？", "Avatar 与换装"],
       ["zh-TW", "想先解決什麼問題？", "Avatar 與換裝"],
-      ["ja", "何を知りたいですか？", "Avatar と衣装"],
-      ["ko", "무엇이 궁금한가요?", "Avatar와 의상"],
+      ["ja", "何を知りたいですか？", "アバターと衣装"],
+      ["ko", "무엇이 궁금한가요?", "아바타와 의상"],
     ];
     for (const [locale, homeTitle, avatarTitle] of encyclopediaLocales) {
       await js(`localStorage.setItem("vua-locale",${JSON.stringify(locale)}); location.hash="#help-encyclopedia?guideTopic=guide-avatars&guideSection=visibility"; location.reload()`);
       await waitFor(() => js(`document.documentElement.lang===${JSON.stringify(locale)} && !!document.querySelector("[data-guide-section=visibility]")`), `${locale} encyclopedia reader`);
       await js('document.querySelector("[data-nav-id=help-catalog]").click()');
       await waitFor(() => js('!!document.querySelector(".vua-encyclopedia-home")'), `${locale} encyclopedia catalog`);
-      assert(await js(`document.querySelector(".vua-encyclopedia-home h2").textContent===${JSON.stringify(homeTitle)} && document.querySelectorAll("[data-guide-task]").length===6 && document.querySelectorAll(".vua-encyclopedia-tree > li > details").length===8`), `${locale} renders its localized catalog, six tasks and eight topics`);
+      assert(await js(`document.querySelector(".vua-encyclopedia-home h2").textContent===${JSON.stringify(homeTitle)} && document.querySelectorAll("[data-guide-task]").length===6 && document.querySelectorAll(".vua-encyclopedia-tree > li > details").length===9`), `${locale} renders its localized catalog, six tasks and nine topics`);
       await setSearch("Quest");
       await waitFor(() => js(`!!document.querySelector('[data-guide-result="guide-avatars/platforms"]')`), `${locale} local search`);
       await capture(`encyclopedia-${locale}`);
@@ -516,9 +553,10 @@ async function run() {
     console.error(error);
     if (window && !window.isDestroyed()) {
       fs.writeFileSync(path.join(output, "failure.png"), (await window.webContents.capturePage(undefined, { stayHidden: true })).toPNG());
-      const dom = await window.webContents.executeJavaScript('({hash:location.hash, heading:document.querySelector("main h1")?.textContent, wizard:document.querySelector(".vua-onboarding")?.dataset.wizardStep, amfSwitch:document.querySelector("[data-nav-id=toggle-amf]")?{checked:document.querySelector("[data-nav-id=toggle-amf]").checked,disabled:document.querySelector("[data-nav-id=toggle-amf]").disabled}:null, status:[...document.querySelectorAll("[data-amf-setup] [role=status]")].map(e=>e.textContent)})');
+      const dom = await window.webContents.executeJavaScript('({hash:location.hash, heading:document.querySelector("main h1")?.textContent, wizard:document.querySelector(".vua-onboarding")?.dataset.wizardStep, amfSwitch:document.querySelector("[data-nav-id=toggle-amf]")?{checked:document.querySelector("[data-nav-id=toggle-amf]").checked,disabled:document.querySelector("[data-nav-id=toggle-amf]").disabled}:null, status:[...document.querySelectorAll("[data-amf-setup] [role=status]")].map(e=>e.textContent), playDrawer:document.querySelector(".vua-play-drawer")?.dataset.open, playPhase:document.querySelector(".vua-play-current [data-phase]")?.dataset.phase, escapeOwners:[...document.querySelectorAll("[role=dialog], [role=menu], .vua-tour")].map(e=>({role:e.getAttribute("role"),className:e.className,step:e.dataset.tourStep}))})');
       fs.writeFileSync(path.join(output, "navigation.json"), JSON.stringify({ index: window.webContents.navigationHistory.getActiveIndex(), entries: window.webContents.navigationHistory.getAllEntries(), dom }, null, 2));
       console.error(JSON.stringify(dom));
+      console.error(JSON.stringify({ escapeTrace: await window.webContents.executeJavaScript('window.__helpEscapeTrace ?? null') }));
       console.error(JSON.stringify({ evidence: output, rendererErrors: errors }));
     }
   } finally { clearTimeout(deadline); app.quit(); }

@@ -13,7 +13,8 @@ fn methods_dir() -> PathBuf {
 }
 
 fn examples_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/production-use-case/v0.2/examples")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../schemas/production-use-case/v0.2/examples")
 }
 
 fn read_json(path: &PathBuf) -> Value {
@@ -32,7 +33,10 @@ fn sub_schema_validator(method: &str, def_suffix: &str) -> Validator {
     // Extracting a $defs entry loses the root's $ref context - re-attach
     // the full $defs so nested references (recipeDocument etc.) resolve.
     let schema = read_json(&methods_dir().join(format!("{method}.schema.json")));
-    let defs = schema.get("$defs").expect("method schema has $defs").clone();
+    let defs = schema
+        .get("$defs")
+        .expect("method schema has $defs")
+        .clone();
     let sub = defs
         .get(format!("{method}{def_suffix}").as_str())
         .expect("sub schema")
@@ -80,16 +84,52 @@ fn all_ten_methods_have_frozen_request_and_result_schemas() {
 #[test]
 fn positive_request_and_result_vectors_validate() {
     let positive_pairs = [
-        ("recipe-save", "recipe-save.request.json", "recipe-save.result.json"),
-        ("recipe-get", "recipe-get.request.json", "recipe-get.result.json"),
-        ("recipe-list", "recipe-list.request.json", "recipe-list.result.json"),
-        ("recipe-resolve", "recipe-resolve.request.json", "recipe-resolve.result.json"),
-        ("plan-approve", "plan-approve.request.json", "plan-approve.result.json"),
+        (
+            "recipe-save",
+            "recipe-save.request.json",
+            "recipe-save.result.json",
+        ),
+        (
+            "recipe-get",
+            "recipe-get.request.json",
+            "recipe-get.result.json",
+        ),
+        (
+            "recipe-list",
+            "recipe-list.request.json",
+            "recipe-list.result.json",
+        ),
+        (
+            "recipe-resolve",
+            "recipe-resolve.request.json",
+            "recipe-resolve.result.json",
+        ),
+        (
+            "plan-approve",
+            "plan-approve.request.json",
+            "plan-approve.result.json",
+        ),
         ("plan-get", "plan-get.request.json", "plan-get.result.json"),
-        ("plan-list", "plan-list.request.json", "plan-list.result.json"),
-        ("job-execute", "job-execute.request.json", "job-execute.result.json"),
-        ("record-get", "record-get.request.json", "record-get.result.json"),
-        ("record-list", "record-list.request.json", "record-list.result.json"),
+        (
+            "plan-list",
+            "plan-list.request.json",
+            "plan-list.result.json",
+        ),
+        (
+            "job-execute",
+            "job-execute.request.json",
+            "job-execute.result.json",
+        ),
+        (
+            "record-get",
+            "record-get.request.json",
+            "record-get.result.json",
+        ),
+        (
+            "record-list",
+            "record-list.request.json",
+            "record-list.result.json",
+        ),
     ];
     for (method, request_vector, result_vector) in positive_pairs {
         // Request vectors carry the transport envelope; the params inside
@@ -116,10 +156,22 @@ fn positive_request_and_result_vectors_validate() {
 #[test]
 fn negative_request_vectors_are_rejected() {
     let negatives = [
-        ("recipe-save", "invalid-recipe-save-no-base-revision.request.json"),
-        ("recipe-list", "invalid-recipe-list-limit-out-of-range.request.json"),
-        ("plan-approve", "invalid-plan-approve-missing-plan-id.request.json"),
-        ("job-execute", "invalid-job-execute-unknown-param.request.json"),
+        (
+            "recipe-save",
+            "invalid-recipe-save-no-base-revision.request.json",
+        ),
+        (
+            "recipe-list",
+            "invalid-recipe-list-limit-out-of-range.request.json",
+        ),
+        (
+            "plan-approve",
+            "invalid-plan-approve-missing-plan-id.request.json",
+        ),
+        (
+            "job-execute",
+            "invalid-job-execute-unknown-param.request.json",
+        ),
     ];
     for (method, vector_name) in negatives {
         let vector = read_json(&examples_dir().join(vector_name));

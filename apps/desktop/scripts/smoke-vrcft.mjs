@@ -20,11 +20,16 @@ process.env.VUA_AMF_EXECUTABLE = process.env.VUA_TEST_AMF_EXECUTABLE ?? path.res
 delete process.env.VUA_RENDERER_URL;
 BrowserWindow.prototype.show = function () {}; BrowserWindow.prototype.focus = function () {};
 let window, exitCode = 1, nativeRead = false, unavailable = false;
-let synthetic = { schemaVersion: "vua.external-tool/v0.2", toolId: "vrcft", capturedAt: "synthetic", presence: "missing", steamReady: true, buildId: null, running: false, canStop: false, activity: "idle", issue: null };
+let synthetic = { schemaVersion: "vua.external-tool/v0.4", toolId: "vrcft", capturedAt: "synthetic", presence: "missing", steamReady: true, buildId: null, running: false, canStop: false, activity: "idle", issue: null };
+const syntheticInstaller = { schemaVersion: "vua.installer-tool/v0.1", toolId: "slimevr", capturedAt: "synthetic", presence: "missing", location: null, version: null, running: false, canStop: false, activity: "idle", issue: null };
 const actions = [], errors = [], checks = [];
 const handle = ipcMain.handle.bind(ipcMain);
 ipcMain.handle = (channel, listener) => handle(channel, async (event, request, ...rest) => {
   if (channel !== "vua:gateway:invoke" || !request?.method?.startsWith("tools.")) return listener(event, request, ...rest);
+  if (request.method === "tools.observeInstaller" || request.method === "tools.actInstaller") {
+    if (unavailable) return { schemaVersion: 1, requestId: request.requestId, ok: false, error: { code: "internal", messageKey: "errors.installerTool.unavailable" } };
+    return { schemaVersion: 1, requestId: request.requestId, ok: true, value: { installerTool: { ...syntheticInstaller, toolId: request.params.toolId } } };
+  }
   if (nativeRead && request.method === "tools.observeConnection") return listener(event, request);
   if (unavailable) return { schemaVersion: 1, requestId: request.requestId, ok: false, error: { code: "internal", messageKey: "errors.externalTool.unavailable" } };
   if (request.method === "tools.actConnection") {
@@ -60,13 +65,13 @@ async function run() {
     const observed = await js('window.vua.gateway.invoke({schemaVersion:1,requestId:"native-tool-read",method:"tools.observeConnection",params:{toolId:"vrcft"}})');
     // CI may have no vendor apps. Schema validation and the actual native gate must still work.
     const nativeSchema = observed.value?.toolConnection?.schemaVersion;
-    assert(observed.ok && observed.value.toolConnection.toolId === "vrcft" && nativeSchema === "vua.external-tool/v0.2", "Native host returns VRCFT v0.2 facts while AMF is disabled");
+    assert(observed.ok && observed.value.toolConnection.toolId === "vrcft" && nativeSchema === "vua.external-tool/v0.4", "Native host returns VRCFT v0.4 facts while AMF is disabled");
     const nativePresence = observed.value.toolConnection.presence; nativeRead = false;
     await click('[data-nav-id=nav-tools-discover]'); await waitFor(() => js('!!document.querySelector("[data-nav-id=tool-vrcft-action]")'), "tool card"); await refresh();
-    assert(await js('[...document.querySelectorAll(".vua-tools-hub .vua-environment-card__action")].length===8 && [...document.querySelectorAll(".vua-tools-hub .vua-environment-card__action")].every(button=>(button.textContent.trim()==="" || button.textContent.trim()==="—") && !!button.getAttribute("aria-label"))'), "All eight tool actions show only symbols and retain accessible operation names");
+    assert(await js('[...document.querySelectorAll(".vua-tools-hub .vua-environment-card__action")].length===14 && [...document.querySelectorAll(".vua-tools-hub .vua-environment-card__action")].every(button=>!!button.textContent.trim() && !!button.getAttribute("aria-label"))'), "All fourteen tool actions name their next step in a word and keep an accessible operation name");
     for (const scale of [1, 1.5]) {
       window.setSize(960, 800); window.webContents.setZoomFactor(scale);
-      for (const toolId of ['vrcft','space','vrcs','translator','advanced','toolkit','oyasumi','liv']) {
+      for (const toolId of ['vrcft','space','slimevr','vrcs','translator','vrct','advanced','toolkit','oyasumi','xsoverlay','desktopplus','fpsvr','vrcx','liv']) {
         await click(`[data-nav-id=tool-${toolId}]`);
         await waitFor(() => js(`(()=>{
           const trigger=document.querySelector('[data-nav-id=tool-${toolId}]'), entry=trigger.closest('[data-card-entry]');
@@ -82,18 +87,6 @@ async function run() {
       }
     }
     window.webContents.setZoomFactor(1); window.setSize(1440,960);
-    // Electron acknowledges a native resize before Chromium lays out the new viewport.
-    // Measure the hover baseline only after that resize, fonts and grid observers settle.
-    await waitFor(() => js(`innerWidth===${window.getContentSize()[0]}`), "tooltip test viewport resized");
-    await js('document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))');
-    const actionRect = await js('(()=>{const b=document.querySelector("[data-nav-id=tool-vrcft-action]");b.scrollIntoView({block:"center"});const r=b.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,label:b.getAttribute("aria-label")}})()');
-    window.webContents.sendInputEvent({type:"mouseMove",x:Math.round(actionRect.x+actionRect.w/2),y:Math.round(actionRect.y+actionRect.h/2)});
-    await delay(1000);
-    assert(await js('!document.querySelector("[role=tooltip]")'), "Tool action text stays hidden during the first second of pointer hover");
-    await waitFor(() => js(`!![...document.querySelectorAll('[role=tooltip]')].find(t=>t.textContent===${JSON.stringify(actionRect.label)})`), "tool action explanation after 1.2-second hover");
-    assert(await js(`(()=>{const r=document.querySelector('[data-nav-id=tool-vrcft-action]').getBoundingClientRect();return Math.abs(r.x-${actionRect.x})<1 && Math.abs(r.width-${actionRect.w})<1})()`), "Delayed operation text does not move or resize the action button");
-    window.webContents.sendInputEvent({type:"mouseMove",x:5,y:5});
-    await waitFor(() => js('!document.querySelector("[role=tooltip]")'), "tool tooltip leaves with the pointer");
     await click('[data-nav-id=tool-vrcft-action]'); await waitFor(() => js('!!document.querySelector("[role=dialog]")'), "picker");
     assert(await js('document.querySelector("[role=dialog]").textContent.includes("可用的设备") && !!document.querySelector("[data-tracking-device-choice=quest-pro]") && !!document.querySelector("[data-tracking-device-choice=iphone]") && !!document.querySelector("[data-tracking-device-choice=eyetrackvr]")'), "Picker includes headsets, phone and add-on trackers beyond PICO");
     await capture('devices-dark'); await click('[data-tracking-device-choice=pico4-pro]');

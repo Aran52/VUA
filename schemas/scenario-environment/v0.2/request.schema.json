@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ph-r.com/schemas/scenario-environment/v0.2/request.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contractVersion": {
+      "const": "0.1"
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "const": "query"
+    },
+    "method": {
+      "enum": [
+        "environment.listPlaySetups",
+        "environment.getScenarioSop"
+      ]
+    },
+    "params": {}
+  },
+  "required": [
+    "contractVersion",
+    "requestId",
+    "correlationId",
+    "kind",
+    "method",
+    "params"
+  ],
+  "$defs": {
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "platform": {
+          "enum": [
+            "vrchat",
+            "chilloutvr",
+            "reborn"
+          ]
+        },
+        "device": {
+          "enum": [
+            "pc",
+            "pico",
+            "quest",
+            "steam-frame",
+            "vive-standalone",
+            "vive-wired",
+            "index",
+            "psvr2",
+            "bigscreen",
+            "pimax",
+            "varjo",
+            "meganex",
+            "rift-s",
+            "wmr",
+            "other-headset"
+          ]
+        },
+        "connection": {
+          "enum": [
+            "pico-connect",
+            "standalone",
+            "quest-link",
+            "steam-link",
+            "virtual-desktop",
+            "alvr",
+            "steam-frame",
+            "vive-hub",
+            "steamvr-direct",
+            "psvr2-app",
+            "bigscreen-driver",
+            "pimax-play",
+            "varjo-base",
+            "meganex-configurator",
+            "rift-app",
+            "wmr-steamvr",
+            "steamvr-other",
+            null
+          ]
+        }
+      },
+      "required": [
+        "platform",
+        "device",
+        "connection"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "platform": {
+                "const": "reborn"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "device": {
+                "not": {
+                  "const": "pc"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "connection": {
+                "const": "standalone"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "platform": {
+                "const": "vrchat"
+              }
+            }
+          }
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "device": { "const": "pc" },
+                "connection": { "type": "null" }
+              }
+            },
+            {
+              "properties": {
+                "device": { "const": "pico" },
+                "connection": { "enum": ["pico-connect", "steam-link", "virtual-desktop", "alvr", "standalone"] }
+              }
+            },
+            {
+              "properties": {
+                "device": { "const": "quest" },
+                "connection": { "enum": ["quest-link", "steam-link", "virtual-desktop", "alvr", "standalone"] }
+              }
+            },
+            {
+              "properties": {
+                "device": { "const": "steam-frame" },
+                "connection": { "const": "steam-frame" }
+              }
+            },
+            {
+              "properties": {
+                "device": { "const": "vive-standalone" },
+                "connection": { "enum": ["vive-hub", "steam-link", "virtual-desktop", "alvr", "standalone"] }
+              }
+            },
+            {
+              "properties": {
+                "device": { "enum": ["vive-wired", "index"] },
+                "connection": { "const": "steamvr-direct" }
+              }
+            },
+            {
+              "properties": {
+                "device": { "const": "psvr2" },
+                "connection": { "const": "psvr2-app" }
+              }
+            },
+            {
+              "properties": {
+                "device": { "const": "bigscreen" },
+                "connection": { "const": "bigscreen-driver" }
+              }
+            },
+            {
+              "properties": {
+                "device": { "const": "pimax" },
+                "connection": { "const": "pimax-play" }
+              }
+            },
+            {
+              "properties": {
+                "device": { "const": "varjo" },
+                "connection": { "const": "varjo-base" }
+              }
+            },
+            {
+              "properties": {
+                "device": { "const": "meganex" },
+                "connection": { "const": "meganex-configurator" }
+              }
+            },
+            {
+              "properties": {
+                "device": { "const": "rift-s" },
+                "connection": { "const": "rift-app" }
+              }
+            },
+            {
+              "properties": {
+                "device": { "const": "wmr" },
+                "connection": { "const": "wmr-steamvr" }
+              }
+            },
+            {
+              "properties": {
+                "device": { "const": "other-headset" },
+                "connection": { "const": "steamvr-other" }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "method": {
+          "const": "environment.listPlaySetups"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "0.2"
+            }
+          },
+          "required": [
+            "schemaVersion"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "method": {
+          "const": "environment.getScenarioSop"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "0.2"
+            },
+            "selection": {
+              "$ref": "#/$defs/selection"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "selection"
+          ]
+        }
+      }
+    }
+  ]
+}

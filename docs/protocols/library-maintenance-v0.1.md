@@ -1,9 +1,9 @@
 # Library maintenance v0.1
 
-> Document version: 0.2.0
+> Document version: 0.3.0
 > Status: Implementation baseline (not frozen)
 > Owner: AMF
-> Updated: 2026-10-09
+> Updated: 2026-11-11
 
 The user's 2026-10-08 ruling permits removing selected VUA-managed files while retaining
 catalog entries, copy evidence and Recipe/draft references. Changed originals retain generated
@@ -35,9 +35,11 @@ Product selection follows the current visible library grouping, including manage
 and verified migrated local copies. Explicitly removed imports do not re-enter this selection.
 
 References expose kind (`draft` or `recipe`), id, title, revision, copyIds and
-missingAfterRemoval. Coverage is `drafts_and_recipes` when the production store is wired,
-otherwise `drafts_only`; a failed store read rejects preview rather than claiming no references.
-Only defined draft selections and Recipe v0.3 asset sourceRefs are examined. Recipe assets
+missingAfterRemoval. Coverage is `drafts_and_recipes` when both the retained legacy Recipe v0.3
+store and the production Recipe (`recipes-v04`, v0.4/v0.5) store are wired,
+otherwise `drafts_only`; a failed or corrupt store read rejects preview rather than claiming no references.
+Defined draft selections, retained Recipe v0.3 asset sourceRefs and production Recipe v0.4/v0.5
+material digests (including parent ZIP copies and expanded package copies) are examined. Recipe assets
 using entity-only or unsupported provider references are counted in unresolvedRecipeAssets
 and shown as potentially affected, never as proof that there are no references. Missing status
 means no matching present copy would remain; it does not certify production usability.
@@ -102,6 +104,8 @@ allocation remain follow-up work: the legacy generator refuses any existing gene
 and currently emits version 0.1.0. It must not be reused to overwrite a retained version.
 
 ## Document changelog
+
+- 0.3.0 (2026-11-11): extend removal-preview reference checks to production Recipe v0.4/v0.5 (`recipes-v04`) documents alongside retained legacy Recipe v0.3 documents, failing closed on corrupt Recipe files.
 
 - 0.2.0 (2026-10-09): add explicit interrupted-removal discovery/resolution without resumed deletion and align product deletion with ZIP/verified-local card scopes.
 

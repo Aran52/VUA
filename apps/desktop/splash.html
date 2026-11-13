@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" data-vua-surface="splash">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VUA</title>
+  </head>
+  <body>
+    <div id="root">
+      <div class="vua-boot-splash" role="status" aria-label="Starting VUA">
+        <div class="vua-boot-splash__surface">
+          <div class="vua-boot-splash__rays" aria-hidden="true"></div>
+          <div class="vua-boot-splash__content" aria-hidden="true">
+            <img
+              class="vua-boot-splash__logo"
+              src="/src/renderer/components/splash/vua-level-dark.png"
+              alt=""
+              width="992"
+              height="992"
+              draggable="false"
+            />
+            <div class="vua-boot-splash__loader"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/renderer/splash-entry.ts"></script>
+  </body>
+</html>

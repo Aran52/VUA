@@ -7,10 +7,11 @@ import { TRACKING_DEVICES, TRACKING_STEPS, readTrackingSetup, trackingChoice, ty
 import { useVrcft } from "./use-vrcft.ts";
 import { ToolLogo } from "./ToolLogo.tsx";
 import { ToolDetails } from "./ToolDetails.tsx";
+import { ToolReinstall } from "./ToolReinstall.tsx";
 import "./vrcft.css";
 const key = "vua-vrcft-setup";
 function initialSetup() { try { return readTrackingSetup(localStorage.getItem(key)); } catch { return null; } }
-export function VrcftCard({ selected, onDetails, onReveal, onPrepareSteam }: { selected: boolean; onDetails(): void; onReveal(): void; onPrepareSteam(): void }) {
+export function VrcftCard({ hint, selected, onDetails, onReveal, onPrepareSteam }: { hint?: string | undefined; selected: boolean; onDetails(): void; onReveal(): void; onPrepareSteam(): void }) {
   const copy = strings.faceTracking;
   const live = useVrcft(); const s = live.snapshot;
   const [setup, setSetup] = useState<TrackingSetup | null>(initialSetup);
@@ -34,6 +35,11 @@ export function VrcftCard({ selected, onDetails, onReveal, onPrepareSteam }: { s
   if (live.failed && choice) { action = "unknown"; status = copy.unknown; }
   else if (!s && choice) { action = "busy"; status = copy.checking; }
   if (live.pending || waiting) { action = "busy"; status = s?.activity === "install_requested" ? copy.waitInstall : s?.activity === "stopping" ? copy.waitClose : copy.waitOpen; }
+  const short = strings.toolConnection.short;
+  // The card names the next step in a word; the longer sentence stays in its accessible name.
+  const shortStatus = !choice ? copy.chooseDevice : action === "stop" ? short.closeApp : action === "start" ? (s?.running ? short.running : short.openApp)
+    : action === "unknown" ? short.unknown : action === "busy" ? (status === copy.checking ? short.checking : s?.activity === "install_requested" ? short.waitInstall : s?.activity === "stopping" ? short.waitClose : short.waitOpen)
+    : s && !s.steamReady ? short.prepareSteam : short.install;
   const actionHint = action === "busy" ? status : !choice ? copy.chooseDevice : !s || live.failed ? copy.recheck
     : s.canStop ? copy.closeApp : !s.steamReady ? copy.prepareSteam
     : s.presence === "installed" ? copy.openApp : s.presence === "unknown" ? copy.recheck : copy.install;
@@ -46,7 +52,7 @@ export function VrcftCard({ selected, onDetails, onReveal, onPrepareSteam }: { s
   };
   return <>
     <EnvironmentCard title="VRCFaceTracking" titleContent={<>VRCFace<wbr />Tracking</>} icon="avatar" logo={<ToolLogo id="vrcft" icon="avatar" />} id="tool-vrcft"
-      selected={selected} action={action} status={status} actionHint={actionHint} iconOnlyAction onDetails={onDetails} onAction={act}
+      hint={hint} selected={selected} action={action} status={shortStatus} actionHint={actionHint} actionIcon={shortStatus === short.install ? "download" : undefined} onDetails={onDetails} onAction={act}
       disabled={action === "busy"} spinning={action === "busy"} warning={!!s?.issue && s.canStop} />
     <ToolDetails id="vrcft" title="VRCFaceTracking" selected={selected} className="vua-vrcft-detail">
       <header className="vua-environment-heading"><h2>VRCFaceTracking</h2><Button variant="subtle" onClick={onDetails}>{strings.environmentCards.closeDetails}</Button></header>
@@ -57,11 +63,12 @@ export function VrcftCard({ selected, onDetails, onReveal, onPrepareSteam }: { s
       {live.failed || !live.available ? <p role="status">{copy.unknown}</p> : s ? <>
         <p className="vua-vrcft-software" role="status" data-tool-presence={s.presence}>{copy.presence[s.presence]}{s.running ? " · " + copy.running : ""}</p>
         {!s.steamReady ? <div><p>{copy.steamMissing}</p><Button onClick={onPrepareSteam}>{copy.prepareSteam}</Button></div> : null}
-        {s.issue ? <p role="alert">{copy.issues[s.issue]}</p> : null}
+        {s.issue ? <p role="alert">{s.issue === "close_first" || s.issue === "reinstall_timeout" ? format(strings.toolConnection.issues[s.issue], { tool: "VRCFaceTracking" }) : copy.issues[s.issue]}</p> : null}
         {choice && s.steamReady && (s.presence === "missing" || s.presence === "incomplete") && !waiting ? <Button disabled={live.pending} onClick={() => { void live.act("install"); }}>{copy.install}</Button> : null}
         {choice && s.presence === "installed" && s.steamReady ? <Button disabled={live.pending || waiting} onClick={() => { void live.act("start"); }}>{copy.openApp}</Button> : null}
-        {waiting && s.activity !== "stopping" ? <div><p>{s.activity === "install_requested" ? copy.waitInstall : copy.waitOpen}</p><Button disabled={live.pending} variant="subtle" onClick={() => { void live.act("cancel"); }}>{copy.cancelWait}</Button></div> : null}
+        {waiting && s.activity !== "stopping" && s.activity !== "reinstall_requested" ? <div><p>{s.activity === "install_requested" ? copy.waitInstall : copy.waitOpen}</p><Button disabled={live.pending} variant="subtle" onClick={() => { void live.act("cancel"); }}>{copy.cancelWait}</Button></div> : null}
         {s.running && !s.canStop ? <p className="vua-text-secondary">{copy.existing}</p> : null}
+        <ToolReinstall id="vrcft" title="VRCFaceTracking" live={live} />
       </> : <p role="status">{copy.checking}</p>}
       {choice && setup ? <div className="vua-vrcft-sop" data-tracking-device={choice.hardware.id} data-tracking-method={choice.path.id}>
         <h3>{choice.hardware.name} · {choice.path.name}</h3>

@@ -83,7 +83,9 @@ fn unique_root(label: &str) -> PathBuf {
 fn empty_ops_config() -> ProjectOpsConfig {
     ProjectOpsConfig {
         vcc_settings_candidates: Vec::new(),
-        manager_roots: ManagerRoots { alcom_settings_candidates: Vec::new() },
+        manager_roots: ManagerRoots {
+            alcom_settings_candidates: Vec::new(),
+        },
         editor_roots: Vec::new(),
     }
 }
@@ -112,11 +114,19 @@ struct FakeCreate {
 
 impl FakeCreate {
     fn wired() -> Self {
-        Self { create_cap: true, create_failure: None, expect_template: None }
+        Self {
+            create_cap: true,
+            create_failure: None,
+            expect_template: None,
+        }
     }
 
     fn declared_false() -> Self {
-        Self { create_cap: false, create_failure: None, expect_template: None }
+        Self {
+            create_cap: false,
+            create_failure: None,
+            expect_template: None,
+        }
     }
 }
 
@@ -131,7 +141,7 @@ impl VpmBackend for FakeCreate {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -279,7 +289,10 @@ fn wait_done(database_path: &Path, task_id: &str) -> Value {
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         let store = SqliteTaskStore::open(database_path).expect("store opens");
-        let task = store.task(task_id).expect("store readable").expect("task exists");
+        let task = store
+            .task(task_id)
+            .expect("store readable")
+            .expect("task exists");
         if task.state.is_terminal() {
             assert_eq!(
                 serde_json::to_value(task.state).unwrap(),
@@ -349,7 +362,10 @@ fn wired_create_accepts_and_the_reflux_carries_the_created_receipt() {
     assert_eq!(acceptance["operation"], "packages.createProject");
     assert_eq!(acceptance["schemaVersion"], "0.5");
     let task_id = acceptance["taskId"].as_str().expect("taskId").to_owned();
-    assert!(!acceptance["correlationId"].as_str().unwrap_or_default().is_empty());
+    assert!(!acceptance["correlationId"]
+        .as_str()
+        .unwrap_or_default()
+        .is_empty());
 
     let done = wait_done(&database, &task_id);
     assert_eq!(done["schemaVersion"], "0.5");
@@ -365,10 +381,20 @@ fn wired_create_accepts_and_the_reflux_carries_the_created_receipt() {
     // with an actual-result payload — four keys and nothing else
     // (additionalProperties:false makes an invented created-at timestamp,
     // copy statistic or package list a schema violation, not a nitpick).
-    let receipt_keys: Vec<String> =
-        receipt.as_object().expect("receipt object").keys().cloned().collect();
-    assert_eq!(receipt_keys, vec!["schemaVersion", "kind", "projectId", "projectPath"]);
-    assert_eq!(receipt["projectId"], FAKE_PROJECT_ID, "the ProjectRef.id echo");
+    let receipt_keys: Vec<String> = receipt
+        .as_object()
+        .expect("receipt object")
+        .keys()
+        .cloned()
+        .collect();
+    assert_eq!(
+        receipt_keys,
+        vec!["schemaVersion", "kind", "projectId", "projectPath"]
+    );
+    assert_eq!(
+        receipt["projectId"], FAKE_PROJECT_ID,
+        "the ProjectRef.id echo"
+    );
     assert_eq!(
         receipt["projectPath"], FAKE_PROJECT_PATH,
         "the ProjectRef.root echo = the registered-path identity"
@@ -401,7 +427,10 @@ fn null_template_passes_the_port_none_and_the_receipt_still_projects_verbatim() 
         "packages.createProject",
         create_params_default_template(),
     );
-    assert_eq!(payload["ok"], true, "the null-template command accepts: {payload}");
+    assert_eq!(
+        payload["ok"], true,
+        "the null-template command accepts: {payload}"
+    );
     let done = wait_done(&database, payload["value"]["taskId"].as_str().unwrap());
     assert!(validator.is_valid(&done), "{done}");
     assert_eq!(done["result"]["kind"], "created");
@@ -543,7 +572,10 @@ fn three_port_codes_fold_into_execution_failed_with_provenance() {
             "packages.createProject",
             create_params(),
         );
-        assert_eq!(payload["ok"], true, "{code}: the refusal still ACCEPTS as a task");
+        assert_eq!(
+            payload["ok"], true,
+            "{code}: the refusal still ACCEPTS as a task"
+        );
         let done = wait_done(&database, payload["value"]["taskId"].as_str().unwrap());
         assert!(
             validator.is_valid(&done),
@@ -554,7 +586,10 @@ fn three_port_codes_fold_into_execution_failed_with_provenance() {
         assert_eq!(rejected["guard"], "execution_failed");
         assert_eq!(rejected["code"], "vua.packages.execution_failed");
         let detail = rejected["detail"].as_str().expect("detail");
-        assert!(detail.contains(code), "{code} provenance travels in detail: {detail}");
+        assert!(
+            detail.contains(code),
+            "{code} provenance travels in detail: {detail}"
+        );
         fs::remove_dir_all(&root).ok();
     }
 }
@@ -610,9 +645,15 @@ fn create_claims_no_idempotence_the_duplicate_refusal_travels_honestly() {
     let done = wait_done(&database, payload["value"]["taskId"].as_str().unwrap());
     assert!(validator.is_valid(&done), "{done}");
     let rejected = &done["result"];
-    assert_eq!(rejected["kind"], "rejected", "the duplicate refusal travels honestly");
+    assert_eq!(
+        rejected["kind"], "rejected",
+        "the duplicate refusal travels honestly"
+    );
     assert_eq!(rejected["guard"], "execution_failed");
-    assert!(rejected["detail"].as_str().unwrap().contains("vua.vpm.template_missing"));
+    assert!(rejected["detail"]
+        .as_str()
+        .unwrap()
+        .contains("vua.vpm.template_missing"));
     fs::remove_dir_all(&root).ok();
 }
 
@@ -657,9 +698,18 @@ fn envelope_version_is_detectable_consts_match_the_frozen_word_face_and_stamp_bo
         "packages.createProject",
         create_params(),
     );
-    assert_eq!(payload["value"]["schemaVersion"], PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V05);
+    assert_eq!(
+        payload["value"]["schemaVersion"],
+        PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V05
+    );
     let done = wait_done(&database, payload["value"]["taskId"].as_str().unwrap());
-    assert_eq!(done["schemaVersion"], PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V05);
-    assert_eq!(done["result"]["schemaVersion"], PACKAGES_OPS_SCHEMA_VERSION_V05);
+    assert_eq!(
+        done["schemaVersion"],
+        PACKAGES_OPS_ENVELOPE_SCHEMA_VERSION_V05
+    );
+    assert_eq!(
+        done["result"]["schemaVersion"],
+        PACKAGES_OPS_SCHEMA_VERSION_V05
+    );
     fs::remove_dir_all(&root).ok();
 }

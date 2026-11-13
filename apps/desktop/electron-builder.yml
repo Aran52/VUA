@@ -1,5 +1,5 @@
 appId: org.vua-project.desktop
-productName: Virtual Unified Assistant
+productName: VUA
 executableName: VUA
 asar: true
 # Use the pinned official runtime prepared by install-electron. This also avoids

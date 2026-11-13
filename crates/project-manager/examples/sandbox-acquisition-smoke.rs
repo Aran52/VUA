@@ -63,6 +63,8 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
     let intent = DeploymentIntent {
         purposes: vec![DeploymentPurpose::DesktopPlay, DeploymentPurpose::PicoPcvr],
+        tools: Vec::new(),
+        reinstall_tools: Vec::new(),
         editor_root: r"C:\Program Files\Unity\Hub\Editor".into(),
         use_mirrors: false,
         pico_region: Some(region),

@@ -83,7 +83,13 @@ fn install_source(base: &Path, name: &str) -> PathBuf {
         "m_EditorVersion: 2022.3.22f1\n",
     )
     .unwrap();
-    fs::write(project.join("ProjectSettings").join("ProjectSettings.asset"), "productName: Old\n").unwrap();
+    fs::write(
+        project
+            .join("ProjectSettings")
+            .join("ProjectSettings.asset"),
+        "productName: Old\n",
+    )
+    .unwrap();
     fs::write(project.join("Library").join("big-cache.bin"), "regenerable").unwrap();
     register_vcc(base, &[&project]);
     register_alcom(base, &[&project]);
@@ -118,11 +124,17 @@ fn read_repo_json(relative: &str) -> Value {
 }
 
 fn result_validator() -> jsonschema::Validator {
-    jsonschema::validator_for(&read_repo_json("schemas/project-ops/v0.2/result.schema.json")).unwrap()
+    jsonschema::validator_for(&read_repo_json(
+        "schemas/project-ops/v0.2/result.schema.json",
+    ))
+    .unwrap()
 }
 
 fn command_validator() -> jsonschema::Validator {
-    jsonschema::validator_for(&read_repo_json("schemas/project-ops/v0.2/command.schema.json")).unwrap()
+    jsonschema::validator_for(&read_repo_json(
+        "schemas/project-ops/v0.2/command.schema.json",
+    ))
+    .unwrap()
 }
 
 fn violations(validator: &jsonschema::Validator, instance: &Value) -> Vec<String> {
@@ -142,8 +154,14 @@ fn plan_and_apply_happy_path_copies_with_exclusions_and_records_the_source() {
     // PLAN: guards pass, the scope is measured, the exclusions are listed.
     let vcc = vcc_candidates(&base);
     let manager_roots = roots(&base);
-    let plan = plan_import_copy(&request(&source, &target_parent, "My World Copy", &vcc, &manager_roots))
-        .expect("plan must pass for a registered healthy project");
+    let plan = plan_import_copy(&request(
+        &source,
+        &target_parent,
+        "My World Copy",
+        &vcc,
+        &manager_roots,
+    ))
+    .expect("plan must pass for a registered healthy project");
     assert_eq!(plan.kind, "plan");
     assert_eq!(
         plan.excluded_entries,
@@ -160,7 +178,13 @@ fn plan_and_apply_happy_path_copies_with_exclusions_and_records_the_source() {
     // APPLY: the copy runs, the exclusions hold, the identity is new, the
     // source link is recorded, and the re-inspection reads the copy.
     let receipt = apply_import_copy(
-        &request(&source, &target_parent, "My World Copy", &vcc, &manager_roots),
+        &request(
+            &source,
+            &target_parent,
+            "My World Copy",
+            &vcc,
+            &manager_roots,
+        ),
         &plan.plan_digest,
         "cmd-test-import-1",
         &clock(),
@@ -172,12 +196,19 @@ fn plan_and_apply_happy_path_copies_with_exclusions_and_records_the_source() {
     assert!(target.is_dir());
     assert!(target.join("Assets").join("scene.unity").is_file());
     assert!(target.join("Packages").join("vpm-manifest.json").is_file());
-    assert!(!target.join("Library").exists(), "regenerable dirs are excluded");
+    assert!(
+        !target.join("Library").exists(),
+        "regenerable dirs are excluded"
+    );
     assert!(!target.join(".vua").join("pending-mutation.json").exists());
 
     // New Unity-facing identity: productName rewritten to the new name.
-    let settings = fs::read_to_string(target.join("ProjectSettings").join("ProjectSettings.asset")).unwrap();
-    assert!(settings.contains("productName: \"My World Copy\""), "settings: {settings}");
+    let settings =
+        fs::read_to_string(target.join("ProjectSettings").join("ProjectSettings.asset")).unwrap();
+    assert!(
+        settings.contains("productName: \"My World Copy\""),
+        "settings: {settings}"
+    );
 
     // Source link recorded inside the new project's .vua.
     let source_doc = fs::read_to_string(target.join(".vua").join("source.json")).unwrap();
@@ -186,14 +217,20 @@ fn plan_and_apply_happy_path_copies_with_exclusions_and_records_the_source() {
         source_value["sourceLink"]["sourcePath"],
         json!(source.to_string_lossy().into_owned())
     );
-    assert_eq!(source_value["sourceLink"]["taskCorrelation"], json!("cmd-test-import-1"));
+    assert_eq!(
+        source_value["sourceLink"]["taskCorrelation"],
+        json!("cmd-test-import-1")
+    );
     assert_eq!(
         source_value["sourceLink"]["sourceAssociations"],
         json!(["vcc_registered", "alcom_registered"])
     );
 
     // Re-inspection reads the COPY, not the original.
-    assert_eq!(receipt.re_inspection.unity_version.as_deref(), Some("2022.3.22f1"));
+    assert_eq!(
+        receipt.re_inspection.unity_version.as_deref(),
+        Some("2022.3.22f1")
+    );
     assert!(receipt.re_inspection.manifest_present && receipt.re_inspection.manifest_schema_ok);
     assert!(receipt.bytes_copied > 0);
     assert!(receipt.copied_top_levels.contains(&"Assets".to_owned()));
@@ -217,7 +254,10 @@ fn plan_and_apply_happy_path_copies_with_exclusions_and_records_the_source() {
 
     let receipt_json = serde_json::to_value(&receipt).unwrap();
     let problems = violations(&result_validator(), &enveloped(receipt_json));
-    assert!(problems.is_empty(), "receipt schema violations: {problems:#?}");
+    assert!(
+        problems.is_empty(),
+        "receipt schema violations: {problems:#?}"
+    );
 
     cleanup(&base);
 }
@@ -241,7 +281,14 @@ fn apply_refuses_plan_drift_instead_of_executing_a_stale_confirmation() {
 
     let vcc = vcc_candidates(&base);
     let manager_roots = roots(&base);
-    let plan = plan_import_copy(&request(&source, &target_parent, "Drifty Copy", &vcc, &manager_roots)).unwrap();
+    let plan = plan_import_copy(&request(
+        &source,
+        &target_parent,
+        "Drifty Copy",
+        &vcc,
+        &manager_roots,
+    ))
+    .unwrap();
 
     // The source changes after the user confirmed the plan.
     fs::write(source.join("Assets").join("new-file.txt"), "changed").unwrap();
@@ -255,7 +302,10 @@ fn apply_refuses_plan_drift_instead_of_executing_a_stale_confirmation() {
     .expect_err("drifted plan must be refused");
     assert_eq!(rejected.guard, RejectionGuard::PlanDrift);
     assert_eq!(rejected.code, "vua.project.plan_drift");
-    assert!(!target_parent.join("Drifty Copy").exists(), "a refused import writes nothing");
+    assert!(
+        !target_parent.join("Drifty Copy").exists(),
+        "a refused import writes nothing"
+    );
 
     cleanup(&base);
 }
@@ -279,37 +329,65 @@ fn the_five_guards_refuse_typecally() {
     .unwrap();
     let vcc = vcc_candidates(&base);
     let manager_roots = roots(&base);
-    let rejected =
-        plan_import_copy(&request(&stranger, &target_parent, "Stranger Copy", &vcc, &manager_roots))
-            .expect_err("an unregistered source must be refused");
+    let rejected = plan_import_copy(&request(
+        &stranger,
+        &target_parent,
+        "Stranger Copy",
+        &vcc,
+        &manager_roots,
+    ))
+    .expect_err("an unregistered source must be refused");
     assert_eq!(rejected.guard, RejectionGuard::SourceNotRegistered);
 
     // Guard: source invalid (registered but no VPM markers).
     let incomplete = base.join("projects").join("Incomplete");
     fs::create_dir_all(&incomplete).unwrap();
     register_vcc(&base, &[&source, &incomplete]);
-    let rejected =
-        plan_import_copy(&request(&incomplete, &target_parent, "Incomplete Copy", &vcc, &manager_roots))
-            .expect_err("a marker-less source must be refused");
+    let rejected = plan_import_copy(&request(
+        &incomplete,
+        &target_parent,
+        "Incomplete Copy",
+        &vcc,
+        &manager_roots,
+    ))
+    .expect_err("a marker-less source must be refused");
     assert_eq!(rejected.guard, RejectionGuard::SourceInvalid);
 
     // Guard: target exists.
     let existing_target = target_parent.join("Taken");
     fs::create_dir_all(&existing_target).unwrap();
-    let rejected = plan_import_copy(&request(&source, &target_parent, "Taken", &vcc, &manager_roots))
-        .expect_err("an existing target must be refused");
+    let rejected = plan_import_copy(&request(
+        &source,
+        &target_parent,
+        "Taken",
+        &vcc,
+        &manager_roots,
+    ))
+    .expect_err("an existing target must be refused");
     assert_eq!(rejected.guard, RejectionGuard::TargetExists);
 
     // Guard: target inside the source tree.
     let inside = source.join("nested");
     fs::create_dir_all(&inside).unwrap();
-    let rejected = plan_import_copy(&request(&source, &inside, "Nested Copy", &vcc, &manager_roots))
-        .expect_err("a target inside the source must be refused");
+    let rejected = plan_import_copy(&request(
+        &source,
+        &inside,
+        "Nested Copy",
+        &vcc,
+        &manager_roots,
+    ))
+    .expect_err("a target inside the source must be refused");
     assert_eq!(rejected.guard, RejectionGuard::TargetInsideSource);
 
     // Guard: invalid project name (validated before anything else).
-    let rejected = plan_import_copy(&request(&source, &target_parent, "bad/name", &vcc, &manager_roots))
-        .expect_err("an invalid name must be refused");
+    let rejected = plan_import_copy(&request(
+        &source,
+        &target_parent,
+        "bad/name",
+        &vcc,
+        &manager_roots,
+    ))
+    .expect_err("an invalid name must be refused");
     assert_eq!(rejected.guard, RejectionGuard::SourceInvalid);
 
     cleanup(&base);
@@ -318,14 +396,18 @@ fn the_five_guards_refuse_typecally() {
 #[test]
 fn example_vectors_match_the_frozen_schemas() {
     // Positive vectors validate.
-    let command = read_repo_json("schemas/project-ops/v0.2/examples/project-import-copy-plan.request.json");
+    let command =
+        read_repo_json("schemas/project-ops/v0.2/examples/project-import-copy-plan.request.json");
     assert!(violations(&command_validator(), &command).is_empty());
-    let command = read_repo_json("schemas/project-ops/v0.2/examples/project-import-copy-apply.request.json");
+    let command =
+        read_repo_json("schemas/project-ops/v0.2/examples/project-import-copy-apply.request.json");
     assert!(violations(&command_validator(), &command).is_empty());
 
-    let plan = read_repo_json("schemas/project-ops/v0.2/examples/project-import-copy-plan.result.json");
+    let plan =
+        read_repo_json("schemas/project-ops/v0.2/examples/project-import-copy-plan.result.json");
     assert!(violations(&result_validator(), &plan).is_empty());
-    let receipt = read_repo_json("schemas/project-ops/v0.2/examples/project-import-copy-apply.result.json");
+    let receipt =
+        read_repo_json("schemas/project-ops/v0.2/examples/project-import-copy-apply.result.json");
     assert!(violations(&result_validator(), &receipt).is_empty());
 
     // Negative vectors are refused by the command schema.
@@ -335,7 +417,8 @@ fn example_vectors_match_the_frozen_schemas() {
     // with the v0.2 vectors; construct it here from the v0.2 apply vector
     // so the required-field refusal stays pinned against the current
     // frozen command schema.
-    let mut missing_digest = read_repo_json("schemas/project-ops/v0.2/examples/project-import-copy-apply.request.json");
+    let mut missing_digest =
+        read_repo_json("schemas/project-ops/v0.2/examples/project-import-copy-apply.request.json");
     missing_digest["params"]
         .as_object_mut()
         .expect("apply params object")
@@ -366,9 +449,14 @@ fn target_inside_source_guard_survives_runner_path_spellings() {
     fs::create_dir_all(&inside).unwrap();
 
     // Control: the plain spelling is refused.
-    let rejected =
-        plan_import_copy(&request(&source, &inside, "Nested Copy", &vcc, &manager_roots))
-            .expect_err("a target inside the source must be refused");
+    let rejected = plan_import_copy(&request(
+        &source,
+        &inside,
+        "Nested Copy",
+        &vcc,
+        &manager_roots,
+    ))
+    .expect_err("a target inside the source must be refused");
     assert_eq!(rejected.guard, RejectionGuard::TargetInsideSource);
 
     #[cfg(windows)]
@@ -476,7 +564,10 @@ fn rejected_documents_validate_with_the_frozen_guard_closed_set() {
     });
     let problems = violations(&result_validator(), &enveloped);
     assert!(problems.is_empty(), "violations: {problems:#?}");
-    assert_eq!(enveloped["result"]["code"], json!("vua.project.insufficient_disk_space"));
+    assert_eq!(
+        enveloped["result"]["code"],
+        json!("vua.project.insufficient_disk_space")
+    );
 }
 
 /// BG-12 家族环境域成员（wt-6 反向审查批 2026-09-24）：副本自身

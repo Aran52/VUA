@@ -47,13 +47,16 @@
         "protect_current",
         "restore",
         "turntable",
+        "local_test",
         "upload",
         "sdk_fix",
         "face_tracking",
         "lighting",
         "open",
         "editor_close",
-        "outfit_removal"
+        "texture_memory",
+        "outfit_removal",
+        "optimizer"
       ]
     },
     "timestamp": {

@@ -62,7 +62,7 @@
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-home__activity > button { border-bottom: 0; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-tile { padding-top: 30px; border-radius: 18px; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-tile:hover:not(:disabled), [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-tile[aria-pressed="true"] { border-color: #4a9be8; background-color: #f2f8ff; transform: none; }
-[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-tile__icon { position: relative; width: 56px; height: 56px; border: 2px solid #2a72c8; border-radius: 14px; color: #ffffff; background: #4a9be8;
+[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-tile__icon { position: relative; width: 56px; height: 56px; border: 2px solid #2a72c8; border-radius: 14px; color: #ffffff; background: #3a86d8;
   outline: 1.5px dashed #ffffff; outline-offset: -6px; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-grid > :first-child .vua-route-tile__icon::before { content: ""; position: absolute; inset-inline-start: 10px; top: -13px; width: 32px; height: 9px; border: 2.5px solid #f0c94a; border-radius: 50%; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-tile strong { color: #2a72c8; font-size: 22px; }
@@ -71,14 +71,14 @@
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-button { border-radius: 999px; font-weight: var(--vua-weight-strong); }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-button--default { border: 2px solid #4a9be8; background: #ffffff; color: #2a72c8; outline: 1px dashed #8ec5f5; outline-offset: -5px; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-button--primary, [data-theme-family="tenshi"]:not([data-hc="on"]) [data-module="production"] .vua-button--primary {
-  color: #ffffff; border: 2px solid #2a72c8; background: linear-gradient(180deg, #6bb6ff, #4a9be8 50%, #2a72c8);
+  color: #ffffff; border: 2px solid #1f5ca8; background: linear-gradient(180deg, #4a9be8, #2a72c8 50%, #1f5ca8);
   outline: 1px dashed rgb(255 255 255 / 0.9); outline-offset: -5px; box-shadow: 0 4px 10px rgb(42 114 200 / 0.3);
 }
 
 /* ---- Workshop: velcro-patch steps; the running one wears a halo ---- */
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-line__stations > li:not(:last-of-type)::after { display: none; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-line__station { justify-items: center; text-align: center; border: 2px solid #8ec5f5; background: #ffffff; outline: 1px dashed #8ec5f5; outline-offset: -6px; }
-[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-line__station[data-state="done"] { border-color: #2a72c8; background: #4a9be8; outline-color: rgb(255 255 255 / 0.8); color: #ffffff; }
+[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-line__station[data-state="done"] { border-color: #1f5ea8; background: #2a72c8; outline-color: rgb(255 255 255 / 0.8); color: #ffffff; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-line__station[data-state="done"] strong, [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-line__station[data-state="done"] small, [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-line__station[data-state="done"] > svg { color: #ffffff; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-line__station[aria-pressed="true"] { border-color: #2a72c8; background: repeating-linear-gradient(135deg, rgb(191 224 255 / 0.85) 0 7px, rgb(255 255 255 / 0.85) 7px 14px); }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-line__station[aria-current="step"]::before { inset-inline: calc(50% - 15px); top: -10px; width: 30px; height: 8px; border: 2.5px solid #f0c94a; border-radius: 50%; background: none; }
@@ -99,3 +99,12 @@
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-confirm-dialog__title:not([data-danger])::before { background-color: #4a9be8; mask-image: url("../../skins/tenshi/motifs/pixel-heart.svg"); }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-confirm-dialog__header button { border: 2px solid #2a72c8; border-radius: 0; background: #ffffff; color: #2a72c8; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-confirm-dialog__body { padding-top: 14px; }
+
+/* Unity setup's rows: a list inside one card, so they drop the card tile's frame, lace and large icon. */
+[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-creator-page .vua-route-tile { padding: 16px 20px; border: 0; border-radius: 0; outline: 0; background-color: transparent; box-shadow: none; }
+[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-creator-page .vua-route-tile::before { display: none; }
+[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-creator-page .vua-route-tile__icon { width: 32px; height: 32px; border-width: 1.5px; border-radius: 9px; outline-offset: -4px; }
+[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-creator-page .vua-route-grid > :first-child .vua-route-tile__icon::before { display: none; }
+[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-creator-page .vua-route-tile strong { font-size: var(--vua-text-body-size); }
+
+[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-control__kind { color: color-mix(in srgb, var(--kind) 82%, #000000); }

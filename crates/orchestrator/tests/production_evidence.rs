@@ -77,7 +77,10 @@ fn store_serialization_matches_the_frozen_schema() {
     let evidence = ProductionEvidenceV01::new_unresolved(
         "0198a7b3-1c2d-7e4f-8a5b-3c2d1e0f9a8b",
         EvidenceKind::GuardDenied,
-        EvidenceSubject { ref_: "warehouse:019e0001".into(), label: None },
+        EvidenceSubject {
+            ref_: "warehouse:019e0001".into(),
+            label: None,
+        },
         "2026-09-08T09:00:00.000Z",
         "the server-side guard refused the delete",
         EvidenceSourceRef::from_task_correlation("corr-guard-1"),
@@ -85,7 +88,10 @@ fn store_serialization_matches_the_frozen_schema() {
     store.publish(&evidence).unwrap();
     let stored = read_stored(&store, &evidence.evidence_id);
     let problems = violations(&validator, &stored);
-    assert!(problems.is_empty(), "stored fact must validate: {problems:?}");
+    assert!(
+        problems.is_empty(),
+        "stored fact must validate: {problems:?}"
+    );
     // Unresolved serializes as an explicit null (the frozen shape), not an
     // absent field.
     assert_eq!(stored["resolution"], Value::Null);
@@ -123,7 +129,10 @@ fn evidence_source_ref_both_forms_round_trip() {
     let by_resolution = ProductionEvidenceV01::new_unresolved(
         "0198a7b3-1c2d-7e4f-8a5b-3c2d1e0f9a8d",
         EvidenceKind::MissingPackage,
-        EvidenceSubject { ref_: "pkg:com.example.pack".into(), label: None },
+        EvidenceSubject {
+            ref_: "pkg:com.example.pack".into(),
+            label: None,
+        },
         "2026-09-08T09:10:00.000Z",
         "declared dependency package absent",
         EvidenceSourceRef::from_local_resolution("0198a7b3-9f8e-7d6c-5b4a-321098765432"),
@@ -131,7 +140,10 @@ fn evidence_source_ref_both_forms_round_trip() {
     let by_correlation = ProductionEvidenceV01::new_unresolved(
         "0198a7b3-1c2d-7e4f-8a5b-3c2d1e0f9a8e",
         EvidenceKind::GuardDenied,
-        EvidenceSubject { ref_: "warehouse:019e0002".into(), label: None },
+        EvidenceSubject {
+            ref_: "warehouse:019e0002".into(),
+            label: None,
+        },
         "2026-09-08T09:11:00.000Z",
         "guard refused the delete",
         EvidenceSourceRef::from_task_correlation("corr-guard-2"),
@@ -139,9 +151,6 @@ fn evidence_source_ref_both_forms_round_trip() {
     let validator = validator_for(&read_json("evidence.schema.json"));
     for evidence in [&by_resolution, &by_correlation] {
         let serialized = serde_json::to_value(evidence).unwrap();
-        assert!(
-            validator.is_valid(&serialized),
-            "{serialized}"
-        );
+        assert!(validator.is_valid(&serialized), "{serialized}");
     }
 }

@@ -1,0 +1,9 @@
+{
+  "method": "amf.production.deleteRecipe",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "recipeId": "recipe-example",
+    "expectedRevision": 9007199254740992
+  }
+}

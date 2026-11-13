@@ -10,7 +10,7 @@ export function readSessionPage(targetSession: Session, url: string, allowedOrig
   return new Promise((resolve, reject) => {
     const request = net.request({ session: targetSession, method: "GET", url,
       credentials: "include", redirect: "manual", cache: "no-store",
-      headers: { accept: "text/html,application/xhtml+xml" } });
+      headers: { accept: new URL(url).pathname.endsWith(".json") ? "application/json,text/html;q=0.5" : "text/html,application/xhtml+xml" } });
     let finalUrl = url;
     let redirects = 0;
     let settled = false;

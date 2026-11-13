@@ -39,8 +39,8 @@ try {
   menu.items[0].click();
   assert.deepEqual(commands, ["check-updates"]); checks.push("menu emits only the closed update gesture");
   menu.items[1].click(); assert.equal(exited, 1); checks.push("Exit uses the application quit path");
-  for (const locale of ["en", "ja", "ko"]) { handle.setLocale(locale); assert.equal(menu.items.length, 2); }
-  handle.setLocale("en"); assert.equal(menu.items[0].label, "Check for updates"); checks.push("menu follows all four UI languages");
+  for (const locale of ["zh-TW", "en", "ja", "ko"]) { handle.setLocale(locale); assert.equal(menu.items.length, 2); }
+  handle.setLocale("en"); assert.equal(menu.items[0].label, "Check for updates"); checks.push("menu follows all five UI languages");
   for (const dark of [false, true]) {
     const decoded = vuaTrayImage(dark);
     assert.equal(decoded.isEmpty(), false);

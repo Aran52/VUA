@@ -31,8 +31,8 @@ use vua_orchestrator::{
     AppErrorV1, ChangeItemV1, ChangeKindV1, ChangePreviewV1, ErrorCategory, PackageRequestV1,
     ProjectRef, SqliteTaskStore, VpmBackend, VpmCapabilities,
 };
-use vua_provider_host::{run_provider_host_full, ProjectOpsConfig};
 use vua_project_manager::ManagerRoots;
+use vua_provider_host::{run_provider_host_full, ProjectOpsConfig};
 
 const FAKE_DIGEST: &str = "fnv1a-a2install";
 
@@ -95,7 +95,9 @@ fn seed_registered_project(root: &Path) -> (PathBuf, PathBuf) {
 fn project_ops_config(vcc_settings: &Path) -> ProjectOpsConfig {
     ProjectOpsConfig {
         vcc_settings_candidates: vec![vcc_settings.to_path_buf()],
-        manager_roots: ManagerRoots { alcom_settings_candidates: Vec::new() },
+        manager_roots: ManagerRoots {
+            alcom_settings_candidates: Vec::new(),
+        },
         editor_roots: Vec::new(),
     }
 }
@@ -144,7 +146,11 @@ struct FakeInstall {
 
 impl FakeInstall {
     fn wired() -> Self {
-        Self { install_cap: true, preview_failure: None, apply_failure: None }
+        Self {
+            install_cap: true,
+            preview_failure: None,
+            apply_failure: None,
+        }
     }
 }
 
@@ -159,7 +165,7 @@ impl VpmBackend for FakeInstall {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -184,7 +190,10 @@ impl VpmBackend for FakeInstall {
         // Defense in depth behind the wire-layer re-computation: the wire
         // layer refuses on drift BEFORE this is ever called, so a mismatch
         // here would mean the wire guard is broken — fail loudly.
-        assert_eq!(confirmed_digest, FAKE_DIGEST, "wire layer must gate on the digest");
+        assert_eq!(
+            confirmed_digest, FAKE_DIGEST,
+            "wire layer must gate on the digest"
+        );
         let preview = fake_preview();
         Ok(json!({ "applied": preview.items }))
     }
@@ -297,7 +306,10 @@ fn wait_done(database_path: &Path, task_id: &str) -> Value {
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         let store = SqliteTaskStore::open(database_path).expect("store opens");
-        let task = store.task(task_id).expect("store readable").expect("task exists");
+        let task = store
+            .task(task_id)
+            .expect("store readable")
+            .expect("task exists");
         if task.state.is_terminal() {
             assert_eq!(
                 serde_json::to_value(task.state).unwrap(),
@@ -307,7 +319,10 @@ fn wait_done(database_path: &Path, task_id: &str) -> Value {
             );
             return task.result.expect("done payload");
         }
-        assert!(Instant::now() < deadline, "the apply-install task did not finish");
+        assert!(
+            Instant::now() < deadline,
+            "the apply-install task did not finish"
+        );
         drop(store);
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -339,7 +354,10 @@ fn absent_install_wiring_answers_the_typed_honest_absence_and_unavailable_capabi
     assert_eq!(payload["ok"], false, "absence is a typed failure");
     assert_eq!(payload["error"]["code"], "vua.packages.unavailable");
     assert_eq!(payload["error"]["category"], "unavailable");
-    assert!(payload.get("result").is_none(), "absence never fabricates a plan");
+    assert!(
+        payload.get("result").is_none(),
+        "absence never fabricates a plan"
+    );
 
     let payload = run_frame(
         &database,
@@ -381,7 +399,10 @@ fn wired_install_preview_projects_the_plan_inside_the_frozen_v02_envelope() {
     let envelope = &payload["value"];
     // The frozen result schema describes the whole envelope
     // (schemaVersion/operation/result).
-    assert!(validator.is_valid(envelope), "plan must match the frozen result schema: {envelope}");
+    assert!(
+        validator.is_valid(envelope),
+        "plan must match the frozen result schema: {envelope}"
+    );
     assert_eq!(envelope["schemaVersion"], "0.2");
     assert_eq!(envelope["operation"], "packages.previewInstall");
     let plan = &envelope["result"];
@@ -403,8 +424,7 @@ fn wired_install_preview_projects_the_plan_inside_the_frozen_v02_envelope() {
     assert_eq!(items[2]["version"], serde_json::Value::Null);
     assert_eq!(items[2]["reason"], "conflict");
     assert_eq!(
-        plan["removeLegacyFolders"][0],
-        "Assets/OldPackage",
+        plan["removeLegacyFolders"][0], "Assets/OldPackage",
         "legacy folder cleanups travel verbatim"
     );
 
@@ -489,7 +509,10 @@ fn install_preview_param_violations_answer_invalid_params() {
             params,
         );
         assert_eq!(payload["ok"], false, "violations are typed failures");
-        assert_eq!(payload["error"]["code"], "vua.packages.invalid_params", "{payload}");
+        assert_eq!(
+            payload["error"]["code"], "vua.packages.invalid_params",
+            "{payload}"
+        );
         assert_eq!(payload["error"]["category"], "validation");
     }
     fs::remove_dir_all(&root).ok();
@@ -501,7 +524,11 @@ fn install_preview_without_the_capability_answers_the_generic_capability_missing
     let (project, vcc_settings) = seed_registered_project(&root);
     let database = root.join("tasks.sqlite");
     let config = project_ops_config(&vcc_settings);
-    let vpm = FakeInstall { install_cap: false, preview_failure: None, apply_failure: None };
+    let vpm = FakeInstall {
+        install_cap: false,
+        preview_failure: None,
+        apply_failure: None,
+    };
 
     let payload = run_frame(
         &database,
@@ -552,9 +579,15 @@ fn install_preview_no_matching_package_projects_onto_package_not_found() {
         "packages.previewInstall",
         install_params(project.to_string_lossy().as_ref()),
     );
-    assert_eq!(payload["ok"], false, "preview failures are envelope errors, never result arms");
+    assert_eq!(
+        payload["ok"], false,
+        "preview failures are envelope errors, never result arms"
+    );
     assert_eq!(payload["error"]["code"], "vua.packages.package_not_found");
-    assert_eq!(payload["error"]["messageKey"], "errors.packages.packageNotFound");
+    assert_eq!(
+        payload["error"]["messageKey"],
+        "errors.packages.packageNotFound"
+    );
     fs::remove_dir_all(&root).ok();
 }
 
@@ -586,7 +619,10 @@ fn install_preview_failure_folds_into_the_preview_failed_envelope_code() {
     assert_eq!(payload["ok"], false);
     // The one new envelope-face code the A2 freeze batch declared.
     assert_eq!(payload["error"]["code"], "vua.packages.preview_failed");
-    assert_eq!(payload["error"]["messageKey"], "errors.packages.previewFailed");
+    assert_eq!(
+        payload["error"]["messageKey"],
+        "errors.packages.previewFailed"
+    );
     fs::remove_dir_all(&root).ok();
 }
 
@@ -619,12 +655,18 @@ fn install_receipt_travels_inside_the_task_done_payload() {
     let acceptance = &payload["value"];
     assert_eq!(acceptance["operation"], "packages.applyInstall");
     let task_id = acceptance["taskId"].as_str().expect("taskId").to_owned();
-    assert!(!acceptance["correlationId"].as_str().unwrap_or_default().is_empty());
+    assert!(!acceptance["correlationId"]
+        .as_str()
+        .unwrap_or_default()
+        .is_empty());
 
     let done = wait_done(&database, &task_id);
     assert_eq!(done["schemaVersion"], "0.2");
     assert_eq!(done["operation"], "packages.applyInstall");
-    assert!(validator.is_valid(&done), "receipt must match the frozen result schema: {done}");
+    assert!(
+        validator.is_valid(&done),
+        "receipt must match the frozen result schema: {done}"
+    );
     let receipt = &done["result"];
     assert_eq!(receipt["schemaVersion"], "vua.packages-ops/v0.2");
     assert_eq!(receipt["kind"], "receipt");
@@ -632,7 +674,9 @@ fn install_receipt_travels_inside_the_task_done_payload() {
     // verbatim (the version-selection semantics included) + the actually
     // applied items (port facts verbatim).
     assert_eq!(receipt["confirmedDigest"], FAKE_DIGEST);
-    let requested = receipt["requestedPackages"].as_array().expect("requested rows");
+    let requested = receipt["requestedPackages"]
+        .as_array()
+        .expect("requested rows");
     assert_eq!(requested.len(), 2);
     assert_eq!(requested[0]["packageId"], "com.lilxyzw.liltoon");
     assert_eq!(requested[0]["version"], serde_json::Value::Null);
@@ -665,10 +709,16 @@ fn install_digest_drift_refuses_inside_the_task_as_preview_drift() {
             "confirmedDigest": "fnv1a-stale",
         }),
     );
-    let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = payload["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
 
     let done = wait_done(&database, &task_id);
-    assert!(validator.is_valid(&done), "the refusal is a frozen result document: {done}");
+    assert!(
+        validator.is_valid(&done),
+        "the refusal is a frozen result document: {done}"
+    );
     let rejected = &done["result"];
     assert_eq!(rejected["kind"], "rejected");
     assert_eq!(rejected["guard"], "preview_drift");
@@ -709,7 +759,10 @@ fn install_apply_failure_folds_into_execution_failed_with_port_provenance() {
             "confirmedDigest": FAKE_DIGEST,
         }),
     );
-    let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = payload["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
 
     let done = wait_done(&database, &task_id);
     let rejected = &done["result"];
@@ -746,6 +799,9 @@ fn install_apply_unregistered_path_refuses_at_the_route_layer_never_inside_a_tas
     // rejected arm's code schema locks ^vua\.packages\.) — the refusal is
     // the typed envelope error, no task is created.
     assert_eq!(payload["error"]["code"], "vua.project.project_not_found");
-    assert!(payload["value"].is_null(), "no task is accepted for an unregistered path");
+    assert!(
+        payload["value"].is_null(),
+        "no task is accepted for an unregistered path"
+    );
     fs::remove_dir_all(&root).ok();
 }

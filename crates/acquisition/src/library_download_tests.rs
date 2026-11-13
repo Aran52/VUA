@@ -34,35 +34,104 @@ fn library_view(w: &World, query: Value) -> Value {
 #[test]
 fn reverse_description_links_are_exact_latest_evidence_not_names_or_ownership() {
     let w = World::new();
-    let capture = |body: &str| crate::description_dependencies::record_description_dependencies(&w.bdl,
+    let capture = |body: &str| {
+        crate::description_dependencies::record_description_dependencies(&w.bdl,
         &format!(r#"<div id="items"><article><div class="js-market-item-detail-description description">{body}</div></article><aside><a href="https://booth.pm/items/777">Recommendation</a></aside></div>"#),
-        "booth:90", "sha256:synthetic", "2026-10-12T00:00:00Z").unwrap();
-    capture(r#"<a href="https://shop.booth.pm/en/items/999?from=body"><img src="sample.png"></a>
+        "booth:90", "sha256:synthetic", "2026-10-12T00:00:00Z").unwrap()
+    };
+    capture(
+        r#"<a href="https://shop.booth.pm/en/items/999?from=body"><img src="sample.png"></a>
         <a href="/ja/items/999">Duplicate</a><a href="https://booth.pm/items/90">Self</a>
-        <a href="https://booth.pm.evil/items/888">Spoof</a> Plain https://booth.pm/items/666"#);
-    assert!(w.bdl.catalog_detail("booth:999").unwrap().is_none(), "target does not need to be owned or catalogued");
-    let result = library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999","limit":1}));
-    assert_eq!(result["total"], 1); assert_eq!(result["items"][0]["product"]["productId"], "booth:90");
-    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999","offset":1}))["total"], 1);
-    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999","text":"nonexistent"}))["total"], 0);
-    for target in ["booth:99", "booth:90", "booth:777", "booth:888", "booth:666"] {
-        assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":target}))["total"], 0, "{target}");
+        <a href="https://booth.pm.evil/items/888">Spoof</a> Plain https://booth.pm/items/666"#,
+    );
+    assert!(
+        w.bdl.catalog_detail("booth:999").unwrap().is_none(),
+        "target does not need to be owned or catalogued"
+    );
+    let result = library_view(
+        &w,
+        json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999","limit":1}),
+    );
+    assert_eq!(result["total"], 1);
+    assert_eq!(result["items"][0]["product"]["productId"], "booth:90");
+    assert_eq!(
+        library_view(
+            &w,
+            json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999","offset":1})
+        )["total"],
+        1
+    );
+    assert_eq!(
+        library_view(
+            &w,
+            json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999","text":"nonexistent"})
+        )["total"],
+        0
+    );
+    for target in [
+        "booth:99",
+        "booth:90",
+        "booth:777",
+        "booth:888",
+        "booth:666",
+    ] {
+        assert_eq!(
+            library_view(
+                &w,
+                json!({"schemaVersion":"0.1","descriptionLinksTo":target})
+            )["total"],
+            0,
+            "{target}"
+        );
     }
     let reopened = BdlStore::open(w.base.join("bdl.db")).unwrap();
-    assert_eq!(crate::description_dependencies::products_linking_to(&reopened,"booth:999").unwrap().len(), 1);
+    assert_eq!(
+        crate::description_dependencies::products_linking_to(&reopened, "booth:999")
+            .unwrap()
+            .len(),
+        1
+    );
     // Library rows and an unreadable/missing description preserve the last body.
-    crate::description_dependencies::record_description_dependencies(&w.bdl, "<h1>Incomplete page</h1>","booth:90","sha256:other","2026-10-12T01:00:00Z").unwrap();
-    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999"}))["total"], 1);
+    crate::description_dependencies::record_description_dependencies(
+        &w.bdl,
+        "<h1>Incomplete page</h1>",
+        "booth:90",
+        "sha256:other",
+        "2026-10-12T01:00:00Z",
+    )
+    .unwrap();
+    assert_eq!(
+        library_view(
+            &w,
+            json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999"})
+        )["total"],
+        1
+    );
     capture("No remaining links");
-    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999"}))["total"], 0, "empty snapshot overrides immutable historical clues");
-    assert!(!w.bdl.dependency_observations("booth:90").unwrap().is_empty(), "historical evidence survives");
+    assert_eq!(
+        library_view(
+            &w,
+            json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999"})
+        )["total"],
+        0,
+        "empty snapshot overrides immutable historical clues"
+    );
+    assert!(
+        !w.bdl
+            .dependency_observations("booth:90")
+            .unwrap()
+            .is_empty(),
+        "historical evidence survives"
+    );
 }
 
 fn zip_bytes(files: &[(&str, &[u8])]) -> Vec<u8> {
     use std::io::Write;
     let mut archive = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     for (name, bytes) in files {
-        archive.start_file(*name, zip::write::SimpleFileOptions::default()).unwrap();
+        archive
+            .start_file(*name, zip::write::SimpleFileOptions::default())
+            .unwrap();
         archive.write_all(bytes).unwrap();
     }
     archive.finish().unwrap().into_inner()
@@ -72,39 +141,86 @@ fn zip_bytes(files: &[(&str, &[u8])]) -> Vec<u8> {
 fn downloaded_zip_members_reconcile_with_migrated_files_and_refresh_on_redownload() {
     let w = World::new();
     let imported = w.import_local("Migrated folder", &[("Avatar.unitypackage", b"old avatar")]);
-    let old_zip = zip_bytes(&[("Avatar.unitypackage", b"old avatar"), ("texture.psd", b"psd"), ("old-guide.txt", b"guide")]);
+    let old_zip = zip_bytes(&[
+        ("Avatar.unitypackage", b"old avatar"),
+        ("texture.psd", b"psd"),
+        ("old-guide.txt", b"guide"),
+    ]);
     w.begin("zip-first", &[902]);
     w.delivery(902, "dl-zip-first", &old_zip, "bundle.ZIP");
-    w.observe("zip-first", 902, "settled", Some("dl-zip-first")).unwrap();
+    w.observe("zip-first", 902, "settled", Some("dl-zip-first"))
+        .unwrap();
     assert_eq!(w.wait("zip-first")["state"], "succeeded");
     let parent = w.bdl.managed_library_file(902).unwrap().unwrap();
     let prior = w.bdl.archive_members(&parent.copy_id).unwrap();
     assert_eq!(prior.len(), 3);
-    assert!(w.bdl.library_copy_evidence().unwrap().iter().filter(|c| c.archive_downloadable_id == Some(902)).all(|c| c.archive_current));
+    assert!(w
+        .bdl
+        .library_copy_evidence()
+        .unwrap()
+        .iter()
+        .filter(|c| c.archive_downloadable_id == Some(902))
+        .all(|c| c.archive_current));
     w.verify_sources("zip-members");
     let merged = library_view(&w, json!({"schemaVersion":"0.1"}));
     assert_eq!(merged["total"], 1, "{merged}");
     assert_eq!(merged["items"][0]["storage"]["presentCopies"], 5);
-    let new_zip = zip_bytes(&[("Avatar.unitypackage", b"new avatar"), ("texture.psd", b"psd"), ("new-guide.txt", b"new guide")]);
+    let new_zip = zip_bytes(&[
+        ("Avatar.unitypackage", b"new avatar"),
+        ("texture.psd", b"psd"),
+        ("new-guide.txt", b"new guide"),
+    ]);
     w.begin("zip-refresh", &[902]);
     w.delivery(902, "dl-zip-refresh", &new_zip, "bundle.ZIP");
-    w.observe("zip-refresh", 902, "settled", Some("dl-zip-refresh")).unwrap();
+    w.observe("zip-refresh", 902, "settled", Some("dl-zip-refresh"))
+        .unwrap();
     assert_eq!(w.wait("zip-refresh")["state"], "succeeded");
-    assert_eq!(w.bdl.managed_library_file(902).unwrap().unwrap().copy_id, parent.copy_id);
+    assert_eq!(
+        w.bdl.managed_library_file(902).unwrap().unwrap().copy_id,
+        parent.copy_id
+    );
     assert_eq!(std::fs::read(&parent.stored_path).unwrap(), new_zip);
     let current = w.bdl.archive_members(&parent.copy_id).unwrap();
-    let old_avatar = prior.iter().find(|m| m.member_path == "Avatar.unitypackage").unwrap();
-    let avatar = current.iter().find(|m| m.member_path == "Avatar.unitypackage").unwrap();
+    let old_avatar = prior
+        .iter()
+        .find(|m| m.member_path == "Avatar.unitypackage")
+        .unwrap();
+    let avatar = current
+        .iter()
+        .find(|m| m.member_path == "Avatar.unitypackage")
+        .unwrap();
     assert_eq!(avatar.copy_id, old_avatar.copy_id);
     assert_eq!(std::fs::read(&avatar.stored_path).unwrap(), b"new avatar");
-    let old_guide = current.iter().find(|m| m.member_path == "old-guide.txt").unwrap();
+    let old_guide = current
+        .iter()
+        .find(|m| m.member_path == "old-guide.txt")
+        .unwrap();
     assert!(!PathBuf::from(&old_guide.stored_path).exists());
     let evidence = w.bdl.library_copy_evidence().unwrap();
-    assert!(!evidence.iter().find(|c| c.copy.copy_id == old_guide.copy_id).unwrap().archive_current);
-    if let Some(task) = w.service.reconcile_library_sources("zip-updated-members").unwrap() { w.wait_task(&task); }
+    assert!(
+        !evidence
+            .iter()
+            .find(|c| c.copy.copy_id == old_guide.copy_id)
+            .unwrap()
+            .archive_current
+    );
+    if let Some(task) = w
+        .service
+        .reconcile_library_sources("zip-updated-members")
+        .unwrap()
+    {
+        w.wait_task(&task);
+    }
     let separate = library_view(&w, json!({"schemaVersion":"0.1"}));
-    assert_eq!(separate["total"], 2, "old local bytes must remain independent: {separate}");
-    assert!(separate["items"].as_array().unwrap().iter().any(|r| r["entry"]["warehouseItemId"] == imported.warehouse_item_id));
+    assert_eq!(
+        separate["total"], 2,
+        "old local bytes must remain independent: {separate}"
+    );
+    assert!(separate["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|r| r["entry"]["warehouseItemId"] == imported.warehouse_item_id));
 }
 
 #[test]
@@ -112,16 +228,26 @@ fn invalid_downloaded_zip_retains_original_and_exposes_expansion_issue_after_res
     let w = World::new();
     w.begin("zip-invalid", &[902]);
     w.delivery(902, "dl-invalid-zip", b"not a zip", "bundle.zip");
-    w.observe("zip-invalid", 902, "settled", Some("dl-invalid-zip")).unwrap();
+    w.observe("zip-invalid", 902, "settled", Some("dl-invalid-zip"))
+        .unwrap();
     let result = w.wait("zip-invalid");
     assert_eq!(result["state"], "succeeded_with_warnings");
     assert_eq!(result["files"][0]["phase"], "stored");
     assert_eq!(result["files"][0]["errorCode"], "vua.library.zip_invalid");
     let parent = w.bdl.managed_library_file(902).unwrap().unwrap();
     assert_eq!(std::fs::read(parent.stored_path).unwrap(), b"not a zip");
-    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","state":"attention"}))["items"][0]["storage"]["unexpandedArchives"], 1);
+    assert_eq!(
+        library_view(&w, json!({"schemaVersion":"0.1","state":"attention"}))["items"][0]["storage"]
+            ["unexpandedArchives"],
+        1
+    );
     let reopened = BdlStore::open(w.base.join("bdl.db")).unwrap();
-    assert_eq!(reopened.library_copy_evidence().unwrap()[0].archive_expansion_state.as_deref(), Some("failed"));
+    assert_eq!(
+        reopened.library_copy_evidence().unwrap()[0]
+            .archive_expansion_state
+            .as_deref(),
+        Some("failed")
+    );
 }
 
 #[test]
@@ -221,23 +347,47 @@ fn library_keeps_multiple_memberships_and_paginates_after_all_filters() {
 #[test]
 fn library_native_category_filters_before_pagination_and_preserves_unknown() {
     let w = World::new();
-    let fixture: Value = serde_json::from_slice(&std::fs::read(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../schemas/catalog-sync/v0.3/examples/page.request.json")).unwrap()).unwrap();
-    let page = crate::library_page::extract_library_page(fixture["params"]["html"].as_str().unwrap()).unwrap();
-    for (id, category) in [("90", Some("3D衣装")), ("91", None), ("92", Some("3Dモデル"))] {
-        let mut observation = crate::library_page::library_item_to_observation(&page.items[0], &format!("sha256:{}", "0".repeat(64)), "2026-10-11T00:00:00Z", None, Some("bought"));
+    let fixture: Value = serde_json::from_slice(
+        &std::fs::read(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../schemas/catalog-sync/v0.3/examples/page.request.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let page =
+        crate::library_page::extract_library_page(fixture["params"]["html"].as_str().unwrap())
+            .unwrap();
+    for (id, category) in [
+        ("90", Some("3D衣装")),
+        ("91", None),
+        ("92", Some("3Dモデル")),
+    ] {
+        let mut observation = crate::library_page::library_item_to_observation(
+            &page.items[0],
+            &format!("sha256:{}", "0".repeat(64)),
+            "2026-10-11T00:00:00Z",
+            None,
+            Some("bought"),
+        );
         observation.product_id = format!("booth:{id}");
         observation.native_product_id = id.into();
         observation.source_url = format!("https://booth.pm/items/{id}");
         observation.source_category = category.map(str::to_owned);
         w.bdl.record_product_observation(&observation).unwrap();
     }
-    let selected = library_view(&w, json!({"schemaVersion":"0.1", "sourceCategory":"3D衣装", "limit":1}));
+    let selected = library_view(
+        &w,
+        json!({"schemaVersion":"0.1", "sourceCategory":"3D衣装", "limit":1}),
+    );
     assert_eq!(selected["total"], 1);
     assert_eq!(selected["items"][0]["product"]["productId"], "booth:90");
     assert_eq!(selected["items"][0]["sourceCategory"], "3D衣装");
     assert_eq!(selected["sourceCategories"], json!(["3Dモデル", "3D衣装"]));
-    let after = library_view(&w, json!({"schemaVersion":"0.1", "sourceCategory":"3D衣装", "limit":1, "offset":1}));
+    let after = library_view(
+        &w,
+        json!({"schemaVersion":"0.1", "sourceCategory":"3D衣装", "limit":1, "offset":1}),
+    );
     assert_eq!(after["total"], 1);
     assert!(after["items"].as_array().unwrap().is_empty());
     assert_eq!(after["sourceCategories"], selected["sourceCategories"]);
@@ -246,8 +396,14 @@ fn library_native_category_filters_before_pagination_and_preserves_unknown() {
     assert_eq!(unknown["items"][0]["product"]["productId"], "booth:91");
     assert_eq!(library_view(&w, json!({"schemaVersion":"0.1"}))["total"], 3);
     for category in [json!(""), json!(3), json!("a".repeat(201))] {
-        assert!(crate::library_view::list(&w.bdl, &w.base.join("warehouse"), ArtifactMode::UseOriginalUnitypackage, &w.service,
-            json!({"schemaVersion":"0.1", "sourceCategory":category})).is_err());
+        assert!(crate::library_view::list(
+            &w.bdl,
+            &w.base.join("warehouse"),
+            ArtifactMode::UseOriginalUnitypackage,
+            &w.service,
+            json!({"schemaVersion":"0.1", "sourceCategory":category})
+        )
+        .is_err());
     }
 }
 
@@ -408,28 +564,68 @@ fn library_migration_suggests_source_then_merges_only_verified_equal_bytes() {
 fn source_correction_constrains_merge_without_claiming_public_lookup_ownership() {
     let w = World::new();
     let local = w.import_local("Local source", &[("bundle.zip", b"same bytes")]);
-    let fixture: Value = serde_json::from_slice(&std::fs::read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/catalog-sync/v0.3/examples/page.request.json")).unwrap()).unwrap();
+    let fixture: Value = serde_json::from_slice(
+        &std::fs::read(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../schemas/catalog-sync/v0.3/examples/page.request.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
     let page = crate::extract_library_page(fixture["params"]["html"].as_str().unwrap()).unwrap();
-    let mut observation = crate::library_item_to_observation(&page.items[0], &format!("sha256:{}", "1".repeat(64)), "t", None, None);
-    observation.product_id = "booth:91".into(); observation.native_product_id = "91".into();
+    let mut observation = crate::library_item_to_observation(
+        &page.items[0],
+        &format!("sha256:{}", "1".repeat(64)),
+        "t",
+        None,
+        None,
+    );
+    observation.product_id = "booth:91".into();
+    observation.native_product_id = "91".into();
     w.bdl.record_product_observation(&observation).unwrap();
     let edit = |revision, product: &str| vua_bdl_store::LibraryEntryMetadataUpdate {
-        schema_version: "0.1".into(), entry_id: local.warehouse_item_id.clone(), expected_revision: revision,
-        display_name: "My texture".into(), product_id: Some(product.into()), thumbnail_ref: None
+        schema_version: "0.1".into(),
+        entry_id: local.warehouse_item_id.clone(),
+        expected_revision: revision,
+        display_name: "My texture".into(),
+        product_id: Some(product.into()),
+        thumbnail_ref: None,
     };
-    w.bdl.update_library_entry_metadata(&edit(0, "booth:91"), "source-first", "t").unwrap();
+    w.bdl
+        .update_library_entry_metadata(&edit(0, "booth:91"), "source-first", "t")
+        .unwrap();
     assert_eq!(library_view(&w, json!({"schemaVersion":"0.1"}))["total"], 2);
-    w.download_reference(b"same bytes"); w.verify_sources("source-correction");
+    w.download_reference(b"same bytes");
+    w.verify_sources("source-correction");
     let separate = library_view(&w, json!({"schemaVersion":"0.1"}));
     assert_eq!(separate["total"], 2);
-    assert_eq!(separate["items"][1]["metadata"]["displayName"], "My texture");
-    assert_eq!(separate["items"][1]["sourceMatch"]["product"]["productId"], "booth:91");
-    assert!(w.bdl.product_library_memberships("booth:91").unwrap().is_empty());
-    w.bdl.update_library_entry_metadata(&edit(1, "booth:90"), "source-corrected", "t").unwrap();
+    assert_eq!(
+        separate["items"][1]["metadata"]["displayName"],
+        "My texture"
+    );
+    assert_eq!(
+        separate["items"][1]["sourceMatch"]["product"]["productId"],
+        "booth:91"
+    );
+    assert!(w
+        .bdl
+        .product_library_memberships("booth:91")
+        .unwrap()
+        .is_empty());
+    w.bdl
+        .update_library_entry_metadata(&edit(1, "booth:90"), "source-corrected", "t")
+        .unwrap();
     let merged = library_view(&w, json!({"schemaVersion":"0.1"}));
     assert_eq!(merged["total"], 1);
-    assert_eq!(merged["items"][0]["localEntries"][0]["entryId"], local.warehouse_item_id);
-    assert_eq!(std::fs::read(&w.bdl.entry_copies(&local.warehouse_item_id).unwrap()[0].stored_path).unwrap(), b"same bytes");
+    assert_eq!(
+        merged["items"][0]["localEntries"][0]["entryId"],
+        local.warehouse_item_id
+    );
+    assert_eq!(
+        std::fs::read(&w.bdl.entry_copies(&local.warehouse_item_id).unwrap()[0].stored_path)
+            .unwrap(),
+        b"same bytes"
+    );
 }
 
 #[test]
@@ -440,19 +636,55 @@ fn removing_a_merged_local_import_preserves_files_references_and_account_product
     let params = json!({"schemaVersion":"0.1","draftId":"recipe-draft-removal","title":"Keep reference","baseRevision":0,
         "selections":[{"identity":local.artifacts[0].artifact_sha256,"displayName":"Local","source":"local","warehouseItemId":local.warehouse_item_id}]});
     let saved = drafts.apply("recipeDraft.save", params).unwrap();
-    w.download_reference(b"same bytes"); w.verify_sources("before-record-removal");
-    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1"}))["items"][0]["storage"]["presentCopies"], 2);
-    w.bdl.remove_local_entries(&vua_bdl_store::RemoveLocalEntries { schema_version:"0.1".into(), entry_ids:vec![local.warehouse_item_id.clone()] }, "remove-local", "t").unwrap();
+    w.download_reference(b"same bytes");
+    w.verify_sources("before-record-removal");
+    assert_eq!(
+        library_view(&w, json!({"schemaVersion":"0.1"}))["items"][0]["storage"]["presentCopies"],
+        2
+    );
+    w.bdl
+        .remove_local_entries(
+            &vua_bdl_store::RemoveLocalEntries {
+                schema_version: "0.1".into(),
+                entry_ids: vec![local.warehouse_item_id.clone()],
+            },
+            "remove-local",
+            "t",
+        )
+        .unwrap();
     let view = library_view(&w, json!({"schemaVersion":"0.1"}));
     assert_eq!(view["total"], 1);
     assert_eq!(view["items"][0]["product"]["productId"], "booth:90");
     assert_eq!(view["items"][0]["storage"]["presentCopies"], 1);
     assert!(view["items"][0].get("localEntries").is_none());
-    assert_eq!(w.bdl.product_library_memberships("booth:90").unwrap(), vec!["bought"]);
-    assert_eq!(std::fs::read(&w.bdl.entry_copies(&local.warehouse_item_id).unwrap()[0].stored_path).unwrap(), b"same bytes");
-    assert_eq!(drafts.apply("recipeDraft.get", json!({"schemaVersion":"0.1","draftId":"recipe-draft-removal"})).unwrap(), saved);
-    assert!(w.service.reconcile_library_sources("after-record-removal").unwrap().is_none());
-    assert!(BdlStore::open(w.base.join("bdl.db")).unwrap().removed_local_entries().unwrap().contains(&local.warehouse_item_id));
+    assert_eq!(
+        w.bdl.product_library_memberships("booth:90").unwrap(),
+        vec!["bought"]
+    );
+    assert_eq!(
+        std::fs::read(&w.bdl.entry_copies(&local.warehouse_item_id).unwrap()[0].stored_path)
+            .unwrap(),
+        b"same bytes"
+    );
+    assert_eq!(
+        drafts
+            .apply(
+                "recipeDraft.get",
+                json!({"schemaVersion":"0.1","draftId":"recipe-draft-removal"})
+            )
+            .unwrap(),
+        saved
+    );
+    assert!(w
+        .service
+        .reconcile_library_sources("after-record-removal")
+        .unwrap()
+        .is_none());
+    assert!(BdlStore::open(w.base.join("bdl.db"))
+        .unwrap()
+        .removed_local_entries()
+        .unwrap()
+        .contains(&local.warehouse_item_id));
 }
 
 #[test]
@@ -683,10 +915,7 @@ impl World {
             if value["state"] != "running" {
                 return value;
             }
-            assert!(
-                start.elapsed() < SETTLE_LIMIT,
-                "batch stuck: {value}"
-            );
+            assert!(start.elapsed() < SETTLE_LIMIT, "batch stuck: {value}");
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
     }
@@ -1055,4 +1284,146 @@ fn recovery_material_is_never_overwritten_and_owned_temporary_files_are_cleaned(
     );
     assert_eq!(std::fs::read(&old.stored_path).unwrap(), b"old");
     assert!(!folder.join(".vua-new-library-download-again-901").exists());
+}
+
+fn library_page_item() -> crate::library_page::LibraryPageItem {
+    let fixture: Value = serde_json::from_slice(
+        &std::fs::read(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../schemas/catalog-sync/v0.3/examples/page.request.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    crate::library_page::extract_library_page(fixture["params"]["html"].as_str().unwrap())
+        .unwrap()
+        .items[0]
+        .clone()
+}
+
+fn seed_bought(w: &World, item: &crate::library_page::LibraryPageItem, id: i64, title: &str) {
+    let mut item = item.clone();
+    item.native_product_id = id.to_string();
+    item.name = Some(title.to_owned());
+    let observation = crate::library_page::library_item_to_observation(
+        &item,
+        &format!("sha256:{id:064}"),
+        "2026-10-08T00:00:00Z",
+        None,
+        Some("bought"),
+    );
+    w.bdl.record_product_observation(&observation).unwrap();
+}
+
+#[test]
+fn a_local_entry_suggests_one_product_by_its_number_or_title_and_stays_quiet_when_unsure() {
+    let w = World::new();
+    let item = library_page_item();
+    seed_bought(&w, &item, 100_001, "Fluffy Hair");
+    seed_bought(&w, &item, 100_002, "Twin Title");
+    seed_bought(&w, &item, 100_003, "Twin Title");
+    let hint = |folder: &str, file: &str| {
+        let entry = w.import_local(folder, &[(file, folder.as_bytes())]);
+        let view = library_view(&w, json!({"schemaVersion":"0.1","limit":200}));
+        view["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["entry"]["warehouseItemId"] == entry.warehouse_item_id)
+            .unwrap()["sourceMatch"]
+            .clone()
+    };
+    let by_folder = hint("avatar_100001_v2", "a.unitypackage");
+    assert_eq!(
+        (&by_folder["basis"], &by_folder["product"]["productId"]),
+        (&json!("product_id"), &json!("booth:100001"))
+    );
+    let by_file = hint("plain name", "pack-100002.unitypackage");
+    assert_eq!(
+        (&by_file["basis"], &by_file["product"]["productId"]),
+        (&json!("product_id"), &json!("booth:100002"))
+    );
+    assert!(
+        hint("100001 and 100002", "b.unitypackage").is_null(),
+        "two numbers name no single product"
+    );
+    assert!(
+        hint("1000011", "c.unitypackage").is_null(),
+        "a longer number is another number"
+    );
+    assert!(
+        hint("release 90", "d.unitypackage").is_null(),
+        "booth:90 is too short to count inside a name"
+    );
+    let by_title = hint("fluffy   HAIR", "e.unitypackage");
+    assert_eq!(
+        (&by_title["basis"], &by_title["product"]["productId"]),
+        (&json!("name"), &json!("booth:100001"))
+    );
+    assert!(
+        hint("twin title", "f.unitypackage").is_null(),
+        "a shared title names no single product"
+    );
+}
+
+/// Run by hand: cargo test --release -p vua-acquisition a_large_library -- --ignored --nocapture
+#[test]
+#[ignore = "measures one read at the size of a large library"]
+fn a_large_library_reads_quickly() {
+    let w = World::new();
+    let item = library_page_item();
+    let started = std::time::Instant::now();
+    for i in 0..2000_i64 {
+        let id = 100_000 + i;
+        seed_bought(&w, &item, id, &format!("Synthetic {i}"));
+        w.bdl
+            .upsert_product_downloadables(
+                &format!("booth:{id}"),
+                &[
+                    (1_000_000 + i * 2, "a.zip".into()),
+                    (1_000_001 + i * 2, "b.pdf".into()),
+                ],
+                "2026-10-08T00:00:00Z",
+                None,
+                Some("bought"),
+            )
+            .unwrap();
+    }
+    for i in 0..300 {
+        w.import_local(
+            &format!("local-{i}"),
+            &[("Avatar.unitypackage", format!("bytes {i}").as_bytes())],
+        );
+    }
+    eprintln!("seeded in {:?}", started.elapsed());
+    let reads = [
+        (
+            "first batch",
+            json!({"schemaVersion":"0.3","limit":100,"sort":"added_desc"}),
+        ),
+        (
+            "later batch",
+            json!({"schemaVersion":"0.3","limit":100,"offset":1000,"sort":"added_desc"}),
+        ),
+        (
+            "by title",
+            json!({"schemaVersion":"0.3","limit":100,"sort":"title_asc"}),
+        ),
+        (
+            "search",
+            json!({"schemaVersion":"0.3","limit":100,"sort":"added_desc","text":"Synthetic 19"}),
+        ),
+    ];
+    for (name, query) in reads {
+        for _ in 0..2 {
+            let began = std::time::Instant::now();
+            let view = library_view(&w, query.clone());
+            eprintln!(
+                "{name}: {:?}, {} rows of {}",
+                began.elapsed(),
+                view["items"].as_array().unwrap().len(),
+                view["total"]
+            );
+        }
+    }
 }

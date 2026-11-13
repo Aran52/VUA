@@ -2,7 +2,7 @@
 
 > Document version: 0.1
 > Status: Candidate
-> Updated: 2026-10-08
+> Updated: 2026-11-11
 > Scope: Additive purpose-plan and confirmed-execution family under Gateway v1 / application 0.1
 
 ## Reading context and ownership
@@ -88,7 +88,13 @@ Android module detection uses the selected Editor's directory. Frozen identity c
 is preserved; N1's development admission uses the complete version instead of that classification.
 
 Actions are `retain`, `manual_install`, `inspect`, `install_unity_cli`, `install_editor`,
-`add_android_modules`, `install_steam` and `install_pico_runtime`.
+`add_android_modules`, `install_steam`, `install_pico_runtime` and `install_official_tool`.
+Optional `tools` (`slimevr`, `vrct`, `vrcx`, `vrcs`) and subset `reinstallTools` extend `intent`
+additively so official-installer tools share the same digest-bound plan, staged HTTPS acquisition,
+pinned size + SHA-256 check, session-wide installer mutex and cooperative cancellation; see
+[installer-tool v0.1](installer-tool-v0.1.md) for direct breakaway launch and normal window close.
+A running target process refuses `install_official_tool` (`vua.deployment.tool_running`) rather
+than overwriting open binaries.
 Verified facts are retained. Unknown/failed/unsuitable facts require inspection. Missing
 components use official handoffs unless a trusted supported installer and matching Editor root
 permit automatic installation. Missing CLI may be acquired from a reviewed, fixed official artifact.
@@ -278,6 +284,7 @@ evidence must distinguish synthetic coverage from dated real-machine runs kept l
 
 ## Document changelog
 
+- 0.1 Candidate update (2026-11-11): add optional `tools` / `reinstallTools` and `install_official_tool` for SlimeVR Server (`v5.0.0`), VRCT (`v3.6.1`, official-only), VRCX (`v2026.09.16`) and VRCS (`0.3.7`, `AGPL-3.0`), preserving identical serialization and SHA-256 digests for purpose-only plans.
 - 0.1 Candidate update (2026-10-08): add official Steam/PICO acquisition actions, explicit
   consent-bound PICO distribution, vendor progress/error decoding, native elevation and
   bounded entry-file reinspection; restore accepted task monitoring without replaying execution.

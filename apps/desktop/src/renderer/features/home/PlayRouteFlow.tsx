@@ -1,20 +1,22 @@
-/** One route's play preparation as a single button that always names the next step:
- * check the environment, confirm the checklist, run the installation, retry after a failure, launch.
- * The Gateway owns checks, plans, tasks and sessions; this view only derives the next step from them. */
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+/** One route's play preparation. The route's card holds the one button that always names the next step:
+ * check the environment, confirm the checklist, install, retry after a failure, launch. These details show
+ * what that step depends on. The Gateway owns checks, plans, tasks and sessions; this view only derives
+ * the next step from them. */
+import { useCallback, useEffect, useRef, useState } from "react";
 import { isTerminalTaskStateV01, type DeploymentIntent, type DeploymentPlan, type DeploymentProgress, type PicoInstallRegion, type PlayRoute, type PlaySession, type ScenarioConnection, type ScenarioEnvironmentCheck, type ScenarioSop, type TaskSnapshotV01 } from "@vua/contracts";
 import { Icon, type IconName } from "@vua/design-system";
 import { useGateway } from "../../gateway/index.ts";
-import { currentLocale, strings } from "../../i18n/index.ts";
+import { currentLocale, format, strings } from "../../i18n/index.ts";
 import { playFlowCopy } from "../../i18n/play-flow-copy.ts";
+import { structureCopy } from "../../i18n/structure-copy.ts";
 import { storageKeys } from "../../app/storage-keys.ts";
 import { useUnityMirrors } from "../../app/unity-download-preference.ts";
 import { openExternalUrl } from "../../app/open-external.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { readDeploymentReceipt, type DeploymentReceiptBookmark } from "../deployer/deployment-receipt.ts";
-import { readDeploymentManualHandoff } from "../deployer/deployment-handoff.ts";
-import type { DeploymentCardState } from "../deployer/DeploymentPanel.tsx";
-import { ActionGlyph } from "./EnvironmentCard.tsx";
+import { PICO_RUNTIME_PAGE, readDeploymentManualHandoff } from "../deployer/deployment-handoff.ts";
+import { ToolReinstallRow } from "../tools/ToolReinstall.tsx";
+import { StepRows } from "./PlaySetupFlow.tsx";
 import { checklistSignature, playChecklist, playFlowPhase, progressPercent, readConfirmed, writeConfirmed, type PlayFlowPhase } from "./play-flow-model.ts";
 import "./play-flow.css";
 
@@ -29,13 +31,27 @@ const readConnection = (): ScenarioConnection => read(storageKeys.picoConnection
 const readRegion = (): PicoInstallRegion | "" => { const value = read(storageKeys.picoRegion); return value === "china_mainland" || value === "other" ? value : ""; };
 const finished = (task: TaskSnapshotV01 | null) => task !== null && (isTerminalTaskStateV01(task.state) || task.recoveryDisposition === "inspect_required");
 
-const PHASE_ICONS: Partial<Record<PlayFlowPhase, IconName>> = { check: "refresh", confirm: "square-check", execute: "download", handoff: "arrow-right", retry: "refresh", unavailable: "warning" };
+const PHASE_ICONS: Partial<Record<PlayFlowPhase, IconName>> = { check: "refresh", confirm: "list", execute: "download", handoff: "arrow-right", retry: "refresh", unavailable: "warning" };
 
-export function PlayRouteFlow({ route, session, unavailable, launchPending, refreshToken, onLaunch, onAccounts, onStateChange }: {
+/** What the route's card shows and does for the next step. */
+export interface PlayFlowStep {
+  readonly phase: PlayFlowPhase;
+  readonly label: string;
+  /** Phases without their own action glyph name the step with this icon. */
+  readonly icon: IconName | undefined;
+  readonly spinning: boolean;
+  readonly percent: number | null;
+  /** The step depends on what the details show, so the card opens them before acting. */
+  readonly needsDetails: boolean;
+  readonly disabled: boolean;
+  readonly act: () => void;
+}
+
+export function PlayRouteFlow({ route, session, unavailable, launchPending, refreshToken, onLaunch, onAccounts, onStep }: {
   route: PlayRoute; session: PlaySession | null; unavailable: boolean; launchPending: boolean;
   /** Changes when the page asks every route to check its environment again. */
   refreshToken: number;
-  onLaunch: (stop: boolean) => void; onAccounts: () => void; onStateChange: (state: DeploymentCardState) => void;
+  onLaunch: (stop: boolean) => void; onAccounts: () => void; onStep: (step: PlayFlowStep) => void;
 }) {
   const gateway = useGateway();
   const scenarios = gateway.environment.scenarios, deployment = gateway.environment.deployment;
@@ -130,9 +146,10 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
     return () => window.removeEventListener("focus", focus);
   }, [runCheck]);
 
-  const phase = playFlowPhase({ unavailable: unavailable || !scenarios, session, launchPending, checking: checking || !sopSettled, check, checkFailed, confirmed,
+  // Software installed outside VUA shows up here without another check.
+  const observedReady = !session || session.software.length === 0 ? null : session.software.every(item => item.presence === "verified");
+  const phase = playFlowPhase({ unavailable: unavailable || !scenarios, session, launchPending, checking: checking || !sopSettled, check, observedReady, checkFailed, confirmed,
     preparing, prepareFailed: prepareError !== null, task, taskActive });
-  useEffect(() => { onStateChange({ busy: preparing || taskActive, error: phase === "retry", ready: check?.softwareReady === true }); }, [preparing, taskActive, phase, check?.softwareReady, onStateChange]);
 
   const needsRegion = pico && check !== null && !check.softwareReady;
   const regionMissing = needsRegion && region === "";
@@ -170,12 +187,15 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
   const scenario = strings.scenarioEnvironment;
   const componentName = (component: string) => strings.deployment.components[component as keyof typeof strings.deployment.components] ?? component;
   const percent = progressPercent(step);
-  const items = playChecklist(sop, { check, confirmed, session });
+  const items = playChecklist(sop);
   const observed = new Map((check?.observations ?? []).map(o => [o.component, o.presence === "verified"] as const));
   const software = (session?.software.map(s => s.component) ?? DEFAULT_SOFTWARE[route]).map(component => {
     const fact = session?.software.find(s => s.component === component);
     return { component, ready: observed.get(component) ?? fact?.presence === "verified", running: !unavailable && !!fact?.running, owned: !!fact?.owned };
   });
+  const [repairOpen, setRepairOpen] = useState(false);
+  const repairable = software.filter(item => item.ready && (item.component === "vrchat" || item.component === "steamvr"));
+  const picoRepairable = software.some(item => item.ready && item.component === "pico_runtime");
   const failure = task?.error?.code.replace(/^vua\.deployment\./, "");
   const notice = phase === "retry"
     ? checkFailed ? scenario.failed
@@ -187,7 +207,11 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
     : null;
   const label = phase === "running" && percent !== null ? `${copy.phases.running} ${percent}%` : copy.phases[phase];
   const spinning = phase === "checking" || phase === "running" || phase === "starting";
-  const progress = phase === "running" && percent !== null ? { "--vua-flow-progress": `${percent}%` } as CSSProperties : undefined;
+  const actRef = useRef(act); actRef.current = act;
+  const needsDetails = phase === "confirm" || phase === "unavailable" || (phase === "execute" && regionMissing);
+  useEffect(() => {
+    onStep({ phase, label, icon: PHASE_ICONS[phase], spinning, percent: phase === "running" ? percent : null, needsDetails, disabled: phase === "unavailable" || spinning, act: () => actRef.current() });
+  }, [phase, label, spinning, percent, needsDetails, onStep]);
 
   return <div className="vua-play-flow" data-phase={phase} data-route={route}>
     <ul className="vua-play-flow__software" aria-label={strings.environmentCards.included}>
@@ -199,7 +223,7 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
       </li>)}
     </ul>
     {pico ? <div className="vua-play-flow__options">
-      <fieldset className="vua-segmented" disabled={spinning}><legend>{copy.connection}</legend>
+      <fieldset className="vua-segmented" disabled={spinning}><legend className="vua-play-flow__sr">{copy.connection}</legend>
         {(["usb", "wifi"] as const).map(value => <label key={value} data-checked={connection === value}>
           <input type="radio" name={`vua-${route}-connection`} checked={connection === value} onChange={() => { setConnection(value); write(storageKeys.picoConnection, value); }} />{scenario[value]}
         </label>)}
@@ -210,26 +234,25 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
         </label>)}
       </fieldset> : null}
     </div> : null}
-    {items.length > 0 ? <ol className="vua-play-flow__checklist" aria-label={copy.checklist}>
-      {items.map((item, index) => {
-        const text = scenario.steps[item.id as keyof typeof scenario.steps];
-        return <li key={item.id} data-done={item.done} data-automatic={item.automatic} title={text?.explanation}>
-          <span className="vua-play-flow__mark" aria-hidden="true">{item.done ? <Icon name="check" size={16} /> : index + 1}</span>
-          <span>{text?.title ?? item.id}</span>
-        </li>;
-      })}
-    </ol> : null}
+    {items.length > 0 ? <div className="vua-play-flow__review" data-confirming={phase === "confirm" || undefined}>
+      {phase === "confirm" ? <h3><Icon name="list" size={16} />{copy.checklist}</h3> : null}
+      <StepRows rows={items.map(item => {
+        const words = scenario.steps[item.id as keyof typeof scenario.steps];
+        return { id: item.id, text: words?.title ?? item.id, actor: item.automatic ? "vua" as const : "player" as const, title: words?.explanation };
+      })} />
+    </div> : null}
     {notice ? <p className="vua-play-flow__notice" role="status" data-tone={phase === "retry" ? "warning" : undefined}>{notice}</p> : null}
+    {repairable.length > 0 || picoRepairable ? <details className="vua-play-flow__repair" onToggle={event => setRepairOpen(event.currentTarget.open)}>
+      <summary>{copy.repair}</summary>
+      {repairOpen ? repairable.map(item => <ToolReinstallRow key={item.component} toolId={item.component as "vrchat" | "steamvr"} title={componentName(item.component)} />) : null}
+      {repairOpen && picoRepairable ? <div className="vua-tool-reinstall-row">
+        <strong>{componentName("pico_runtime")}</strong>
+        <div className="vua-tool-reinstall"><Button data-nav-id="play-repair-pico" onClick={() => { void openExternalUrl(PICO_RUNTIME_PAGE); }}>{format(structureCopy[currentLocale].reinstallFromPage, { tool: componentName("pico_runtime") })}</Button></div>
+      </div> : null}
+    </details> : null}
     <div className="vua-play-flow__actions">
-      <button type="button" className="vua-flow-button" data-phase={phase} data-nav-id={`play-flow-${route}`} style={progress}
-        disabled={phase === "unavailable" || spinning || (phase === "execute" && regionMissing)} aria-busy={spinning} onClick={act}>
-        <span className="vua-flow-button__icon" aria-hidden="true">
-          {spinning ? <span className="vua-environment-card__spin"><Icon name="refresh" size={20} /></span>
-            : phase === "launch" ? <ActionGlyph action="start" /> : phase === "stop" ? <ActionGlyph action="stop" />
-            : <Icon name={PHASE_ICONS[phase] ?? "arrow-right"} size={20} />}
-        </span>
-        <span className="vua-flow-button__label" key={phase}>{label}</span>
-      </button>
+      {phase === "confirm" ? <Button variant="primary" data-nav-id={`play-confirm-${route}`} onClick={act}>{copy.confirmContinue}</Button> : null}
+      {phase === "execute" && pico ? <Button variant="primary" data-nav-id={`play-install-${route}`} disabled={regionMissing} onClick={act}>{label}</Button> : null}
       {phase === "running" && task !== null && taskActive && !task.cancellationRequested && deployment
         ? <Button variant="subtle" onClick={() => { void deployment.cancel(task.taskId, task.revision).catch(() => {}); }}>{copy.cancel}</Button> : null}
       <Button variant="subtle" className="vua-play-flow__accounts" data-nav-id={`play-accounts-${route}`} onClick={onAccounts}>{copy.accounts}</Button>

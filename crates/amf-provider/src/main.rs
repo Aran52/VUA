@@ -13,7 +13,10 @@ fn main() {
         return;
     }
     if let Some(result) = data_recovery::run() {
-        if let Err(error) = result { eprintln!("AMF data recovery failed: {error}"); std::process::exit(1); }
+        if let Err(error) = result {
+            eprintln!("AMF data recovery failed: {error}");
+            std::process::exit(1);
+        }
         return;
     }
     if std::env::args().nth(1).as_deref() == Some("--version") {
@@ -27,7 +30,10 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    if !vua_provider_host::provider_host::configure_amf_build_identity(env!("CARGO_PKG_VERSION"), option_env!("VUA_SOURCE_COMMIT")) {
+    if !vua_provider_host::provider_host::configure_amf_build_identity(
+        env!("CARGO_PKG_VERSION"),
+        option_env!("VUA_SOURCE_COMMIT"),
+    ) {
         return Err("AMF build identity already configured".into());
     }
     let database_path = vua_provider_host::runtime::database_path()?;
@@ -97,9 +103,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var_os("VUA_UNITY_EDITORS_ROOT").map(std::path::PathBuf::from);
     let unity_editors_root = editors_root_override
         .clone()
-        .unwrap_or_else(|| {
-            std::path::PathBuf::from("C:/Program Files/Unity/Hub/Editor")
-        });
+        .unwrap_or_else(|| std::path::PathBuf::from("C:/Program Files/Unity/Hub/Editor"));
     // W20 production-use-case command face: the recipe document store lives
     // under the provider data root (AMF production-domain document store).
     // W20 production-use-case command face (recipe/plan/job/record). The
@@ -114,8 +118,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         // presentation and the job precheck only — the gate-3 first-use
         // confirmation lives on the desktop settings face, so the
         // transition period keeps job execution honestly unavailable.
-        let explicit_editor = std::env::var_os("VUA_UNITY_EDITOR")
-            .map(std::path::PathBuf::from);
+        let explicit_editor = std::env::var_os("VUA_UNITY_EDITOR").map(std::path::PathBuf::from);
         let editor_selection = vua_orchestrator::select_editor(
             explicit_editor,
             &vua_orchestrator::installed_unity_editors(&unity_editors_root),
@@ -141,9 +144,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         "VUA provider: no usable editor selection ({reason:?}); \
                          job execution stays unavailable"
                     ),
-                    vua_orchestrator::EditorSelection::Explicit { .. } => unreachable!(
-                        "a released selection takes the executing bridge branch"
-                    ),
+                    vua_orchestrator::EditorSelection::Explicit { .. } => {
+                        unreachable!("a released selection takes the executing bridge branch")
+                    }
                 }
                 std::sync::Arc::new(vua_unity_bridge::UnityBatchBridge::new(
                     std::path::PathBuf::new(),
@@ -157,50 +160,55 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             });
         let production_root = std::path::Path::new(&data).join("production");
         vua_provider_host::ProductionUseCaseConfig {
-            recipes: std::sync::Arc::new(vua_orchestrator::RecipeDocumentStore
-                ::new_with_system_clock(production_root.join("recipes"))),
-            plans: std::sync::Arc::new(vua_orchestrator::PlanDocumentStore
-                ::new(production_root.join("plans"))),
-            evidence: std::sync::Arc::new(vua_orchestrator::EvidenceStore
-                ::new(production_root.join("evidence"))),
-        // M7 inspection slice: the evidence store lives beside the other AMF
-        // production-domain document stores; the editor version is observed
-        // from the selected editor path ("unknown" when the path states
-        // none — the evidence never invents one).
-        inspections: std::sync::Arc::new(vua_orchestrator::InspectionEvidenceStore
-            ::new(production_root.join("inspections"))),
-        editor_version: editor_selection
-            .path()
-            .and_then(|path| {
-                vua_orchestrator::editor_version_from_path(path)
-            })
-            .unwrap_or_else(|| "unknown".to_owned()),
-        records: std::sync::Arc::new(vua_orchestrator::RecipeRecordStore
-            ::new(production_root.join("records"))),
-        bridge,
-        project_root,
-        editor_selection,
-        // Proposal 023 assembly slice (BOARD #30): the default assembly
-        // wires the REAL process/window adapter (EditorHandoffPort ->
-        // ReleaseHandoffPort). The frozen honest-absence answer
-        // `vua.release_handoff.unavailable` stops being the default face of
-        // an unwired port and converges to the explicitly port-less
-        // assembly's exception path; the route now runs the full admission
-        // flow (build_unknown / editor_unresolved / task acceptance).
-        // Real-machine end-to-end evidence belongs to the W25 window — no
-        // end-to-end claim is made here.
-        handoff: Some(std::sync::Arc::new(
-            vua_provider_host::EditorHandoffAdapter::new(),
-        )),
-        // Proposal 029 B-face loop 3: the REAL on-disk export executor is
-        // wired and its capability override flips the served row — the read
-        // face derives drafts from the 013 inspection facts (declared VPM
-        // dependencies + locked pins, the observed editor version, the VUA
-        // identity tri-state). Real-machine export evidence stays W25 (O-2).
-        draft_exporter: Some(std::sync::Arc::new(
-            vua_orchestrator::OnDiskProjectDraftExporter::new(),
-        )),
-    }
+            recipes: std::sync::Arc::new(
+                vua_orchestrator::RecipeDocumentStore::new_with_system_clock(
+                    production_root.join("recipes"),
+                ),
+            ),
+            plans: std::sync::Arc::new(vua_orchestrator::PlanDocumentStore::new(
+                production_root.join("plans"),
+            )),
+            evidence: std::sync::Arc::new(vua_orchestrator::EvidenceStore::new(
+                production_root.join("evidence"),
+            )),
+            // M7 inspection slice: the evidence store lives beside the other AMF
+            // production-domain document stores; the editor version is observed
+            // from the selected editor path ("unknown" when the path states
+            // none — the evidence never invents one).
+            inspections: std::sync::Arc::new(vua_orchestrator::InspectionEvidenceStore::new(
+                production_root.join("inspections"),
+            )),
+            editor_version: editor_selection
+                .path()
+                .and_then(vua_orchestrator::editor_version_from_path)
+                .unwrap_or_else(|| "unknown".to_owned()),
+            records: std::sync::Arc::new(vua_orchestrator::RecipeRecordStore::new(
+                production_root.join("records"),
+            )),
+            bridge,
+            project_root,
+            editor_selection,
+            // Proposal 023 assembly slice (BOARD #30): the default assembly
+            // wires the REAL process/window adapter (EditorHandoffPort ->
+            // ReleaseHandoffPort). The frozen honest-absence answer
+            // `vua.release_handoff.unavailable` stops being the default face of
+            // an unwired port and converges to the explicitly port-less
+            // assembly's exception path; the route now runs the full admission
+            // flow (build_unknown / editor_unresolved / task acceptance).
+            // Real-machine end-to-end evidence belongs to the W25 window — no
+            // end-to-end claim is made here.
+            handoff: Some(std::sync::Arc::new(
+                vua_provider_host::EditorHandoffAdapter::new(),
+            )),
+            // Proposal 029 B-face loop 3: the REAL on-disk export executor is
+            // wired and its capability override flips the served row — the read
+            // face derives drafts from the 013 inspection facts (declared VPM
+            // dependencies + locked pins, the observed editor version, the VUA
+            // identity tri-state). Real-machine export evidence stays W25 (O-2).
+            draft_exporter: Some(std::sync::Arc::new(
+                vua_orchestrator::OnDiskProjectDraftExporter::new(),
+            )),
+        }
     });
     // Project-domain command face (proposals 013/014) + environment
     // detection (BG-16): both ride the same desktop-injected runtime
@@ -232,9 +240,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             editor_roots: vec![unity_editors_root],
         })
     } else {
-        eprintln!(
-            "VUA provider: VUA_PROVIDER_DATA unset; project command face stays unavailable"
-        );
+        eprintln!("VUA provider: VUA_PROVIDER_DATA unset; project command face stays unavailable");
         None
     };
     // Proposal 024 P1 (packages-query v0.1): the packages read face rides a
@@ -250,21 +256,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             .and_then(|candidate| candidate.parent())
             .map(|directory| directory.to_path_buf());
         match environment_root {
-            Some(directory) => match vua_project_manager::VrcGetLibBackend::with_environment_root(
-                directory, false,
-            ) {
-                Ok(backend) => Some(
-                    std::sync::Arc::new(backend)
-                        as std::sync::Arc<dyn vua_orchestrator::VpmBackend>,
-                ),
-                Err(error) => {
-                    eprintln!(
+            Some(directory) => {
+                match vua_project_manager::VrcGetLibBackend::with_environment_root(directory, false)
+                {
+                    Ok(backend) => Some(std::sync::Arc::new(backend)
+                        as std::sync::Arc<dyn vua_orchestrator::VpmBackend>),
+                    Err(error) => {
+                        eprintln!(
                         "VUA provider: vrc-get backend failed to initialize ({}); packages face stays unavailable",
                         error.code,
                     );
-                    None
+                        None
+                    }
                 }
-            },
+            }
             None => {
                 eprintln!(
                     "VUA provider: no VCC settings candidate resolved; packages face stays unavailable"
@@ -273,17 +278,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     } else {
-        eprintln!(
-            "VUA provider: VUA_PROVIDER_DATA unset; packages face stays unavailable"
-        );
+        eprintln!("VUA provider: VUA_PROVIDER_DATA unset; packages face stays unavailable");
         None
     };
     let input = vua_provider_host::runtime::stdin_reader();
     let output = std::io::stdout().lock();
     let legacy = vua_provider_host::runtime::legacy_database();
     vua_provider_host::run_provider_host_with_legacy(
-        input, output, database_path, production, downloads, warehouse, use_cases,
-        project_ops, None,
+        input,
+        output,
+        database_path,
+        production,
+        downloads,
+        warehouse,
+        use_cases,
+        project_ops,
+        None,
         // Proposal 021 routing: no injected verifier — the route falls
         // back to the primitive's system wiring, the full entry's
         // documented default (`verify_editor_path_system`).
@@ -291,7 +301,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         // Proposal 024 P1: the real vrc-get-lib engine, sharing the 013
         // aggregate's environment-root fact source.
         vpm,
-        legacy.as_deref().map(|path| (path, vua_orchestrator::LegacyTaskOwner::Amf)),
+        legacy
+            .as_deref()
+            .map(|path| (path, vua_orchestrator::LegacyTaskOwner::Amf)),
     )?;
     Ok(())
 }

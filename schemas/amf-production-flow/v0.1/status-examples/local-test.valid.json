@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "0.1",
+  "runId": "n3-example",
+  "phase": "succeeded",
+  "taskId": "task-local-test",
+  "steps": [
+    {
+      "key": "local_test",
+      "name": "Build and test with the VRChat SDK",
+      "state": "running",
+      "detail": "",
+      "startedAt": "2026-11-09T08:00:00.000Z",
+      "endedAt": null
+    }
+  ],
+  "usualDurations": { "local_test": 90 },
+  "progress": {
+    "step": "local_test",
+    "name": "Build and test with the VRChat SDK",
+    "startedAt": "2026-11-09T08:00:00.000Z",
+    "elapsedSeconds": 12,
+    "usualSeconds": 90
+  }
+}

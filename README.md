@@ -1,8 +1,8 @@
-# VUA — Virtual Unified Assistant
+# VUA
 
 English | [简体中文](README_ZH.md) | [日本語](README_JA.md) | [한국어](README_KO.md)
 
-**VUA (Virtual Unified Assistant)** is a Windows-first, local-first scenario installer, manager and
+**VUA** is a Windows-first, local-first scenario installer, manager and
 launcher for VRChat players. A scenario brings together a goal, the required software and the
 steps to prepare, launch and recover it: play on a PC screen, stream to a PICO, or edit an Avatar
 with a selected module. Start with what you want to do; VUA helps you work out what comes next.
@@ -47,14 +47,14 @@ Project and package management prepares the required Unity environment and depen
 
 ## Development progress
 
-[v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0) is the first stable host release, with independently updated **AMF 0.3.0 Beta**. It adds the material migration planner, production estimates, first-use guide and fixes for tool details, environment reuse and VN3 refresh. Online and offline Windows x64 installers include AMF.
+[v1.1.0 Getting on Track](https://github.com/VUA-Project/VUA/releases/tag/v1.1.0) updates the stable host and bundles independently updated **AMF 0.4.0 Beta**. It adds the native single-card installer and uninstaller, scenario-first Launch across 3 social platforms and 15 setups, Steam and official-installer tool connections, opt-in Avatar Optimizer and local SDK test builds, Recipe v0.6, signed guides and `v0.3` compressed updates, cutting installed footprint roughly in half. Online and offline Windows x64 installers include AMF.
 
-The [release notes](docs/release/v1.0.0.md) record the scope and pending real-machine and human checks. Publication does not close [N1–N7 acceptance](docs/development-outline.md).
+The [release notes](docs/release/v1.1.0.md) record the scope and pending real-machine and human checks. Publication does not close [N1–N7 acceptance](docs/development-outline.md).
 
 ### Current delivery and starting points
 
-- Download **VUA-1.0.0-windows-x64-setup.exe** from the [GitHub release](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0), or choose **VUA-1.0.0-windows-x64-offline.exe** for the bundled runtime. The [official mirror](https://ph-r.com/vua/downloads/) identifies its current version. Run the installer, then open VUA from the Start menu. Node, pnpm, Rust and a source checkout are not needed. Windows may display an unfamiliar-publisher warning because the installers lack Authenticode signing.
-- Start with the first-use tour and guide, or open Play, Tools or Avatar editing directly. AMF is enabled for new users and can be disabled in Settings → Modules. Steam/PICO/Unity/account actions remain with their official applications.
+- Download **VUA-1.1.0-windows-x64-setup.exe** from the [GitHub release](https://github.com/VUA-Project/VUA/releases/tag/v1.1.0), or choose **VUA-1.1.0-windows-x64-offline.exe** for the bundled runtime. The [official mirror](https://ph-r.com/vua/downloads/) identifies its current version. Run the installer; VUA opens automatically when installation finishes and is added to the Start menu. Node, pnpm, Rust and a source checkout are not needed. Windows may display an unfamiliar-publisher warning because the installers lack Authenticode signing.
+- Start with the first-use tour and guide, or open Launch, Tools or Workshop directly. AMF is enabled for new users and can be disabled in Settings → Modules. Steam/PICO/Unity/account actions remain with their official applications.
 - To update VUA, finish your work, exit VUA and run the new installer. AMF also supports separate updates through Settings → Modules or About, followed by an explicit restart. Application data remains in `%APPDATA%\VUA`. Existing ZIP users can switch to the installer while retaining that profile. The release notes name remaining tests and manual handoffs. Use [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) for problems.
 - For developers: [install dependencies, launch the desktop app and select checks](apps/desktop/README.md#development-commands), then follow [Contributing](CONTRIBUTING.md).
 
@@ -63,7 +63,7 @@ The [release notes](docs/release/v1.0.0.md) record the scope and pending real-ma
 - [Documentation guide](docs/README.md) — the smallest route for every task
 - [Product boundary](docs/product-boundary.md)
 - [Architecture](docs/architecture/system.md)
-- [v1.0.0 release notes](docs/release/v1.0.0.md)
+- [v1.1.0 release notes](docs/release/v1.1.0.md) · [v1.0.0 release notes](docs/release/v1.0.0.md)
 - [1.0.0 minimal guide (candidate, five languages)](docs/user-guide/v1.0.0/README.md)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
@@ -81,6 +81,8 @@ Dates are the times GitHub recorded for each release and pull request.
 | 2026-10-17 | [Release room with the 60-frame turntable and managed upload](https://github.com/Aran52/VUA/pull/4) |
 | 2026-10-18 | [VN3 terms parsing and checks by use](https://github.com/Aran52/VUA/pull/31) |
 | 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0), the first release with the Avatar production path |
+| 2026-11-05 | [v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0), the first stable host release paired with AMF 0.3.0 Beta |
+| 2026-11-13 | [v1.1.0 Getting on Track](https://github.com/VUA-Project/VUA/releases/tag/v1.1.0), native setup card, scenario-first Launch, Avatar Optimizer, local SDK tests and compressed updates paired with AMF 0.4.0 Beta |
 
 ## License
 

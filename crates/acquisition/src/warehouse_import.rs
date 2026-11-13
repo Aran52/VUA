@@ -16,16 +16,16 @@
 
 use crate::artifact_inspection::{hex_lower, mechanical_rejection, sha256_file, InspectionPolicy};
 use crate::warehouse_maintenance::{submit_generate_vpm, GenerateVpmTaskSpec};
-use vua_bdl_store::bdl_store::{
-    ArtifactInspectionState, ArtifactMode, ArtifactRecordingOutcome, BdlStore, BdlStoreError,
-    CopyRole, NewLocalArtifact, WarehouseEntryDetail,
-};
-use vua_orchestrator::Clock;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use vua_bdl_store::bdl_store::{
+    ArtifactInspectionState, ArtifactMode, ArtifactRecordingOutcome, BdlStore, BdlStoreError,
+    CopyRole, NewLocalArtifact, WarehouseEntryDetail,
+};
+use vua_orchestrator::Clock;
 use vua_unity_bridge::MaterialExecutor;
 
 /// Entry kind for batch-imported folders. The full entry-kind vocabulary
@@ -72,19 +72,29 @@ impl std::fmt::Display for ImportError {
             Self::Cancelled => write!(formatter, "import cancelled"),
             Self::Io(error) => write!(formatter, "warehouse import failed: {error}"),
             Self::UnnamedSource(path) => {
-                write!(formatter, "source folder {} has no name for the entry", path.display())
+                write!(
+                    formatter,
+                    "source folder {} has no name for the entry",
+                    path.display()
+                )
             }
             Self::SourceInsideWarehouse(path) => write!(
                 formatter,
                 "source folder {} is inside the warehouse root",
                 path.display()
             ),
-            Self::CopySizeMismatch { relative_path, expected, actual } => write!(
+            Self::CopySizeMismatch {
+                relative_path,
+                expected,
+                actual,
+            } => write!(
                 formatter,
                 "copied {relative_path} is {actual} bytes, source reported {expected}"
             ),
             Self::InvalidGroupName(name) => write!(formatter, "{name:?} cannot be an entry name"),
-            Self::InvalidGroupPath(path) => write!(formatter, "{path:?} is not a path inside its reviewed root"),
+            Self::InvalidGroupPath(path) => {
+                write!(formatter, "{path:?} is not a path inside its reviewed root")
+            }
         }
     }
 }
@@ -148,7 +158,9 @@ pub fn migration_group_name_valid(name: &str) -> bool {
     !name.is_empty()
         && name.chars().count() <= 80
         && name.trim() == name
-        && !name.chars().any(|c| c.is_control() || matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'))
+        && !name.chars().any(|c| {
+            c.is_control() || matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*')
+        })
         && !name.ends_with('.')
 }
 
@@ -159,7 +171,9 @@ pub fn migration_group_relative_valid(relative: &str) -> bool {
         && !relative.starts_with('/')
         && !relative.contains('\\')
         && !relative.contains(':')
-        && relative.split('/').all(|part| !part.is_empty() && part != "." && part != ".." && part.len() <= 255)
+        && relative
+            .split('/')
+            .all(|part| !part.is_empty() && part != "." && part != ".." && part.len() <= 255)
 }
 
 impl<'a> WarehouseImporter<'a> {
@@ -193,28 +207,58 @@ impl<'a> WarehouseImporter<'a> {
     /// Import one selected folder: create the entry, copy every mechanically
     /// acceptable file in at its relative path, inspect the copies, and
     /// record the physical copy rows. Originals stay untouched.
-    pub fn import_folder(&self, source_folder: &Path) -> Result<WarehouseImportReport, ImportError> {
+    pub fn import_folder(
+        &self,
+        source_folder: &Path,
+    ) -> Result<WarehouseImportReport, ImportError> {
         self.import_folder_inner(source_folder, false, false, &|| false, &|_, _| {})
     }
 
-    pub fn import_folder_all(&self, source_folder: &Path, cancelled: &dyn Fn() -> bool, progress: &dyn Fn(usize, u64)) -> Result<WarehouseImportReport, ImportError> {
+    pub fn import_folder_all(
+        &self,
+        source_folder: &Path,
+        cancelled: &dyn Fn() -> bool,
+        progress: &dyn Fn(usize, u64),
+    ) -> Result<WarehouseImportReport, ImportError> {
         self.import_folder_inner(source_folder, true, false, cancelled, progress)
     }
 
     /// A file makes one entry containing that file only; a folder keeps its tree.
-    pub fn import_path_all(&self, source: &Path, cancelled: &dyn Fn() -> bool, progress: &dyn Fn(usize, u64)) -> Result<WarehouseImportReport, ImportError> {
+    pub fn import_path_all(
+        &self,
+        source: &Path,
+        cancelled: &dyn Fn() -> bool,
+        progress: &dyn Fn(usize, u64),
+    ) -> Result<WarehouseImportReport, ImportError> {
         self.import_folder_inner(source, true, true, cancelled, progress)
     }
 
-    fn import_folder_inner(&self, source_folder: &Path, retain_all: bool, allow_file: bool, cancelled: &dyn Fn() -> bool, progress: &dyn Fn(usize, u64)) -> Result<WarehouseImportReport, ImportError> {
-        if cancelled() { return Err(ImportError::Cancelled); }
+    fn import_folder_inner(
+        &self,
+        source_folder: &Path,
+        retain_all: bool,
+        allow_file: bool,
+        cancelled: &dyn Fn() -> bool,
+        progress: &dyn Fn(usize, u64),
+    ) -> Result<WarehouseImportReport, ImportError> {
+        if cancelled() {
+            return Err(ImportError::Cancelled);
+        }
         let source_is_file = if allow_file {
             let metadata = std::fs::symlink_metadata(source_folder)?;
-            if crate::zip_intake::is_reparse(&metadata) || (!metadata.is_file() && !metadata.is_dir()) {
-                return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "intake requires an ordinary file or folder").into());
+            if crate::zip_intake::is_reparse(&metadata)
+                || (!metadata.is_file() && !metadata.is_dir())
+            {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "intake requires an ordinary file or folder",
+                )
+                .into());
             }
             metadata.is_file()
-        } else { false };
+        } else {
+            false
+        };
         let display_name = source_folder
             .file_name()
             .and_then(|name| name.to_str())
@@ -223,8 +267,12 @@ impl<'a> WarehouseImporter<'a> {
         let canonical_source = std::fs::canonicalize(source_folder)?;
         std::fs::create_dir_all(&self.warehouse_root)?;
         let canonical_root = std::fs::canonicalize(&self.warehouse_root)?;
-        if canonical_source.starts_with(&canonical_root) || (allow_file && !source_is_file && canonical_root.starts_with(&canonical_source)) {
-            return Err(ImportError::SourceInsideWarehouse(source_folder.to_path_buf()));
+        if canonical_source.starts_with(&canonical_root)
+            || (allow_file && !source_is_file && canonical_root.starts_with(&canonical_source))
+        {
+            return Err(ImportError::SourceInsideWarehouse(
+                source_folder.to_path_buf(),
+            ));
         }
 
         let mut sources = Vec::new();
@@ -232,36 +280,79 @@ impl<'a> WarehouseImporter<'a> {
         if source_is_file {
             sources.push((display_name.clone(), source_folder.to_path_buf()));
         } else {
-            collect_files(source_folder, source_folder, &mut sources, &mut skipped, cancelled)?;
+            collect_files(
+                source_folder,
+                source_folder,
+                &mut sources,
+                &mut skipped,
+                cancelled,
+            )?;
         }
-        self.import_entry(&display_name, sources, skipped, retain_all, cancelled, progress)
+        self.import_entry(
+            &display_name,
+            sources,
+            skipped,
+            retain_all,
+            cancelled,
+            progress,
+        )
     }
 
     /// A migration group becomes one entry: the copy, verification, ZIP expansion and
     /// artifact recording are the folder import's own, driven by an explicit file list
     /// instead of a directory walk.
-    pub fn import_migration_group(&self, group: &MigrationGroupSource, cancelled: &dyn Fn() -> bool, progress: &dyn Fn(usize, u64)) -> Result<WarehouseImportReport, ImportError> {
-        if cancelled() { return Err(ImportError::Cancelled); }
-        if !migration_group_name_valid(&group.name) { return Err(ImportError::InvalidGroupName(group.name.clone())); }
+    pub fn import_migration_group(
+        &self,
+        group: &MigrationGroupSource,
+        cancelled: &dyn Fn() -> bool,
+        progress: &dyn Fn(usize, u64),
+    ) -> Result<WarehouseImportReport, ImportError> {
+        if cancelled() {
+            return Err(ImportError::Cancelled);
+        }
+        if !migration_group_name_valid(&group.name) {
+            return Err(ImportError::InvalidGroupName(group.name.clone()));
+        }
         std::fs::create_dir_all(&self.warehouse_root)?;
         let canonical_root = std::fs::canonicalize(&self.warehouse_root)?;
         let mut sources = Vec::with_capacity(group.files.len());
         for (relative, source) in &group.files {
-            if !migration_group_relative_valid(relative) { return Err(ImportError::InvalidGroupPath(relative.clone())); }
+            if !migration_group_relative_valid(relative) {
+                return Err(ImportError::InvalidGroupPath(relative.clone()));
+            }
             let metadata = std::fs::symlink_metadata(source)?;
             if crate::zip_intake::is_reparse(&metadata) || !metadata.is_file() {
-                return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput,
-                    format!("migration source is not an ordinary file: {}", source.to_string_lossy())).into());
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!(
+                        "migration source is not an ordinary file: {}",
+                        source.to_string_lossy()
+                    ),
+                )
+                .into());
             }
             let canonical = std::fs::canonicalize(source)?;
-            if canonical.starts_with(&canonical_root) { return Err(ImportError::SourceInsideWarehouse(source.clone())); }
+            if canonical.starts_with(&canonical_root) {
+                return Err(ImportError::SourceInsideWarehouse(source.clone()));
+            }
             // The warehouse records native separators; the reviewed document uses `/`.
-            sources.push((relative.replace('/', std::path::MAIN_SEPARATOR_STR), canonical));
+            sources.push((
+                relative.replace('/', std::path::MAIN_SEPARATOR_STR),
+                canonical,
+            ));
         }
         self.import_entry(&group.name, sources, Vec::new(), true, cancelled, progress)
     }
 
-    fn import_entry(&self, display_name: &str, mut sources: Vec<(String, PathBuf)>, mut skipped: Vec<SkippedSourceFile>, retain_all: bool, cancelled: &dyn Fn() -> bool, progress: &dyn Fn(usize, u64)) -> Result<WarehouseImportReport, ImportError> {
+    fn import_entry(
+        &self,
+        display_name: &str,
+        mut sources: Vec<(String, PathBuf)>,
+        mut skipped: Vec<SkippedSourceFile>,
+        retain_all: bool,
+        cancelled: &dyn Fn() -> bool,
+        progress: &dyn Fn(usize, u64),
+    ) -> Result<WarehouseImportReport, ImportError> {
         let now = self.clock.now_rfc3339();
         std::fs::create_dir_all(&self.warehouse_root)?;
         let item = self
@@ -274,18 +365,29 @@ impl<'a> WarehouseImporter<'a> {
         let mut imported = Vec::new();
         let mut expansions = Vec::new();
         for (relative_path, source_path) in sources {
-            if cancelled() { return Err(ImportError::Cancelled); }
+            if cancelled() {
+                return Err(ImportError::Cancelled);
+            }
             let size_bytes = std::fs::metadata(&source_path)?.len();
             let suggested_file_name = source_path
                 .file_name()
                 .and_then(|name| name.to_str())
                 .map(str::to_string);
             if let Some(reason) = if retain_all {
-                (size_bytes > self.policy.max_bytes).then(|| format!("size {size_bytes} exceeds the allowed maximum {}", self.policy.max_bytes))
+                (size_bytes > self.policy.max_bytes).then(|| {
+                    format!(
+                        "size {size_bytes} exceeds the allowed maximum {}",
+                        self.policy.max_bytes
+                    )
+                })
             } else {
-                mechanical_rejection(&self.policy, suggested_file_name.as_deref(), &source_path, size_bytes)
-            }
-            {
+                mechanical_rejection(
+                    &self.policy,
+                    suggested_file_name.as_deref(),
+                    &source_path,
+                    size_bytes,
+                )
+            } {
                 skipped.push(SkippedSourceFile {
                     relative_path,
                     size_bytes: Some(size_bytes),
@@ -300,30 +402,61 @@ impl<'a> WarehouseImporter<'a> {
             }
             let identity = if retain_all {
                 let mut input = std::fs::File::open(&source_path)?;
-                let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos();
-                let prepared = destination.parent().expect("destination parent").join(format!(".vua-import-{stamp:x}"));
+                let stamp = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos();
+                let prepared = destination
+                    .parent()
+                    .expect("destination parent")
+                    .join(format!(".vua-import-{stamp:x}"));
                 let result = (|| -> Result<String, ImportError> {
-                    let mut output = std::fs::OpenOptions::new().write(true).create_new(true).open(&prepared)?;
+                    let mut output = std::fs::OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .open(&prepared)?;
                     let mut hash = Sha256::new();
                     let mut buffer = vec![0; 1024 * 1024];
                     let mut copied = 0u64;
                     loop {
-                        if cancelled() { return Err(ImportError::Cancelled); }
+                        if cancelled() {
+                            return Err(ImportError::Cancelled);
+                        }
                         let count = input.read(&mut buffer)?;
-                        if count == 0 { break; }
+                        if count == 0 {
+                            break;
+                        }
                         copied += count as u64;
-                        if copied > size_bytes { return Err(ImportError::CopySizeMismatch { relative_path: relative_path.clone(), expected: size_bytes, actual: copied }); }
+                        if copied > size_bytes {
+                            return Err(ImportError::CopySizeMismatch {
+                                relative_path: relative_path.clone(),
+                                expected: size_bytes,
+                                actual: copied,
+                            });
+                        }
                         output.write_all(&buffer[..count])?;
                         hash.update(&buffer[..count]);
-                        if copied / (16 * 1024 * 1024) != (copied - count as u64) / (16 * 1024 * 1024) { progress(imported.len(), copied); }
+                        if copied / (16 * 1024 * 1024)
+                            != (copied - count as u64) / (16 * 1024 * 1024)
+                        {
+                            progress(imported.len(), copied);
+                        }
                     }
                     output.sync_all()?;
                     drop(output);
-                    if copied != size_bytes { return Err(ImportError::CopySizeMismatch { relative_path: relative_path.clone(), expected: size_bytes, actual: copied }); }
+                    if copied != size_bytes {
+                        return Err(ImportError::CopySizeMismatch {
+                            relative_path: relative_path.clone(),
+                            expected: size_bytes,
+                            actual: copied,
+                        });
+                    }
                     std::fs::rename(&prepared, &destination)?;
                     Ok(format!("sha256:{}", hex_lower(&hash.finalize())))
                 })();
-                if result.is_err() { let _ = std::fs::remove_file(&prepared); }
+                if result.is_err() {
+                    let _ = std::fs::remove_file(&prepared);
+                }
                 result?
             } else {
                 std::fs::copy(&source_path, &destination)?;
@@ -362,7 +495,14 @@ impl<'a> WarehouseImporter<'a> {
                 &now,
             )?;
             if retain_all && crate::zip_intake::is_zip(&relative_path) {
-                expansions.push(crate::zip_intake::expand(self.store, &self.warehouse_root, &copy, &now, cancelled, progress));
+                expansions.push(crate::zip_intake::expand(
+                    self.store,
+                    &self.warehouse_root,
+                    &copy,
+                    &now,
+                    cancelled,
+                    progress,
+                ));
             }
             imported.push(ImportedArtifact {
                 relative_path,
@@ -374,7 +514,10 @@ impl<'a> WarehouseImporter<'a> {
 
         let entry = self
             .store
-            .warehouse_entry_detail(&item.warehouse_item_id, ArtifactMode::UseOriginalUnitypackage)?
+            .warehouse_entry_detail(
+                &item.warehouse_item_id,
+                ArtifactMode::UseOriginalUnitypackage,
+            )?
             .expect("the entry was created in this import");
         Ok(WarehouseImportReport {
             entry,
@@ -394,12 +537,22 @@ fn collect_files(
     cancelled: &dyn Fn() -> bool,
 ) -> Result<(), ImportError> {
     for entry in std::fs::read_dir(dir)? {
-        if cancelled() { return Err(ImportError::Cancelled); }
+        if cancelled() {
+            return Err(ImportError::Cancelled);
+        }
         let entry = entry?;
         let path = entry.path();
         let meta = std::fs::symlink_metadata(&path)?;
         if crate::zip_intake::is_reparse(&meta) {
-            skipped.push(SkippedSourceFile { relative_path: path.strip_prefix(root).unwrap_or(&path).to_string_lossy().into_owned(), size_bytes: None, reason: "links/reparse points are not copied".into() });
+            skipped.push(SkippedSourceFile {
+                relative_path: path
+                    .strip_prefix(root)
+                    .unwrap_or(&path)
+                    .to_string_lossy()
+                    .into_owned(),
+                size_bytes: None,
+                reason: "links/reparse points are not copied".into(),
+            });
         } else if meta.is_dir() {
             collect_files(root, &path, out, skipped, cancelled)?;
         } else if meta.is_file() {
@@ -424,9 +577,9 @@ fn collect_files(
 // imported stays imported (entries are durable in BDL), and the job checks
 // the task cancel flag before starting each folder.
 
+use std::time::Duration;
 use vua_orchestrator::{ErrorCategory, ParamValue};
 use vua_orchestrator::{SubmitRequest, TaskExit, TaskJob, TaskRuntime};
-use std::time::Duration;
 
 /// One batch-import task binding. All folders are Kernel-resolved; the
 /// display-name rule (source folder's final component) and the entry
@@ -507,7 +660,9 @@ pub struct MigrationImportTaskResult {
 }
 
 fn migration_import_job(
-    runtime: TaskRuntime, store: Arc<BdlStore>, clock: Arc<dyn Clock>,
+    runtime: TaskRuntime,
+    store: Arc<BdlStore>,
+    clock: Arc<dyn Clock>,
     spec: MigrationImportTaskSpec,
 ) -> TaskJob {
     let auto_generate = spec.auto_generate.clone();
@@ -533,16 +688,25 @@ fn migration_import_job(
                 }))
             }) {
                 Ok(report) => {
-                    if !report.skipped.is_empty() || report.expansions.iter().any(|e| e.state != "expanded") { ctx.warn(); }
+                    if !report.skipped.is_empty()
+                        || report.expansions.iter().any(|e| e.state != "expanded")
+                    {
+                        ctx.warn();
+                    }
                     // The entry has landed: the import-orchestrated generation hook (proposal
                     // 010 path A) evaluates the composed default per landing, exactly as the
                     // folder faces do.
                     if let Some(auto) = &auto_generate {
                         if let Ok(composed) = store.global_default_mode() {
                             if composed.unwrap_or(auto.env_initial) == ArtifactMode::GenerateVpm {
-                                let generation_correlation = format!("{}-auto-{}", spec.correlation_id, report.entry.warehouse_item_id);
+                                let generation_correlation = format!(
+                                    "{}-auto-{}",
+                                    spec.correlation_id, report.entry.warehouse_item_id
+                                );
                                 if let Err(error) = submit_generate_vpm(
-                                    &runtime, store.clone(), auto.executor.clone(),
+                                    &runtime,
+                                    store.clone(),
+                                    auto.executor.clone(),
                                     GenerateVpmTaskSpec {
                                         correlation_id: generation_correlation,
                                         warehouse_item_id: report.entry.warehouse_item_id.clone(),
@@ -570,7 +734,9 @@ fn migration_import_job(
                     reports.push(report);
                 }
                 Err(error) => {
-                    if matches!(error, ImportError::Cancelled) { return Ok(TaskExit::Cancelled); }
+                    if matches!(error, ImportError::Cancelled) {
+                        return Ok(TaskExit::Cancelled);
+                    }
                     let app = import_error_to_app(error, &spec.correlation_id, &group.root);
                     failures.push(MigrationGroupFailure {
                         name: group.name.clone(),
@@ -587,25 +753,44 @@ fn migration_import_job(
             reports,
             failures,
         };
-        let payload = serde_json::to_value(&result).expect("task result serializes infallibly (plain data shapes only)");
-        if ctx.check_cancel() { Ok(TaskExit::Cancelled) } else { Ok(TaskExit::Done(payload)) }
+        let payload = serde_json::to_value(&result)
+            .expect("task result serializes infallibly (plain data shapes only)");
+        if ctx.check_cancel() {
+            Ok(TaskExit::Cancelled)
+        } else {
+            Ok(TaskExit::Done(payload))
+        }
     })
 }
 
 /// Grouped intake has its own idempotency namespace: a replayed command returns the same task,
 /// and the fingerprint binds the group names and files it was submitted with.
 pub fn submit_library_import_groups(
-    runtime: TaskRuntime, store: Arc<BdlStore>, clock: Arc<dyn Clock>,
-    spec: MigrationImportTaskSpec, command_id: &str,
+    runtime: TaskRuntime,
+    store: Arc<BdlStore>,
+    clock: Arc<dyn Clock>,
+    spec: MigrationImportTaskSpec,
+    command_id: &str,
 ) -> Result<vua_orchestrator::CommandAcceptedV1, vua_orchestrator::AppErrorV1> {
-    let fingerprint = serde_json::json!({"groups": spec.groups.iter().map(|group| serde_json::json!({
+    let fingerprint =
+        serde_json::json!({"groups": spec.groups.iter().map(|group| serde_json::json!({
         "name": group.name,
         "root": group.root.to_string_lossy(),
         "files": group.files.iter().map(|(relative, _)| relative).collect::<Vec<_>>(),
-    })).collect::<Vec<_>>(), "autoGenerate": spec.auto_generate.is_some()}).to_string();
+    })).collect::<Vec<_>>(), "autoGenerate": spec.auto_generate.is_some()})
+        .to_string();
     let correlation_id = spec.correlation_id.clone();
     let job = migration_import_job(runtime.clone(), store, clock, spec);
-    runtime.submit_idempotent(SubmitRequest { correlation_id: Some(correlation_id), timeout: None, job }, "library.importGroups", command_id, &fingerprint)
+    runtime.submit_idempotent(
+        SubmitRequest {
+            correlation_id: Some(correlation_id),
+            timeout: None,
+            job,
+        },
+        "library.importGroups",
+        command_id,
+        &fingerprint,
+    )
 }
 
 fn import_error_to_app(
@@ -615,23 +800,37 @@ fn import_error_to_app(
 ) -> vua_orchestrator::AppErrorV1 {
     let (code, category) = match &error {
         ImportError::Store(_) => ("vua.warehouse.storeFailed", ErrorCategory::Internal),
-        ImportError::Io(_) => ("vua.warehouse.importIoFailed", ErrorCategory::ExternalFailure),
-        ImportError::UnnamedSource(_) | ImportError::SourceInsideWarehouse(_)
-        | ImportError::InvalidGroupName(_) | ImportError::InvalidGroupPath(_) => {
+        ImportError::Io(_) => (
+            "vua.warehouse.importIoFailed",
+            ErrorCategory::ExternalFailure,
+        ),
+        ImportError::UnnamedSource(_)
+        | ImportError::SourceInsideWarehouse(_)
+        | ImportError::InvalidGroupName(_)
+        | ImportError::InvalidGroupPath(_) => {
             ("vua.warehouse.invalidSource", ErrorCategory::Validation)
         }
-        ImportError::CopySizeMismatch { .. } => {
-            ("vua.warehouse.copySizeMismatch", ErrorCategory::ExternalFailure)
-        }
-        ImportError::Cancelled => ("vua.warehouse.importCancelled", ErrorCategory::ExternalFailure),
+        ImportError::CopySizeMismatch { .. } => (
+            "vua.warehouse.copySizeMismatch",
+            ErrorCategory::ExternalFailure,
+        ),
+        ImportError::Cancelled => (
+            "vua.warehouse.importCancelled",
+            ErrorCategory::ExternalFailure,
+        ),
     };
-    vua_orchestrator::AppErrorV1::new(code, category, "errors.warehouse.importFailed", correlation_id)
-        .with_param(
-            "folder",
-            ParamValue::Text(folder.to_string_lossy().into_owned()),
-        )
-        .with_param("reason", ParamValue::Text(error.to_string()))
-        .with_recoverable(true)
+    vua_orchestrator::AppErrorV1::new(
+        code,
+        category,
+        "errors.warehouse.importFailed",
+        correlation_id,
+    )
+    .with_param(
+        "folder",
+        ParamValue::Text(folder.to_string_lossy().into_owned()),
+    )
+    .with_param("reason", ParamValue::Text(error.to_string()))
+    .with_recoverable(true)
 }
 
 /// Assemble the task closure: folders import in submission order with a
@@ -649,8 +848,13 @@ pub fn warehouse_import_job(
 }
 
 fn import_job(
-    runtime: TaskRuntime, store: Arc<BdlStore>, clock: Arc<dyn Clock>,
-    spec: WarehouseImportTaskSpec, auto_generate: Option<AutoGenerateSpec>, retain_all: bool, allow_files: bool,
+    runtime: TaskRuntime,
+    store: Arc<BdlStore>,
+    clock: Arc<dyn Clock>,
+    spec: WarehouseImportTaskSpec,
+    auto_generate: Option<AutoGenerateSpec>,
+    retain_all: bool,
+    allow_files: bool,
 ) -> TaskJob {
     Box::new(move |ctx| {
         let mut reports = Vec::new();
@@ -668,10 +872,16 @@ fn import_job(
                 importer.import_path_all(folder, &|| ctx.check_cancel(), &|files, bytes| ctx.emit_progress(serde_json::json!({"operation":"library.importPaths","files":files,"bytes":bytes})))
             } else if retain_all {
                 importer.import_folder_all(folder, &|| ctx.check_cancel(), &|files, bytes| ctx.emit_progress(serde_json::json!({"operation":"library.importFolders","files":files,"bytes":bytes})))
-            } else { importer.import_folder(folder) };
+            } else {
+                importer.import_folder(folder)
+            };
             match result {
                 Ok(report) => {
-                    if !report.skipped.is_empty() || report.expansions.iter().any(|e| e.state != "expanded") { ctx.warn(); }
+                    if !report.skipped.is_empty()
+                        || report.expansions.iter().any(|e| e.state != "expanded")
+                    {
+                        ctx.warn();
+                    }
                     // The hook (proposal 010 path A): the entry has just
                     // landed — this is the landing instant. The composed
                     // global default is evaluated here, per landing.
@@ -740,8 +950,10 @@ fn import_job(
                     reports.push(report);
                 }
                 Err(error) => {
-                    if matches!(error, ImportError::Cancelled) { return Ok(TaskExit::Cancelled); }
-                    return Err(import_error_to_app(error, &spec.correlation_id, folder))
+                    if matches!(error, ImportError::Cancelled) {
+                        return Ok(TaskExit::Cancelled);
+                    }
+                    return Err(import_error_to_app(error, &spec.correlation_id, folder));
                 }
             }
         }
@@ -757,31 +969,77 @@ fn import_job(
         // silently null Done payload presented as success.
         let payload = serde_json::to_value(&result)
             .expect("task result serializes infallibly (plain data shapes only)");
-        if ctx.check_cancel() { Ok(TaskExit::Cancelled) } else { Ok(TaskExit::Done(payload)) }
+        if ctx.check_cancel() {
+            Ok(TaskExit::Cancelled)
+        } else {
+            Ok(TaskExit::Done(payload))
+        }
     })
 }
 
 /// Successor intake: all ordinary files plus ZIP expansion. The old frozen
 /// warehouse command keeps its format filter and submission behavior.
 pub fn submit_library_import(
-    runtime: TaskRuntime, store: Arc<BdlStore>, clock: Arc<dyn Clock>,
-    spec: WarehouseImportTaskSpec, auto_generate: Option<AutoGenerateSpec>, command_id: &str,
+    runtime: TaskRuntime,
+    store: Arc<BdlStore>,
+    clock: Arc<dyn Clock>,
+    spec: WarehouseImportTaskSpec,
+    auto_generate: Option<AutoGenerateSpec>,
+    command_id: &str,
 ) -> Result<vua_orchestrator::CommandAcceptedV1, vua_orchestrator::AppErrorV1> {
     let fingerprint = serde_json::json!({"sourceFolders":spec.source_folders,"autoGenerate":auto_generate.is_some()}).to_string();
     let correlation_id = spec.correlation_id.clone();
-    let job = import_job(runtime.clone(), store, clock, spec, auto_generate, true, false);
-    runtime.submit_idempotent(SubmitRequest { correlation_id: Some(correlation_id), timeout: None, job }, "library.importFolders", command_id, &fingerprint)
+    let job = import_job(
+        runtime.clone(),
+        store,
+        clock,
+        spec,
+        auto_generate,
+        true,
+        false,
+    );
+    runtime.submit_idempotent(
+        SubmitRequest {
+            correlation_id: Some(correlation_id),
+            timeout: None,
+            job,
+        },
+        "library.importFolders",
+        command_id,
+        &fingerprint,
+    )
 }
 
 /// Mixed v0.2 intake has a separate idempotency namespace from folder-only v0.1.
 pub fn submit_library_import_paths(
-    runtime: TaskRuntime, store: Arc<BdlStore>, clock: Arc<dyn Clock>,
-    spec: WarehouseImportTaskSpec, auto_generate: Option<AutoGenerateSpec>, command_id: &str,
+    runtime: TaskRuntime,
+    store: Arc<BdlStore>,
+    clock: Arc<dyn Clock>,
+    spec: WarehouseImportTaskSpec,
+    auto_generate: Option<AutoGenerateSpec>,
+    command_id: &str,
 ) -> Result<vua_orchestrator::CommandAcceptedV1, vua_orchestrator::AppErrorV1> {
     let fingerprint = serde_json::json!({"sourcePaths":spec.source_folders,"autoGenerate":auto_generate.is_some()}).to_string();
     let correlation_id = spec.correlation_id.clone();
-    let job = import_job(runtime.clone(), store, clock, spec, auto_generate, true, true);
-    runtime.submit_idempotent(SubmitRequest { correlation_id: Some(correlation_id), timeout: None, job }, "library.importPaths", command_id, &fingerprint)
+    let job = import_job(
+        runtime.clone(),
+        store,
+        clock,
+        spec,
+        auto_generate,
+        true,
+        true,
+    );
+    runtime.submit_idempotent(
+        SubmitRequest {
+            correlation_id: Some(correlation_id),
+            timeout: None,
+            job,
+        },
+        "library.importPaths",
+        command_id,
+        &fingerprint,
+    )
 }
 
 /// Convenience submission: the correlation id binds the whole batch.
@@ -829,26 +1087,45 @@ mod tests {
         let store = BdlStore::open_in_memory().unwrap();
         let root = unique_dir("vua-import-all", "warehouse");
         let source = unique_dir("vua-import-all", "source");
-        for name in ["texture.psd", "preview.png", "guide.jpg", "model.fbx", "README", "unknown.dat"] {
+        for name in [
+            "texture.psd",
+            "preview.png",
+            "guide.jpg",
+            "model.fbx",
+            "README",
+            "unknown.dat",
+        ] {
             std::fs::write(source.join(name), name.as_bytes()).unwrap();
         }
         let archive_path = source.join("package.zip");
         let mut archive = zip::ZipWriter::new(std::fs::File::create(&archive_path).unwrap());
-        archive.start_file("avatar/sub/Avatar.unitypackage", zip::write::SimpleFileOptions::default()).unwrap();
+        archive
+            .start_file(
+                "avatar/sub/Avatar.unitypackage",
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
         archive.write_all(b"synthetic package bytes").unwrap();
-        archive.start_file("avatar/notes.txt", zip::write::SimpleFileOptions::default()).unwrap();
+        archive
+            .start_file("avatar/notes.txt", zip::write::SimpleFileOptions::default())
+            .unwrap();
         archive.write_all(b"notes").unwrap();
         archive.finish().unwrap();
         let original = std::fs::read(&archive_path).unwrap();
         let clock = FixedClock::new(&["2026-10-09T09:00:00.000Z"]);
-        let report = WarehouseImporter::new(&store, &clock, &root).import_folder_all(&source, &|| false, &|_, _| {}).unwrap();
+        let report = WarehouseImporter::new(&store, &clock, &root)
+            .import_folder_all(&source, &|| false, &|_, _| {})
+            .unwrap();
         assert_eq!(report.imported.len(), 7);
         assert!(report.skipped.is_empty());
         assert_eq!(report.expansions[0].state, "expanded");
         assert_eq!(report.expansions[0].unitypackage_candidates, 1);
         assert_eq!(store.library_copy_evidence().unwrap().len(), 9);
         assert_eq!(std::fs::read(archive_path).unwrap(), original);
-        assert!(store.library_copy_evidence().unwrap().iter().any(|c| c.copy.relative_path.ends_with("avatar/sub/Avatar.unitypackage")));
+        assert!(store.library_copy_evidence().unwrap().iter().any(|c| c
+            .copy
+            .relative_path
+            .ends_with("avatar/sub/Avatar.unitypackage")));
     }
 
     #[test]
@@ -860,8 +1137,16 @@ mod tests {
         let root = unique_dir("vua-migration", "collection");
         std::fs::create_dir_all(root.join("Outfit").join("Textures")).unwrap();
         std::fs::create_dir_all(root.join("Shared")).unwrap();
-        std::fs::write(root.join("Outfit").join("Outfit.unitypackage"), b"PK outfit").unwrap();
-        std::fs::write(root.join("Outfit").join("Textures").join("body.png"), b"png").unwrap();
+        std::fs::write(
+            root.join("Outfit").join("Outfit.unitypackage"),
+            b"PK outfit",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("Outfit").join("Textures").join("body.png"),
+            b"png",
+        )
+        .unwrap();
         std::fs::write(root.join("Shared").join("README.txt"), b"readme").unwrap();
         // A loose sibling file joins the group: the reviewed selection, not a folder walk.
         std::fs::write(root.join("LICENSE.txt"), b"license").unwrap();
@@ -869,21 +1154,49 @@ mod tests {
             name: "Meiyun coat".into(),
             root: root.clone(),
             files: vec![
-                ("Outfit/Outfit.unitypackage".into(), root.join("Outfit").join("Outfit.unitypackage")),
-                ("Outfit/Textures/body.png".into(), root.join("Outfit").join("Textures").join("body.png")),
+                (
+                    "Outfit/Outfit.unitypackage".into(),
+                    root.join("Outfit").join("Outfit.unitypackage"),
+                ),
+                (
+                    "Outfit/Textures/body.png".into(),
+                    root.join("Outfit").join("Textures").join("body.png"),
+                ),
                 ("LICENSE.txt".into(), root.join("LICENSE.txt")),
             ],
         };
-        let report = importer.import_migration_group(&group, &|| false, &|_, _| {}).unwrap();
+        let report = importer
+            .import_migration_group(&group, &|| false, &|_, _| {})
+            .unwrap();
         assert_eq!(report.entry.display_name, "Meiyun coat");
         assert_eq!(report.entry.kind, "imported_material");
-        let mut imported = report.imported.iter().map(|file| file.relative_path.replace('\\', "/")).collect::<Vec<_>>();
+        let mut imported = report
+            .imported
+            .iter()
+            .map(|file| file.relative_path.replace('\\', "/"))
+            .collect::<Vec<_>>();
         imported.sort();
-        assert_eq!(imported, vec!["LICENSE.txt", "Outfit/Outfit.unitypackage", "Outfit/Textures/body.png"]);
-        assert!(report.imported.iter().all(|file| file.artifact_sha256.starts_with("sha256:")));
+        assert_eq!(
+            imported,
+            vec![
+                "LICENSE.txt",
+                "Outfit/Outfit.unitypackage",
+                "Outfit/Textures/body.png"
+            ]
+        );
+        assert!(report
+            .imported
+            .iter()
+            .all(|file| file.artifact_sha256.starts_with("sha256:")));
         // The files outside the reviewed selection stay out, and every original is unchanged.
-        assert!(!report.imported.iter().any(|file| file.relative_path.contains("README")));
-        assert_eq!(std::fs::read(root.join("Shared").join("README.txt")).unwrap(), b"readme");
+        assert!(!report
+            .imported
+            .iter()
+            .any(|file| file.relative_path.contains("README")));
+        assert_eq!(
+            std::fs::read(root.join("Shared").join("README.txt")).unwrap(),
+            b"readme"
+        );
         assert_eq!(std::fs::read(root.join("LICENSE.txt")).unwrap(), b"license");
     }
 
@@ -897,22 +1210,55 @@ mod tests {
         std::fs::write(root.join("a.unitypackage"), b"a").unwrap();
         let file = root.join("a.unitypackage");
         let refuse = |name: &str, relative: &str| {
-            let group = MigrationGroupSource { name: name.into(), root: root.clone(), files: vec![(relative.into(), file.clone())] };
-            importer.import_migration_group(&group, &|| false, &|_, _| {}).unwrap_err()
+            let group = MigrationGroupSource {
+                name: name.into(),
+                root: root.clone(),
+                files: vec![(relative.into(), file.clone())],
+            };
+            importer
+                .import_migration_group(&group, &|| false, &|_, _| {})
+                .unwrap_err()
         };
-        assert!(matches!(refuse("bad/name", "a.unitypackage"), ImportError::InvalidGroupName(_)));
-        assert!(matches!(refuse("Coat.", "a.unitypackage"), ImportError::InvalidGroupName(_)));
-        assert!(matches!(refuse("Coat", "../escape.unitypackage"), ImportError::InvalidGroupPath(_)));
-        assert!(matches!(refuse("Coat", "C:/absolute.unitypackage"), ImportError::InvalidGroupPath(_)));
+        assert!(matches!(
+            refuse("bad/name", "a.unitypackage"),
+            ImportError::InvalidGroupName(_)
+        ));
+        assert!(matches!(
+            refuse("Coat.", "a.unitypackage"),
+            ImportError::InvalidGroupName(_)
+        ));
+        assert!(matches!(
+            refuse("Coat", "../escape.unitypackage"),
+            ImportError::InvalidGroupPath(_)
+        ));
+        assert!(matches!(
+            refuse("Coat", "C:/absolute.unitypackage"),
+            ImportError::InvalidGroupPath(_)
+        ));
         // A file inside the warehouse would copy the destination into itself.
         let inside = warehouse_root.join("already-there.txt");
         std::fs::create_dir_all(&warehouse_root).unwrap();
         std::fs::write(&inside, b"x").unwrap();
-        let group = MigrationGroupSource { name: "Coat".into(), root: root.clone(), files: vec![("already.txt".into(), inside)] };
-        assert!(matches!(importer.import_migration_group(&group, &|| false, &|_, _| {}).unwrap_err(), ImportError::SourceInsideWarehouse(_)));
+        let group = MigrationGroupSource {
+            name: "Coat".into(),
+            root: root.clone(),
+            files: vec![("already.txt".into(), inside)],
+        };
+        assert!(matches!(
+            importer
+                .import_migration_group(&group, &|| false, &|_, _| {})
+                .unwrap_err(),
+            ImportError::SourceInsideWarehouse(_)
+        ));
         // A missing source fails before an entry claims to hold it.
-        let group = MigrationGroupSource { name: "Coat".into(), root: root.clone(), files: vec![("gone.unitypackage".into(), root.join("gone.unitypackage"))] };
-        assert!(importer.import_migration_group(&group, &|| false, &|_, _| {}).is_err());
+        let group = MigrationGroupSource {
+            name: "Coat".into(),
+            root: root.clone(),
+            files: vec![("gone.unitypackage".into(), root.join("gone.unitypackage"))],
+        };
+        assert!(importer
+            .import_migration_group(&group, &|| false, &|_, _| {})
+            .is_err());
     }
 
     #[test]
@@ -924,7 +1270,11 @@ mod tests {
         let parent = unique_dir("vua-import", "parent");
         let source = parent.join("src");
         std::fs::create_dir_all(&source).unwrap();
-        std::fs::write(source.join("material-pack.unitypackage"), b"PK unity fixture").unwrap();
+        std::fs::write(
+            source.join("material-pack.unitypackage"),
+            b"PK unity fixture",
+        )
+        .unwrap();
         std::fs::create_dir_all(source.join("extras")).unwrap();
         std::fs::write(source.join("extras").join("extra.zip"), b"PK zip fixture").unwrap();
 
@@ -967,12 +1317,7 @@ mod tests {
             ..InspectionPolicy::default()
         };
         let clock = FixedClock::new(&["2026-09-06T09:00:00.000Z"]);
-        let importer = WarehouseImporter::with_policy(
-            &store,
-            &clock,
-            &warehouse_root,
-            policy,
-        );
+        let importer = WarehouseImporter::with_policy(&store, &clock, &warehouse_root, policy);
         let source = unique_dir("vua-import", "src");
         std::fs::write(source.join("README"), b"doc").unwrap();
         std::fs::write(source.join("big.zip"), b"0123456789").unwrap();
@@ -1029,8 +1374,17 @@ mod tests {
             first.imported[0].artifact_sha256, second.imported[0].artifact_sha256,
             "inspection facts stay idempotent per content"
         );
-        assert_eq!(store.artifact(&first.imported[0].artifact_sha256).unwrap().unwrap().download_id, None);
-        let cards = store.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap();
+        assert_eq!(
+            store
+                .artifact(&first.imported[0].artifact_sha256)
+                .unwrap()
+                .unwrap()
+                .download_id,
+            None
+        );
+        let cards = store
+            .warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage)
+            .unwrap();
         assert_eq!(cards.len(), 2);
         std::fs::remove_dir_all(&warehouse_root).ok();
         std::fs::remove_dir_all(&source).ok();
@@ -1047,7 +1401,9 @@ mod tests {
         let report = importer.import_folder(&source).unwrap();
         assert!(report.imported.is_empty());
         assert!(report.entry.artifacts.is_empty());
-        let cards = store.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap();
+        let cards = store
+            .warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage)
+            .unwrap();
         assert_eq!(cards.len(), 1);
         std::fs::remove_dir_all(&warehouse_root).ok();
         std::fs::remove_dir_all(&source).ok();
@@ -1074,10 +1430,10 @@ mod tests {
 
     mod task {
         use super::*;
-        use vua_orchestrator::{AppErrorV1, TaskState};
-        use vua_orchestrator::TaskRuntime;
-        use vua_orchestrator::{FixedIdGenerator, SystemClock};
         use std::time::{Duration, Instant};
+        use vua_orchestrator::TaskRuntime;
+        use vua_orchestrator::{AppErrorV1, TaskState};
+        use vua_orchestrator::{FixedIdGenerator, SystemClock};
 
         fn runtime() -> TaskRuntime {
             TaskRuntime::new(
@@ -1146,7 +1502,13 @@ mod tests {
             assert_eq!(payload["reports"][0]["entry"]["displayName"], "alpha");
             assert_eq!(payload["reports"][1]["entry"]["displayName"], "beta");
             // The durable read face shows both entries.
-            assert_eq!(store.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().len(), 2);
+            assert_eq!(
+                store
+                    .warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage)
+                    .unwrap()
+                    .len(),
+                2
+            );
             std::fs::remove_dir_all(&warehouse_root).ok();
             std::fs::remove_dir_all(&parent).ok();
         }
@@ -1180,7 +1542,9 @@ mod tests {
             let snapshot = wait_for_terminal(&rt, &accepted.task_id);
             assert_eq!(snapshot.state, TaskState::Failed);
             // Fail-fast keeps the durable partial state queryable.
-            let cards = store.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap();
+            let cards = store
+                .warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage)
+                .unwrap();
             assert_eq!(cards.len(), 1);
             assert_eq!(cards[0].display_name, "good");
             std::fs::remove_dir_all(&warehouse_root).ok();
@@ -1227,7 +1591,10 @@ mod tests {
             }
             let snapshot = wait_for_terminal(&rt, &accepted.task_id);
             assert_eq!(snapshot.state, TaskState::Cancelled);
-            let imported = store.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().len();
+            let imported = store
+                .warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage)
+                .unwrap()
+                .len();
             assert!(
                 imported < 40,
                 "cancellation must stop the batch at a folder boundary (imported {imported})"
@@ -1244,11 +1611,12 @@ mod tests {
                 "corr-x",
                 Path::new("C:\\wh\\nested"),
             );
-            let AppErrorV1 {
-                code, params, ..
-            } = error;
+            let AppErrorV1 { code, params, .. } = error;
             assert_eq!(code, "vua.warehouse.invalidSource");
-            assert_eq!(params.as_ref().unwrap()["folder"], ParamValue::Text("C:\\wh\\nested".into()));
+            assert_eq!(
+                params.as_ref().unwrap()["folder"],
+                ParamValue::Text("C:\\wh\\nested".into())
+            );
         }
     }
 }

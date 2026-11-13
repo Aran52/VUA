@@ -2,7 +2,7 @@
 
 > Scope: the automated UI design review tool, its rules, outputs and how fix
 > work consumes its reports
-> Updated: 2026-10-28
+> Updated: 2026-11-07
 
 The design audit renders every registered view through the existing preview and
 smoke fixtures, walks the rendered computed styles, and reports where the
@@ -23,6 +23,9 @@ pnpm --filter @vua/desktop audit:design -- --only=workshop        # view-id pref
 pnpm --filter @vua/desktop audit:design -- --locale=zh-CN --theme=dark
 pnpm --filter @vua/desktop audit:design -- --themeFamily=frutiger-aero # Aero preset (Grid is default)
 pnpm --filter @vua/desktop audit:design -- --no-screens           # findings only, faster
+pnpm --filter @vua/desktop audit:design -- --changed              # the views a change since main can reach (--changed=<base> for another base)
+pnpm --filter @vua/desktop audit:design -- --shard=2/4            # one share of the views
+pnpm --filter @vua/desktop audit:design -- --resume=<dir>         # continue an interrupted run in its output folder
 
 # compare against the committed baseline (CI gate mode; exit 1 on new findings)
 pnpm --filter @vua/desktop audit:design -- --check-baseline
@@ -38,7 +41,9 @@ Environment: any machine that can run the smoke tests (Electron, no network).
 The runner uses the same isolated temporary profile as the smokes and binds a
 local Vite dev server on 127.0.0.1; no external requests are made. A full run
 takes roughly 30–60 minutes and about 100–200 MB of disk under
-`apps/desktop/_local_design_audit/<timestamp>/` (git-ignored local evidence).
+`apps/desktop/_local_design_audit/<timestamp>/` (git-ignored local evidence). CI runs it in four shards. A run
+ends with exit code 124 at a time limit sized to its plan (`--deadline-minutes` sets another), and with 125 when
+its parent process goes away, so no stuck run stays behind.
 
 The hidden window uses offscreen rendering so Windows keeps the compositor and scripted
 dialog exits advancing. Font layout settles before interaction steps. Fixture query parameters
@@ -224,7 +229,9 @@ does not declare a second brand or primary action. These are component roles, no
 Overflow clipping follows the positioned element's containing-block chain, as specified by
 [CSS overflow](https://drafts.csswg.org/css2/#overflow-clipping). Fixed and absolute overlays can
 escape unrelated overflow ancestors; transforms and paint/layout containment restore the
-containing-block boundary. Synthetic cases retain both escaping overlays and truly clipped text.
+containing-block boundary. Text a scroller inside the frame can bring into view counts as scrolled, not
+clipped. Synthetic cases retain both escaping overlays and truly clipped text. Each state starts with
+empty local storage, so nothing one view remembers shapes the next.
 
 Art content — the base-map scene canvas, WebGL scenes, turntable frames,
 product photos, avatar covers — is excluded from the audit. Wrap the art

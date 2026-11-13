@@ -17,7 +17,7 @@ use std::{
 use vua_orchestrator::deployment::{
     accepted_development_editor, DeploymentAction, DeploymentActivity, DeploymentAdapter,
     DeploymentInstaller, DeploymentIntent, DeploymentObservation, DeploymentPhase,
-    DeploymentPresence, DeploymentPurpose, DeploymentReporter, DownloadRegion,
+    DeploymentPresence, DeploymentPurpose, DeploymentReporter, DeploymentStep, DownloadRegion,
     EditorDownloadPolicy, EditorDownloadSource, PicoInstallRegion, CHINA_EDITOR_TARGET,
 };
 use vua_orchestrator::{
@@ -30,6 +30,7 @@ use crate::unity_install::UnityInstallProbe;
 
 pub struct WindowsDeploymentAdapter {
     engine: EnvironmentEngine,
+    registry: Arc<dyn vua_orchestrator::RegistrySource>,
     install_probe: UnityInstallProbe,
     data_root: PathBuf,
     region: crate::unity_download_region::RegionProbe,
@@ -39,6 +40,10 @@ pub struct WindowsDeploymentAdapter {
     steam_install: Option<Arc<VendorInstallOverride>>,
     #[cfg(test)]
     pico_install: Option<Arc<VendorInstallOverride>>,
+    #[cfg(test)]
+    tool_install: Option<Arc<ToolInstallOverride>>,
+    #[cfg(test)]
+    tool_roots: std::collections::HashMap<String, Vec<PathBuf>>,
 }
 
 #[cfg(test)]
@@ -50,9 +55,20 @@ type VendorInstallOverride = dyn for<'a, 'b, 'c, 'd> Fn(
     + Send
     + Sync;
 
+#[cfg(test)]
+type ToolInstallOverride = dyn for<'a, 'b, 'c, 'd, 'e> Fn(
+        &'a Path,
+        &'b str,
+        &'c dyn ProcessRunner,
+        &'d mut DeploymentReporter<'e>,
+    ) -> Result<(), &'static str>
+    + Send
+    + Sync;
+
 impl WindowsDeploymentAdapter {
     pub fn new(roots: EnvironmentRoots) -> Self {
         let runner: Arc<dyn ProcessRunner> = Arc::new(StdProcessRunner);
+        let registry = roots.registry.clone();
         let data_root = std::env::var_os("VUA_PROVIDER_DATA")
             .map(PathBuf::from)
             .or_else(|| std::env::var_os("LOCALAPPDATA").map(|p| PathBuf::from(p).join("VUA")))
@@ -66,6 +82,7 @@ impl WindowsDeploymentAdapter {
                 roots,
                 Arc::new(VccSettingsFileReader),
             ),
+            registry,
             install_probe: UnityInstallProbe {
                 runner,
                 cli_candidates,
@@ -76,6 +93,10 @@ impl WindowsDeploymentAdapter {
             steam_install: None,
             #[cfg(test)]
             pico_install: None,
+            #[cfg(test)]
+            tool_install: None,
+            #[cfg(test)]
+            tool_roots: std::collections::HashMap::new(),
         }
     }
 
@@ -85,6 +106,7 @@ impl WindowsDeploymentAdapter {
         data_root: PathBuf,
         runner: Arc<dyn ProcessRunner>,
     ) -> Self {
+        let registry = roots.registry.clone();
         Self {
             engine: EnvironmentEngine::new(
                 runner.clone(),
@@ -92,6 +114,7 @@ impl WindowsDeploymentAdapter {
                 roots,
                 Arc::new(VccSettingsFileReader),
             ),
+            registry,
             install_probe: UnityInstallProbe {
                 runner,
                 cli_candidates: Vec::new(),
@@ -100,6 +123,8 @@ impl WindowsDeploymentAdapter {
             region: crate::unity_download_region::RegionProbe::default(),
             steam_install: None,
             pico_install: None,
+            tool_install: None,
+            tool_roots: std::collections::HashMap::new(),
         }
     }
 
@@ -133,6 +158,27 @@ impl WindowsDeploymentAdapter {
             return seam(&self.data_root, runner, report);
         }
         crate::pico_install::install_pico(&self.data_root, region, runner, report)
+    }
+
+    fn run_tool_install(
+        &self,
+        tool_id: &str,
+        report: &mut DeploymentReporter<'_>,
+    ) -> Result<(), &'static str> {
+        let runner = self.install_probe.runner.as_ref();
+        #[cfg(test)]
+        if let Some(seam) = &self.tool_install {
+            return seam(&self.data_root, tool_id, runner, report);
+        }
+        crate::tool_install::install_official_tool(&self.data_root, tool_id, runner, report)
+    }
+
+    fn candidate_roots_for_tool(&self, tool_id: &str) -> Vec<PathBuf> {
+        #[cfg(test)]
+        if let Some(roots) = self.tool_roots.get(tool_id) {
+            return roots.clone();
+        }
+        crate::tool_install::system_candidate_roots(tool_id)
     }
 }
 
@@ -254,6 +300,16 @@ impl DeploymentAdapter for WindowsDeploymentAdapter {
         }) {
             facts.push(self.install_probe.cli_observation(&intent.editor_root));
         }
+        for tool in &intent.tools {
+            let tool_id = tool.as_str();
+            if let Some(spec) = vua_orchestrator::external_tools::installer_tool_spec(tool_id) {
+                facts.push(crate::tool_install::deployment_observation(
+                    self.registry.as_ref(),
+                    &self.candidate_roots_for_tool(tool_id),
+                    spec,
+                ));
+            }
+        }
         facts
     }
 
@@ -284,22 +340,54 @@ impl DeploymentAdapter for WindowsDeploymentAdapter {
         confirmed: Option<&DeploymentInstaller>,
         report: &mut DeploymentReporter<'_>,
     ) -> Result<(), &'static str> {
+        let component = match action {
+            DeploymentAction::InstallOfficialTool if intent.tools.len() == 1 => {
+                intent.tools[0].as_str().to_owned()
+            }
+            _ => String::new(),
+        };
+        let step = DeploymentStep {
+            component,
+            action,
+            reason: DeploymentPresence::Missing,
+            location: None,
+            version: None,
+            official_url: None,
+        };
+        self.install_step(intent, &step, confirmed, report)
+    }
+
+    fn install_step(
+        &self,
+        intent: &DeploymentIntent,
+        step: &DeploymentStep,
+        confirmed: Option<&DeploymentInstaller>,
+        report: &mut DeploymentReporter<'_>,
+    ) -> Result<(), &'static str> {
+        let action = step.action;
         intent.validate()?;
         let _machine_lease = InstallLease::acquire()?;
-        let component = match action {
+        let component: String = match action {
             // Vendor-installer actions acquire and run the pinned official artifact; the
             // vendor chooses the destination, so the Unity installer identity and the
             // confirmed editor root do not bind them.
             DeploymentAction::InstallSteam => {
                 self.run_steam_install(report)?;
-                "steam"
+                "steam".into()
             }
             DeploymentAction::InstallPicoRuntime => {
                 self.run_pico_install(
                     intent.pico_region.ok_or("vua.deployment.invalid_intent")?,
                     report,
                 )?;
-                "pico_runtime"
+                "pico_runtime".into()
+            }
+            DeploymentAction::InstallOfficialTool => {
+                if !intent.tools.iter().any(|t| t.as_str() == step.component) {
+                    return Err("vua.deployment.invalid_intent");
+                }
+                self.run_tool_install(&step.component, report)?;
+                step.component.clone()
             }
             DeploymentAction::InstallUnityCli => {
                 let confirmed = confirmed.ok_or("vua.deployment.installer_unavailable")?;
@@ -310,7 +398,7 @@ impl DeploymentAdapter for WindowsDeploymentAdapter {
                     return Err("vua.deployment.plan_changed");
                 }
                 crate::unity_cli_bootstrap::acquire_cli(&self.data_root, confirmed)?;
-                "unity_cli"
+                "unity_cli".into()
             }
             DeploymentAction::InstallEditor | DeploymentAction::AddAndroidModules => {
                 let confirmed = confirmed.ok_or("vua.deployment.installer_unavailable")?;
@@ -329,19 +417,21 @@ impl DeploymentAdapter for WindowsDeploymentAdapter {
                     report,
                 )?;
                 if action == DeploymentAction::InstallEditor {
-                    "unity_editor"
+                    "unity_editor".into()
                 } else {
-                    "android_modules"
+                    "android_modules".into()
                 }
             }
             _ => return Err("vua.deployment.action_refused"),
         };
         if matches!(
             action,
-            DeploymentAction::InstallSteam | DeploymentAction::InstallPicoRuntime
+            DeploymentAction::InstallSteam
+                | DeploymentAction::InstallPicoRuntime
+                | DeploymentAction::InstallOfficialTool
         ) {
             return wait_for_vendor_files(
-                component,
+                &component,
                 report,
                 || self.observe(intent),
                 || {
@@ -608,6 +698,8 @@ mod tests {
         let pico_dir = base.join("vr").join("PICO Connect");
         let intent = DeploymentIntent {
             purposes: vec![DeploymentPurpose::PicoPcvr],
+            tools: Vec::new(),
+            reinstall_tools: Vec::new(),
             editor_root: r"C:\VUA Test\Editors".into(),
             use_mirrors: true,
             pico_region: Some(PicoInstallRegion::ChinaMainland),

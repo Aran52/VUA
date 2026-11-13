@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
+// Destroying the last window must not end the run before a failure's exit code is set.
+app.on("window-all-closed", () => {});
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 let server, window;
 const output = path.join(root, "out/component-update-review"); fs.mkdirSync(output, { recursive: true });

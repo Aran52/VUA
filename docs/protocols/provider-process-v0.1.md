@@ -1,10 +1,10 @@
 # Supervised Provider Process Protocol v0.1
 
 
-> Document version: 0.3
+> Document version: 0.4
 > Status: Implementation baseline (handshake frame face frozen as machine-readable schema per proposal 001)
 > Owner: Electron Kernel and Orchestrator Provider adapters
-> Updated: 2026-10-10
+> Updated: 2026-11-10
 > Frame version: `0.1`
 
 ## Boundary and artifact
@@ -34,6 +34,15 @@ stdin/stdout carries UTF-8 JSON Lines with a one-MiB maximum per frame. stdout i
 stderr; the supervisor retains at most 64 KiB of stderr. Both sides frame `frameVersion: "0.1"`, a nonempty
 `frameId`, `kind`, and `payload`. Requests and responses share a frame ID; events have independent IDs. Unknown or
 invalid frames are explicitly rejected.
+
+Responses may arrive out of request order; the supervisor matches `frameId` and checks the
+application `requestId`. Implementation baseline **0.4** moves only the AMF material list and
+Recipe material-plan queries to two workers with a bounded queue. Commands remain on the
+frame loop in arrival order. The AMF contract owns queue limits and overload errors. EOF drains
+accepted reads before closing the output. A successful shutdown rejects outstanding reads with
+their ordinary AMF unavailable response before its shutdown receipt, and skips queued work;
+read-only work does not extend the mutation-lease timeout. The frozen frame and handshake
+schemas remain unchanged.
 
 After spawn, the supervisor completes `handshake`, verifies Application Contract `0.1` and supported versions, and
 only then admits calls. The handshake frame face (request and response) is authoritatively defined by the two JSON
@@ -68,6 +77,8 @@ Force therefore never presents unknown project state as success, failure, or imm
 mutation must Inspect first and explicitly take over at a higher generation.
 
 ## Document changelog
+
+- 0.4 (2026-11-10): document bounded AMF query workers, response correlation, EOF draining and read cancellation on shutdown; preserve command order and the frozen frame/handshake shape.
 
 - 0.3 (2026-10-10): version the host-only explicit external-app breakaway exception; preserve ordinary-worker/AMF containment and the unchanged frozen handshake/frame face.
 - 0.2 erratum (2026-10-02): header `Updated` date corrected — it read 2026-09-07, predating the 0.2 erratum (2026-09-28) this document already carried; no content change.

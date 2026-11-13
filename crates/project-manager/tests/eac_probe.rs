@@ -41,7 +41,10 @@ struct FixtureSource {
 
 impl FixtureSource {
     fn of(entries: Vec<ProcessEntry>) -> Self {
-        Self { entries, fail: false }
+        Self {
+            entries,
+            fail: false,
+        }
     }
 
     fn failing() -> Self {
@@ -203,9 +206,7 @@ fn fixtures_and_snapshots_are_deterministic_and_schema_valid() {
         "example.snapshot.session-active.json",
         "example.snapshot.residual.json",
     ] {
-        let fixture = read_repo_json(&format!(
-            "schemas/eac-probe/v0.1/fixtures/{name}"
-        ));
+        let fixture = read_repo_json(&format!("schemas/eac-probe/v0.1/fixtures/{name}"));
         let problems = violations(&probe_validator(), &fixture);
         assert!(problems.is_empty(), "{name}: {problems:#?}");
     }
@@ -224,7 +225,10 @@ fn fixtures_and_snapshots_are_deterministic_and_schema_valid() {
     assert_eq!(left, right);
     // Deterministic order: findings sorted by (kind, pid), stable.
     assert_eq!(
-        one.processes.iter().map(|finding| finding.pid).collect::<Vec<_>>(),
+        one.processes
+            .iter()
+            .map(|finding| finding.pid)
+            .collect::<Vec<_>>(),
         vec![2, 1]
     );
 
@@ -238,7 +242,10 @@ fn fixtures_and_snapshots_are_deterministic_and_schema_valid() {
 #[test]
 #[ignore = "real-machine probe: requires a Windows process table; CI runs synthetic fixtures only"]
 fn real_machine_probe_records_the_actual_process_table() {
-    let snapshot = probe_eac(&vua_project_manager::eac_probe::os_source::ToolhelpProcessSource, &clock());
+    let snapshot = probe_eac(
+        &vua_project_manager::eac_probe::os_source::ToolhelpProcessSource,
+        &clock(),
+    );
     let value = serde_json::to_value(&snapshot).unwrap();
     let problems = violations(&probe_validator(), &value);
     assert!(problems.is_empty(), "violations: {problems:#?}");

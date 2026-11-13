@@ -44,7 +44,10 @@ impl FakeSpawner {
 impl EditorSpawner for FakeSpawner {
     fn spawn(&self, executable: &Path, args: &[String]) -> std::io::Result<u32> {
         if self.fail.load(Ordering::SeqCst) {
-            return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "no editor"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "no editor",
+            ));
         }
         self.calls
             .lock()
@@ -66,7 +69,8 @@ impl HandoffWait for ScriptedWait {
     }
 
     fn sleep(&self, duration: Duration) {
-        self.now.fetch_add(duration.as_millis() as u32, Ordering::SeqCst);
+        self.now
+            .fetch_add(duration.as_millis() as u32, Ordering::SeqCst);
     }
 }
 
@@ -76,7 +80,9 @@ struct FakeLiveness {
 
 impl FakeLiveness {
     fn all_alive() -> Self {
-        Self { dead: Mutex::new(std::collections::HashSet::new()) }
+        Self {
+            dead: Mutex::new(std::collections::HashSet::new()),
+        }
     }
 
     fn kill(&self, pid: u32) {
@@ -94,7 +100,9 @@ struct FakeFocus;
 
 impl WindowFocus for FakeFocus {
     fn focus(&self, _pid: u32) -> FocusOutcome {
-        FocusOutcome::Unavailable { reason: "test_disabled" }
+        FocusOutcome::Unavailable {
+            reason: "test_disabled",
+        }
     }
 }
 
@@ -104,7 +112,8 @@ struct Workspace {
 
 impl Workspace {
     fn new(name: &str) -> Self {
-        let root = std::env::temp_dir().join(format!("vua-handoff-test-{name}-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("vua-handoff-test-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join(".vua").join("bridge")).expect("workspace scaffold");
         Self { root }
@@ -113,7 +122,8 @@ impl Workspace {
     fn write_handshake(&self, json: &str) {
         let path = handshake_path(&self.root);
         let mut file = std::fs::File::create(&path).expect("create handshake file");
-        file.write_all(json.as_bytes()).expect("write handshake file");
+        file.write_all(json.as_bytes())
+            .expect("write handshake file");
     }
 }
 
@@ -128,12 +138,7 @@ fn port_with(
     wait: std::sync::Arc<dyn HandoffWait>,
     liveness: std::sync::Arc<dyn ProcessLiveness>,
 ) -> DefaultEditorHandoff {
-    DefaultEditorHandoff::with_parts(
-        spawner,
-        wait,
-        liveness,
-        std::sync::Arc::new(FakeFocus),
-    )
+    DefaultEditorHandoff::with_parts(spawner, wait, liveness, std::sync::Arc::new(FakeFocus))
 }
 
 #[test]
@@ -141,11 +146,15 @@ fn launch_sends_windowed_project_path_launch_and_reports_pid() {
     let spawner = std::sync::Arc::new(FakeSpawner::new());
     let port = port_with(
         spawner.clone(),
-        std::sync::Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        std::sync::Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         std::sync::Arc::new(FakeLiveness::all_alive()),
     );
     let project = Path::new("C:/work/AvatarProject");
-    let launched = port.launch(Path::new("C:/Unity/2022.3.22f1/Editor/Unity.exe"), project).expect("launch");
+    let launched = port
+        .launch(Path::new("C:/Unity/2022.3.22f1/Editor/Unity.exe"), project)
+        .expect("launch");
 
     let calls = spawner.calls.lock().expect("spawner calls");
     assert_eq!(calls.len(), 1, "exactly one editor process launched");
@@ -172,11 +181,16 @@ fn launch_failure_is_typed_and_carries_the_executable() {
     spawner.fail.store(true, Ordering::SeqCst);
     let port = port_with(
         spawner,
-        std::sync::Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        std::sync::Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         std::sync::Arc::new(FakeLiveness::all_alive()),
     );
     let error = port
-        .launch(Path::new("C:/Unity/Unity.exe"), Path::new("C:/work/Project"))
+        .launch(
+            Path::new("C:/Unity/Unity.exe"),
+            Path::new("C:/work/Project"),
+        )
         .expect_err("spawn failure surfaces");
     match error {
         HandoffError::LaunchFailed { exe, .. } => {
@@ -191,7 +205,9 @@ fn probe_reports_closed_without_a_trail() {
     let workspace = Workspace::new("probe-empty");
     let port = port_with(
         std::sync::Arc::new(FakeSpawner::new()),
-        std::sync::Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        std::sync::Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         std::sync::Arc::new(FakeLiveness::all_alive()),
     );
     assert_eq!(
@@ -207,7 +223,9 @@ fn probe_reports_open_for_a_live_trail() {
     workspace.write_handshake(VALID_HANDSHAKE_JSON);
     let port = port_with(
         std::sync::Arc::new(FakeSpawner::new()),
-        std::sync::Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        std::sync::Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         std::sync::Arc::new(FakeLiveness::all_alive()),
     );
     let state = port.probe(&workspace.root).expect("probe");
@@ -229,7 +247,9 @@ fn probe_treats_a_dead_pid_as_not_open() {
     liveness.kill(4212);
     let port = port_with(
         std::sync::Arc::new(FakeSpawner::new()),
-        std::sync::Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        std::sync::Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         std::sync::Arc::new(liveness),
     );
     assert_eq!(
@@ -245,10 +265,15 @@ fn probe_treats_corrupt_or_unknown_version_trails_as_not_open() {
     workspace.write_handshake("{not json");
     let port = port_with(
         std::sync::Arc::new(FakeSpawner::new()),
-        std::sync::Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        std::sync::Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         std::sync::Arc::new(FakeLiveness::all_alive()),
     );
-    assert_eq!(port.probe(&workspace.root).expect("probe"), EditorOpenState::Closed);
+    assert_eq!(
+        port.probe(&workspace.root).expect("probe"),
+        EditorOpenState::Closed
+    );
 
     let workspace_v2 = Workspace::new("probe-v2");
     workspace_v2.write_handshake(&VALID_HANDSHAKE_JSON.replace("\"1.0\"", "\"99.0\""));
@@ -265,13 +290,18 @@ fn await_handshake_returns_on_arrival() {
     workspace.write_handshake(VALID_HANDSHAKE_JSON);
     let port = port_with(
         std::sync::Arc::new(FakeSpawner::new()),
-        std::sync::Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        std::sync::Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         std::sync::Arc::new(FakeLiveness::all_alive()),
     );
     let handshake = port
         .await_handshake(&workspace.root, Duration::from_secs(30))
         .expect("handshake arrives");
-    assert_eq!(handshake.pid, 4212, "the arrival carries the editor process facts");
+    assert_eq!(
+        handshake.pid, 4212,
+        "the arrival carries the editor process facts"
+    );
 }
 
 #[test]
@@ -279,11 +309,15 @@ fn await_handshake_times_out_honestly_without_guessing() {
     let workspace = Workspace::new("await-timeout");
     let port = port_with(
         std::sync::Arc::new(FakeSpawner::new()),
-        std::sync::Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        std::sync::Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         std::sync::Arc::new(FakeLiveness::all_alive()),
     );
     let budget = Duration::from_millis(1500);
-    let error = port.await_handshake(&workspace.root, budget).expect_err("timeout surfaces");
+    let error = port
+        .await_handshake(&workspace.root, budget)
+        .expect_err("timeout surfaces");
     match error {
         HandoffError::HandshakeTimeout { budget: reported } => {
             assert_eq!(reported, budget, "the honest timeout names its budget");
@@ -333,7 +367,9 @@ fn await_handshake_is_bound_to_its_own_project_directory() {
     workspace_b.write_handshake(VALID_HANDSHAKE_JSON);
     let port = port_with(
         std::sync::Arc::new(FakeSpawner::new()),
-        std::sync::Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        std::sync::Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         std::sync::Arc::new(FakeLiveness::all_alive()),
     );
     let error = port
@@ -346,12 +382,16 @@ fn await_handshake_is_bound_to_its_own_project_directory() {
 fn focus_side_action_stays_independent_and_reportable() {
     let port = port_with(
         std::sync::Arc::new(FakeSpawner::new()),
-        std::sync::Arc::new(ScriptedWait { now: AtomicU32::new(0) }),
+        std::sync::Arc::new(ScriptedWait {
+            now: AtomicU32::new(0),
+        }),
         std::sync::Arc::new(FakeLiveness::all_alive()),
     );
     assert_eq!(
         port.focus(4212),
-        FocusOutcome::Unavailable { reason: "test_disabled" },
+        FocusOutcome::Unavailable {
+            reason: "test_disabled"
+        },
         "focus is a best-effort side action; unavailability is reportable, never fatal"
     );
 }
@@ -394,7 +434,10 @@ fn handshake_schema_vectors_hold_for_this_reader() {
             .expect("negative vector present"),
         )
         .expect("negative vector is json");
-        assert!(!schema.is_valid(&negative), "negative vector {name} is rejected");
+        assert!(
+            !schema.is_valid(&negative),
+            "negative vector {name} is rejected"
+        );
     }
 
     // The writer face the reader accepts matches the schema: serde can read

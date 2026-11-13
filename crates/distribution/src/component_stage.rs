@@ -1,6 +1,6 @@
 //! Component staging and restart transactions. No live executable is overwritten.
 use crate::{
-    component_feed::{self, Activation, ComponentKind, Release},
+    component_feed::{self, Activation, ComponentFeed, ComponentKind, Release},
     layout::{Active, Installation},
     manifest::{Manifest, SignedManifest},
     paths::{atomic_json, owned_path},
@@ -558,21 +558,37 @@ impl Installation {
         &self,
         kind: ComponentKind,
         active: &Active,
-    ) -> Result<()> {
+        feed: &ComponentFeed,
+    ) -> Result<bool> {
+        let _operation = self.lock("operation.lock")?;
         let _stage = self.lock(&format!("component-stage-{}.lock", kind.name()))?;
-        let failed = self
-            .activation_journal()?
-            .filter(|journal| journal.state == "recovered" && &journal.before == active);
-        if self.component_pending(kind)?.is_some_and(|(pending, _)| {
-            &pending.base != active
-                || failed
-                    .as_ref()
-                    .is_some_and(|journal| selected(&journal.next, kind) == pending.manifest)
-        }) {
+        if &self.active()? != active {
+            return Err(Error("active_selection_changed".into()));
+        }
+        let journal = self.activation_journal()?;
+        if journal
+            .as_ref()
+            .is_some_and(|journal| matches!(journal.state.as_str(), "prepared" | "verifying"))
+        {
+            return Ok(false);
+        }
+        let Some((pending, _)) = self.component_pending(kind)? else {
+            return Ok(false);
+        };
+        let withdrawn = !feed
+            .releases
+            .iter()
+            .any(|entry| entry.manifest.sha256 == pending.manifest);
+        let recovered = journal.as_ref().is_some_and(|journal| {
+            journal.state == "recovered"
+                && &journal.before == active
+                && selected(&journal.next, kind) == pending.manifest
+        });
+        if withdrawn || &pending.base != active || recovered {
             // Only obsolete intent is cleared; downloaded immutable files remain reusable.
             fs::remove_file(owned_path(&self.root, &name(kind, "pending"))?)?;
         }
-        Ok(())
+        Ok(withdrawn)
     }
     pub(crate) fn validate_pair(&self, pair: &Active) -> Result<(Manifest, Manifest)> {
         if pair.schema_version != "0.1" {
@@ -681,16 +697,37 @@ impl Installation {
         };
         self.save_update(&name(kind, "pending"), &pending)?;
         fs::create_dir_all(owned_path(&self.root, "cache")?)?;
-        transfer
-            .component(
-                &value.files,
-                &value.pack,
-                Some(&old_root),
-                &output,
-                local_pack,
-                &owned_path(&self.root, &format!("cache/{}.bin", value.pack.sha256))?,
-            )
-            .await?;
+        if local_pack.is_none() && entry.compressed_transfer.is_some() {
+            let compressed = self
+                .ensure_compressed_transfer(kind, &entry, &target, transfer)
+                .await?
+                .ok_or_else(|| Error("missing_compressed_transfer".into()))?;
+            transfer
+                .component_compressed(
+                    &value.files,
+                    &value.pack,
+                    &compressed,
+                    Some(&old_root),
+                    &output,
+                    &owned_path(
+                        &self.root,
+                        &format!("cache/{}.pack", compressed.pack.sha256),
+                    )?,
+                    &owned_path(&self.root, &format!("cache/{}.bin", value.pack.sha256))?,
+                )
+                .await?;
+        } else {
+            transfer
+                .component(
+                    &value.files,
+                    &value.pack,
+                    Some(&old_root),
+                    &output,
+                    local_pack,
+                    &owned_path(&self.root, &format!("cache/{}.bin", value.pack.sha256))?,
+                )
+                .await?;
+        }
         if runtime_missing {
             let cache = owned_path(
                 &self.root,

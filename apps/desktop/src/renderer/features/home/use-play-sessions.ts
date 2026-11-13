@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PLAY_ROUTES, type PlayRoute, type PlaySession } from "@vua/contracts";
 import { useGateway } from "../../gateway/index.ts";
-export function usePlaySessions() {
+/** Play follows sessions closely; Home only needs them about right. */
+export function usePlaySessions(pollMs = 1500) {
   const port = useGateway().environment.play;
   const [sessions, setSessions] = useState<Partial<Record<PlayRoute, PlaySession>>>({});
   const [unavailable, setUnavailable] = useState<Partial<Record<PlayRoute, boolean>>>({});
@@ -23,12 +24,12 @@ export function usePlaySessions() {
     mounted.current = true;
     let cancelled = false; let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
-      if (!document.hidden && document.querySelector(".vua-play-page")?.getClientRects().length) await refresh();
-      if (!cancelled) timer = setTimeout(() => { void poll(); }, document.documentElement.dataset.effects === "off" ? 5000 : 1500);
+      if (!document.hidden && document.querySelector(".vua-play-page, .vua-home")?.getClientRects().length) await refresh();
+      if (!cancelled) timer = setTimeout(() => { void poll(); }, document.documentElement.dataset.effects === "off" ? Math.max(pollMs, 5000) : pollMs);
     };
-    void refresh().then(() => { if (!cancelled) timer = setTimeout(() => { void poll(); }, 1500); });
+    void refresh().then(() => { if (!cancelled) timer = setTimeout(() => { void poll(); }, pollMs); });
     return () => { mounted.current = false; cancelled = true; clearTimeout(timer); };
-  }, [refresh]);
+  }, [refresh, pollMs]);
   const act = async (route: PlayRoute, stop: boolean) => {
     if (!port || busy.current.has(route)) return;
     busy.current.add(route); const epoch = ++epochs.current[route]; setPending(p => ({ ...p, [route]: true }));

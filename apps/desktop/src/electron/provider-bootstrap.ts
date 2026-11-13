@@ -42,5 +42,5 @@ export function desktopProviderProcessFactory(endpoint: Omit<DesktopProviderEndp
 
 export function createDesktopOrchestratorProvider(endpoint: DesktopProviderEndpoint): OrchestratorProviderV01 {
   return new SupervisedProcessProviderV01({ executablePath: endpoint.executablePath,
-    databasePath: endpoint.databasePath, handshakeTimeoutMs: 15_000 }, desktopProviderProcessFactory(endpoint));
+    databasePath: endpoint.databasePath, handshakeTimeoutMs: 30_000 }, desktopProviderProcessFactory(endpoint));
 }

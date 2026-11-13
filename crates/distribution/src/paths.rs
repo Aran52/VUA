@@ -60,6 +60,57 @@ pub fn is_link(meta: &std::fs::Metadata) -> bool {
     meta.file_type().is_symlink() || reparse(meta)
 }
 
+pub fn same_regular_file(left: &Path, right: &Path) -> bool {
+    let (Ok(left_meta), Ok(right_meta)) = (
+        std::fs::symlink_metadata(left),
+        std::fs::symlink_metadata(right),
+    ) else {
+        return false;
+    };
+    if is_link(&left_meta)
+        || is_link(&right_meta)
+        || !left_meta.is_file()
+        || !right_meta.is_file()
+        || left_meta.len() != right_meta.len()
+    {
+        return false;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{
+            GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION,
+        };
+        let (Ok(left_file), Ok(right_file)) =
+            (std::fs::File::open(left), std::fs::File::open(right))
+        else {
+            return false;
+        };
+        let mut left_info = unsafe { std::mem::zeroed::<BY_HANDLE_FILE_INFORMATION>() };
+        let mut right_info = unsafe { std::mem::zeroed::<BY_HANDLE_FILE_INFORMATION>() };
+        let ok = unsafe {
+            GetFileInformationByHandle(left_file.as_raw_handle(), &mut left_info) != 0
+                && GetFileInformationByHandle(right_file.as_raw_handle(), &mut right_info) != 0
+        };
+        ok && left_info.nNumberOfLinks >= 2
+            && (left_info.nFileIndexHigh != 0 || left_info.nFileIndexLow != 0)
+            && left_info.dwVolumeSerialNumber == right_info.dwVolumeSerialNumber
+            && left_info.nFileIndexHigh == right_info.nFileIndexHigh
+            && left_info.nFileIndexLow == right_info.nFileIndexLow
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        left_meta.nlink() >= 2
+            && left_meta.dev() == right_meta.dev()
+            && left_meta.ino() == right_meta.ino()
+    }
+    #[cfg(not(any(windows, unix)))]
+    {
+        false
+    }
+}
+
 pub fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }

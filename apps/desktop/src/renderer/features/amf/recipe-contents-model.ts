@@ -8,7 +8,7 @@ export function recipeProducts(recipe:AmfRecipeDocument,sources:RecipeSources) {
 }
 export function recipeSettings(recipe:AmfRecipeDocument) {
   return {bindings:recipe.outfits.length,merge:recipe.outfits.filter(v=>v.mode==="merge_armature").length,attach:recipe.outfits.filter(v=>v.mode==="attach_to_bone").length,
-    switches:recipe.outfits.filter(v=>v.toggleName.trim()!=="").length,fits:recipe.adjustments?.fits?.reduce((sum,fit)=>sum+fit.objects.length,0)??0,lighting:recipe.adjustments?.lighting.length??0,sdkFixes:recipe.adjustments?.sdkFixes.length??0};
+    switches:recipe.outfits.filter(v=>v.toggleName.trim()!=="").length,fits:recipe.adjustments?.fits?.reduce((sum,fit)=>sum+fit.objects.length,0)??0,lighting:recipe.adjustments?.lighting.length??0,sdkFixes:recipe.adjustments?.sdkFixes.length??0,optimizer:recipe.adjustments?.optimizer===true?1:0};
 }
 export function useStatus(value:TermsUseDecision):LibraryUseStatus {
   return value.decision==="conforms"?(value.conditions.length?"conditional":"allowed"):value.decision==="contact_licensor"?"contact":value.decision==="nonconforming"?"forbidden":"unknown";

@@ -14,20 +14,17 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
-use vua_orchestrator::{
-    AppErrorV1, ErrorCategory, NewTask, SqliteTaskStore, TaskMutation,
-};
+use vua_orchestrator::{AppErrorV1, ErrorCategory, NewTask, SqliteTaskStore, TaskMutation};
 use vua_project_manager::ManagerRoots;
 use vua_provider_host::{run_provider_host_full, ProjectOpsConfig};
 
 fn snapshot_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../schemas/application-contract/v0.1")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/application-contract/v0.1")
 }
 
 fn snapshot_validator() -> jsonschema::Validator {
-    let bytes = fs::read(snapshot_dir().join("task-snapshot.schema.json"))
-        .expect("snapshot schema exists");
+    let bytes =
+        fs::read(snapshot_dir().join("task-snapshot.schema.json")).expect("snapshot schema exists");
     let schema: Value = serde_json::from_slice(&bytes).expect("snapshot schema is valid JSON");
     jsonschema::validator_for(&schema).expect("frozen snapshot schema must compile")
 }
@@ -91,7 +88,9 @@ fn seed_registered_source(root: &Path) -> (PathBuf, PathBuf, PathBuf) {
 fn project_ops_config(vcc_settings: &Path) -> ProjectOpsConfig {
     ProjectOpsConfig {
         vcc_settings_candidates: vec![vcc_settings.to_path_buf()],
-        manager_roots: ManagerRoots { alcom_settings_candidates: Vec::new() },
+        manager_roots: ManagerRoots {
+            alcom_settings_candidates: Vec::new(),
+        },
         editor_roots: Vec::new(),
     }
 }
@@ -160,7 +159,10 @@ fn wait_terminal(database_path: &Path, task_id: &str) -> vua_orchestrator::Store
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         let store = SqliteTaskStore::open(database_path).expect("store opens");
-        let task = store.task(task_id).expect("store readable").expect("task exists");
+        let task = store
+            .task(task_id)
+            .expect("store readable")
+            .expect("task exists");
         if task.state.is_terminal() {
             return task;
         }
@@ -177,7 +179,11 @@ fn vectors_drive_the_frozen_task_snapshot_schema() {
     let mut seen = 0;
     for entry in fs::read_dir(&dir).expect("examples dir") {
         let path = entry.expect("entry").path();
-        let name = path.file_name().expect("name").to_string_lossy().to_string();
+        let name = path
+            .file_name()
+            .expect("name")
+            .to_string_lossy()
+            .to_string();
         // The examples dir hosts sibling vector families too (e.g. the
         // 017 overlay-snapshot vectors with their own schema + driver);
         // this driver owns only the task-snapshot family.
@@ -240,24 +246,42 @@ fn completed_task_snapshot_refluxes_the_result_document() {
     // The single stored result is what both channels must project.
     let stored = wait_terminal(&database, &task_id);
     assert!(stored.state.is_terminal());
-    let done_payload = stored.result.as_ref().expect("the plan task carries a result");
+    let done_payload = stored
+        .result
+        .as_ref()
+        .expect("the plan task carries a result");
     assert_eq!(done_payload["operation"], "project.import-copy");
     assert_eq!(done_payload["result"]["kind"], "plan");
 
     // The snapshot channel now refluxes it verbatim.
-    let frames = run_frame(&database, None, "query", "task.get", json!({
-        "params": { "taskId": task_id }
-    }));
+    let frames = run_frame(
+        &database,
+        None,
+        "query",
+        "task.get",
+        json!({
+            "params": { "taskId": task_id }
+        }),
+    );
     let snapshot = &frames[0]["payload"]["value"];
     assert_eq!(snapshot["state"], "succeeded");
     assert_eq!(
         snapshot["result"], *done_payload,
         "the snapshot result is the stored Done payload, verbatim"
     );
-    assert!(validator.is_valid(snapshot), "the snapshot matches the frozen face: {snapshot}");
+    assert!(
+        validator.is_valid(snapshot),
+        "the snapshot matches the frozen face: {snapshot}"
+    );
 
     // task.list projects the same shape.
-    let frames = run_frame(&database, None, "query", "task.list", json!({ "params": {} }));
+    let frames = run_frame(
+        &database,
+        None,
+        "query",
+        "task.list",
+        json!({ "params": {} }),
+    );
     let tasks = &frames[0]["payload"]["value"]["tasks"];
     let listed = tasks
         .as_array()
@@ -267,7 +291,10 @@ fn completed_task_snapshot_refluxes_the_result_document() {
         .expect("the task is listed")
         .clone();
     assert_eq!(listed["result"], *done_payload);
-    assert!(validator.is_valid(&listed), "the listed snapshot matches the frozen face");
+    assert!(
+        validator.is_valid(&listed),
+        "the listed snapshot matches the frozen face"
+    );
 }
 
 #[test]
@@ -277,30 +304,51 @@ fn cancelled_task_snapshot_never_carries_a_result() {
     let database = root.join("tasks.sqlite");
 
     // The demo command creates a real queued task over the task face.
-    let frames = run_frame(&database, None, "command", "task.startDemo", json!({
-        "commandId": "demo-cancel-1"
-    }));
+    let frames = run_frame(
+        &database,
+        None,
+        "command",
+        "task.startDemo",
+        json!({
+            "commandId": "demo-cancel-1"
+        }),
+    );
     let task_id = frames[0]["payload"]["value"]["task"]["taskId"]
         .as_str()
         .expect("taskId")
         .to_owned();
 
     // Cancel it; the terminal face is the failure/cancellation face.
-    let frames = run_frame(&database, None, "command", "task.requestCancellation", json!({
-        "params": { "taskId": task_id }
-    }));
+    let frames = run_frame(
+        &database,
+        None,
+        "command",
+        "task.requestCancellation",
+        json!({
+            "params": { "taskId": task_id }
+        }),
+    );
     assert_eq!(frames[0]["payload"]["value"]["state"], "cancelled");
 
-    let frames = run_frame(&database, None, "query", "task.get", json!({
-        "params": { "taskId": task_id }
-    }));
+    let frames = run_frame(
+        &database,
+        None,
+        "query",
+        "task.get",
+        json!({
+            "params": { "taskId": task_id }
+        }),
+    );
     let snapshot = &frames[0]["payload"]["value"];
     assert_eq!(snapshot["state"], "cancelled");
     assert!(
         snapshot.get("result").is_none(),
         "a cancelled snapshot never carries a result: {snapshot}"
     );
-    assert!(validator.is_valid(snapshot), "the snapshot matches the frozen face: {snapshot}");
+    assert!(
+        validator.is_valid(snapshot),
+        "the snapshot matches the frozen face: {snapshot}"
+    );
 }
 
 #[test]
@@ -340,7 +388,10 @@ fn failed_snapshot_never_refluxes_a_storage_face_result() {
             &task_id,
             1,
             occurred_at,
-            TaskMutation::Transition { state: vua_orchestrator::TaskState::Preparing, payload: json!({}) },
+            TaskMutation::Transition {
+                state: vua_orchestrator::TaskState::Preparing,
+                payload: json!({}),
+            },
         )
         .expect("transition to preparing lands");
     store
@@ -348,7 +399,10 @@ fn failed_snapshot_never_refluxes_a_storage_face_result() {
             &task_id,
             2,
             occurred_at,
-            TaskMutation::Transition { state: vua_orchestrator::TaskState::Running, payload: json!({}) },
+            TaskMutation::Transition {
+                state: vua_orchestrator::TaskState::Running,
+                payload: json!({}),
+            },
         )
         .expect("transition to running lands");
     store
@@ -378,9 +432,15 @@ fn failed_snapshot_never_refluxes_a_storage_face_result() {
         .expect("terminal mutation lands");
     drop(store);
 
-    let frames = run_frame(&database, None, "query", "task.get", json!({
-        "params": { "taskId": task_id }
-    }));
+    let frames = run_frame(
+        &database,
+        None,
+        "query",
+        "task.get",
+        json!({
+            "params": { "taskId": task_id }
+        }),
+    );
     let snapshot = &frames[0]["payload"]["value"];
     assert_eq!(snapshot["state"], "failed");
     assert_eq!(
@@ -391,10 +451,19 @@ fn failed_snapshot_never_refluxes_a_storage_face_result() {
         snapshot.get("result").is_none(),
         "a failed snapshot never refluxes a storage-face result: {snapshot}"
     );
-    assert!(validator.is_valid(snapshot), "the snapshot matches the frozen face: {snapshot}");
+    assert!(
+        validator.is_valid(snapshot),
+        "the snapshot matches the frozen face: {snapshot}"
+    );
 
     // task.list projects the same state-scoped face.
-    let frames = run_frame(&database, None, "query", "task.list", json!({ "params": {} }));
+    let frames = run_frame(
+        &database,
+        None,
+        "query",
+        "task.list",
+        json!({ "params": {} }),
+    );
     let listed = frames[0]["payload"]["value"]["tasks"]
         .as_array()
         .expect("tasks array")
@@ -403,6 +472,12 @@ fn failed_snapshot_never_refluxes_a_storage_face_result() {
         .expect("the task is listed")
         .clone();
     assert_eq!(listed["state"], "failed");
-    assert!(listed.get("result").is_none(), "the listed snapshot never carries a result");
-    assert!(validator.is_valid(&listed), "the listed snapshot matches the frozen face");
+    assert!(
+        listed.get("result").is_none(),
+        "the listed snapshot never carries a result"
+    );
+    assert!(
+        validator.is_valid(&listed),
+        "the listed snapshot matches the frozen face"
+    );
 }

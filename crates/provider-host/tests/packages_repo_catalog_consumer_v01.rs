@@ -23,11 +23,11 @@ use std::fs;
 use std::path::Path;
 
 use serde_json::{json, Value};
+use vua_orchestrator::AppErrorV1;
 use vua_orchestrator::{
     PackageRequestV1, ProjectRef, RepoCatalogCapabilities, RepoCatalogPackageV01,
     RepoCatalogRepoV01, RepoCatalogV01, VpmBackend,
 };
-use vua_orchestrator::AppErrorV1;
 
 fn read_repo_json(relative: &str) -> Value {
     // Tests run from the crate directory; the schemas live at the repo root.
@@ -73,7 +73,7 @@ impl VpmBackend for MinimalBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -117,7 +117,7 @@ impl VpmBackend for FakeRepoCatalogBackend {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn preview_install(
@@ -217,7 +217,11 @@ fn repo_catalog_schema_admits_positive_vectors_and_rejects_negative_ones() {
         "schemas/packages-repo-catalog/v0.1/examples/packages-repo-catalog-filtered.request.json",
     ] {
         let doc = read_repo_json(positive);
-        assert!(command.is_valid(&doc), "{positive}: {:?}", violations(&command, &doc));
+        assert!(
+            command.is_valid(&doc),
+            "{positive}: {:?}",
+            violations(&command, &doc)
+        );
     }
 
     for positive in [
@@ -253,7 +257,10 @@ fn repo_catalog_schema_admits_positive_vectors_and_rejects_negative_ones() {
 #[test]
 fn trait_default_answers_capability_missing_and_declares_none() {
     let backend = MinimalBackend;
-    assert_eq!(backend.repo_catalog_capabilities(), RepoCatalogCapabilities::NONE);
+    assert_eq!(
+        backend.repo_catalog_capabilities(),
+        RepoCatalogCapabilities::NONE
+    );
 
     let err = backend.repo_catalog(None, &[]).unwrap_err();
     assert_eq!(err.code, "vua.vpm.capability_missing");
@@ -276,13 +283,20 @@ fn fake_backend_port_facts_project_onto_the_frozen_wire_shape() {
         "result": result,
     });
     let validator = result_validator();
-    assert!(validator.is_valid(&envelope), "{:?}", violations(&validator, &envelope));
+    assert!(
+        validator.is_valid(&envelope),
+        "{:?}",
+        violations(&validator, &envelope)
+    );
     assert_eq!(
         envelope["result"]["schemaVersion"],
         "vua.packages-repo-catalog/v0.1"
     );
     // camelCase projection pins (serde rename_all verbatim).
-    assert_eq!(envelope["result"]["cacheSourced"], serde_json::Value::Bool(true));
+    assert_eq!(
+        envelope["result"]["cacheSourced"],
+        serde_json::Value::Bool(true)
+    );
     let repos = envelope["result"]["repos"].as_array().unwrap();
     assert_eq!(repos.len(), 3);
     assert_eq!(repos[0]["packages"][0]["latestVersion"], "1.7.0");
@@ -290,8 +304,14 @@ fn fake_backend_port_facts_project_onto_the_frozen_wire_shape() {
     // Honest absence arms: null latestVersion (all-yanked under the current
     // setting), null displayName/description (manifest carries none), and
     // the null repoId row — none of them padded, none of them errors.
-    assert_eq!(repos[0]["packages"][1]["latestVersion"], serde_json::Value::Null);
-    assert_eq!(repos[0]["packages"][1]["displayName"], serde_json::Value::Null);
+    assert_eq!(
+        repos[0]["packages"][1]["latestVersion"],
+        serde_json::Value::Null
+    );
+    assert_eq!(
+        repos[0]["packages"][1]["displayName"],
+        serde_json::Value::Null
+    );
     assert_eq!(repos[2]["repoId"], serde_json::Value::Null);
     // The uncached subscription row: cached=false with an EMPTY packages
     // array — its own honest state, never hidden.
@@ -335,6 +355,10 @@ fn batch_filter_semantics_are_params_shape_not_port_behavior() {
         "schemas/packages-repo-catalog/v0.1/examples/packages-repo-catalog-filtered.request.json",
     ] {
         let request = read_repo_json(doc);
-        assert!(command.is_valid(&request), "{doc}: {:?}", violations(&command, &request));
+        assert!(
+            command.is_valid(&request),
+            "{doc}: {:?}",
+            violations(&command, &request)
+        );
     }
 }

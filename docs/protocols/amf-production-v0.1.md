@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.39.0
+> Document version: 0.43.0
 > Status: Candidate
-> Updated: 2026-11-01
+> Updated: 2026-11-12
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -59,11 +59,13 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.releaseState` | Query | `runId` | The run's turntable (`frames`, `size`, `bakedAt`, `current`), its last 10 uploads newest first and `editorOpen` |
 | `amf.production.turntableFrame` | Query | `runId`, `index` (0–59) | One turntable frame as `mediaType: "image/png"` and base64 `data` |
 | `amf.production.bakeTurntable` | Command | `runId` | Durable task baking the 60-frame turntable of the finished Avatar |
+| `amf.production.localTest` | Command | `runId` | Durable local Windows PC SDK build-and-test, with no upload rights confirmation or name |
 | `amf.production.upload` | Command | `runId`, `avatarName`, `rightsConfirmed: true` | Durable task building and uploading the finished Avatar with the VRChat SDK |
 | `amf.production.planTextureMemory` | Query | `runId`, `platform: pc / android`, `targetRank: excellent / good / medium / poor` | Digest-bound current inventory, suggested importer changes, predicted bytes/rank and `reachesTarget` |
 | `amf.production.applyTextureMemory` | Command | `runId`, `platform`, `targetRank`, `planDigest`, `textures` | Durable confirmed subset task; snapshot, version record, importer changes, independent reinspection and automatic restore on failure |
 | `amf.production.planLighting` | Query | `runId` | Digest-bound lilToon brightness alignment: the Avatar's reference limits, the outfit entries that differ and the shared materials left alone |
 | `amf.production.applyLighting` | Command | `runId`, `planDigest`, `materials` | Durable task acceptance; aligns the chosen reviewed materials behind a restore point and rechecks the project in Unity |
+| `amf.production.setOptimizer` | Command | `runId`, `enabled: boolean` | Durable task acceptance; installs pinned `com.anatawa12.avatar-optimizer` when needed, configures `TraceAndOptimize` on VUA's owned Avatar behind a restore point and version record, measures local NDMF before/after stats without saving temporary clones, and restores on failure |
 | `amf.production.listFits` | Query | none | Retained saved fits: name, times, object count and the garment/Avatar content identities each belongs to |
 | `amf.production.saveFit` | Command | `runId`, `sourceId`, `name`, `changesDigest` | The stored fit; binds the reviewed `fitChanges` entry, a stale review is refused as `plan_drift` |
 | `amf.production.renameFit` | Command | `fitId`, `name` | The renamed fit |
@@ -104,6 +106,38 @@ inconsistent GUID metadata, file/directory conflicts and Windows case collisions
 Malformed unrelated ZIP files are not offered as package sources. Each listed source names the
 BOOTH products its library entry maps to (`productIds`, from download provenance and local
 matches; empty when none is known), so a line's materials can be checked against [VN3 terms](terms-v0.1.md).
+
+### Material read caches
+
+Each source in `amf.production.list` may also carry `sha256`: a previously recorded, lowercase
+64-character digest without a prefix. A direct UnityPackage uses its recorded library artifact
+digest; a ZIP member has a digest only after a material read has recorded it. Listing never hashes
+file contents. Missing digests are omitted, and consumers continue to accept older responses
+without this field. The [source schema](../../schemas/amf-production-flow/v0.1/source.schema.json)
+defines this additive field. These facts support a preliminary material checklist; they are not a
+fresh integrity check and do not authorize preparation, assembly or restoration.
+
+`recipeMaterialPlan` reuses material digests while the source path, byte length and last-modified
+time match. A ZIP member also includes its member name in the key; its metadata comes from the
+containing archive. The version-1 cache lives at `amf-production/material-hashes.json`, with at
+most 8,192 entries and four MiB. Writes use a `.pending` file followed by atomic replacement.
+Missing, corrupt, oversized or unrecognized caches are treated as empty; failed persistence does
+not fail a material read. A file that changes during hashing causes `source_drift`. Execution
+continues to verify selected bytes independently, without trusting this advisory cache.
+
+Source enumeration rechecks library membership, removal records, names, product mappings and
+file metadata on every call. Matching observations reuse ZIP directory results; an unknown file
+stamp requires another scan. Editor discovery re-enumerates installation roots and reuses at
+most 128 executable probes by path, length and last-modified time. Directory inputs and unknown
+stamps are probed again. Imports, removals, changed archives and newly installed Editors therefore
+appear on the next query.
+
+The Provider runs `amf.production.list` and `amf.production.recipeMaterialPlan` on two read workers
+with at most 32 queued requests. Fast queries can respond meanwhile, and responses retain their
+original frame and request IDs. Commands are admitted on the existing frame loop in arrival
+order. A full read queue returns `vua.amf_production.busy`; a failed worker or a query cancelled by
+shutdown returns `vua.amf_production.unavailable`. This uses the existing frame shape described
+in the [Provider process protocol](provider-process-v0.1.md).
 
 The plan digest binds the observation revision, candidates, chosen inputs, Editor, project
 fingerprints and selection. Reinspection invalidates every earlier confirmation.
@@ -299,8 +333,9 @@ longer runs as `interrupted`, next to the run phase `inspect_required`.
 
 `amf.production.get` also reports `usualDurations`: for each step key, the median in whole
 seconds of the succeeded steps of the 30 most recent runs on this computer. `progress` is `null`
-unless a task works on the run (`preparing`, `inspecting`, `assembling`, `restoring`); then it
-names the running `step` with its `name`, `startedAt`, `elapsedSeconds`, `usualSeconds` (`null`
+unless the last recorded step is running. A `local_test` step can run while the production
+phase remains `succeeded`. Progress names the running `step` with its `name`, `startedAt`,
+`elapsedSeconds`, `usualSeconds` (`null`
 before a step of that kind has finished here) and, during a Unity batch run, `unity`.
 
 Task progress events of an `amf.production` task carry `operation: "amf.production"`, `runId`,
@@ -339,7 +374,7 @@ closed.
 
 Unity work has a capacity of 1, 2 or 3, defaulting to 1. The commands that start it — `prepare`, `prepareRecipe`,
 `assemble`, `reinspect`, `sdkFix`, `faceTrackingPatch`, `changeSources`, `applyRecipe`, `rollback`, `restoreRevision`, `open`, `delete`,
-`bakeTurntable`, `upload`, `closeEditor` and `applyLighting` — are accepted while another job runs: their task stays `queued` and starts by itself,
+`bakeTurntable`, `upload`, `localTest`, `closeEditor` and `applyLighting` — are accepted while another job runs: their task stays `queued` and starts by itself,
 in request order, when admitted by these rules:
 
 - At most `capacity` jobs run at once. Capacity 1 runs one job at a time in submission order.
@@ -488,8 +523,8 @@ remain the record of what was assembled.
 ## Release
 
 A finished run (`succeeded`) leaves the factory through the release room. Its record lives beside
-the run in `releases/<runId>.json`; the run's phase and result stay as assembly left them. Both
-release commands share the production [queue](#queue), add a `turntable` or `upload` step to the
+the run in `releases/<runId>.json`; the run's phase and result stay as assembly left them. The
+release commands share the production [queue](#queue), add a `turntable`, `upload` or `local_test` step to the
 run while they work, and end that step as `succeeded` or `failed` with the reason in its detail.
 
 `amf.production.bakeTurntable` runs [Bridge v5](unity-bridge-v5.md#turntable) `amf_turntable`
@@ -528,6 +563,38 @@ facts read the SDK check again and list `sdkFixesApplied`. Items the last check 
 fix for are refused with `vua.amf_production.sdk_fix_unavailable` before any restore point; a
 failure restores the project. The release page offers it as "Fix with the SDK" after the player
 reads what happens.
+
+### Local SDK test and upload eligibility
+
+`amf.production.localTest {schemaVersion: "0.1", runId}` requires a succeeded run with an
+owned Avatar identity and the verified Editor. With Unity closed, the last observed project
+fingerprint must match; with Unity open the Bridge requires the work scene to be saved. It needs
+no Avatar name, thumbnail or upload rights confirmation. Local testing shares exclusive SDK
+admission with uploads and adds a `local_test` step without changing the run's phase or result.
+The official SDK's `BuildAndTest` runs on the Windows PC target only. VUA does not start VRChat.
+
+The release record adds `localTests` (default empty when reading older records), keeping 20 entries.
+Each entry carries `testId`, start/end times, state, stage, status, reason, detail, bounded errors,
+SDK sign-in source and the SDK review observed after this test. `releaseState` returns the newest
+ten. Stages are `sdk_panel`, `sign_in`, `building` and `finishing`. Cancellation is cooperative
+while waiting for the panel or sign-in. Once building starts, the public SDK cannot cancel it;
+the task waits for the actual outcome and identity restoration. A total timeout leaves an active
+build's recovery journal intact and refuses another SDK operation until Unity finishes recovery.
+An open Editor with a different embedded Bridge reports `bridge_outdated` immediately.
+
+Both uploads and local tests observe `CanPublishAvatars` after SDK sign-in. A real observation
+atomically replaces `amf-production/upload-eligibility.json` with `{schemaVersion: "0.1", canPublish,
+observedAt}`; no account name or identity is stored. `releaseState.uploadEligibility` is
+`{canPublish, observedAt} | null`. Missing, unobserved or unreadable data is unknown, never a
+negative permission decision. A later observation replaces it, so the UI must display its time.
+An observation write failure adds a task warning and a release diagnostic; it does not erase the
+SDK outcome or the ID returned by a successful upload.
+A test's fresh SDK review stays in its release record rather than replacing the assembly result.
+
+The [local SDK Bridge handoff](unity-bridge-v5.md#local-sdk-test-in-the-open-editor) owns temporary
+blueprint IDs and restoration. Synthetic regression tests do not verify appearance in VRChat,
+Visitor/New User accounts, repeated test entries or a subsequent first upload; those remain the
+real-client acceptance steps.
 
 ## Save and close the open Editor
 
@@ -821,13 +888,98 @@ animation data, collider settings and SDK-added buffers that the import does not
 `uncompressedBytes: "within_25_percent"`. The SDK's measurement after the build remains the
 authoritative number.
 
+## Optional Avatar Optimizer
+
+Avatar Optimizer (`com.anatawa12.avatar-optimizer`, pinned to `1.9.21` in
+[known packages](../development/known-packages.md)) is off by default on new lines. Preparation does
+not install it until the player opts in via `amf.production.setOptimizer(runId, enabled: true)` on an
+assembled line, or prepares a [Recipe v0.6](amf-recipe-v0.6.md) that declares it.
+
+Enabling or disabling runs behind the line's full-copy restore point (`snapshot`), records an
+`optimizer` version entry in `revisions` and writes a Build Record (`{runId}-optimizer-{n}.json`).
+When enabled, the provider resolves and installs `com.anatawa12.avatar-optimizer` `1.9.21` from the
+cached or live `https://vpm.anatawa12.com/vpm.json` feed into the managed work project after
+verifying compatibility with the installed VRChat Avatars SDK and NDMF versions, then runs Bridge
+`amf_optimizer` to add `Anatawa12.AvatarOptimizer.TraceAndOptimize` (default component settings) on
+the active VUA-owned Avatar root. Disabling removes VUA's `TraceAndOptimize` component from that
+Avatar root while leaving package files in `Packages/` intact. If package installation, Bridge
+execution or fingerprint verification fails, the work project is restored from the snapshot.
+
+Bridge `amf_optimizer` measures local before/after statistics (`triangles`, `materialSlots`,
+`skinnedMeshRenderers`, `meshRenderers`, `bones`, `blendShapes`, `meshBytes`, `textureBytes`) by
+invoking NDMF `AvatarProcessor.ManualProcessAvatar` on disposable in-memory clones and cleaning
+temporary NDMF assets before saving the scene. The resulting `facts.optimizerReport` carries
+`localMeasurementOnly: true` and `officialSdkChecks: "not_run"` — it never claims an official VRChat
+SDK build pass. When the line carries Face Tracking parameters or creator patch markers while
+`TraceAndOptimize` is enabled, `facts.optimizerWarnings` includes `"osc_gimmick_possible"` so the UI
+can advise checking OSC expressions in VRChat. Saving a Recipe emits [v0.6](amf-recipe-v0.6.md) when
+`optimizer.enabled` is true and [v0.5](amf-recipe-v0.5.md) otherwise.
+
 ## Recipe image export and import
 
 [Recipe image sharing v0.1](recipe-image-share-v0.1.md) owns the two additive native methods,
 controlled ECC200 carrier, bounded private artifacts, HTTPS declaration transport and local
 withdrawal ownership. They retain the existing provider frame limit and import preview.
 
+## Local Recipe management
+
+These additive methods use the existing production face, command envelope and
+`schemaVersion: "0.1"`. Their closed requests join the
+[production request schema](../../schemas/amf-production-flow/v0.1/request.schema.json).
+
+| Method | Kind | Additional params | Result |
+| --- | --- | --- | --- |
+| `amf.production.renameRecipe` | Command | `recipeId`, `expectedRevision`, `title` | `{schemaVersion, document}` with the stored Recipe and revision incremented once |
+| `amf.production.deleteRecipe` | Command | `recipeId`, `expectedRevision` | `{schemaVersion, recipeId, deleted: true}` |
+| `amf.production.recipeImage` | Query | `recipeId` | `{schemaVersion, recipeId, image: {mediaType: "image/png", data} \| null}` |
+
+`expectedRevision` is a positive JavaScript-safe integer. A missing document or stale revision
+returns `vua.amf_production.recipe_revision_conflict` (category `conflict`,
+`params.currentRevision`, zero when missing). A rename validates the title by the same Recipe
+validation used by save, preserving the declaration's format and all fields except title.
+Its valid local provenance remains bound to the renamed declaration. A bounded two-digest
+local origin transition protects that binding if writing the document is interrupted;
+unmatched or malformed provenance is never promoted into evidence by a rename.
+
+Deletion refuses `recipe_in_use` when **any** retained line record references the Recipe,
+including confirmed lines, lines outside the newest-30 list and lines whose project is gone.
+Unreadable line records block deletion because their references cannot be checked. No line
+is edited by rename or delete. Commands require an idle production lane. Once references are
+clear, deletion removes the optional still before the revision-guarded document deletion;
+a later document I/O failure can leave the still absent while preserving the document.
+
+`listRecipes` adds optional `avatarName` (the declared Avatar material's package name),
+`outfitCount`, `materialCount`, `packageCount` and sorted unique `boothProductIds`. These are
+declaration facts, not a material availability plan. Recipe v0.4, v0.5 and v0.6 are supported.
+An invalid Recipe body retains its readable identity/title/revision/time without these facts;
+an unreadable storage envelope is omitted without inventing metadata or failing other rows.
+The files are retained for repair. No source scan, hash or Unity operation runs for card facts.
+
+After a successful save, AMF best-effort copies the run's reported front view from
+`stills/<runId>` to `recipe-stills/<recipeId>.png`. An absent or invalid source leaves no image
+and does not undo the saved Recipe. The image query requires an existing Recipe, accepts only
+PNG bytes up to 640 KiB (the turntable-frame bound), and reads at most that bound plus one byte.
+No image is null; an invalid stored image is `recipe_image_invalid`. These local images do not
+alter Recipe declarations, share documents, or `exportShareImage`.
+
+`amf.production.list` adds optional `recipeId` on each line only while that Recipe has a valid
+readable declaration. This enables a caller to offer rebuilding a missing project. Older
+responses without the field remain valid; a missing/invalid Recipe does not hide its line.
+
+Legacy `recipe.*` is still retained during consumer and data migration. This addition alone
+does not retire its workspace, stores, frozen contracts, or library reference protections.
+
 ## Document changelog
+
+- 0.43.0 (2026-11-12): add optional `amf.production.setOptimizer` (`com.anatawa12.avatar-optimizer` `1.9.21` `TraceAndOptimize` on the owned Avatar), protected by snapshot, `optimizer` revision replay and Build Record, with local NDMF `ManualProcessAvatar` before/after measurement (`localMeasurementOnly: true`), Face Tracking `osc_gimmick_possible` warning, and conditional Recipe v0.6 capture.
+
+- 0.42.0 (2026-11-11): revision-guarded Recipe rename/delete, additive card facts, local Recipe stills and surviving source Recipe IDs on line summaries.
+
+- 0.41.0 (2026-11-10): add optional recorded source digests, bounded advisory material/source/Editor caches, and bounded concurrent read scheduling. Commands and execution integrity checks keep their existing behavior.
+
+- 0.40.1 (2026-11-09): align local-test request, step, progress and status schemas with the consumers, and clarify progress on an already assembled line.
+
+- 0.40.0 (2026-11-08): add local SDK build-and-test, bounded test history and timestamped upload eligibility without changing assembled results.
 
 - 0.38.0 (2026-10-30): `amf.production.plan` carries `prediction`, the pre-assembly cost of the Avatar and each selected outfit (size, triangles, material slots, texture memory, PhysBones and parameter bits), reusing the texture-memory rules and the parameter estimate; candidates gain an optional `footprint`, and a plan from an older AMF build stays readable without one.
 

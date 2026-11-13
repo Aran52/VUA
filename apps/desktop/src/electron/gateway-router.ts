@@ -35,7 +35,7 @@ export interface DesktopGatewayRouteContext {
    *  未知引用返回 undefined。四元组随 startInspection 一次性转交,此后路径
    *  不再出现在任何请求面 */
   readonly resolveMaterialSource: (refId: string) => ProductionContextV02 | undefined;
-  readonly launchAmfEditor?: ((runId: string) => Promise<void>) | undefined;
+  readonly launchAmfEditor?: ((runId: string, localTestTaskId?: string) => Promise<void>) | undefined;
   /** vrchat-session v0.1(实验性 VRChat 登录):Electron Main 持有的会话与
    *  Gateway 面。机密不进 Provider;`vua_status` 只读两个布尔。 */
   readonly vrchat?: {
@@ -139,6 +139,10 @@ function toApplicationRequest(
     case "tools.observeConnection":
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "tools.actConnection":
+      return { ...base, kind: "command", method: request.method, commandId: request.params.commandId, params: { toolId: request.params.toolId, action: request.params.action } };
+    case "tools.observeInstaller":
+      return { ...base, kind: "query", method: request.method, params: request.params };
+    case "tools.actInstaller":
       return { ...base, kind: "command", method: request.method, commandId: request.params.commandId, params: { toolId: request.params.toolId, action: request.params.action } };
     case "environment.inspectManagerApps":
       return { ...base, kind: "query", method: request.method, params: {} };
@@ -283,13 +287,15 @@ function toApplicationRequest(
       const { commandId, ...params } = request.params;
       return { ...base, kind: "command", commandId, method: request.method, params };
     }
-    case "recipeDraft.list":
+    case "recipeDraft.list": case "recipeDraft.legacyCensus":
       return { ...base, kind: "query", method: request.method, params: request.params };
-    case "recipeDraft.get": case "recipeDraft.selectionStatus":
+    case "recipeDraft.get": case "recipeDraft.selectionStatus": case "recipeDraft.materialsForLine":
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "recipeDraft.save":
       return { ...base, kind: "command", commandId: request.requestId, method: request.method, params: request.params };
     case "recipeDraft.addSelection":
+      return { ...base, kind: "command", commandId: request.requestId, method: request.method, params: request.params };
+    case "recipeDraft.migrateLegacy":
       return { ...base, kind: "command", commandId: request.requestId, method: request.method, params: request.params };
     case "catalog.detail":
       return { ...base, kind: "query", method: "catalog.detail", params: request.params };
@@ -587,13 +593,14 @@ function toApplicationRequest(
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "environment.checkUnityLicense":
       return { ...base, kind: "command", commandId: `license-${request.requestId}`, method: request.method, params: request.params };
+    case "environment.listPlaySetups": case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
+      return { ...base, kind: "query", method: request.method, params: request.params };
     case "environment.unityLicense":
-    case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
-    case "amf.production.planTextureMemory": case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.revisionPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeMaterialPlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.readShareImage": case "amf.production.turntableFrame": case "amf.production.faceTrackingPlan": case "amf.production.planOutfitRemoval": case "amf.production.planLighting": case "amf.production.listFits":
+    case "amf.production.planTextureMemory": case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.revisionPlan": case "amf.production.listRecipes": case "amf.production.recipeImage": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeMaterialPlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.readShareImage": case "amf.production.turntableFrame": case "amf.production.faceTrackingPlan": case "amf.production.planOutfitRemoval": case "amf.production.planLighting": case "amf.production.listFits":
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "amf.production.exportShareImage":
       return { ...base, kind: "command", commandId: `amf-${request.requestId}`, method: request.method, params: request.params };
-    case "amf.production.applyTextureMemory": case "amf.production.closeEditor": case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.restoreRevision": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe": case "amf.production.bakeTurntable": case "amf.production.upload": case "amf.production.faceTrackingPatch": case "amf.production.sdkFix": case "amf.production.changeSources": case "amf.production.delete": case "amf.production.setCapacity": case "amf.production.removeOutfit": case "amf.production.applyLighting": case "amf.production.saveFit": case "amf.production.renameFit": case "amf.production.deleteFit":
+    case "amf.production.applyTextureMemory": case "amf.production.closeEditor": case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.restoreRevision": case "amf.production.renameRecipe": case "amf.production.deleteRecipe": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe": case "amf.production.localTest": case "amf.production.bakeTurntable": case "amf.production.upload": case "amf.production.faceTrackingPatch": case "amf.production.sdkFix": case "amf.production.changeSources": case "amf.production.delete": case "amf.production.setCapacity": case "amf.production.removeOutfit": case "amf.production.applyLighting": case "amf.production.setOptimizer": case "amf.production.saveFit": case "amf.production.renameFit": case "amf.production.deleteFit":
       return { ...base, kind: "command", commandId: `amf-${request.requestId}`, method: request.method, params: request.params };
     case "recipe.save":
       return {
@@ -721,7 +728,7 @@ export async function routeDesktopGatewayInvoke(
       };
     }
     // 托管上传开始前:玩家已在 VUA 登录时,把会话一次性交到工作工程的 Editor
-    if (request.method === "amf.production.upload" && context.vrchat !== undefined) {
+    if ((request.method === "amf.production.upload" || request.method === "amf.production.localTest") && context.vrchat !== undefined) {
       try { await context.vrchat.writeSdkHandoff(request.params.runId); } catch { /* 面板内登录保持可用 */ }
     }
     let applicationRequest: ApplicationRequestV01;
@@ -751,7 +758,7 @@ export async function routeDesktopGatewayInvoke(
       throw error;
     }
     const providerResponse = await context.provider.invoke(applicationRequest);
-    if (!providerResponse.ok && request.method === "amf.production.upload") context.vrchat?.discardSdkHandoff();
+    if (!providerResponse.ok && (request.method === "amf.production.upload" || request.method === "amf.production.localTest")) context.vrchat?.discardSdkHandoff();
     if (!providerResponse.ok) {
       // 应用错误原样透传:本地化键、可重试与可恢复判定引用契约原值
       return {
@@ -761,8 +768,13 @@ export async function routeDesktopGatewayInvoke(
         error: { code: "application", application: providerResponse.error },
       };
     }
-    if ((request.method === "amf.production.open" || request.method === "amf.production.upload") && context.launchAmfEditor) {
-      await context.launchAmfEditor(request.params.runId);
+    if ((request.method === "amf.production.open" || request.method === "amf.production.upload" || request.method === "amf.production.localTest") && context.launchAmfEditor) {
+      const accepted = providerResponse.value as unknown as { taskId?: unknown } | null;
+      if (request.method === "amf.production.localTest" && typeof accepted?.taskId === "string") {
+        await context.launchAmfEditor(request.params.runId, accepted.taskId);
+      } else if (request.method !== "amf.production.localTest") {
+        await context.launchAmfEditor(request.params.runId);
+      }
     }
     if (request.method === "app.snapshot") {
       if (!isApplicationSnapshot(providerResponse.value)) {

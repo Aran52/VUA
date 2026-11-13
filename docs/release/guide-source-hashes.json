@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "0.1",
+  "updatedAt": "2026-11-11",
+  "sources": [
+    {
+      "id": "vrchat-first-avatar",
+      "url": "https://creators.vrchat.com/avatars/creating-your-first-avatar/",
+      "textSha256": null,
+      "lastCheckedDate": "2026-11-07",
+      "lastOutcome": "baseline_pending_ci"
+    },
+    {
+      "id": "vrchat-safety-trust",
+      "url": "https://docs.vrchat.com/docs/vrchat-safety-and-trust-system",
+      "textSha256": null,
+      "lastCheckedDate": "2026-11-07",
+      "lastOutcome": "baseline_pending_ci"
+    },
+    {
+      "id": "vrchat-plus-faq",
+      "url": "https://hello.vrchat.com/vrchat-plus-faq",
+      "textSha256": null,
+      "lastCheckedDate": "2026-11-07",
+      "lastOutcome": "baseline_pending_ci"
+    },
+    {
+      "id": "vrchat-account-upgrade",
+      "url": "https://help.vrchat.com/hc/en-us/articles/360062659053-I-want-to-turn-my-platform-account-through-Steam-Meta-Pico-or-Viveport-into-a-VRChat-account",
+      "textSha256": null,
+      "lastCheckedDate": "2026-11-07",
+      "lastOutcome": "baseline_pending_ci"
+    },
+    {
+      "id": "booth-payment",
+      "url": "https://booth.pm/payment",
+      "textSha256": null,
+      "lastCheckedDate": "2026-11-07",
+      "lastOutcome": "baseline_pending_ci"
+    },
+    {
+      "id": "jinxxy-purchase-agreement",
+      "url": "https://jinxxy.com/purchase-agreement",
+      "textSha256": null,
+      "lastCheckedDate": "2026-11-07",
+      "lastOutcome": "baseline_pending_ci"
+    },
+    {
+      "id": "gumroad-buyer-help",
+      "url": "https://gumroad.com/help/article/282-how-do-purchases-work-for-my-customers.html",
+      "textSha256": null,
+      "lastCheckedDate": "2026-11-07",
+      "lastOutcome": "baseline_pending_ci"
+    },
+    {
+      "id": "payhip-buyer-help",
+      "url": "https://help.payhip.com/article/158-buying-from-payhip",
+      "textSha256": null,
+      "lastCheckedDate": "2026-11-07",
+      "lastOutcome": "baseline_pending_ci"
+    }
+  ]
+}

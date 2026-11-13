@@ -15,7 +15,7 @@ describe("application language formatting", () => {
     const timestamp = "2026-09-20T04:30:00Z";
     for (const locale of ["en", "ja", "zh-CN", "ko"] as const) {
       expect(formatDateTime(timestamp, locale)).toBe(new Intl.DateTimeFormat(locale, {
-        year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+        year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
       }).format(new Date(timestamp)));
     }
     expect(formatDateTime(timestamp, "ja")).not.toBe(formatDateTime(timestamp, "en"));

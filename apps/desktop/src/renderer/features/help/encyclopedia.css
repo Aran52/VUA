@@ -3,10 +3,10 @@
 .vua-encyclopedia-home section h2 { font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
 .vua-encyclopedia-home section { display: grid; gap: var(--vua-space-3); }
 .vua-encyclopedia-search { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: var(--vua-space-3); align-items: end; }
-.vua-encyclopedia-search label { display: grid; gap: var(--vua-space-1); }
+.vua-encyclopedia-search label, .vua-encyclopedia-search > div { display: grid; gap: var(--vua-space-1); }
 .vua-encyclopedia-search input, .vua-encyclopedia-search select { width: 100%; min-width: 0; height: var(--vua-control-height); padding: 0 var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-canvas); color: var(--vua-text-strong); font: var(--vua-font-body); }
 .vua-encyclopedia-tasks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: var(--vua-space-3); }
-.vua-encyclopedia-tasks button { display: grid; gap: var(--vua-space-1); align-content: start; min-height: 72px; padding: var(--vua-space-3); text-align: left; white-space: normal; }
+.vua-encyclopedia-tasks button { display: grid; gap: var(--vua-space-1); align-content: start; justify-content: stretch; justify-items: start; min-height: 72px; margin-inline-start: calc(-1 * var(--vua-space-3) - 1px); padding: var(--vua-space-3); text-align: left; white-space: normal; }
 .vua-encyclopedia-tasks button span, .vua-encyclopedia-result > span { color: var(--vua-text-secondary); }
 .vua-encyclopedia-results { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
 .vua-encyclopedia-results > li { border-bottom: 1px solid var(--vua-border); }
@@ -19,7 +19,7 @@
 .vua-encyclopedia-tree details { padding-top: var(--vua-space-2); border-top: 1px solid var(--vua-border); }
 .vua-encyclopedia-tree summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--vua-space-2); align-items: center; min-height: var(--vua-control-height); cursor: pointer; }
 .vua-encyclopedia-tree details > ul { display: grid; gap: var(--vua-space-1); margin-top: var(--vua-space-2); }
-.vua-encyclopedia-tree details button { width: 100%; justify-content: flex-start; text-align: left; white-space: normal; }
+.vua-encyclopedia-tree details button { width: calc(100% + var(--vua-space-2) + 1px); margin-inline-start: calc(-1 * var(--vua-space-2) - 1px); justify-content: flex-start; text-align: left; white-space: normal; }
 
 .vua-knowledge__body .vua-overlay-guide { display: grid; grid-template-columns: minmax(180px, 220px) minmax(0, 1fr); gap: var(--vua-space-6); }
 .vua-knowledge__body .vua-overlay-guide__topic-menu { position: sticky; top: -24px; align-self: start; max-height: calc(100dvh - 220px); overflow-y: auto; }

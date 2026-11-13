@@ -5,14 +5,13 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { GatewayProvider } from "../../src/renderer/gateway/GatewayProvider.tsx";
 import { emptyGateway } from "../../src/renderer/gateway/empty-gateway.ts";
-import { StationList } from "../../src/renderer/features/amf/StationList.tsx";
 import { AmfRoom } from "../../src/renderer/features/amf/AmfRoom.tsx";
 import { AmfProductionPage } from "../../src/renderer/features/amf/AmfProductionPage.tsx";
 import { MaterialsStartDialog } from "../../src/renderer/features/amf/MaterialsStartDialog.tsx";
 import { controlPreview } from "./control-center-preview.tsx";
 import { AmfProductionError, type AmfProductionPort, type AmfProductionRun, type LibraryBrowserPort } from "../../src/renderer/gateway/index.ts";
 import { ReleasePreview, releasePorts, vrchatPreviewPort } from "./release-preview.tsx";
-import { NetworkPanel } from "../../src/renderer/features/deployer/NetworkPanel.tsx";
+import { NetworkMonitor } from "../../src/renderer/features/deployer/NetworkPanel.tsx";
 import "../../src/renderer/features/deployer/website-tests.css";
 import "../../src/renderer/features/home/home.css";
 import { VrchatSignInSection } from "../../src/renderer/features/settings/vrchat-sign-in.tsx";
@@ -32,7 +31,7 @@ import "../../src/renderer/app-shell.css";
 import "../../src/renderer/features/settings/settings.css";
 import { ShapeScope } from "../../src/renderer/components/primitives/ShapeScope.tsx";
 
-const view = location.hash.slice(1) || "stations";
+const view = location.hash.slice(1) || "workshop-running";
 const layoutReview = new URLSearchParams(location.search).has("layout-review");
 const sources = [
   { sourceId: "avatar", itemId: "a", itemName: "Meiyun_v2.1.0.zip", name: "Meiyun_v2.1.0/Meiyun.unitypackage", productIds: ["booth:1"] },
@@ -214,8 +213,8 @@ try { localStorage.setItem("vua-amf-production-run-v01", selected); localStorage
 const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   materials: { run: "finished", clicks: ["workshop-station-prepare", "workshop-change-materials"] },
   inspect: { run: "waiting", clicks: ["workshop-station-inspect"] },
-  "line-menu": { run: "finished", clicks: ["workshop-line-close"] },
-  delete: { run: "finished", clicks: ["workshop-line-close", "workshop-line-delete"] },
+  "line-menu": { run: "finished", clicks: ["workshop-line-menu"] },
+  delete: { run: "finished", clicks: ["workshop-line-menu", "workshop-line-delete"] },
   capacity: { run: "finished", clicks: [] },
   rebuild: { run: "rebuild", clicks: ["workshop-station-plan", "workshop-plan-adjust"] },
   opening: { run: "finished", clicks: ["workshop-open"] },
@@ -331,18 +330,18 @@ const networkPreviewPort = {
 function NetworkPreview({ details }: { details: boolean }) {
   React.useEffect(() => {
     const timer = setInterval(() => {
-      const action = document.querySelector<HTMLButtonElement>("[data-nav-id=play-network-test]");
-      if (!action || action.disabled) return;
+      const toggle = document.querySelector<HTMLButtonElement>("[data-nav-id=shell-network]");
+      if (!toggle) return;
       clearInterval(timer);
-      if (details) document.querySelector<HTMLButtonElement>("[data-nav-id=play-network-details]")?.click();
-      action.click();
+      toggle.click();
+      if (details) window.setTimeout(() => document.querySelector(".vua-network-panel__sites")?.setAttribute("open", ""), 100);
     }, 300);
     return () => clearInterval(timer);
   }, [details]);
-  return <div className="vua-play-page vua-compact-environments" style={{ maxWidth: 720 }}><NetworkPanel compact /></div>;
+  return <NetworkMonitor />;
 }
 const content = view.startsWith("terms-everywhere-") ? <GatewayProvider gateway={{...gateway,amfProduction:api,terms:recipeTermsPreviewPort}}><TermsEverywherePreview view={view}/></GatewayProvider> : view.startsWith("share-") ? <GatewayProvider gateway={{...gateway,amfProduction:{...api,listRecipes:async()=>[],listFits:async()=>[]},amfRelease:releasePorts("release-turn").release}}><SharePreview view={view}/></GatewayProvider> : view.startsWith("terms-") ? <GatewayProvider gateway={{ ...gateway, terms: termsPreviewPort(view) }}>
-  <div style={{ maxWidth: 420, height: "100%" }}><aside className="vua-warehouse__drawer"><div className="vua-warehouse-detail__content">
+  <div style={{ maxWidth: 420, height: "100%" }}><aside className="vua-warehouse-detail__notice"><div className="vua-warehouse-detail__content">
     <ProductTerms productId="booth:1" title="Sample Avatar" />
   </div></aside></div>
 </GatewayProvider> : licensePort ? <GatewayProvider gateway={{ ...gateway, environment: { ...gateway.environment, unityLicense: licensePort }, amfProduction: api }}>
@@ -362,9 +361,9 @@ const content = view.startsWith("terms-everywhere-") ? <GatewayProvider gateway=
 </GatewayProvider> : view.startsWith("materials-start") ? <GatewayProvider gateway={{ ...gateway, amfProduction: materialsApi, libraryBrowser: libraryApi, amfModule: readyModule }}>
   <AmfRoom page="warehouse" navigate={() => {}}><MaterialsStartPreview /></AmfRoom>
 </GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api, libraryBrowser: libraryApi }}>
-  {control ? control.page : view === "stations" ? <StationList navigate={() => {}} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}{clickThrough[selected] && <ClickThrough clicks={clickThrough[selected]!.clicks} />}{selected === "rebuild" && <PickAvatar path="Assets/Meiyun/Meiyun.prefab" />}</AmfRoom>}
+  {control ? control.page : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}{clickThrough[selected] && <ClickThrough clicks={clickThrough[selected]!.clicks} />}{selected === "rebuild" && <PickAvatar path="Assets/Meiyun/Meiyun.prefab" />}</AmfRoom>}
 </GatewayProvider>;
-createRoot(document.getElementById("root")!).render(<ShapeScope value={/^(stations|workshop-|control-|release-|materials-|terms-)/.test(view) ? "amf" : undefined}>{content}</ShapeScope>);
+createRoot(document.getElementById("root")!).render(<ShapeScope value={/^(workshop-|control-|release-|materials-|terms-)/.test(view) ? "amf" : undefined}>{content}</ShapeScope>);
 
 // The items view opens the list of every VN3 item the way the player does.
 if (view === "terms-items") setTimeout(() => document.querySelector<HTMLElement>(".vua-terms__items summary")?.click(), 1200);

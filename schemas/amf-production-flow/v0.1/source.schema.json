@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ph-r.com/vua/schemas/amf-production-flow/v0.1/source.schema.json",
+  "title": "AMF available production source v0.1 (Candidate)",
+  "description": "A source in amf.production.list. Its optional digest is a recorded fact; listing does not hash current file contents.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sourceId", "itemId", "itemName", "name"],
+  "properties": {
+    "sourceId": { "type": "string", "minLength": 1 },
+    "itemId": { "type": "string", "minLength": 1 },
+    "itemName": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "productIds": { "type": "array", "maxItems": 64, "items": { "type": "string", "pattern": "^[a-z]+:[A-Za-z0-9_-]{1,64}$" } },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

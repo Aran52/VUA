@@ -1,6 +1,6 @@
 # Current development plan
 
-> Updated: 2026-10-29
+> Updated: 2026-11-06
 
 This plan orders the next slices toward the [north star](../north-star.md). Each slice names the
 [Eval cases](../eval/cases.md) it moves and what counts as done. The
@@ -119,6 +119,7 @@ and says which rows stop now.
 | 51 | Recipes creators trust | P-04 | planned: prompts recipe-booth-materials (Aran52/VUA#65), terms-everywhere, turntable-share, share-link-service; B by Claude |
 | 52 | Signed Windows releases | — | on hold (author, 2026-10-25): SignPath Foundation declined on 2026-10-24 for low public visibility; releases stay unsigned for now |
 | 53 | Consistent interface by audit | — | item 1 prompted (`design-audit`); items 2–3 follow its report |
+| 54 | [Interaction structure](../design/interaction-structure.md) | — | built on `slice/ui-structure`, second round from the author's 2026-11-06 notes; the author reviews it locally before any pull request |
 
 Suggested next order: with the workshop's operations in place (2026-10-24), the author's
 real-machine checks listed in each row come first, then 13's design session. Functional fixes go

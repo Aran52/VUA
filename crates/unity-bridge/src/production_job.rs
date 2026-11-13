@@ -67,8 +67,9 @@ pub fn stage_original_source(
         .join(format!("prodjob-{command_id}"));
     crate::material_exec::extract_package_into_dir(archive_path, &extracted_root)
         .map_err(|error| PlanFileError(format!("来源物解包失败：{error}")))?;
-    let manifest_sha256 = crate::material_exec::sha256_file(&extracted_root.join("manifest.sha256"))
-        .map_err(|error| PlanFileError(format!("manifest 摘要计算失败：{error}")))?;
+    let manifest_sha256 =
+        crate::material_exec::sha256_file(&extracted_root.join("manifest.sha256"))
+            .map_err(|error| PlanFileError(format!("manifest 摘要计算失败：{error}")))?;
     Ok(StagedSource {
         source_package_path: extracted_root.to_string_lossy().into_owned(),
         manifest_sha256,
@@ -205,7 +206,9 @@ pub fn build_restore_command_json(
     snapshot_id: &str,
 ) -> Result<serde_json::Value, PlanFileError> {
     if command_id.is_empty() || project_id.is_empty() || snapshot_id.is_empty() {
-        return Err(PlanFileError("command_id/project_id/snapshot_id 必填".to_string()));
+        return Err(PlanFileError(
+            "command_id/project_id/snapshot_id 必填".to_string(),
+        ));
     }
     let mut command = serde_json::json!({
         "schemaVersion": PRODUCTION_FACE_SCHEMA_VERSION,
@@ -279,14 +282,17 @@ pub fn write_plan_file(
     }
 
     let dir = bridge_dir(project_root);
-    fs::create_dir_all(&dir).map_err(|error| PlanFileError(format!("job 目录创建失败：{error}")))?;
+    fs::create_dir_all(&dir)
+        .map_err(|error| PlanFileError(format!("job 目录创建失败：{error}")))?;
     let file_name = format!("plan-{command_id}.json");
     let path = dir.join(&file_name);
     // Atomic-ish write: temp file in the same directory, then rename, so a
     // crashed write never leaves a half-written plan for the Bridge to hash.
     let temp = dir.join(format!("{file_name}.tmp"));
-    fs::write(&temp, plan_json).map_err(|error| PlanFileError(format!("临时文件写入失败：{error}")))?;
-    fs::rename(&temp, &path).map_err(|error| PlanFileError(format!("计划文件落位失败：{error}")))?;
+    fs::write(&temp, plan_json)
+        .map_err(|error| PlanFileError(format!("临时文件写入失败：{error}")))?;
+    fs::rename(&temp, &path)
+        .map_err(|error| PlanFileError(format!("计划文件落位失败：{error}")))?;
 
     Ok(PlanFile {
         relative_ref: format!(".vua/bridge/{file_name}"),
@@ -297,10 +303,7 @@ pub fn write_plan_file(
 /// Reads back and re-verifies a plan file (the provider-side mirror of the
 /// Bridge's local hash check — the same file, the same anchor, verified
 /// before it is ever referenced by a command).
-pub fn read_plan_file(
-    project_root: &Path,
-    plan: &PlanFile,
-) -> Result<String, PlanFileError> {
+pub fn read_plan_file(project_root: &Path, plan: &PlanFile) -> Result<String, PlanFileError> {
     let path = bridge_dir(project_root).join(
         PathBuf::from(plan.relative_ref.clone())
             .file_name()
@@ -440,8 +443,7 @@ mod tests {
         let root = unique_root("write");
         let plan = write_plan_file(&root, "job-run-01", PLAN).unwrap();
         assert_eq!(
-            plan.relative_ref,
-            ".vua/bridge/plan-job-run-01.json",
+            plan.relative_ref, ".vua/bridge/plan-job-run-01.json",
             "planRef points at the job-directory file"
         );
         assert!(
@@ -449,7 +451,9 @@ mod tests {
             "hash anchor is a pinned sha256"
         );
         let written = fs::read_to_string(
-            root.join(".vua").join("bridge").join("plan-job-run-01.json"),
+            root.join(".vua")
+                .join("bridge")
+                .join("plan-job-run-01.json"),
         )
         .unwrap();
         assert_eq!(written, PLAN, "plan content is byte-identical");
@@ -463,7 +467,10 @@ mod tests {
         assert_eq!(plan.plan_hash, again.plan_hash, "same bytes, same anchor");
         let read_back = read_plan_file(&root, &plan).unwrap();
         assert_eq!(read_back, PLAN);
-        let tampered = PlanFile { plan_hash: "sha256:00".to_string(), ..plan };
+        let tampered = PlanFile {
+            plan_hash: "sha256:00".to_string(),
+            ..plan
+        };
         assert!(
             read_plan_file(&root, &tampered).is_err(),
             "a drifting plan file must fail the read-back verification"
@@ -504,13 +511,19 @@ mod tests {
         }"#;
         let receipt = ProductionJobReceipt::parse(real_run).unwrap();
         assert!(receipt.executed());
-        receipt.verified_plan_hash(
-            "sha256:1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809",
-        ).unwrap();
+        receipt
+            .verified_plan_hash(
+                "sha256:1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809",
+            )
+            .unwrap();
         assert_eq!(receipt.data.snapshot_id.as_deref(), Some("snap-0001"));
         assert_eq!(receipt.data.steps.len(), 1);
         assert_eq!(
-            receipt.data.steps[0].resolved_source.as_ref().unwrap().source_kind,
+            receipt.data.steps[0]
+                .resolved_source
+                .as_ref()
+                .unwrap()
+                .source_kind,
             "original"
         );
 
@@ -519,7 +532,10 @@ mod tests {
             "status": "rejected", "changedPaths": [], "diagnostics": []
         }"#;
         let receipt = ProductionJobReceipt::parse(rejected).unwrap();
-        assert!(!receipt.executed(), "a rejected receipt never claims execution");
+        assert!(
+            !receipt.executed(),
+            "a rejected receipt never claims execution"
+        );
     }
 
     #[test]
@@ -549,7 +565,9 @@ mod tests {
         assert_eq!(receipt.schema_version, 3);
         assert!(receipt.executed());
         receipt
-            .verified_plan_hash("sha256:9a8b7c6d5e4f302918a7b6c5d4e3f2091a8b7c6d5e4f302918a7b6c5d4e3f209")
+            .verified_plan_hash(
+                "sha256:9a8b7c6d5e4f302918a7b6c5d4e3f2091a8b7c6d5e4f302918a7b6c5d4e3f209",
+            )
             .unwrap();
         assert_eq!(receipt.data.steps.len(), 1);
         assert_eq!(
@@ -587,23 +605,26 @@ mod tests {
         // v2 same-face superset) — every production field is unchanged.
         let root = unique_root("cmd");
         let plan = write_plan_file(&root, "job-run-01", PLAN).unwrap();
-        let command = build_job_command_json(
-            "job-run-01",
-            "proj",
-            false,
-            Some("fp-before"),
-            &plan,
-            "0.3",
-        )
-        .unwrap();
+        let command =
+            build_job_command_json("job-run-01", "proj", false, Some("fp-before"), &plan, "0.3")
+                .unwrap();
         assert_eq!(command["schemaVersion"], serde_json::json!(3));
-        assert_eq!(command["operation"], serde_json::json!("execute_production_job"));
-        assert_eq!(command["expectedProjectFingerprint"], serde_json::json!("fp-before"));
+        assert_eq!(
+            command["operation"],
+            serde_json::json!("execute_production_job")
+        );
+        assert_eq!(
+            command["expectedProjectFingerprint"],
+            serde_json::json!("fp-before")
+        );
         assert_eq!(
             command["payload"]["planRef"],
             serde_json::json!(plan.relative_ref)
         );
-        assert_eq!(command["payload"]["planHash"], serde_json::json!(plan.plan_hash));
+        assert_eq!(
+            command["payload"]["planHash"],
+            serde_json::json!(plan.plan_hash)
+        );
 
         // Real runs demand the fingerprint lock; dry-runs must not carry one.
         let dry = build_job_command_json("d", "proj", true, None, &plan, "0.3").unwrap();
@@ -623,27 +644,23 @@ mod tests {
         // The migrated emitter is consumed against the frozen machine face:
         // both production documents must validate under
         // schemas/unity-bridge/v3/command.schema.json exactly as emitted.
-        let validator = jsonschema::validator_for(&serde_json::from_slice(
-            &std::fs::read(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../schemas/unity-bridge/v3/command.schema.json"
-            ))
-            .expect("frozen v3 command schema must exist"),
+        let validator = jsonschema::validator_for(
+            &serde_json::from_slice(
+                &std::fs::read(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../../schemas/unity-bridge/v3/command.schema.json"
+                ))
+                .expect("frozen v3 command schema must exist"),
+            )
+            .expect("frozen v3 command schema must be valid JSON"),
         )
-        .expect("frozen v3 command schema must be valid JSON"))
         .expect("frozen v3 command schema must compile");
 
         let root = unique_root("v3schema");
         let plan = write_plan_file(&root, "job-run-v3", PLAN).unwrap();
-        let job = build_job_command_json(
-            "job-run-v3",
-            "proj",
-            false,
-            Some("fp-before"),
-            &plan,
-            "0.3",
-        )
-        .unwrap();
+        let job =
+            build_job_command_json("job-run-v3", "proj", false, Some("fp-before"), &plan, "0.3")
+                .unwrap();
         assert!(
             validator.is_valid(&job),
             "assembled v3 execute_production_job must validate against the frozen v3 schema: {job}"
@@ -659,13 +676,24 @@ mod tests {
 
     #[test]
     fn w21_restore_command_json_carries_the_snapshot_identity() {
-        let command =
-            build_restore_command_json("restore-01", "proj", false, Some("fp-current"), "snap-0001")
-                .unwrap();
+        let command = build_restore_command_json(
+            "restore-01",
+            "proj",
+            false,
+            Some("fp-current"),
+            "snap-0001",
+        )
+        .unwrap();
         assert_eq!(command["schemaVersion"], serde_json::json!(3));
         assert_eq!(command["operation"], serde_json::json!("restore_project"));
-        assert_eq!(command["payload"]["snapshotId"], serde_json::json!("snap-0001"));
-        assert_eq!(command["expectedProjectFingerprint"], serde_json::json!("fp-current"));
+        assert_eq!(
+            command["payload"]["snapshotId"],
+            serde_json::json!("snap-0001")
+        );
+        assert_eq!(
+            command["expectedProjectFingerprint"],
+            serde_json::json!("fp-current")
+        );
         assert!(
             build_restore_command_json("r", "proj", false, Some("fp"), "").is_err(),
             "a restore without a snapshot identity must be a typed error"
@@ -684,15 +712,9 @@ mod tests {
         // only the core can close.
         let root = unique_root("bridge");
         let plan = write_plan_file(&root, "job-run-01", PLAN).unwrap();
-        let envelope = build_job_command(
-            "job-run-01",
-            "proj",
-            false,
-            Some("fp-before"),
-            &plan,
-            "0.3",
-        )
-        .unwrap();
+        let envelope =
+            build_job_command("job-run-01", "proj", false, Some("fp-before"), &plan, "0.3")
+                .unwrap();
         let document =
             build_job_command_json("job-run-01", "proj", false, Some("fp-before"), &plan, "0.3")
                 .unwrap();
@@ -718,7 +740,10 @@ mod tests {
             document["payload"]["planRef"].as_str()
         );
 
-        let restore = build_restore_command(
+        let restore =
+            build_restore_command("restore-01", "proj", false, Some("fp-current"), "snap-0001")
+                .unwrap();
+        let restore_document = build_restore_command_json(
             "restore-01",
             "proj",
             false,
@@ -726,9 +751,6 @@ mod tests {
             "snap-0001",
         )
         .unwrap();
-        let restore_document =
-            build_restore_command_json("restore-01", "proj", false, Some("fp-current"), "snap-0001")
-                .unwrap();
         assert_eq!(restore.operation, UnityOperation::RestoreProject);
         assert_eq!(
             restore.payload.snapshot_id.as_deref(),
@@ -758,13 +780,22 @@ mod tests {
             header.set_cksum();
             builder.append_data(&mut header, path, bytes).unwrap();
         };
-        append(&mut builder, "a1b2c3d4eeee4aaa8bbbccccddddeeee/pathname", b"Assets/Outfit/root.prefab\n");
-        append(&mut builder, "a1b2c3d4eeee4aaa8bbbccccddddeeee/asset", b"synthetic asset bytes");
+        append(
+            &mut builder,
+            "a1b2c3d4eeee4aaa8bbbccccddddeeee/pathname",
+            b"Assets/Outfit/root.prefab\n",
+        );
+        append(
+            &mut builder,
+            "a1b2c3d4eeee4aaa8bbbccccddddeeee/asset",
+            b"synthetic asset bytes",
+        );
         let gz_encoder = builder.into_inner().unwrap();
         gz_encoder.finish().unwrap();
 
         let archive_digest = crate::material_exec::sha256_file(&archive_path).unwrap();
-        let staged = stage_original_source(&archive_path, &root, "job-01", &archive_digest).unwrap();
+        let staged =
+            stage_original_source(&archive_path, &root, "job-01", &archive_digest).unwrap();
         assert!(
             staged
                 .source_package_path

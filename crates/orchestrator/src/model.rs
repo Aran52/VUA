@@ -86,6 +86,8 @@ pub enum UnityOperation {
     AmfTextureImport,
     AmfFtPatch,
     AmfOutfitRemove,
+    /// Configures `Anatawa12.AvatarOptimizer.TraceAndOptimize` on the active AMF Avatar and runs local NDMF before/after measurement (v5).
+    AmfOptimizer,
 }
 
 impl UnityOperation {
@@ -107,6 +109,7 @@ impl UnityOperation {
                 | Self::AmfTextureImport
                 | Self::AmfFtPatch
                 | Self::AmfOutfitRemove
+                | Self::AmfOptimizer
         )
     }
 }

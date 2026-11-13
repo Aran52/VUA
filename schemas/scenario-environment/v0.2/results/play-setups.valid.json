@@ -1,0 +1,248 @@
+{
+  "schemaVersion": "vua.scenario-environment/v0.2",
+  "platforms": [
+    {
+      "id": "vrchat",
+      "name": "VRChat"
+    },
+    {
+      "id": "chilloutvr",
+      "name": "ChilloutVR"
+    },
+    {
+      "id": "reborn",
+      "name": "Reborn"
+    }
+  ],
+  "devices": [
+    {
+      "id": "pc",
+      "name": "",
+      "connections": []
+    },
+    {
+      "id": "pico",
+      "name": "PICO",
+      "connections": [
+        "pico-connect",
+        "steam-link",
+        "virtual-desktop",
+        "alvr",
+        "standalone"
+      ],
+      "store": "pico"
+    },
+    {
+      "id": "quest",
+      "name": "Meta Quest",
+      "connections": [
+        "quest-link",
+        "steam-link",
+        "virtual-desktop",
+        "alvr",
+        "standalone"
+      ],
+      "store": "meta"
+    },
+    {
+      "id": "steam-frame",
+      "name": "Steam Frame",
+      "connections": [
+        "steam-frame"
+      ]
+    },
+    {
+      "id": "vive-standalone",
+      "name": "",
+      "connections": [
+        "vive-hub",
+        "steam-link",
+        "virtual-desktop",
+        "alvr",
+        "standalone"
+      ],
+      "store": "viveport"
+    },
+    {
+      "id": "vive-wired",
+      "name": "",
+      "connections": [
+        "steamvr-direct"
+      ]
+    },
+    {
+      "id": "index",
+      "name": "Valve Index",
+      "connections": [
+        "steamvr-direct"
+      ]
+    },
+    {
+      "id": "psvr2",
+      "name": "PS VR2",
+      "connections": [
+        "psvr2-app"
+      ]
+    },
+    {
+      "id": "bigscreen",
+      "name": "Bigscreen Beyond",
+      "connections": [
+        "bigscreen-driver"
+      ],
+      "other": true
+    },
+    {
+      "id": "pimax",
+      "name": "Pimax",
+      "connections": [
+        "pimax-play"
+      ],
+      "other": true
+    },
+    {
+      "id": "varjo",
+      "name": "Varjo",
+      "connections": [
+        "varjo-base"
+      ],
+      "other": true
+    },
+    {
+      "id": "meganex",
+      "name": "MeganeX",
+      "connections": [
+        "meganex-configurator"
+      ],
+      "other": true
+    },
+    {
+      "id": "rift-s",
+      "name": "Oculus Rift S",
+      "connections": [
+        "rift-app"
+      ],
+      "other": true
+    },
+    {
+      "id": "wmr",
+      "name": "Windows MR",
+      "connections": [
+        "wmr-steamvr"
+      ],
+      "other": true
+    },
+    {
+      "id": "other-headset",
+      "name": "",
+      "connections": [
+        "steamvr-other"
+      ],
+      "other": true
+    }
+  ],
+  "connections": [
+    {
+      "id": "pico-connect",
+      "name": "PICO Connect",
+      "component": "pico_runtime",
+      "url": "https://www.picoxr.com/"
+    },
+    {
+      "id": "standalone",
+      "name": "",
+      "component": null,
+      "url": "https://wiki.vrchat.com/wiki/Getting_Started"
+    },
+    {
+      "id": "quest-link",
+      "name": "Quest Link / Air Link",
+      "component": "oculus_runtime",
+      "url": "https://www.meta.com/quest/setup/"
+    },
+    {
+      "id": "steam-link",
+      "name": "Steam Link",
+      "component": null,
+      "url": "https://help.steampowered.com/en/faqs/view/0E2C-406B-9135-38A4"
+    },
+    {
+      "id": "virtual-desktop",
+      "name": "Virtual Desktop",
+      "component": "virtual_desktop",
+      "url": "https://www.vrdesktop.net/"
+    },
+    {
+      "id": "alvr",
+      "name": "ALVR",
+      "component": "alvr",
+      "url": "https://github.com/alvr-org/ALVR"
+    },
+    {
+      "id": "steam-frame",
+      "name": "SteamVR",
+      "component": "steamvr",
+      "url": "https://store.steampowered.com/hardware/steamframe"
+    },
+    {
+      "id": "vive-hub",
+      "name": "VIVE Hub",
+      "component": "vive_runtime",
+      "url": "https://www.vive.com/us/vive-hub/download/"
+    },
+    {
+      "id": "steamvr-direct",
+      "name": "SteamVR",
+      "component": "steamvr",
+      "url": "https://store.steampowered.com/app/250820/"
+    },
+    {
+      "id": "psvr2-app",
+      "name": "PlayStation VR2 App",
+      "component": "psvr2",
+      "url": "https://www.playstation.com/en-us/support/hardware/pc-prepare-ps-vr2/"
+    },
+    {
+      "id": "bigscreen-driver",
+      "name": "Bigscreen Beyond Utility",
+      "component": "bigscreen_beyond",
+      "url": "https://bigscreenvr.com/mybeyond/"
+    },
+    {
+      "id": "pimax-play",
+      "name": "Pimax Play",
+      "component": "pimax_runtime",
+      "url": "https://www.pimax.com/support/downloads"
+    },
+    {
+      "id": "varjo-base",
+      "name": "Varjo Base",
+      "component": "varjo_runtime",
+      "url": "https://support.varjo.com/hc/en-us/downloads"
+    },
+    {
+      "id": "meganex-configurator",
+      "name": "MeganeX Configurator",
+      "component": null,
+      "url": "https://shiftall.notion.site/meganex8k-manual-en"
+    },
+    {
+      "id": "rift-app",
+      "name": "Meta Horizon Link",
+      "component": "oculus_runtime",
+      "url": "https://www.meta.com/quest/setup/"
+    },
+    {
+      "id": "wmr-steamvr",
+      "name": "Windows Mixed Reality for SteamVR",
+      "component": null,
+      "url": "https://store.steampowered.com/app/719950/"
+    },
+    {
+      "id": "steamvr-other",
+      "name": "SteamVR",
+      "component": "steamvr",
+      "url": "https://store.steampowered.com/app/250820/"
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ACCOUNT_GUIDE_URLS, type AccountGuideIdV1 } from "@vua/contracts";
 import { strings } from "../../i18n/index.ts";
 import { Button } from "../../components/primitives/Button.tsx";
+import { LicensedEntryGuides } from "../help/LicensedEntryGuides.tsx";
 import { UnityLicenseGuide } from "./UnityLicenseGuide.tsx";
 const copy = strings.journey;
 export function AccountGuide({ account, onBack }: { account: AccountGuideIdV1; onBack: () => void }) {
@@ -26,5 +27,6 @@ export function AccountGuide({ account, onBack }: { account: AccountGuideIdV1; o
     <ol>{paragraphs?.map((text, index) => <li key={index}><p>{text}</p></li>)}</ol>
     <Button variant="primary" onClick={() => { void open(); }}>{copy.official}</Button>
     <p>{copy.registrationHint}</p>{openFailed ? <p role="status">{copy.linkFailed}</p> : null}
+    {account === "booth" ? <LicensedEntryGuides initialId="pixiv-account" /> : null}
   </section>;
 }

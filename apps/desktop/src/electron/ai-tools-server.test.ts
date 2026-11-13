@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { EXTERNAL_TOOL_ACTIONS, EXTERNAL_TOOL_IDS, type DesktopGatewayRequestV1, type DesktopGatewayResponseV1, type ExternalToolSnapshot } from "@vua/contracts";
+import { type DesktopGatewayRequestV1, type DesktopGatewayResponseV1, type ExternalToolSnapshot } from "@vua/contracts";
 import { AiToolsServer } from "./ai-tools-server.js";
 import { MCP_RETRYABLE_CODES, errorFields, runSummary, safeErrorMessage, taskChange, taskSummary } from "./ai-tool-results.js";
-import { AI_TOOLS, aiGatewayRequest } from "./ai-tool-catalog.js";
+import { AGENT_TOOL_ACTIONS, AGENT_TOOL_IDS, AI_TOOLS, aiGatewayRequest } from "./ai-tool-catalog.js";
 import { request as httpRequest } from "node:http";
 import { reportLibrary, reportRun, reportRunWithRevisions, reportStatus, reportTasks } from "./ai-tool-results.fixtures.js";
 
@@ -98,11 +98,15 @@ describe("built-in MCP, using the official HTTP client", () => {
     const tools = await client.listTools();
     expect(tools.tools.map(tool => tool.name)).toEqual(AI_TOOLS.map(tool => tool.name));
     expect(service.snapshot().connections).toBe(1);
+    await client.callTool({ name: "vua_play_setups", arguments: {} });
     await client.callTool({ name: "vua_sop", arguments: { scenario: "pico_pcvr", connection: "wifi" } });
+    await client.callTool({ name: "vua_sop", arguments: { selection: { platform: "vrchat", device: "quest", connection: "quest-link" } } });
     await client.callTool({ name: "vua_check_environment", arguments: { intent: { purposes: ["desktop_play"] } } });
-    expect(calls.map(request => request.method)).toEqual(["environment.getScenarioSop", "environment.checkScenarioEnvironment"]);
-    expect(calls[0]!.params).toEqual({ schemaVersion: "0.1", scenario: { scenario: "pico_pcvr", connection: "wifi" } });
-    expect(calls[1]!.params).toEqual({ schemaVersion: "0.1", intent });
+    expect(calls.map(request => request.method)).toEqual(["environment.listPlaySetups", "environment.getScenarioSop", "environment.getScenarioSop", "environment.checkScenarioEnvironment"]);
+    expect(calls[0]!.params).toEqual({ schemaVersion: "0.2" });
+    expect(calls[1]!.params).toEqual({ schemaVersion: "0.1", scenario: { scenario: "pico_pcvr", connection: "wifi" } });
+    expect(calls[2]!.params).toEqual({ schemaVersion: "0.2", selection: { platform: "vrchat", device: "quest", connection: "quest-link" } });
+    expect(calls[3]!.params).toEqual({ schemaVersion: "0.1", intent });
     expect(service.snapshot().requests).toEqual([]);
   });
   it("exposes only the passive Unity license tool and dispatches no check or approval", async () => {
@@ -118,8 +122,8 @@ describe("built-in MCP, using the official HTTP client", () => {
     expect((await client.callTool({name:"vua_unity_license",arguments:{editorPath:"C:/synthetic/Unity.exe"}})).isError).toBe(true);
     expect(calls).toHaveLength(1);
   });
-  it.each(EXTERNAL_TOOL_IDS)("observes %s and requires player approval for each Steam tool action", async toolId => {
-    const toolConnection: ExternalToolSnapshot = { schemaVersion: "vua.external-tool/v0.2", toolId,
+  it.each(AGENT_TOOL_IDS)("observes %s and requires player approval for each Steam tool action", async toolId => {
+    const toolConnection: ExternalToolSnapshot = { schemaVersion: "vua.external-tool/v0.4", toolId,
       capturedAt: "2026-10-29T00:00:00.000Z", presence: "installed", steamReady: true, buildId: "12345",
       running: false, canStop: false, activity: "idle", issue: null };
     const { client, calls, service } = await setup(async request => envelope(request, { toolConnection }));
@@ -129,7 +133,7 @@ describe("built-in MCP, using the official HTTP client", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({ method: "tools.observeConnection", params: { toolId } });
     expect(service.snapshot().requests).toEqual([]);
-    for (const action of EXTERNAL_TOOL_ACTIONS) {
+    for (const action of AGENT_TOOL_ACTIONS) {
       const before = calls.length;
       const args = { toolId, action };
       const queued = await client.callTool({ name: "vua_request_tool", arguments: args });
@@ -154,13 +158,16 @@ describe("built-in MCP, using the official HTTP client", () => {
     const catalog = await client.listTools();
     for (const name of ["vua_tool_status", "vua_request_tool"]) {
       const tool = catalog.tools.find(tool => tool.name === name)!;
-      expect(tool.inputSchema.properties?.toolId).toEqual({ enum: [...EXTERNAL_TOOL_IDS] });
-      for (const toolId of ["unknown", "liv", "vrcs"]) {
+      expect(tool.inputSchema.properties?.toolId).toEqual({ enum: [...AGENT_TOOL_IDS] });
+      for (const toolId of ["unknown", "liv", "vrcs", "vrchat", "steamvr"]) {
         const result = await client.callTool({ name, arguments: { toolId, ...(name === "vua_request_tool" ? { action: "start" } : {}) } });
         expect(result.isError).toBe(true);
         expect(data(result)).toHaveProperty("error", "unsupported_tool_or_parameters");
       }
     }
+    const reinstall = await client.callTool({ name: "vua_request_tool", arguments: { toolId: "vrcft", action: "reinstall" } });
+    expect(reinstall.isError).toBe(true);
+    expect(data(reinstall)).toHaveProperty("error", "unsupported_tool_or_parameters");
     expect(calls).toEqual([]);
     expect(service.snapshot().requests).toEqual([]);
   });
@@ -293,6 +300,17 @@ describe("built-in MCP, using the official HTTP client", () => {
     const other = service.snapshot().requests.find(r => r.tool === "vua_request_play")!;
     await expect(service.resolve(other.id, "approve", { avatarName: "Meiyun", rightsConfirmed: true })).rejects.toThrow("upload_confirmation_required");
   });
+  it("waits for approval before local testing without asking for upload rights", async () => {
+    const { client, calls, service } = await setup();
+    await client.callTool({ name: "vua_request_amf_local_test", arguments: { runId: "n3-test" } });
+    const request = service.snapshot().requests[0]!;
+    expect(request.state).toBe("pending");
+    expect(calls.map(call => call.method)).toEqual(["amf.production.get"]);
+    await service.resolve(request.id, "approve");
+    expect(service.snapshot().requests[0]!.state).toBe("accepted");
+    expect(calls.at(-1)).toMatchObject({ method: "amf.production.localTest", params: { schemaVersion: "0.1", runId: "n3-test" } });
+    expect(calls.at(-1)!.params).toEqual({ schemaVersion: "0.1", runId: "n3-test" });
+  });
   it("returns a run's previews as labelled image content", async () => {
     const front = ".vua/previews/n3-test-1/front.png", coat = ".vua/previews/n3-test-0/candidate-000.png";
     const { client, calls } = await setup(async request => {
@@ -321,6 +339,8 @@ describe("built-in MCP, using the official HTTP client", () => {
     for (const request of [
       { name: "execute_shell", arguments: { command: "anything" } },
       { name: "vua_sop", arguments: { scenario: "desktop_play", connection: "wifi" } },
+      { name: "vua_sop", arguments: { selection: { platform: "reborn", device: "pc", connection: null } } },
+      { name: "vua_sop", arguments: { selection: { platform: "chilloutvr", device: "quest", connection: "standalone" } } },
       { name: "vua_check_environment", arguments: { intent: { purposes: ["desktop_play"], method: "anything" } } },
       { name: "vua_request_play", arguments: { route: "desktop", action: "start" } },
     ]) expect((await client.callTool(request)).isError).toBe(true);

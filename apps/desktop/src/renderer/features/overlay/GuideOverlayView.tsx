@@ -42,13 +42,13 @@
  *   guideSectionArrival 纯判定 + 回归用例)。
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useSwapFade } from "../../components/primitives/motion.ts";
 import type { GuideTargetV1 } from "@vua/contracts";
 import { MediaSlot } from "../../components/primitives/MediaSlot.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import { currentLocale, format, strings, termLabel } from "../../i18n/index.ts";
 import { encyclopediaCopy } from "../../i18n/encyclopedia-copy.ts";
 import { openExternalUrl } from "../../app/open-external.ts";
-import { storageKeys } from "../../app/storage-keys.ts";
 import { readEncyclopediaHash, recordEncyclopediaTarget } from "../help/encyclopedia-navigation.ts";
 import {
   ENCYCLOPEDIA_TOPIC_IDS,
@@ -106,7 +106,6 @@ export function GuideOverlayView({
   topicIds = ENCYCLOPEDIA_TOPIC_IDS,
   initialTopic = "guide-start",
   initialPosition,
-  readingKey = storageKeys.guideReading,
   historyEnabled = true,
 }: {
   guideRequest?: GuideRequest | null;
@@ -114,7 +113,6 @@ export function GuideOverlayView({
   topicIds?: readonly GuideTopicId[];
   initialTopic?: GuideTopicId;
   initialPosition?: GuideTarget;
-  readingKey?: string;
   historyEnabled?: boolean;
   /** 定位请求已应用的回执(按 nonce 清除,防重挂载重放) */
   onGuideRequestApplied?: (nonce: number) => void;
@@ -123,9 +121,9 @@ export function GuideOverlayView({
   const fallbackTarget = initialPosition ?? { topic: initialTopic };
   const [initialTarget] = useState(() => {
     const requested = guideRequest != null
-      ? guideRequest.target === null ? loadGuideReading(readingKey) ?? fallbackTarget : normalizeGuideTarget(guideRequest.target)
+      ? guideRequest.target === null ? loadGuideReading() ?? fallbackTarget : normalizeGuideTarget(guideRequest.target)
       : (embedded && historyEnabled ? readEncyclopediaHash(window.location.hash) : null)
-        ?? initialGuideTarget(window.location.search, loadGuideReading(readingKey), fallbackTarget);
+        ?? initialGuideTarget(window.location.search, loadGuideReading(), fallbackTarget);
     return topicIds.includes(requested.topic) ? requested : { topic: initialTopic };
   });
   const [topic, setTopic] = useState<GuideTopicId>(initialTarget.topic);
@@ -141,6 +139,7 @@ export function GuideOverlayView({
   const tabRefs = useRef<Partial<Record<GuideTopicId, HTMLButtonElement | null>>>({});
   const stripRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  useSwapFade(topic, panelRef);
   const pendingScroll = useRef<string | null>(initialTarget.section ?? null);
   const appliedNonce = useRef(0);
   const topicCopy = guidePage(topic, copy);
@@ -149,7 +148,7 @@ export function GuideOverlayView({
   const TopicHeading = embedded ? "h2" : "h1";
   const SectionHeading = embedded ? "h3" : "h2";
   const recordTarget = historyEnabled ? recordEncyclopediaTarget : () => {};
-  const saveReading = (target: GuideTarget) => saveGuideReading(target, readingKey);
+  const saveReading = (target: GuideTarget) => saveGuideReading(target);
   const sourceLink = historyEnabled && !GUIDE_ARTICLES.some(article => article.target.topic === topic && article.sourceRefs.length > 0) ? GUIDE_SOURCE_LINKS[topic] : undefined;
 
   const scroller = () => panelRef.current?.closest(".vua-overlay__body");
@@ -291,7 +290,7 @@ export function GuideOverlayView({
     if (guideRequest == null || guideRequest.nonce === appliedNonce.current) return;
     appliedNonce.current = guideRequest.nonce;
     const target = guideRequest.target === null
-        ? (loadGuideReading(readingKey) ?? fallbackTarget)
+        ? (loadGuideReading() ?? fallbackTarget)
         : normalizeGuideTarget(guideRequest.target);
     applyGuideTarget(target);
     if (embedded) recordTarget(target);
@@ -334,7 +333,7 @@ export function GuideOverlayView({
       body.removeEventListener("scroll", onScroll);
       window.clearTimeout(timer);
     };
-  }, [topic, readingKey]);
+  }, [topic]);
 
   const topicTabs = topicIds.length > 1 ? <div
     className="vua-overlay-guide__topics"

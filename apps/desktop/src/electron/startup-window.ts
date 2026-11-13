@@ -2,11 +2,12 @@ import { BrowserWindow, type WebPreferences } from "electron";
 import { vuaAppIcon } from "./app-icon.js";
 
 /** A presentation-only window; no Gateway, account or installation work runs here. */
-export async function createStartupWindow(options: {
+export function createStartupWindow(options: {
   rendererUrl?: string;
   rendererFile: string;
   preferences: WebPreferences;
-}): Promise<BrowserWindow> {
+  onShown?: () => void;
+}): BrowserWindow {
   const window = new BrowserWindow({
     width: 480, height: 320, useContentSize: true, frame: false, thickFrame: false, show: false,
     resizable: false, maximizable: false, minimizable: false,
@@ -17,11 +18,22 @@ export async function createStartupWindow(options: {
   window.setMenu(null);
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", event => event.preventDefault());
-  window.once("ready-to-show", () => { if (!window.isDestroyed()) window.show(); });
-  if (options.rendererUrl) {
-    const url = new URL(options.rendererUrl);
-    url.searchParams.set("surface", "splash");
-    await window.loadURL(url.toString());
-  } else await window.loadFile(options.rendererFile, { query: { surface: "splash" } });
+  let shown = false;
+  const showOnce = () => {
+    if (shown || window.isDestroyed()) return;
+    shown = true;
+    window.show();
+    options.onShown?.();
+  };
+  window.once("ready-to-show", showOnce);
+  window.webContents.once("did-finish-load", showOnce);
+  const load = options.rendererUrl
+    ? (() => {
+        const url = new URL("splash.html", `${options.rendererUrl.replace(/\/$/, "")}/`);
+        url.searchParams.set("surface", "splash");
+        return window.loadURL(url.toString());
+      })()
+    : window.loadFile(options.rendererFile, { query: { surface: "splash" } });
+  void load.catch(() => { /* Teardown or missing splash falls back to the main window. */ });
   return window;
 }

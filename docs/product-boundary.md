@@ -1,18 +1,20 @@
 # VUA product boundary
 
 
-> Updated: 2026-10-30
+> Updated: 2026-11-07
 
 ## Product definition
 
-VUA is a Windows-first, local-first VRChat **scenario** host (the author's term: “情景”). A
+VUA is the product's name and does not expand to anything longer (user ruling, 2026-11-06). It is a
+Windows-first, local-first VRChat **scenario** host (the author's term: “情景”). A
 scenario is a player goal with its SOP for preparation, use and recovery. VUA observes the local
 environment; installs, manages and launches what each scenario needs; and gives players, and the
 AI agents they direct, the same facts, SOPs and permissioned operations. The
 [north star](north-star.md) states the goal and how progress is measured. The core audience
 includes players new to Unity and to the software VRChat relies on.
 
-Desktop play and PICO streaming are play scenarios. The first-party AMF module supplies the
+Desktop play and PICO streaming are play scenarios. VUA also installs, opens, closes and reinstalls
+ChilloutVR and Reborn through Steam, and they share Launch's device and connection steps (user rulings, 2026-11-06 and 2026-11-07); settings, tutorials and Avatar production stay with VRChat. The first-party AMF module supplies the
 Avatar-production scenario. VUA installs AMF and enables it by default, and keeps a player's
 saved enable/disable choice (user correction, 2026-10-14). External Avatar-editing modules are
 scheduled after Ibis. BDL is private to AMF.
@@ -236,15 +238,15 @@ production qualification, and existing format/content checks still apply at prod
 button is retired. A single known product's menu offers "此商品的适配" and filters the material
 wall to other library products whose captured author-description HTML contains its BOOTH product
 link. No dependency-name matching, account ownership inference or whole-site crawl is involved.
-"Cancel filter" sits immediately after pagination and restores the prior filters, page, display
+"Cancel filter" sits on the count row (user ruling, 2026-11-07) and restores the prior filters, place, display
 mode, selection and scroll. This explicit read is available without an experimental enable prompt;
 the old dependency-display setting is retired. Recorded links may describe demonstrations or
 unrelated products, and unobserved/omitted links cannot match. A link or empty result is not a
 compatibility or dependency verdict. Full dependency inference remains outside N5 closure.
 
-Library list mode separates title, shop, variant and source into columns with draggable width
-dividers. Multiple recorded variant choices use a count; source is plain cloud/downloading/paused/
-downloaded/local-import/error text. Local imports use the same columns. The migration popup stays
+Library list mode shows the title with its variant, then shop, status, size and added date, in columns with
+draggable width dividers (user ruling, 2026-11-07). Multiple recorded variant choices use a count; status is plain
+cloud/downloading/paused/downloaded/local-import/error text. Local imports use the same columns. The migration popup stays
 outside clipping ancestors and opens from the import group's left edge.
 
 **BDL.** The existing base storage, asset identity, source correlation, and catalog capabilities
@@ -464,9 +466,10 @@ committing it to a delivery; substantial work may be deferred under the user's p
 Bigscreen and Varjo follow the initial pool. Deliver one complete route per supported model
 first, preferentially the official manufacturer route, then add alternative streaming choices.
 
-Players select brand and model. Derive direct video connection, USB streaming or wireless
+Players select brand and model on Launch (user ruling, 2026-11-07): platform, device, then connection, with the
+steps following the choice. Derive direct video connection, USB streaming or wireless
 streaming internally; ask a plain-language connection question only where that model has multiple
-relevant choices. Match consumer/enterprise editions explicitly. Streaming choices include the
+relevant choices, including playing without a PC where the headset has its own VRChat. Match consumer/enterprise editions explicitly. Streaming choices include the
 manufacturer's software, ALVR, Virtual Desktop and Steam Link as model-specific routes land.
 
 Prefer supported silent installation with a visible task: actual phase, elapsed time, available
@@ -567,6 +570,19 @@ User-adopted implementation boundary (2026-09-29), informed by the
   and a concrete policy review. This section grants no new API feature or execution permission.
 - State clearly that VUA has no VRChat Inc. affiliation or endorsement. Do not infer approval from
   the continued existence of VRCX or other tools, or promise blanket policy compliance.
+
+## BOOTH library enrichment (user ruling, 2026-11-10)
+
+The author permits the public BOOTH product JSON representation and bounded background
+reads of products already present in the player's own account library. This is an explicit
+exception for product metadata, not an assertion that BOOTH documents or guarantees this
+interface. JSON parsing falls back to the ordinary product page when the representation is
+unavailable or unrecognized. Unknown facts remain unknown; access controls are respected.
+
+The [catalog-enrichment contract](protocols/catalog-enrichment-v0.1.md) owns the single-reader,
+five-second spacing, 60-product launch limit, seven-day retry interval and failure stops.
+Sessions and observations stay local. Enrichment does not enumerate unrelated pages, acquire
+materials, infer ownership, or follow description links. Disabling AMF or quitting stops reads.
 
 ## Update-distribution request statistics (user ruling, 2026-11-07)
 

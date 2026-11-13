@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { strings } from "../../i18n/index.ts";
+import { POPOVER_ENTER, useEntranceMotion } from "../../components/primitives/motion.ts";
 import {
   filterCommands,
   moveCursor,
@@ -26,12 +27,16 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const results = filterCommands(commands, query);
   const active = Math.min(cursor, Math.max(0, results.length - 1));
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+  useEntranceMotion(true, backdropRef, [{ opacity: 0 }, { opacity: 1 }]);
+  useEntranceMotion(true, panelRef, POPOVER_ENTER);
 
   const execute = (command: CommandItem) => {
     command.run();
@@ -39,8 +44,9 @@ export function CommandPalette({
   };
 
   return (
-    <div className="vua-palette__backdrop" onClick={onClose}>
+    <div ref={backdropRef} className="vua-palette__backdrop" onClick={onClose}>
       <div
+        ref={panelRef}
         className="vua-palette"
         role="dialog"
         aria-modal="true"

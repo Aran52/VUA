@@ -1,0 +1,7 @@
+{
+  "first-use": "Shared setup that other smokes import; it checks nothing itself.",
+  "f4-deliverables": "Runs download-port and the remote smokes together, for a release check.",
+  "download-port": "Fixed and verified on Electron 44; move to .github/workflows/ts.yml with a workflow-scoped token.",
+  "remote-permissions": "Fixed and verified in hidden windows on Electron 44; move to .github/workflows/ts.yml with a workflow-scoped token.",
+  "m2-deliverables": "Scoped to its own spawned provider child PIDs without wmic or image-wide taskkill; ready for local or CI provider checks."
+}

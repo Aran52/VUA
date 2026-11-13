@@ -189,10 +189,57 @@ impl Installation {
         )
     }
     pub fn verify_files(&self, root: &Path, files: &[crate::manifest::FileObject]) -> Result<()> {
+        if files.is_empty() {
+            return Ok(());
+        }
+        let mut jobs = Vec::with_capacity(files.len());
         for file in files {
-            if !verified_file(&owned_path(root, &file.path)?, file.bytes, &file.sha256) {
-                return Err(Error("installed_files_need_repair".into()));
+            jobs.push((
+                owned_path(root, &file.path)?,
+                file.bytes,
+                file.sha256.as_str(),
+            ));
+        }
+        if jobs.len() == 1 {
+            let (path, bytes, sha256) = &jobs[0];
+            return if verified_file(path, *bytes, sha256) {
+                Ok(())
+            } else {
+                Err(Error("installed_files_need_repair".into()))
+            };
+        }
+        jobs.sort_unstable_by_key(|right| std::cmp::Reverse(right.1));
+        let workers = std::thread::available_parallelism()
+            .map_or(4, |count| count.get().clamp(1, 8))
+            .min(jobs.len());
+        if workers <= 1 {
+            for (path, bytes, sha256) in &jobs {
+                if !verified_file(path, *bytes, sha256) {
+                    return Err(Error("installed_files_need_repair".into()));
+                }
             }
+            return Ok(());
+        }
+        let next = std::sync::atomic::AtomicUsize::new(0);
+        let failed = std::sync::atomic::AtomicBool::new(false);
+        std::thread::scope(|scope| {
+            for _ in 0..workers {
+                scope.spawn(|| {
+                    while !failed.load(std::sync::atomic::Ordering::Relaxed) {
+                        let index = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        let Some((path, bytes, sha256)) = jobs.get(index) else {
+                            break;
+                        };
+                        if !verified_file(path, *bytes, sha256) {
+                            failed.store(true, std::sync::atomic::Ordering::Relaxed);
+                            break;
+                        }
+                    }
+                });
+            }
+        });
+        if failed.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(Error("installed_files_need_repair".into()));
         }
         Ok(())
     }
@@ -312,10 +359,52 @@ impl Installation {
             host_manifest: id,
             amf_manifest: amf_id,
         };
+        if let Ok(Some(journal)) = self.activation_journal() {
+            if journal.state == "healthy" {
+                let _ = self.commit_data_recovery(&journal.before, &journal.next);
+            } else if journal.state != "recovered" {
+                let _ = self.recover_data_recovery(&journal.before, &journal.next);
+            }
+        }
         if let Some(old) = previous.filter(|old| old != &next) {
             atomic_json(&self.root.join("previous.json"), &old)?;
         }
         atomic_json(&self.root.join("active.json"), &next)?;
+        for stale in [
+            "pending.json",
+            "updates-v02/hot-intent.json",
+            "updates-v02/host-pending.json",
+            "updates-v02/amf-pending.json",
+            "updates-v02/pair-plan.json",
+            "updates-v02/data-intent.json",
+            "updates-v02/activation.json",
+        ] {
+            if let Ok(path) = owned_path(&self.root, stale) {
+                if path.exists() {
+                    let _ = fs::remove_file(path);
+                }
+            }
+        }
+        if let Ok(cache_dir) = owned_path(&self.root, "cache") {
+            if let Ok(entries) = fs::read_dir(cache_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file()
+                        && path
+                            .extension()
+                            .and_then(|ext| ext.to_str())
+                            .is_some_and(|ext| {
+                                matches!(
+                                    ext.to_ascii_lowercase().as_str(),
+                                    "zip" | "bin" | "pack" | "part"
+                                )
+                            })
+                    {
+                        let _ = fs::remove_file(path);
+                    }
+                }
+            }
+        }
         if self.prune_unreferenced().is_err() {
             transfer.progress("cleanup-later", 0, 1);
         }
@@ -328,72 +417,82 @@ impl Installation {
         input: &Path,
         transfer: &mut Transfer,
     ) -> Result<()> {
-        let root = self.runtime_root(manifest)?;
-        if self.verify_files(&root, &manifest.runtime.files).is_ok() {
-            transfer.progress("runtime-reused", 1, 1);
-            return Ok(());
-        }
         let cache = owned_path(
             &self.root,
             &format!("cache/{}.zip", manifest.runtime.archive.sha256),
         )?;
+        let root = self.runtime_root(manifest)?;
+        if self.verify_files(&root, &manifest.runtime.files).is_ok() {
+            if cache.exists() {
+                let _ = fs::remove_file(&cache);
+            }
+            transfer.progress("runtime-reused", 1, 1);
+            return Ok(());
+        }
         let local = input.join("runtime.zip");
-        if verified_file(
+        let archive_source = if verified_file(
             &local,
             manifest.runtime.archive.bytes,
             &manifest.runtime.archive.sha256,
         ) {
-            fs::copy(&local, &cache)?;
+            local
         } else {
             transfer.archive(&manifest.runtime.archive, &cache).await?;
-        }
+            cache.clone()
+        };
         fs::create_dir_all(&root)?;
-        let mut zip = zip::ZipArchive::new(fs::File::open(cache)?)
-            .map_err(|_| Error("invalid_runtime_archive".into()))?;
-        let count = zip.len();
-        for index in 0..count {
-            transfer.checkpoint()?;
-            let mut file = zip
-                .by_index_with_options(
-                    index,
-                    zip::read::ZipReadOptions::new().enforce_header_consistency(true),
-                )
+        {
+            let mut zip = zip::ZipArchive::new(fs::File::open(&archive_source)?)
                 .map_err(|_| Error("invalid_runtime_archive".into()))?;
-            let name = file
-                .name()
-                .map_err(|_| Error("invalid_runtime_archive".into()))?
-                .into_owned();
-            if file
-                .unix_mode()
-                .is_some_and(|mode| mode & 0o170000 == 0o120000)
-            {
-                return Err(Error("runtime_archive_link".into()));
+            let count = zip.len();
+            for index in 0..count {
+                transfer.checkpoint()?;
+                let mut file = zip
+                    .by_index_with_options(
+                        index,
+                        zip::read::ZipReadOptions::new().enforce_header_consistency(true),
+                    )
+                    .map_err(|_| Error("invalid_runtime_archive".into()))?;
+                let name = file
+                    .name()
+                    .map_err(|_| Error("invalid_runtime_archive".into()))?
+                    .into_owned();
+                if file
+                    .unix_mode()
+                    .is_some_and(|mode| mode & 0o170000 == 0o120000)
+                {
+                    return Err(Error("runtime_archive_link".into()));
+                }
+                let target = owned_path(&root, name.trim_end_matches('/'))?;
+                if file.is_dir() {
+                    fs::create_dir_all(target)?;
+                    continue;
+                }
+                let expected = manifest
+                    .runtime
+                    .files
+                    .iter()
+                    .find(|entry| entry.path == name)
+                    .ok_or_else(|| Error("unexpected_runtime_file".into()))?;
+                if file.size() != expected.bytes {
+                    return Err(Error("runtime_integrity_failed".into()));
+                }
+                fs::create_dir_all(
+                    target
+                        .parent()
+                        .ok_or_else(|| Error("invalid_release_path".into()))?,
+                )?;
+                let mut dest = fs::File::create(&target)?;
+                std::io::copy(&mut file, &mut dest)?;
+                dest.sync_all()?;
+                transfer.progress("extracting", index as u64 + 1, count as u64);
             }
-            let target = owned_path(&root, name.trim_end_matches('/'))?;
-            if file.is_dir() {
-                fs::create_dir_all(target)?;
-                continue;
-            }
-            let expected = manifest
-                .runtime
-                .files
-                .iter()
-                .find(|entry| entry.path == name)
-                .ok_or_else(|| Error("unexpected_runtime_file".into()))?;
-            if file.size() != expected.bytes {
-                return Err(Error("runtime_integrity_failed".into()));
-            }
-            fs::create_dir_all(
-                target
-                    .parent()
-                    .ok_or_else(|| Error("invalid_release_path".into()))?,
-            )?;
-            let mut dest = fs::File::create(&target)?;
-            std::io::copy(&mut file, &mut dest)?;
-            dest.sync_all()?;
-            transfer.progress("extracting", index as u64 + 1, count as u64);
         }
-        self.verify_files(&root, &manifest.runtime.files)
+        self.verify_files(&root, &manifest.runtime.files)?;
+        if cache.exists() {
+            let _ = fs::remove_file(&cache);
+        }
+        Ok(())
     }
     pub(crate) fn install_bootstrap(&self, manifest: &Manifest) -> Result<()> {
         let file = manifest
@@ -409,7 +508,8 @@ impl Installation {
         let runtime = self.runtime_root(manifest)?;
         fs::copy(source, owned_path(&runtime, "resources/app.asar")?)?;
         // Electron classifies electron.exe as the development runner. The owned
-        // launch alias has exactly the official binary bytes, with a product name.
+        // launch alias has the exact verified official binary bytes via a hard
+        // link (falling back to a copy on volumes without hard-link support).
         // Keep electron.exe intact as part of the complete upstream inventory.
         let executable = manifest
             .runtime
@@ -417,9 +517,21 @@ impl Installation {
             .iter()
             .find(|file| file.path == "electron.exe")
             .ok_or_else(|| Error("incomplete_runtime".into()))?;
+        let electron_exe = owned_path(&runtime, "electron.exe")?;
         let launch = owned_path(&runtime, "VUA.Runtime.exe")?;
-        if !verified_file(&launch, executable.bytes, &executable.sha256) {
-            fs::copy(owned_path(&runtime, "electron.exe")?, launch)?;
+        if !crate::paths::same_regular_file(&electron_exe, &launch) {
+            if !verified_file(&electron_exe, executable.bytes, &executable.sha256) {
+                return Err(Error("runtime_integrity_failed".into()));
+            }
+            let temporary = launch.with_extension(format!("link-{}", std::process::id()));
+            let _ = fs::remove_file(&temporary);
+            let linked = fs::hard_link(&electron_exe, &temporary)
+                .and_then(|()| fs::rename(&temporary, &launch))
+                .is_ok();
+            let _ = fs::remove_file(&temporary);
+            if !linked && !verified_file(&launch, executable.bytes, &executable.sha256) {
+                fs::copy(&electron_exe, &launch)?;
+            }
         }
         Ok(())
     }
@@ -631,17 +743,46 @@ impl Installation {
     pub fn remove(&self) -> Result<()> {
         let _lock = self.lock("operation.lock")?;
         let _running = self.lock("running.lock")?;
-        for name in ["payloads", "runtime", "manifests", "cache", "updates-v02"] {
+        for name in [
+            "payloads",
+            "runtime",
+            "manifests",
+            "cache",
+            "updates-v02",
+            "updates-v03",
+        ] {
             let path = owned_path(&self.root, name)?;
             if path.exists() {
                 reject_links(&path)?;
                 fs::remove_dir_all(path)?;
             }
         }
-        for name in ["active.json", "pending.json", "previous.json"] {
+        for name in [
+            "active.json",
+            "pending.json",
+            "previous.json",
+            "component-index-host.lock",
+            "component-index-amf.lock",
+            "component-check-host.lock",
+            "component-check-amf.lock",
+            "component-stage-host.lock",
+            "component-stage-amf.lock",
+            "pair-plan.lock",
+        ] {
             let path = owned_path(&self.root, name)?;
             if path.exists() {
                 fs::remove_file(path)?;
+            }
+        }
+        if let Ok(entries) = fs::read_dir(&self.root) {
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                if name.to_string_lossy().contains(".pending-") {
+                    let path = entry.path();
+                    if path.is_file() {
+                        let _ = fs::remove_file(path);
+                    }
+                }
             }
         }
         Ok(())

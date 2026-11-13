@@ -29,7 +29,10 @@ pub struct UnityLogReader {
 
 impl Default for UnityLogReader {
     fn default() -> Self {
-        Self { stage: UnityStage::Starting, imported: 0 }
+        Self {
+            stage: UnityStage::Starting,
+            imported: 0,
+        }
     }
 }
 
@@ -58,15 +61,31 @@ fn stage_of(line: &str) -> Option<UnityStage> {
         };
     }
     let any = |needles: &[&str]| needles.iter().any(|needle| line.contains(needle));
-    if any(&["Batchmode quit successfully invoked", "Exiting batchmode", "Application will terminate with return code"]) {
+    if any(&[
+        "Batchmode quit successfully invoked",
+        "Exiting batchmode",
+        "Application will terminate with return code",
+    ]) {
         Some(UnityStage::Finishing)
     } else if line.contains("Loaded scene 'Assets/VUA/Production.unity'") {
         Some(UnityStage::Bridge)
-    } else if any(&["Start importing ", "Rebuilding Library because the asset database could not be found"]) {
+    } else if any(&[
+        "Start importing ",
+        "Rebuilding Library because the asset database could not be found",
+    ]) {
         Some(UnityStage::Importing)
-    } else if any(&["[ScriptCompilation]", "Requested script compilation", "Begin MonoManager ReloadAssembly", "Reloading assemblies"]) {
+    } else if any(&[
+        "[ScriptCompilation]",
+        "Requested script compilation",
+        "Begin MonoManager ReloadAssembly",
+        "Reloading assemblies",
+    ]) {
         Some(UnityStage::Compiling)
-    } else if any(&["[Package Manager]", "Resolving packages", "Packages were changed"]) {
+    } else if any(&[
+        "[Package Manager]",
+        "Resolving packages",
+        "Packages were changed",
+    ]) {
         Some(UnityStage::Packages)
     } else if any(&["[Licensing::", "LICENSE SYSTEM"]) {
         Some(UnityStage::License)
@@ -77,13 +96,18 @@ fn stage_of(line: &str) -> Option<UnityStage> {
 
 impl UnityLogReader {
     pub fn read_line(&mut self, line: &str) {
-        let Some(stage) = stage_of(line) else { return; };
+        let Some(stage) = stage_of(line) else {
+            return;
+        };
         if order(stage) < order(self.stage) {
             return;
         }
         // Only work-project assets count; packages import their own files before them.
         if stage == UnityStage::Importing
-            && line.split("Start importing ").nth(1).is_some_and(|path| path.starts_with("Assets/"))
+            && line
+                .split("Start importing ")
+                .nth(1)
+                .is_some_and(|path| path.starts_with("Assets/"))
         {
             self.imported = self.imported.saturating_add(1);
         }
@@ -128,7 +152,9 @@ impl UnityLogTail {
         Self {
             log: project.join(".vua/logs").join(format!("{command_id}.log")),
             previews: project.join(".vua/previews").join(command_id),
-            result: project.join(".vua/bridge").join(format!("{command_id}.result.json")),
+            result: project
+                .join(".vua/bridge")
+                .join(format!("{command_id}.result.json")),
             offset: 0,
             partial: Vec::new(),
             reader: UnityLogReader::default(),
@@ -174,7 +200,8 @@ impl UnityLogTail {
             rest = &rest[end + 1..];
         }
         let room = LINE_LIMIT.saturating_sub(self.partial.len());
-        self.partial.extend_from_slice(&rest[..rest.len().min(room)]);
+        self.partial
+            .extend_from_slice(&rest[..rest.len().min(room)]);
     }
 
     pub fn progress(&self) -> UnityProgress {
@@ -220,11 +247,22 @@ Start importing Assets/Amenbo/Tshirt.mat using Guid(3333333333333333333333333333
             }
         }
         use UnityStage::*;
-        assert_eq!(seen, [Starting, License, Packages, Importing, Compiling, Importing]);
-        assert_eq!(reader.imported(), 3, "package files are not work-project assets");
+        assert_eq!(
+            seen,
+            [Starting, License, Packages, Importing, Compiling, Importing]
+        );
+        assert_eq!(
+            reader.imported(),
+            3,
+            "package files are not work-project assets"
+        );
 
         reader.read_text("Loaded scene 'Assets/VUA/Production.unity'\n\tDeserialize:            12.000 ms\n[Package Manager] late message\nStart importing Assets/VUA/Production.unity using Guid(4) Importer(1)\n");
-        assert_eq!(reader.stage(), Bridge, "the Bridge's own saves and late package messages keep the Bridge stage");
+        assert_eq!(
+            reader.stage(),
+            Bridge,
+            "the Bridge's own saves and late package messages keep the Bridge stage"
+        );
         reader.read_text("[VUA] stage=previews\nUnityEngine.Debug:Log (object)\n");
         assert_eq!(reader.stage(), Previews);
         reader.read_text("[VUA] stage=bridge\n[VUA] stage=unknown\n");
@@ -243,7 +281,8 @@ Start importing Assets/Amenbo/Tshirt.mat using Guid(3333333333333333333333333333
     }
 
     fn project(name: &str) -> PathBuf {
-        let root = std::env::temp_dir().join(format!("vua-unity-log-{name}-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("vua-unity-log-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join(".vua/logs")).unwrap();
         root
@@ -261,23 +300,43 @@ Start importing Assets/Amenbo/Tshirt.mat using Guid(3333333333333333333333333333
         let (head, rest) = LOG.split_at(LOG.find("Start importing Assets/Meiyun/").unwrap() + 20);
         fs::write(&log, head).unwrap();
         let progress = tail.poll();
-        assert_eq!((progress.stage, progress.current, progress.total), (UnityStage::Importing, Some(1), Some(379)));
+        assert_eq!(
+            (progress.stage, progress.current, progress.total),
+            (UnityStage::Importing, Some(1), Some(379))
+        );
         assert!(vua_orchestrator::rfc3339_millis(&progress.last_activity_at).is_some());
 
         // The rest of a half-written line arrives with the next write.
         use std::io::Write;
-        fs::OpenOptions::new().append(true).open(&log).unwrap().write_all(rest.replace('\n', "\r\n").as_bytes()).unwrap();
+        fs::OpenOptions::new()
+            .append(true)
+            .open(&log)
+            .unwrap()
+            .write_all(rest.replace('\n', "\r\n").as_bytes())
+            .unwrap();
         let progress = tail.poll();
-        assert_eq!((progress.stage, progress.current), (UnityStage::Importing, Some(3)));
+        assert_eq!(
+            (progress.stage, progress.current),
+            (UnityStage::Importing, Some(3))
+        );
         let quiet = tail.poll();
-        assert_eq!(quiet.last_activity_at, progress.last_activity_at, "no new text, no new activity");
+        assert_eq!(
+            quiet.last_activity_at, progress.last_activity_at,
+            "no new text, no new activity"
+        );
 
         let wire = serde_json::to_string(&quiet).unwrap();
-        assert!(!wire.contains("Assets") && !wire.contains("Users") && !wire.contains("Licensing"), "{wire}");
+        assert!(
+            !wire.contains("Assets") && !wire.contains("Users") && !wire.contains("Licensing"),
+            "{wire}"
+        );
 
         fs::create_dir_all(root.join(".vua/previews/cmd-1")).unwrap();
         let previews = tail.poll();
-        assert_eq!((previews.stage, previews.current, previews.total), (UnityStage::Previews, None, None));
+        assert_eq!(
+            (previews.stage, previews.current, previews.total),
+            (UnityStage::Previews, None, None)
+        );
         fs::create_dir_all(root.join(".vua/bridge")).unwrap();
         fs::write(root.join(".vua/bridge/cmd-1.result.json"), "{}").unwrap();
         assert_eq!(tail.poll().stage, UnityStage::Finishing);

@@ -107,3 +107,41 @@ jobs:
         run: pnpm --filter @vua/desktop smoke:resource-brand
       - name: VRCFT device selection and recovery (isolated profile, synthetic actions)
         run: pnpm --filter @vua/desktop smoke:vrcft
+      - name: Recipes, dialogs and imports on the production pages (synthetic Gateway)
+        run: pnpm --filter @vua/desktop smoke:production-review
+      - name: Materials to Recipe sharing in the Workshop (synthetic port)
+        run: pnpm --filter @vua/desktop smoke:amf-production
+      - name: External AI tool connection and approval (synthetic ports)
+        run: pnpm --filter @vua/desktop smoke:ai-ui
+      - name: Page switches stay quick while the AMF module is slow (synthetic delays)
+        run: pnpm --filter @vua/desktop smoke:page-speed
+      - name: A finished line whose project was removed (synthetic Gateway)
+        run: pnpm --filter @vua/desktop smoke:project-gone
+      - name: Sidebar highlight and material details in history (synthetic Gateway)
+        run: pnpm --filter @vua/desktop smoke:shell-navigation
+      - name: Bundled MCP implementation loads nothing from node_modules
+        run: pnpm --filter @vua/desktop smoke:ai-bundle
+      - name: MCP client through the real Gateway and host provider (read-only observations)
+        run: pnpm --filter @vua/desktop smoke:ai-native
+      - name: Materials filters, scrolling, list columns and link filter (synthetic Gateway)
+        run: pnpm --filter @vua/desktop smoke:library-navigation
+      - name: Materials bulk actions (synthetic Gateway)
+        run: pnpm --filter @vua/desktop smoke:library-bulk
+      - name: Materials file drop with Chromium's native drag store (isolated profile, native providers)
+        run: pnpm --filter @vua/desktop smoke:library-drop
+      - name: BOOTH sign-in session and sync (synthetic pages, native providers)
+        run: pnpm --filter @vua/desktop smoke:booth-session
+      - name: Dependency clues and local entries (synthetic Gateway)
+        run: |
+          pnpm --filter @vua/desktop smoke:dependency-clues
+          pnpm --filter @vua/desktop smoke:library-entries
+      - name: Import dialog (synthetic Gateway)
+        run: pnpm --filter @vua/desktop smoke:import-dialog
+      - name: Game guide window (no VRChat process)
+        run: pnpm --filter @vua/desktop smoke:game-guide
+      - name: Resource monitor popover (synthetic host)
+        run: pnpm --filter @vua/desktop smoke:resource-monitor
+      - name: Environment deployment checks (synthetic adapter facts)
+        run: pnpm --filter @vua/desktop smoke:deployment
+      - name: Remote content isolation (local HTTP fixtures)
+        run: pnpm --filter @vua/desktop smoke:remote-content

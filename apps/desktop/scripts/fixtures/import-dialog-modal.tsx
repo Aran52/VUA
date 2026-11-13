@@ -200,11 +200,20 @@ function Harness() {
   );
 }
 
+const dialogOpen = () => document.querySelector('[role="dialog"]') !== null;
+async function waitFor(predicate: () => boolean, label: string, timeoutMs = 2000) {
+  const deadline = performance.now() + timeoutMs;
+  while (!predicate()) {
+    if (performance.now() > deadline) throw new Error(label);
+    await wait(25);
+  }
+}
 async function openDialog() {
+  await waitFor(() => typeof (window as any).__setImportOpen === "function", "import harness ready");
   (window as any).__setImportOpen(true);
+  await waitFor(dialogOpen, "弹窗打开");
   await wait();
 }
-const dialogOpen = () => document.querySelector('[role="dialog"]') !== null;
 async function waitForClosed() {
   const deadline = performance.now() + 2000;
   while (dialogOpen()) {
@@ -223,10 +232,11 @@ async function waitForClosed() {
 /** 应用内文件夹选择器(2026-09-25 用户裁决)确认当前浏览目录:选择器
  *  面板内点「打开」(空选 = 确认当前目录),合成路径进入待确认清单。 */
 async function confirmViaPicker() {
+  await waitFor(() => document.querySelector(".vua-folder-picker") !== null, "文件夹选择器在场");
   const panel = document.querySelector(".vua-folder-picker");
   check(panel !== null, "文件夹选择器在场");
   await button(strings.folderPicker.openCta, panel as ParentNode).click();
-  await wait();
+  await waitFor(() => !document.querySelector(".vua-folder-picker"), "选择器确认后关闭(回到待确认清单)");
   check(
     !document.querySelector(".vua-folder-picker"),
     "选择器确认后关闭(回到待确认清单)",
@@ -238,10 +248,16 @@ async function confirmViaPicker() {
 async function driveToLocalSubmission() {
   await openDialog();
   check(dialogOpen(), "弹窗打开");
+  await waitFor(() => document.querySelector(".vua-folder-picker") !== null, "本地导入直接打开文件夹选择器");
   check(document.querySelector(".vua-folder-picker") !== null, "本地导入直接打开文件夹选择器");
   await confirmViaPicker();
   await button(strings.warehouse.acquire.importConfirmCta).click();
-  await wait();
+  await waitFor(
+    () => importMode === "ok"
+      ? document.body.textContent?.includes(strings.warehouse.acquire.importAccepted) === true
+      : document.querySelector('[role="alert"]') !== null,
+    "本地导入提交回执呈现",
+  );
 }
 
 async function escClosesPath() {
@@ -334,14 +350,14 @@ async function userTakeoverCancelsAutoClose() {
   await driveToLocalSubmission();
   check(document.body.textContent!.includes(strings.warehouse.acquire.importAccepted), "受理词面呈现(第一次受理)");
   await button(strings.importPage.addFolders).click();
-  await wait();
+  await waitFor(() => document.querySelector(".vua-folder-picker") !== null, "选择器重新打开");
   check(dialogOpen(), "受理窗口内用户再次发起导入,选择器打开(用户接管,反馈清空)");
   await wait(IMPORT_ACCEPTED_AUTO_CLOSE_MS + 250);
   check(dialogOpen(), "用户接管后自动关闭取消——弹窗不跑在用户新操作下面(不静默关走)");
   check(closeCount === 0, "用户接管期间零关闭请求(在飞计时已解除)");
   await confirmViaPicker();
   await button(strings.warehouse.acquire.importConfirmCta).click();
-  await wait();
+  await waitFor(() => document.body.textContent?.includes(strings.warehouse.acquire.importAccepted) === true, "二次受理词面呈现");
   check(document.body.textContent!.includes(strings.warehouse.acquire.importAccepted), "二次受理词面呈现");
   await wait(IMPORT_ACCEPTED_AUTO_CLOSE_MS + 250);
   await waitForClosed();
@@ -354,10 +370,11 @@ async function windowsPickerPathInsideDialog() {
   closeCount = 0;
   await openDialog();
   check(dialogOpen(), "原生次级路径:弹窗打开");
+  await waitFor(() => document.querySelector(".vua-folder-picker") !== null, "选择器在场");
   const panel = document.querySelector(".vua-folder-picker");
   check(panel !== null, "选择器在场");
   await button(strings.folderPicker.windowsPicker, panel as ParentNode).click();
-  await wait();
+  await waitFor(() => !document.querySelector(".vua-folder-picker"), "原生拾取确认后选择器关闭");
   check(!document.querySelector(".vua-folder-picker"), "原生拾取确认后选择器关闭");
   check(dialogOpen(), "宿主弹窗不关(选取进入待确认清单)");
   check(
@@ -380,6 +397,10 @@ async function cloudDownloadsWithoutHostHonestUnavailable() {
   const unavailableText = strings.warehouse.acquire.commandErrors.vua_warehouse_unavailable;
   await openDialog();
   check(dialogOpen(), "无宿主场景:弹窗打开");
+  await waitFor(
+    () => document.body.textContent?.includes(unavailableText) === true,
+    "无宿主时下载面板诚实 unavailable(读面不可达如实呈现)",
+  );
   check(
     document.body.textContent!.includes(unavailableText),
     "无宿主时下载面板诚实 unavailable(读面不可达如实呈现)",
@@ -406,6 +427,7 @@ async function userClosesViewWithNoDownloadsAutoCloses() {
   try {
     await openDialog();
     check(dialogOpen(), "零下载收口:弹窗打开");
+    await waitFor(() => document.querySelector(".vua-import__browse-bar") !== null, "首开自动导航:内嵌视图打开,导航条在场");
     check(document.querySelector(".vua-import__browse-bar") !== null, "首开自动导航:内嵌视图打开,导航条在场");
     navCloseButton().click();
     await wait();
@@ -429,9 +451,11 @@ async function userClosesViewWithDownloadsStaysOpen() {
   try {
     await openDialog();
     check(dialogOpen(), "有下载驻留:弹窗打开");
+    await waitFor(() => document.querySelector(".vua-import__browse-bar") !== null, "有下载驻留:内嵌视图打开");
+    await waitFor(() => document.body.textContent?.includes("pack.unitypackage") === true, "有下载驻留:下载行已呈现");
     check(document.querySelector(".vua-import__browse-bar") !== null, "有下载驻留:内嵌视图打开");
     navCloseButton().click();
-    await wait();
+    await waitFor(() => document.body.textContent?.includes(strings.importPage.reopenBrowseCta) === true, "「重新打开内嵌浏览」细钮呈现");
     check(dialogOpen(), "有已完成下载:弹窗驻留(不自动收口)");
     check(closeCount === 0, "驻留期间零关闭请求");
     check(

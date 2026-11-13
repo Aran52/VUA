@@ -1,0 +1,39 @@
+/* One of a few views of a page: a 32 px group whose chosen option's fill and bar travel between options. */
+.vua-segments {
+  position: relative;
+  display: inline-flex;
+  min-height: 32px;
+  border: 1px solid var(--vua-border);
+  border-radius: var(--vua-radius-control);
+  background: var(--vua-bg-panel);
+}
+.vua-segments > button {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vua-space-2);
+  min-height: 30px;
+  padding: 0 var(--vua-space-3);
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--vua-text-secondary);
+  font: var(--vua-font-caption);
+  cursor: pointer;
+  transition: color var(--vua-motion-fast) ease-out;
+}
+.vua-segments > button:hover { color: var(--vua-text-strong); }
+.vua-segments > button:is([aria-pressed="true"], [aria-selected="true"]) { color: var(--vua-text-strong); }
+.vua-segments > button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: -2px; }
+.vua-segment-bar {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  border-bottom: var(--vua-light-bar, 2px) solid var(--room, var(--vua-accent));
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--room, var(--vua-accent)) 18%, transparent);
+  pointer-events: none;
+}

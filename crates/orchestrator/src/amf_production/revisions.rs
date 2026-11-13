@@ -23,6 +23,7 @@ pub enum RevisionKind {
     OutfitRemoval,
     Lighting,
     TextureMemory,
+    Optimizer,
     Restore,
 }
 
@@ -65,6 +66,9 @@ pub struct RevisionState {
     /// The fits that had produced the assembled state at record time.
     #[serde(default)]
     pub fits: Vec<AppliedFit>,
+    /// Whether Avatar Optimizer (`TraceAndOptimize`) was enabled on the Avatar at record time.
+    #[serde(default)]
+    pub optimizer: bool,
 }
 
 /// What a version list shows and a later A/B comparison reads.
@@ -81,6 +85,8 @@ pub struct RevisionSummary {
     pub lighting_materials: u32,
     #[serde(default)]
     pub sdk_fixes: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub optimizer: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -159,6 +165,7 @@ fn summarize(run: &ProductionRun, state: &RevisionState) -> RevisionSummary {
             .collect(),
         lighting_materials: state.lighting.len() as u32,
         sdk_fixes: state.sdk_fixes.clone(),
+        optimizer: state.optimizer,
     }
 }
 
@@ -226,10 +233,12 @@ fn revision_digest(
         "revisionId": revision.id,
         "state": state_hash,
     });
-    Ok(Sha256::digest(&serde_json::to_vec(&value).map_err(io_error)?)
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect())
+    Ok(
+        Sha256::digest(&serde_json::to_vec(&value).map_err(io_error)?)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect(),
+    )
 }
 
 /// Marks a replay error with the step that failed, so the report names where the restore stopped.
@@ -244,7 +253,10 @@ fn at_step(step: &str, error: AppErrorV1) -> AppErrorV1 {
         })
         .unwrap_or_else(|| error.code.clone());
     production_error(
-        error.code.strip_prefix("vua.amf_production.").unwrap_or(&error.code),
+        error
+            .code
+            .strip_prefix("vua.amf_production.")
+            .unwrap_or(&error.code),
         format!("The restore's {step} step failed: {detail}"),
     )
 }
@@ -256,6 +268,7 @@ struct ReplaySteps {
     rebuild: bool,
     lighting: Vec<MaterialLighting>,
     sdk_fixes: Vec<String>,
+    optimizer: Option<bool>,
 }
 
 fn replay_steps(run: &ProductionRun, revision: &ProductionRevision) -> ReplaySteps {
@@ -264,24 +277,37 @@ fn replay_steps(run: &ProductionRun, revision: &ProductionRevision) -> ReplaySte
         !state.choices.is_empty() && choices_key(&state.choices) != choices_key(&run.choices);
     // A version without outfits (taken before the first assembly, or whose outfits all left
     // with their materials) mirrors a line planning again: the replay assembles nothing.
-    let target = state.selection.as_ref().filter(|selection| !selection.outfits.is_empty());
+    let target = state
+        .selection
+        .as_ref()
+        .filter(|selection| !selection.outfits.is_empty());
     let assembly =
         target.is_some() && (materials || run.selection.as_ref() != state.selection.as_ref());
+    let observed_selection = serde_json::from_value::<AssemblySelection>(
+        run.result["facts"]["observedSelection"].clone(),
+    );
     // A material change already starts the work scene fresh. Otherwise the scene starts fresh
     // when the version cannot be reached in place: another base, an outfit or switch the
     // version does not have, or no assembly at all.
     let rebuild = !materials
-        && serde_json::from_value::<AssemblySelection>(
-            run.result["facts"]["observedSelection"].clone(),
-        )
-        .is_ok_and(|observed| match target {
-            Some(target) => {
-                assembly
-                    && (observed.avatar_prefab != target.avatar_prefab
-                        || check_retained_outfits(&observed, target).is_err())
-            }
-            None => !observed.outfits.is_empty(),
-        });
+        && observed_selection
+            .as_ref()
+            .is_ok_and(|observed| match target {
+                Some(target) => {
+                    assembly
+                        && (observed.avatar_prefab != target.avatar_prefab
+                            || check_retained_outfits(observed, target).is_err())
+                }
+                None => !observed.outfits.is_empty(),
+            });
+    let fresh_avatar = materials || rebuild || (assembly && observed_selection.is_err());
+    let current_optimizer = if fresh_avatar {
+        false
+    } else {
+        run.optimizer.as_ref().is_some_and(|opt| opt.enabled)
+    };
+    let wanted_optimizer = target.is_some() && state.optimizer;
+    let optimizer = (current_optimizer != wanted_optimizer).then_some(wanted_optimizer);
     ReplaySteps {
         materials,
         assembly,
@@ -293,6 +319,7 @@ fn replay_steps(run: &ProductionRun, revision: &ProductionRevision) -> ReplaySte
             .filter(|fix| !run.sdk_fixes_applied.contains(*fix))
             .cloned()
             .collect(),
+        optimizer,
     }
 }
 
@@ -326,6 +353,7 @@ impl AmfProductionEngine {
             package_versions: serde_json::from_value(run.result["packageVersions"].clone())
                 .unwrap_or_default(),
             fits: run.applied_fits.clone(),
+            optimizer: run.optimizer.as_ref().is_some_and(|opt| opt.enabled),
         };
         let revision = ProductionRevision {
             id: fresh_revision_id(run),
@@ -344,7 +372,9 @@ impl AmfProductionEngine {
     /// Whether the project's files differ from the run record right now; unreadable state
     /// counts as changed, so the version list rather warns once too often.
     pub(crate) fn edited_in_unity(&self, run: &ProductionRun) -> bool {
-        self.project_state(run).map(|(same, _)| !same).unwrap_or(true)
+        self.project_state(run)
+            .map(|(same, _)| !same)
+            .unwrap_or(true)
     }
 
     /// Every recorded original must still be in the library with the recorded content;
@@ -400,9 +430,15 @@ impl AmfProductionEngine {
         self.verify_revision_sources(revision)?;
         face_tracking::require_replayable_face_tracking(&run)?;
         if revision.state.face_tracking_manual {
-            return Err(production_error("face_tracking_manual_replay", "This version contains an opaque creator patch and requires manual replay."));
+            return Err(production_error(
+                "face_tracking_manual_replay",
+                "This version contains an opaque creator patch and requires manual replay.",
+            ));
         }
-        if texture_memory::texture_replay_conflict(&revision.state.texture_memory, &texture_memory::texture_revision_state(&run)) {
+        if texture_memory::texture_replay_conflict(
+            &revision.state.texture_memory,
+            &texture_memory::texture_revision_state(&run),
+        ) {
             return Err(production_error("texture_manual_replay", "Texture import settings differ from this version. Use the retained full restore point; version replay does not yet reproduce texture tuning."));
         }
         let edited = self.edited_in_unity(&run);
@@ -429,6 +465,7 @@ impl AmfProductionEngine {
                 {"key": "assembly", "skipped": !steps.assembly && !steps.rebuild, "rebuild": steps.rebuild},
                 {"key": "lighting", "skipped": steps.lighting.is_empty(), "materials": steps.lighting},
                 {"key": "sdk_fix", "skipped": steps.sdk_fixes.is_empty(), "fixes": steps.sdk_fixes},
+                {"key": "optimizer", "skipped": steps.optimizer.is_none(), "enabled": revision.state.optimizer},
             ],
         }))
     }
@@ -465,6 +502,7 @@ impl AmfProductionEngine {
         let current_selection = run.selection.clone();
         let current_fixes = run.sdk_fixes_applied.clone();
         let current_fits = run.applied_fits.clone();
+        let current_optimizer = run.optimizer.clone();
         let current_sources = SourceSnapshot {
             choices: run.choices.clone(),
             sources: run.sources.clone(),
@@ -496,29 +534,43 @@ impl AmfProductionEngine {
             run.snapshot_id = safety.clone();
             run.snapshot_selection = current_selection.clone();
             run.snapshot_sources = Some(current_sources.clone());
+            run.snapshot_optimizer = current_optimizer.clone();
             if steps.materials {
                 self.step(&mut run, ctx, "materials", "Change the line's materials")
                     .map_err(|error| at_step("materials", error))?;
-                validate_choices(&revision.state.choices).map_err(|error| at_step("materials", error))?;
+                validate_choices(&revision.state.choices)
+                    .map_err(|error| at_step("materials", error))?;
                 run.choices = revision.state.choices.clone();
                 run.sources = self
                     .platform
                     .replace_sources(&run, &current_sources.sources, ctx)
                     .map_err(|error| at_step("materials", error))?;
+                run.optimizer = None;
                 mutated = true;
                 self.save(&run)?;
-                self.step(&mut run, ctx, "inspect", "Identify actual Avatar and outfit prefabs")
-                    .map_err(|error| at_step("inspect", error))?;
+                self.step(
+                    &mut run,
+                    ctx,
+                    "inspect",
+                    "Identify actual Avatar and outfit prefabs",
+                )
+                .map_err(|error| at_step("inspect", error))?;
                 self.update_observations(&mut run, ctx)
                     .map_err(|error| at_step("inspect", error))?;
             }
             if steps.rebuild {
-                self.step(&mut run, ctx, "inspect", "Start a fresh work scene for the recorded version")
-                    .map_err(|error| at_step("inspect", error))?;
+                self.step(
+                    &mut run,
+                    ctx,
+                    "inspect",
+                    "Start a fresh work scene for the recorded version",
+                )
+                .map_err(|error| at_step("inspect", error))?;
                 mutated = true;
                 self.platform
                     .clear_work_scene(&run)
                     .map_err(|error| at_step("inspect", error))?;
+                run.optimizer = None;
                 self.update_observations(&mut run, ctx)
                     .map_err(|error| at_step("inspect", error))?;
             }
@@ -530,7 +582,8 @@ impl AmfProductionEngine {
                     .expect("assembly step has a selection");
                 let mut check = run.clone();
                 check.phase = "ready".into();
-                validate_selection(&check, &selection).map_err(|error| at_step("assembly", error))?;
+                validate_selection(&check, &selection)
+                    .map_err(|error| at_step("assembly", error))?;
                 let observed: Option<AssemblySelection> =
                     serde_json::from_value(run.result["facts"]["observedSelection"].clone()).ok();
                 let target = if let Some(current) = observed.filter(|_| !steps.rebuild) {
@@ -567,18 +620,34 @@ impl AmfProductionEngine {
                     .state
                     .fits
                     .iter()
-                    .filter(|fit| selection.outfits.iter().any(|outfit| outfit.source_id == fit.source_id))
-                    .map(|fit| OutfitFit { source_id: fit.source_id.clone(), objects: fit.objects.clone() })
+                    .filter(|fit| {
+                        selection
+                            .outfits
+                            .iter()
+                            .any(|outfit| outfit.source_id == fit.source_id)
+                    })
+                    .map(|fit| OutfitFit {
+                        source_id: fit.source_id.clone(),
+                        objects: fit.objects.clone(),
+                    })
                     .collect();
                 let observed = match &target {
                     Some(target) => self
                         .platform
-                        .apply_recipe(&run, &selection, target, &recorded_fits, &self.watch(&run, ctx))
+                        .apply_recipe(
+                            &run,
+                            &selection,
+                            target,
+                            &recorded_fits,
+                            &self.watch(&run, ctx),
+                        )
                         .map_err(|error| at_step("assembly", error))?,
-                    None => self
-                        .platform
-                        .assemble(&run, &selection, &recorded_fits, &self.watch(&run, ctx))
-                        .map_err(|error| at_step("assembly", error))?,
+                    None => {
+                        run.optimizer = None;
+                        self.platform
+                            .assemble(&run, &selection, &recorded_fits, &self.watch(&run, ctx))
+                            .map_err(|error| at_step("assembly", error))?
+                    }
                 };
                 if let Some(error) = ctx.cancellation_error("amf-production") {
                     return Err(error);
@@ -592,6 +661,7 @@ impl AmfProductionEngine {
                 mutated = true;
                 run.result = observed.result;
                 run.unity_fingerprint = observed.unity_fingerprint;
+                sync_optimizer_warnings(&mut run);
                 let _check = FingerprintCheck::begin(self, &run, ctx);
                 run.project_fingerprint = self
                     .platform
@@ -600,8 +670,13 @@ impl AmfProductionEngine {
                 run.completed_at = Some(SystemClock.now_rfc3339());
             }
             if !steps.lighting.is_empty() {
-                self.step(&mut run, ctx, "lighting", "Write back the recorded lighting values")
-                    .map_err(|error| at_step("lighting", error))?;
+                self.step(
+                    &mut run,
+                    ctx,
+                    "lighting",
+                    "Write back the recorded lighting values",
+                )
+                .map_err(|error| at_step("lighting", error))?;
                 self.apply_lighting_values(&mut run, &steps.lighting, ctx)
                     .map_err(|error| at_step("lighting", error))?;
                 mutated = true;
@@ -613,10 +688,31 @@ impl AmfProductionEngine {
                     .map_err(|error| at_step("sdk_fix", error))?;
                 mutated = true;
             }
-            self.step(&mut run, ctx, "reinspect", "Verify the restored project in Unity")
-                .map_err(|error| at_step("reinspect", error))?;
+            self.step(
+                &mut run,
+                ctx,
+                "reinspect",
+                "Verify the restored project in Unity",
+            )
+            .map_err(|error| at_step("reinspect", error))?;
             self.update_observations(&mut run, ctx)
                 .map_err(|error| at_step("reinspect", error))?;
+            if let Some(enabled) = steps.optimizer {
+                self.step(
+                    &mut run,
+                    ctx,
+                    "optimizer",
+                    if enabled {
+                        "Enable Avatar Optimizer from the recorded version"
+                    } else {
+                        "Disable Avatar Optimizer from the recorded version"
+                    },
+                )
+                .map_err(|error| at_step("optimizer", error))?;
+                self.run_set_optimizer(&mut run, enabled, ctx)
+                    .map_err(|error| at_step("optimizer", error))?;
+                mutated = true;
+            }
             if let Some(error) = ctx.cancellation_error("amf-production") {
                 return Err(error);
             }
@@ -661,13 +757,15 @@ impl AmfProductionEngine {
                 run.sources = current_sources.sources.clone();
                 run.selection = current_selection;
                 run.applied_fits = current_fits;
+                run.optimizer = current_optimizer;
                 // Neither the old result nor a partial replay proves the current state.
                 // Explicit reinspection must establish it again.
                 run.result = serde_json::Value::Null;
             }
             // A restore that never touched the project, or whose automatic recovery brought
             // it back, leaves no state behind worth a version record.
-            if !matches!(run.recovery.as_deref(), Some(recovery) if recovery.starts_with("restore_failed")) {
+            if !matches!(run.recovery.as_deref(), Some(recovery) if recovery.starts_with("restore_failed"))
+            {
                 run.revisions.retain(|revision| revision.id != undo);
             }
         }

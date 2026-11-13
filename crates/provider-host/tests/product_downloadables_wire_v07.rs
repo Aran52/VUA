@@ -27,7 +27,8 @@ fn schema_dir() -> PathBuf {
 }
 
 fn result_validator() -> jsonschema::Validator {
-    let bytes = fs::read(schema_dir().join("result.schema.json")).expect("frozen v0.7 result schema");
+    let bytes =
+        fs::read(schema_dir().join("result.schema.json")).expect("frozen v0.7 result schema");
     let schema: Value = serde_json::from_slice(&bytes).expect("schema is valid JSON");
     jsonschema::validator_for(&schema).expect("validator builds")
 }
@@ -58,7 +59,11 @@ fn make_world(label: &str) -> World {
     ));
     fs::create_dir_all(base.join("bdl")).expect("temp layout");
     let bdl = Arc::new(BdlStore::open(base.join("bdl").join("bdl.db")).expect("BDL opens"));
-    World { database_path: base.join("tasks.db"), bdl, base }
+    World {
+        database_path: base.join("tasks.db"),
+        bdl,
+        base,
+    }
 }
 
 fn run_query(world: &World, request_id: &str, params: Value) -> Vec<Value> {
@@ -112,7 +117,10 @@ fn success_payload(frames: &[Value]) -> Value {
 #[test]
 fn seeded_capture_travels_verbatim_in_the_v07_envelope() {
     let world = make_world("seeded");
-    world.bdl.seed_product("booth:6190761", "6190761").expect("seed product");
+    world
+        .bdl
+        .seed_product("booth:6190761", "6190761")
+        .expect("seed product");
     world
         .bdl
         .upsert_product_downloadables(
@@ -133,13 +141,18 @@ fn seeded_capture_travels_verbatim_in_the_v07_envelope() {
         value["result"]["items"],
         json!([{ "downloadableId": 5330963, "fileName": "_JerseyTenshi_Materials_v1.0.0.zip" }]),
     );
-    result_validator().validate(&value).expect("validates against the frozen v0.7 schema");
+    result_validator()
+        .validate(&value)
+        .expect("validates against the frozen v0.7 schema");
 }
 
 #[test]
 fn known_product_with_zero_capture_is_an_honest_empty_set() {
     let world = make_world("empty");
-    world.bdl.seed_product("booth:42", "42").expect("seed product");
+    world
+        .bdl
+        .seed_product("booth:42", "42")
+        .expect("seed product");
     let frames = run_query(&world, "r2", json!({ "productId": "booth:42" }));
     let value = success_payload(&frames);
     assert_eq!(value["result"]["items"], json!([]));
@@ -154,7 +167,10 @@ fn unknown_product_is_not_found_never_a_fabricated_empty_list() {
         .find(|frame| frame["kind"] == "response")
         .expect("a response frame");
     assert_eq!(response["payload"]["ok"], json!(false));
-    assert_eq!(response["payload"]["error"]["code"], json!("vua.catalog.product_not_found"));
+    assert_eq!(
+        response["payload"]["error"]["code"],
+        json!("vua.catalog.product_not_found")
+    );
 }
 
 #[test]
@@ -166,5 +182,8 @@ fn params_escape_is_invalid_params() {
         .find(|frame| frame["kind"] == "response")
         .expect("a response frame");
     assert_eq!(response["payload"]["ok"], json!(false));
-    assert_eq!(response["payload"]["error"]["code"], json!("vua.catalog.invalid_params"));
+    assert_eq!(
+        response["payload"]["error"]["code"],
+        json!("vua.catalog.invalid_params")
+    );
 }

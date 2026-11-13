@@ -35,11 +35,11 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 use vua_orchestrator::{
-    AppErrorV1, ErrorCategory, PackageRequestV1, ProjectRef, RepoWriteCapabilities, SqliteTaskStore,
-    VpmBackend, VpmCapabilities,
+    AppErrorV1, ErrorCategory, PackageRequestV1, ProjectRef, RepoWriteCapabilities,
+    SqliteTaskStore, VpmBackend, VpmCapabilities,
 };
-use vua_provider_host::{run_provider_host_full, ProjectOpsConfig};
 use vua_project_manager::ManagerRoots;
+use vua_provider_host::{run_provider_host_full, ProjectOpsConfig};
 
 fn read_ops_schema(name: &str) -> Value {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -73,7 +73,9 @@ fn unique_root(label: &str) -> PathBuf {
 fn empty_ops_config() -> ProjectOpsConfig {
     ProjectOpsConfig {
         vcc_settings_candidates: Vec::new(),
-        manager_roots: ManagerRoots { alcom_settings_candidates: Vec::new() },
+        manager_roots: ManagerRoots {
+            alcom_settings_candidates: Vec::new(),
+        },
         editor_roots: Vec::new(),
     }
 }
@@ -139,7 +141,7 @@ impl VpmBackend for FakeRepo {
             list_packages: false,
             remove_packages: false,
             project_registry: false,
-        resolve_project: false,
+            resolve_project: false,
         }
     }
     fn repo_write_capabilities(&self) -> RepoWriteCapabilities {
@@ -155,7 +157,10 @@ impl VpmBackend for FakeRepo {
         }
         // The facts must reach the backend verbatim — the wire never
         // rewrites, resolves or re-encodes the request's url/name.
-        assert_eq!(url, "https://example.com/vpm.json", "verbatim url transport");
+        assert_eq!(
+            url, "https://example.com/vpm.json",
+            "verbatim url transport"
+        );
         assert_eq!(name, "Example Repo", "verbatim name transport");
         Ok(())
     }
@@ -302,7 +307,10 @@ fn wait_done(database_path: &Path, task_id: &str) -> Value {
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         let store = SqliteTaskStore::open(database_path).expect("store opens");
-        let task = store.task(task_id).expect("store readable").expect("task exists");
+        let task = store
+            .task(task_id)
+            .expect("store readable")
+            .expect("task exists");
         if task.state.is_terminal() {
             assert_eq!(
                 serde_json::to_value(task.state).unwrap(),
@@ -342,7 +350,10 @@ fn absent_repo_wiring_answers_the_typed_honest_absence_and_unavailable_capabilit
     ] {
         let payload = run_frame(&database, None, None, "command", method, params);
         assert_eq!(payload["ok"], false, "{method}: absence is a typed failure");
-        assert_eq!(payload["error"]["code"], "vua.packages.unavailable", "{method}");
+        assert_eq!(
+            payload["error"]["code"], "vua.packages.unavailable",
+            "{method}"
+        );
         assert_eq!(payload["error"]["category"], "unavailable", "{method}");
         assert!(
             payload.get("result").is_none(),
@@ -375,12 +386,18 @@ fn wired_add_remote_accepts_and_the_reflux_carries_the_minimal_remote_receipt() 
     assert_eq!(acceptance["operation"], "packages.addRemoteRepo");
     assert_eq!(acceptance["schemaVersion"], "0.4");
     let task_id = acceptance["taskId"].as_str().expect("taskId").to_owned();
-    assert!(!acceptance["correlationId"].as_str().unwrap_or_default().is_empty());
+    assert!(!acceptance["correlationId"]
+        .as_str()
+        .unwrap_or_default()
+        .is_empty());
 
     let done = wait_done(&database, &task_id);
     assert_eq!(done["schemaVersion"], "0.4");
     assert_eq!(done["operation"], "packages.addRemoteRepo");
-    assert!(validator.is_valid(&done), "receipt must match the frozen result schema: {done}");
+    assert!(
+        validator.is_valid(&done),
+        "receipt must match the frozen result schema: {done}"
+    );
     let receipt = &done["result"];
     assert_eq!(receipt["schemaVersion"], "vua.packages-ops/v0.4");
     assert_eq!(receipt["kind"], "repoReceipt");
@@ -388,8 +405,12 @@ fn wired_add_remote_accepts_and_the_reflux_carries_the_minimal_remote_receipt() 
     // The minimal honest audit shape: the request echo and NOTHING else —
     // additionalProperties:false makes an invented fact (fetched-manifest
     // contents, timestamp, row position) a schema violation, not a nitpick.
-    let receipt_keys: Vec<String> =
-        receipt.as_object().expect("receipt object").keys().cloned().collect();
+    let receipt_keys: Vec<String> = receipt
+        .as_object()
+        .expect("receipt object")
+        .keys()
+        .cloned()
+        .collect();
     assert_eq!(
         receipt_keys,
         vec!["schemaVersion", "kind", "repoType", "url", "name"]
@@ -418,7 +439,10 @@ fn wired_add_local_accepts_and_the_reflux_carries_the_minimal_local_receipt() {
         add_local_params(),
     );
     assert_eq!(payload["ok"], true, "the wired command accepts: {payload}");
-    let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = payload["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
 
     let done = wait_done(&database, &task_id);
     assert_eq!(done["schemaVersion"], "0.4");
@@ -427,8 +451,12 @@ fn wired_add_local_accepts_and_the_reflux_carries_the_minimal_local_receipt() {
     let receipt = &done["result"];
     assert_eq!(receipt["kind"], "repoReceipt");
     assert_eq!(receipt["repoType"], "local");
-    let receipt_keys: Vec<String> =
-        receipt.as_object().expect("receipt object").keys().cloned().collect();
+    let receipt_keys: Vec<String> = receipt
+        .as_object()
+        .expect("receipt object")
+        .keys()
+        .cloned()
+        .collect();
     // The local variant's key set is disjoint from the remote variant and
     // every prior receipt arm.
     assert_eq!(
@@ -456,7 +484,10 @@ fn wired_remove_accepts_and_the_reflux_carries_the_minimal_removed_receipt() {
         remove_params(),
     );
     assert_eq!(payload["ok"], true, "the wired command accepts: {payload}");
-    let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = payload["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
 
     let done = wait_done(&database, &task_id);
     assert_eq!(done["schemaVersion"], "0.4");
@@ -467,8 +498,12 @@ fn wired_remove_accepts_and_the_reflux_carries_the_minimal_removed_receipt() {
     // The echo IS the audit link: the removed row's id and NOTHING else —
     // no removed-row snapshot is invented (a row may carry absent-id facts
     // this face never round-trips).
-    let receipt_keys: Vec<String> =
-        receipt.as_object().expect("receipt object").keys().cloned().collect();
+    let receipt_keys: Vec<String> = receipt
+        .as_object()
+        .expect("receipt object")
+        .keys()
+        .cloned()
+        .collect();
     assert_eq!(receipt_keys, vec!["schemaVersion", "kind", "repoId"]);
     assert_eq!(receipt["repoId"], "repo.example");
     fs::remove_dir_all(&root).ok();
@@ -484,11 +519,20 @@ fn repo_param_violations_answer_invalid_params() {
     let violations: Vec<(&str, Value)> = vec![
         // addRemoteRepo: the closed two-key set — absent keys are violations.
         ("packages.addRemoteRepo", json!({})),
-        ("packages.addRemoteRepo", json!({ "url": "https://example.com/vpm.json" })),
+        (
+            "packages.addRemoteRepo",
+            json!({ "url": "https://example.com/vpm.json" }),
+        ),
         ("packages.addRemoteRepo", json!({ "name": "Example Repo" })),
         // Empty url / empty name are violations (non-empty string facts).
-        ("packages.addRemoteRepo", json!({ "url": "", "name": "Example Repo" })),
-        ("packages.addRemoteRepo", json!({ "url": "https://example.com/vpm.json", "name": "" })),
+        (
+            "packages.addRemoteRepo",
+            json!({ "url": "", "name": "Example Repo" }),
+        ),
+        (
+            "packages.addRemoteRepo",
+            json!({ "url": "https://example.com/vpm.json", "name": "" }),
+        ),
         // NO projectPath is taken — the subscription face writes the
         // backend's ISOLATED environment only.
         (
@@ -511,7 +555,10 @@ fn repo_param_violations_answer_invalid_params() {
         ),
         // addLocalRepo: the same closed-set law.
         ("packages.addLocalRepo", json!({})),
-        ("packages.addLocalRepo", json!({ "path": "", "name": "Local Repo" })),
+        (
+            "packages.addLocalRepo",
+            json!({ "path": "", "name": "Local Repo" }),
+        ),
         (
             "packages.addLocalRepo",
             json!({
@@ -531,9 +578,22 @@ fn repo_param_violations_answer_invalid_params() {
         ("packages.removeRepo", json!({ "repoId": 42 })),
     ];
     for (method, params) in violations {
-        let payload = run_frame(&database, Some(&config), vpm.clone(), "command", method, params);
-        assert_eq!(payload["ok"], false, "{method}: violations are typed failures");
-        assert_eq!(payload["error"]["code"], "vua.packages.invalid_params", "{method}: {payload}");
+        let payload = run_frame(
+            &database,
+            Some(&config),
+            vpm.clone(),
+            "command",
+            method,
+            params,
+        );
+        assert_eq!(
+            payload["ok"], false,
+            "{method}: violations are typed failures"
+        );
+        assert_eq!(
+            payload["error"]["code"], "vua.packages.invalid_params",
+            "{method}: {payload}"
+        );
         assert_eq!(payload["error"]["category"], "validation", "{method}");
     }
     fs::remove_dir_all(&root).ok();
@@ -551,10 +611,20 @@ fn repo_capability_gate_is_per_method_and_declared_none_stays_unavailable() {
         ("packages.addLocalRepo", add_local_params()),
         ("packages.removeRepo", remove_params()),
     ] {
-        let payload = run_frame(&database, Some(&config), none.clone(), "command", method, params);
+        let payload = run_frame(
+            &database,
+            Some(&config),
+            none.clone(),
+            "command",
+            method,
+            params,
+        );
         assert_eq!(payload["ok"], false, "{method}");
         // The generic capability-missing arm, answered BEFORE submit.
-        assert_eq!(payload["error"]["code"], "vua.vpm.capability_missing", "{method}");
+        assert_eq!(
+            payload["error"]["code"], "vua.vpm.capability_missing",
+            "{method}"
+        );
         assert_eq!(payload["error"]["category"], "unavailable", "{method}");
         assert!(
             payload["value"].is_null(),
@@ -584,11 +654,23 @@ fn three_independent_bits_serve_a_subset_backend() {
         ("packages.addRemoteRepo", add_remote_params()),
         ("packages.addLocalRepo", add_local_params()),
     ] {
-        let payload =
-            run_frame(&database, Some(&config), remove_only.clone(), "command", method, params);
+        let payload = run_frame(
+            &database,
+            Some(&config),
+            remove_only.clone(),
+            "command",
+            method,
+            params,
+        );
         assert_eq!(payload["ok"], false, "{method}");
-        assert_eq!(payload["error"]["code"], "vua.vpm.capability_missing", "{method}");
-        assert!(payload["value"].is_null(), "{method}: absence never reaches a task");
+        assert_eq!(
+            payload["error"]["code"], "vua.vpm.capability_missing",
+            "{method}"
+        );
+        assert!(
+            payload["value"].is_null(),
+            "{method}: absence never reaches a task"
+        );
     }
 
     let payload = run_frame(
@@ -599,14 +681,23 @@ fn three_independent_bits_serve_a_subset_backend() {
         "packages.removeRepo",
         remove_params(),
     );
-    assert_eq!(payload["ok"], true, "the served subset method accepts: {payload}");
-    let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+    assert_eq!(
+        payload["ok"], true,
+        "the served subset method accepts: {payload}"
+    );
+    let task_id = payload["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
     let done = wait_done(&database, &task_id);
     assert!(validator.is_valid(&done), "{done}");
     assert_eq!(done["result"]["kind"], "removed");
 
     let row = repo_ops_capability_row(&database, remove_only);
-    assert_eq!(row["availability"], "available", "ANY declared bit keeps the row honest");
+    assert_eq!(
+        row["availability"], "available",
+        "ANY declared bit keeps the row honest"
+    );
     fs::remove_dir_all(&root).ok();
 }
 
@@ -634,10 +725,16 @@ fn repo_invalid_refusal_folds_into_execution_failed_with_port_provenance() {
         "packages.addRemoteRepo",
         add_remote_params(),
     );
-    let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = payload["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
 
     let done = wait_done(&database, &task_id);
-    assert!(validator.is_valid(&done), "the refusal is a frozen result document: {done}");
+    assert!(
+        validator.is_valid(&done),
+        "the refusal is a frozen result document: {done}"
+    );
     let rejected = &done["result"];
     assert_eq!(rejected["kind"], "rejected");
     // A4 adds NO guard: the duplicate/shape refusal folds into the frozen
@@ -684,7 +781,10 @@ fn not_found_fetch_and_write_failures_fold_into_execution_failed_with_provenance
     assert_eq!(rejected["kind"], "rejected");
     assert_eq!(rejected["guard"], "execution_failed");
     assert_eq!(rejected["code"], "vua.packages.execution_failed");
-    assert!(rejected["detail"].as_str().unwrap().contains("vua.vpm.repo_not_found"));
+    assert!(rejected["detail"]
+        .as_str()
+        .unwrap()
+        .contains("vua.vpm.repo_not_found"));
     fs::remove_dir_all(&root).ok();
 
     // addRemoteRepo → repo_fetch_failed (the inherent network segment).
@@ -711,7 +811,10 @@ fn not_found_fetch_and_write_failures_fold_into_execution_failed_with_provenance
     assert!(validator.is_valid(&done), "{done}");
     let rejected = &done["result"];
     assert_eq!(rejected["guard"], "execution_failed");
-    assert!(rejected["detail"].as_str().unwrap().contains("vua.vpm.repo_fetch_failed"));
+    assert!(rejected["detail"]
+        .as_str()
+        .unwrap()
+        .contains("vua.vpm.repo_fetch_failed"));
     fs::remove_dir_all(&root).ok();
 
     // addLocalRepo → repo_write_failed (the isolated-environment write-back).
@@ -738,7 +841,10 @@ fn not_found_fetch_and_write_failures_fold_into_execution_failed_with_provenance
     assert!(validator.is_valid(&done), "{done}");
     let rejected = &done["result"];
     assert_eq!(rejected["guard"], "execution_failed");
-    assert!(rejected["detail"].as_str().unwrap().contains("vua.vpm.repo_write_failed"));
+    assert!(rejected["detail"]
+        .as_str()
+        .unwrap()
+        .contains("vua.vpm.repo_write_failed"));
     fs::remove_dir_all(&root).ok();
 }
 
@@ -760,7 +866,7 @@ fn unimplemented_repo_port_capability_missing_folds_into_execution_failed() {
                 list_packages: false,
                 remove_packages: false,
                 project_registry: false,
-            resolve_project: false,
+                resolve_project: false,
             }
         }
         fn repo_write_capabilities(&self) -> RepoWriteCapabilities {
@@ -807,7 +913,10 @@ fn unimplemented_repo_port_capability_missing_folds_into_execution_failed() {
         "packages.removeRepo",
         remove_params(),
     );
-    let task_id = payload["value"]["taskId"].as_str().expect("taskId").to_owned();
+    let task_id = payload["value"]["taskId"]
+        .as_str()
+        .expect("taskId")
+        .to_owned();
 
     let done = wait_done(&database, &task_id);
     let rejected = &done["result"];
@@ -870,8 +979,14 @@ fn repo_add_claims_no_idempotence_the_duplicate_refusal_travels_honestly() {
     let done = wait_done(&database, payload["value"]["taskId"].as_str().unwrap());
     assert!(validator.is_valid(&done), "{done}");
     let rejected = &done["result"];
-    assert_eq!(rejected["kind"], "rejected", "the duplicate refusal travels honestly");
+    assert_eq!(
+        rejected["kind"], "rejected",
+        "the duplicate refusal travels honestly"
+    );
     assert_eq!(rejected["guard"], "execution_failed");
-    assert!(rejected["detail"].as_str().unwrap().contains("vua.vpm.repo_invalid"));
+    assert!(rejected["detail"]
+        .as_str()
+        .unwrap()
+        .contains("vua.vpm.repo_invalid"));
     fs::remove_dir_all(&root).ok();
 }

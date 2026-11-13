@@ -26,7 +26,11 @@ concurrency:
 jobs:
   audit:
     runs-on: windows-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -42,13 +46,13 @@ jobs:
           pnpm --filter @vua/orchestrator-provider build
       - name: Design-audit tool tests (rules unit + synthetic-page end-to-end)
         run: pnpm --filter @vua/desktop test:design-audit
-      - name: Full design audit
-        run: pnpm --filter @vua/desktop audit:design
+      - name: Design audit, one share of the views
+        run: pnpm --filter @vua/desktop audit:design -- --shard=${{ matrix.shard }}/4
       - name: Upload audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: design-audit-${{ github.run_id }}
+          name: design-audit-${{ github.run_id }}-${{ matrix.shard }}
           path: apps/desktop/_local_design_audit/**/
           retention-days: 14
           if-no-files-found: warn

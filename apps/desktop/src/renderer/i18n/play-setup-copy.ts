@@ -1,0 +1,142 @@
+/** The Launch page's words: choosing a platform, device and connection, and the steps that follow. */
+const en = {
+  platform: "Platform", device: "Device", connection: "Connection", detected: "Detected", official: "Official page",
+  noPc: "Standalone (no PC)",
+  stepsTitle: "Setup steps", ready: "All software ready", inHeadset: "Runs directly on headset", changeHint: "Change platform, device, or connection",
+  officialSource: "Compiled from official setup guides · Nov 2026",
+  verifiedSource: "Official setup guides · verified {date}",
+  standaloneNote: "Standalone headsets display avatars that include an Android/Quest build. PC-only avatars appear as fallbacks or default figures.",
+  actors: { vua: "Handled by VUA", open: "Opened by VUA", player: "Done by you" },
+  steps: {
+    steam: "Install Steam", "steam-sign-in": "Sign in to Steam", platform: "Install {platform}", launch: "Launch {platform}",
+    "store-install": "Install VRChat from {store}", "store-launch": "Launch VRChat inside the headset",
+  },
+  stores: { pico: "the PICO Store", meta: "the Meta Horizon Store", viveport: "Viveport" },
+  devices: {
+    pc: { name: "Desktop mode", hint: "No headset needed" },
+    pico: { name: "PICO", hint: "PICO 4 series" },
+    quest: { name: "Meta Quest", hint: "Quest 2, 3, 3S, Pro" },
+    "vive-standalone": { name: "VIVE standalone", hint: "Focus Vision, XR Elite" },
+    "vive-wired": { name: "VIVE PC VR", hint: "VIVE Pro, Cosmos" },
+    "other-headset": { name: "Other headset", hint: "Any SteamVR-compatible headset" },
+    wmr: { name: "Windows MR", hint: "HP Reverb and similar" },
+  },
+  connections: {
+    "pico-connect": { tag: "Official · Free", summary: "PICO's official PC VR streaming over USB cable or Wi-Fi.", pc: "Install PICO Connect and SteamVR", headset: "Open PICO Connect in your headset and link to this PC" },
+    standalone: { tag: "Standalone", summary: "Runs natively on the headset without connecting to a PC." },
+  },
+};
+interface Words { readonly tag: string; readonly summary: string; readonly pc?: string; readonly headset?: string }
+type Copy = Omit<typeof en, "connections"> & { readonly connections: Record<keyof typeof en.connections, Words> };
+
+export const playSetupCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = {
+  en,
+  "zh-CN": {
+    platform: "平台", device: "设备", connection: "连接方式", detected: "已检测到", official: "官方页面",
+    noPc: "一体机直玩（不连电脑）",
+    stepsTitle: "准备步骤", ready: "软件均已就绪", inHeadset: "在头显内独立运行", changeHint: "切换平台、设备或连接方式",
+    officialSource: "步骤整理自官方指南 · 2026 年 11 月",
+    verifiedSource: "整理自官方指南 · 核验于 {date}",
+    standaloneNote: "一体机独立版只能直接显示带有移动端版本的 Avatar；仅上传了 PC 版的模型会显示为替身（Fallback）或默认机器人。",
+    actors: { vua: "VUA 自动完成", open: "VUA 帮你打开", player: "需要你操作" },
+    steps: {
+      steam: "安装 Steam", "steam-sign-in": "登录 Steam", platform: "安装 {platform}", launch: "启动 {platform}",
+      "store-install": "在{store}安装 VRChat", "store-launch": "在头显中打开 VRChat",
+    },
+    stores: { pico: "PICO 商店", meta: "Meta Horizon 商店", viveport: "Viveport" },
+    devices: {
+      pc: { name: "桌面模式", hint: "无需 VR 头显" },
+      pico: { name: "PICO", hint: "PICO 4 系列" },
+      quest: { name: "Meta Quest", hint: "Quest 2、3、3S、Pro" },
+      "vive-standalone": { name: "VIVE 一体机", hint: "Focus Vision、XR Elite" },
+      "vive-wired": { name: "VIVE 有线 PC 头显", hint: "VIVE Pro、Cosmos" },
+      "other-headset": { name: "其他型号", hint: "兼容 SteamVR 的头显均可" },
+      wmr: { name: "Windows MR", hint: "HP Reverb 等" },
+    },
+    connections: {
+      "pico-connect": { tag: "官方 · 免费", summary: "PICO 官方串流方案，支持 USB 数据线或 Wi-Fi 无线连接。", pc: "在电脑上安装 PICO Connect 与 SteamVR", headset: "在头显中打开 PICO Connect 并连接这台电脑" },
+      standalone: { tag: "一体机独立版", summary: "VRChat 直接在头显本体上运行，无需连接电脑。" },
+    },
+  },
+  "zh-TW": {
+    platform: "平台", device: "裝置", connection: "連線方式", detected: "已偵測到", official: "官方頁面",
+    noPc: "一體機直玩（不連電腦）",
+    stepsTitle: "準備步驟", ready: "軟體皆已就緒", inHeadset: "在頭顯內獨立執行", changeHint: "變更平台、裝置或連線方式",
+    officialSource: "步驟整理自官方指南 · 2026 年 11 月",
+    verifiedSource: "整理自官方指南 · 核驗於 {date}",
+    standaloneNote: "獨立型頭顯只會直接顯示含有行動版建置的 Avatar；僅有 PC 版的模型會顯示為 Fallback 替身或預設形象。",
+    actors: { vua: "VUA 自動處理", open: "VUA 協助開啟", player: "由你操作" },
+    steps: {
+      steam: "安裝 Steam", "steam-sign-in": "登入 Steam", platform: "安裝 {platform}", launch: "啟動 {platform}",
+      "store-install": "從{store}安裝 VRChat", "store-launch": "在頭戴式裝置內開啟 VRChat",
+    },
+    stores: { pico: "PICO 商店", meta: "Meta Horizon 商店", viveport: "Viveport" },
+    devices: {
+      pc: { name: "桌面模式", hint: "不需要頭戴式裝置" },
+      pico: { name: "PICO", hint: "PICO 4 系列" },
+      quest: { name: "Meta Quest", hint: "Quest 2、3、3S、Pro" },
+      "vive-standalone": { name: "VIVE 一體機", hint: "Focus Vision、XR Elite" },
+      "vive-wired": { name: "VIVE PC 頭戴式裝置", hint: "VIVE Pro、Cosmos" },
+      "other-headset": { name: "其他型號", hint: "支援 SteamVR 的頭戴式裝置皆可" },
+      wmr: { name: "Windows MR", hint: "HP Reverb 等" },
+    },
+    connections: {
+      "pico-connect": { tag: "官方 · 免費", summary: "PICO 官方串流軟體，支援 USB 傳輸線或 Wi-Fi 無線連線。", pc: "安裝 PICO Connect 與 SteamVR", headset: "在頭顯裡開啟 PICO Connect 並連上電腦" },
+      standalone: { tag: "頭顯獨立版", summary: "VRChat 直接在頭戴式裝置本體執行，不需要連接電腦。" },
+    },
+  },
+  ja: {
+    platform: "プラットフォーム", device: "デバイス", connection: "接続方法", detected: "検出済み", official: "公式ページ",
+    noPc: "単体プレイ（PC 不要）",
+    stepsTitle: "準備手順", ready: "ソフトの準備完了", inHeadset: "ヘッドセット単体で動作", changeHint: "プラットフォーム・機器・接続方法を変更",
+    officialSource: "公式ガイドをもとに整理（2026 年 11 月時点）",
+    verifiedSource: "公式ガイドをもとに整理（確認日：{date}）",
+    standaloneNote: "単体版では Android / Quest 対応アバターのみそのまま表示され、PC 専用アバターはフォールバックや標準アバターに置き換わります。",
+    actors: { vua: "VUA が実行", open: "VUA が開く", player: "自分で操作" },
+    steps: {
+      steam: "Steam をインストール", "steam-sign-in": "Steam にログイン", platform: "{platform} をインストール", launch: "{platform} を起動",
+      "store-install": "{store}から VRChat をインストール", "store-launch": "ヘッドセット内で VRChat を起動",
+    },
+    stores: { pico: "PICO ストア", meta: "Meta Horizon ストア", viveport: "Viveport" },
+    devices: {
+      pc: { name: "デスクトップモード", hint: "ヘッドセット不要" },
+      pico: { name: "PICO", hint: "PICO 4 シリーズ" },
+      quest: { name: "Meta Quest", hint: "Quest 2 / 3 / 3S / Pro" },
+      "vive-standalone": { name: "VIVE スタンドアロン", hint: "Focus Vision / XR Elite" },
+      "vive-wired": { name: "VIVE PC VR", hint: "VIVE Pro / Cosmos" },
+      "other-headset": { name: "その他の機種", hint: "SteamVR 対応ヘッドセット全般" },
+      wmr: { name: "Windows MR", hint: "HP Reverb など" },
+    },
+    connections: {
+      "pico-connect": { tag: "公式・無料", summary: "PICO 公式の PC VR ストリーミングです。USB ケーブルまたは Wi-Fi で接続できます。", pc: "PICO Connect と SteamVR をインストール", headset: "ヘッドセット側で PICO Connect を開き、PC に接続" },
+      standalone: { tag: "単体（スタンドアロン）版", summary: "PC を使わず、ヘッドセット本体だけで VRChat を動かします。" },
+    },
+  },
+  ko: {
+    platform: "플랫폼", device: "기기", connection: "연결 방식", detected: "감지됨", official: "공식 페이지",
+    noPc: "단독 실행(PC 불필요)",
+    stepsTitle: "준비 단계", ready: "모든 소프트웨어 준비 완료", inHeadset: "헤드셋 단독 실행", changeHint: "플랫폼, 기기, 연결 방식 바꾸기",
+    officialSource: "공식 안내 기준 정리 (2026년 11월)",
+    verifiedSource: "공식 안내 기준 정리 (확인일: {date})",
+    standaloneNote: "단독 실행 모드에서는 Android / Quest 대응 버전이 있는 아바타만 그대로 보이고, PC 전용 아바타는 폴백(대체)이나 기본 모습으로 표시돼요.",
+    actors: { vua: "VUA가 처리", open: "VUA가 열기", player: "직접 진행" },
+    steps: {
+      steam: "Steam 설치", "steam-sign-in": "Steam 로그인", platform: "{platform} 설치", launch: "{platform} 실행",
+      "store-install": "{store}에서 VRChat 설치", "store-launch": "헤드셋 안에서 VRChat 열기",
+    },
+    stores: { pico: "PICO 스토어", meta: "Meta Horizon 스토어", viveport: "Viveport" },
+    devices: {
+      pc: { name: "데스크톱 모드", hint: "헤드셋 불필요" },
+      pico: { name: "PICO", hint: "PICO 4 시리즈" },
+      quest: { name: "Meta Quest", hint: "Quest 2, 3, 3S, Pro" },
+      "vive-standalone": { name: "VIVE 독립형", hint: "Focus Vision, XR Elite" },
+      "vive-wired": { name: "VIVE PC VR", hint: "VIVE Pro, Cosmos" },
+      "other-headset": { name: "기타 헤드셋", hint: "SteamVR 호환 헤드셋" },
+      wmr: { name: "Windows MR", hint: "HP Reverb 등" },
+    },
+    connections: {
+      "pico-connect": { tag: "공식 · 무료", summary: "PICO 공식 PC VR 스트리밍 도구예요. USB 케이블이나 Wi-Fi로 연결할 수 있어요.", pc: "PICO Connect와 SteamVR 설치", headset: "헤드셋에서 PICO Connect를 열고 이 PC와 연결" },
+      standalone: { tag: "단독 실행 버전", summary: "PC 연결 없이 헤드셋 자체에서 바로 VRChat을 실행해요." },
+    },
+  },
+};

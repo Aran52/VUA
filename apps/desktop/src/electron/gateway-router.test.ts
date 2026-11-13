@@ -38,6 +38,10 @@ describe("Electron Desktop Gateway routing", () => {
     invoke.mockClear();
     const rejected = await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, { ...request, params: { ...request.params, executable: "cmd.exe" } });
     expect(rejected).toMatchObject({ ok: false, error: { code: "invalid_request" } }); expect(invoke).not.toHaveBeenCalled();
+    await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, { schemaVersion: 1, requestId: "inst-q", method: "tools.observeInstaller", params: { toolId: "vrct" } });
+    expect(invoke).toHaveBeenLastCalledWith(expect.objectContaining({ method: "tools.observeInstaller", kind: "query", params: { toolId: "vrct" } }));
+    await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, { schemaVersion: 1, requestId: "inst-c", method: "tools.actInstaller", params: { toolId: "vrct", action: "start", commandId: "inst-once" } });
+    expect(invoke).toHaveBeenLastCalledWith(expect.objectContaining({ method: "tools.actInstaller", kind: "command", commandId: "inst-once", params: { toolId: "vrct", action: "start" } }));
   });
   it("routes scoped play commands without accepting native paths or renderer command text", async () => {
     const provider = new MockOrchestratorProviderV01(); await provider.start(); const invoke = vi.spyOn(provider, "invoke");
@@ -1896,6 +1900,12 @@ describe("vrchat-session v0.1 routing (experimental VRChat sign-in)", () => {
     await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face }, `${rendererUrl}/`,
       { schemaVersion: 1, requestId: "up-1", method: "amf.production.upload", params: { schemaVersion: "0.1", runId: "n3-1", avatarName: "Meiyun", rightsConfirmed: true } });
     expect(order).toEqual(["handoff", "provider"]);
+    order.length = 0;
+    const launch = vi.fn(async () => { order.push("launch"); });
+    await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face, launchAmfEditor: launch }, `${rendererUrl}/`,
+      { schemaVersion: 1, requestId: "test-1", method: "amf.production.localTest", params: { schemaVersion: "0.1", runId: "n3-1" } });
+    expect(order).toEqual(["handoff", "provider", "launch"]);
+    expect(launch).toHaveBeenCalledWith("n3-1", "task-1");
     // Other commands never trigger the handoff.
     order.length = 0;
     await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face }, `${rendererUrl}/`,

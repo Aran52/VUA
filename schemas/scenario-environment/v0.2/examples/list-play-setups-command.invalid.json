@@ -1,0 +1,10 @@
+{
+  "contractVersion": "0.1",
+  "requestId": "list-cmd",
+  "correlationId": "list-cmd",
+  "kind": "command",
+  "method": "environment.listPlaySetups",
+  "params": {
+    "schemaVersion": "0.2"
+  }
+}

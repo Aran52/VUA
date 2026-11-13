@@ -7,18 +7,19 @@
 #![allow(clippy::result_large_err)]
 
 pub mod artifact_inspection;
+pub mod booth_search;
 pub mod catalog_sync;
 pub mod description_dependencies;
+pub mod library_download;
+pub mod library_maintenance;
+pub mod library_page;
+mod library_reconcile;
+pub mod library_view;
+pub mod order_page;
+pub mod recipe_selection_drafts;
+pub mod terms;
 pub mod terms_links;
 pub mod vn3;
-pub mod terms;
-pub mod library_page;
-pub mod booth_search;
-pub mod library_download;
-pub mod library_view;
-mod library_reconcile;
-pub mod library_maintenance;
-pub mod recipe_selection_drafts;
 pub mod warehouse_download_adopt;
 pub mod warehouse_import;
 pub mod warehouse_maintenance;
@@ -37,15 +38,14 @@ pub use library_page::{
     LibraryPage, LibraryPageError, LibraryPageItem, LIBRARY_PAGE_PROCESSOR_VERSION,
 };
 pub use warehouse_download_adopt::{
-    submit_warehouse_import_downloads, AdoptedDownload, DownloadAdoptError,
-    WarehouseDownloadAdoptTaskResult, WarehouseDownloadAdoptTaskSpec, DownloadAdopter,
-    DOWNLOADED_ENTRY_KIND,
+    submit_warehouse_import_downloads, AdoptedDownload, DownloadAdoptError, DownloadAdopter,
+    WarehouseDownloadAdoptTaskResult, WarehouseDownloadAdoptTaskSpec, DOWNLOADED_ENTRY_KIND,
 };
 pub use warehouse_import::{
-    submit_warehouse_import, AutoGenerateSpec, ImportedArtifact,
-    ImportError as WarehouseImportError, SkippedSourceFile, WarehouseImportReport,
-    WarehouseImportTaskResult, WarehouseImporter, WarehouseImportTaskSpec,
-    submit_warehouse_import_auto, IMPORT_ENTRY_KIND,
+    submit_warehouse_import, submit_warehouse_import_auto, AutoGenerateSpec,
+    ImportError as WarehouseImportError, ImportedArtifact, SkippedSourceFile,
+    WarehouseImportReport, WarehouseImportTaskResult, WarehouseImportTaskSpec, WarehouseImporter,
+    IMPORT_ENTRY_KIND,
 };
 pub use warehouse_maintenance::{
     generate_vpm_job, submit_delete_originals, submit_generate_vpm, DeleteOriginalsResult,

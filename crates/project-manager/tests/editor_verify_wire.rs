@@ -43,7 +43,10 @@ fn sub_schema_validator(def_suffix: &str) -> Validator {
         schemas_dir().join("methods"),
         "environment-verify-editor.schema.json",
     );
-    let defs = schema.get("$defs").expect("method schema has $defs").clone();
+    let defs = schema
+        .get("$defs")
+        .expect("method schema has $defs")
+        .clone();
     let sub = defs
         .get(format!("environment-verifyEditor{def_suffix}").as_str())
         .expect("sub schema")
@@ -125,18 +128,30 @@ fn positive_vectors_validate_against_the_method_faces() {
     let request = request_validator();
     let result = result_validator();
     for (stem, _, _, _) in POSITIVE_VECTORS {
-        let request_vector = read_json_at(schemas_dir().join("examples"), &format!("{stem}.request.json"));
+        let request_vector = read_json_at(
+            schemas_dir().join("examples"),
+            &format!("{stem}.request.json"),
+        );
         let errors = violations(&request, &request_vector);
-        assert!(errors.is_empty(), "{stem} request must validate: {errors:?}");
+        assert!(
+            errors.is_empty(),
+            "{stem} request must validate: {errors:?}"
+        );
 
-        let result_vector = read_json_at(schemas_dir().join("examples"), &format!("{stem}.result.json"));
+        let result_vector = read_json_at(
+            schemas_dir().join("examples"),
+            &format!("{stem}.result.json"),
+        );
         let errors = violations(&result, &result_vector);
         assert!(errors.is_empty(), "{stem} result must validate: {errors:?}");
         assert_eq!(
             result_vector["verdict"], "verified",
             "{stem} must be a verified vector"
         );
-        assert_eq!(result_vector["schemaVersion"], "0.1", "{stem} envelope const");
+        assert_eq!(
+            result_vector["schemaVersion"], "0.1",
+            "{stem} envelope const"
+        );
     }
 }
 
@@ -146,7 +161,10 @@ fn positive_vectors_match_the_core_classification_authority() {
     // re-derived from the core classifier over the vector's own version
     // string, so the vectors cannot silently diverge from the authority.
     for (stem, version, classification, guidance) in POSITIVE_VECTORS {
-        let vector = read_json_at(schemas_dir().join("examples"), &format!("{stem}.result.json"));
+        let vector = read_json_at(
+            schemas_dir().join("examples"),
+            &format!("{stem}.result.json"),
+        );
         let parsed = parse_editor_version(version).expect("vector version parses");
         let (class, code) = classify_editor(&parsed);
         let class_face: Value = serde_json::to_value(class).unwrap();
@@ -170,24 +188,39 @@ fn positive_vectors_pin_all_three_normalize_branches() {
     // Ruling point 6: the three input layouts are three independent
     // normalize branches, so each positive vector pins one branch's
     // editorRoot/exePath relationship to the picked path.
-    let exe_direct =
-        read_json_at(schemas_dir().join("examples"), "environment-verify-editor.exe-direct.result.json");
-    let root_picked =
-        read_json_at(schemas_dir().join("examples"), "environment-verify-editor.versioned-root.result.json");
-    let editor_dir_picked =
-        read_json_at(schemas_dir().join("examples"), "environment-verify-editor.editor-directory.result.json");
+    let exe_direct = read_json_at(
+        schemas_dir().join("examples"),
+        "environment-verify-editor.exe-direct.result.json",
+    );
+    let root_picked = read_json_at(
+        schemas_dir().join("examples"),
+        "environment-verify-editor.versioned-root.result.json",
+    );
+    let editor_dir_picked = read_json_at(
+        schemas_dir().join("examples"),
+        "environment-verify-editor.editor-directory.result.json",
+    );
 
     // Branch 1: the executable itself — exePath equals the picked path.
-    assert_eq!(exe_direct["exePath"], "C:\\Editors\\2022.3.22f1\\Editor\\Unity.exe");
+    assert_eq!(
+        exe_direct["exePath"],
+        "C:\\Editors\\2022.3.22f1\\Editor\\Unity.exe"
+    );
     assert_eq!(exe_direct["editorRoot"], "C:\\Editors\\2022.3.22f1");
 
     // Branch 2: the versioned Hub root — exePath is <root>/Editor/Unity.exe.
     assert_eq!(root_picked["editorRoot"], "C:\\Editors\\2022.3.22f1c1");
-    assert_eq!(root_picked["exePath"], "C:\\Editors\\2022.3.22f1c1\\Editor\\Unity.exe");
+    assert_eq!(
+        root_picked["exePath"],
+        "C:\\Editors\\2022.3.22f1c1\\Editor\\Unity.exe"
+    );
 
     // Branch 3: the Editor directory — the root is the versioned parent.
     assert_eq!(editor_dir_picked["editorRoot"], "C:\\Editors\\2019.4.31f1");
-    assert_eq!(editor_dir_picked["exePath"], "C:\\Editors\\2019.4.31f1\\Editor\\Unity.exe");
+    assert_eq!(
+        editor_dir_picked["exePath"],
+        "C:\\Editors\\2019.4.31f1\\Editor\\Unity.exe"
+    );
 }
 
 #[test]
@@ -198,21 +231,39 @@ fn refusal_vectors_are_valid_results_with_closed_codes() {
     let request = request_validator();
     let result = result_validator();
     for (stem, code, exe_located) in REFUSAL_VECTORS {
-        let request_vector = read_json_at(schemas_dir().join("examples"), &format!("{stem}.request.json"));
+        let request_vector = read_json_at(
+            schemas_dir().join("examples"),
+            &format!("{stem}.request.json"),
+        );
         let errors = violations(&request, &request_vector);
-        assert!(errors.is_empty(), "{stem} request must validate: {errors:?}");
+        assert!(
+            errors.is_empty(),
+            "{stem} request must validate: {errors:?}"
+        );
 
-        let result_vector = read_json_at(schemas_dir().join("examples"), &format!("{stem}.result.json"));
+        let result_vector = read_json_at(
+            schemas_dir().join("examples"),
+            &format!("{stem}.result.json"),
+        );
         let errors = violations(&result, &result_vector);
         assert!(
             errors.is_empty(),
             "{stem} refusal must validate as a normal result (nail 1): {errors:?}"
         );
         assert_eq!(result_vector["verdict"], "refused", "{stem} verdict");
-        assert_eq!(result_vector["code"], code, "{stem} closed-set code literal");
-        assert_eq!(result_vector["schemaVersion"], "0.1", "{stem} envelope const");
+        assert_eq!(
+            result_vector["code"], code,
+            "{stem} closed-set code literal"
+        );
+        assert_eq!(
+            result_vector["schemaVersion"], "0.1",
+            "{stem} envelope const"
+        );
         assert!(
-            result_vector["detail"].as_str().map(|d| !d.is_empty()).unwrap_or(false),
+            result_vector["detail"]
+                .as_str()
+                .map(|d| !d.is_empty())
+                .unwrap_or(false),
             "{stem} detail carries the primitive diagnosis verbatim"
         );
         assert_eq!(
@@ -229,13 +280,22 @@ fn request_face_is_a_closed_single_key_set() {
 
     // minLength 1 (ruling point 3), deliberately without maxLength.
     let empty = serde_json::json!({ "path": "" });
-    assert!(!request.is_valid(&empty), "an empty path is a contract error");
+    assert!(
+        !request.is_valid(&empty),
+        "an empty path is a contract error"
+    );
 
     let missing = serde_json::json!({});
-    assert!(!request.is_valid(&missing), "a missing path is a contract error");
+    assert!(
+        !request.is_valid(&missing),
+        "a missing path is a contract error"
+    );
 
     let extra = serde_json::json!({ "path": "C:\\x", "includeDimensions": true });
-    assert!(!request.is_valid(&extra), "speculative fields are a contract error (closed set)");
+    assert!(
+        !request.is_valid(&extra),
+        "speculative fields are a contract error (closed set)"
+    );
 
     let wrong_type = serde_json::json!({ "path": 42 });
     assert!(!request.is_valid(&wrong_type), "path is a string, verbatim");

@@ -17,6 +17,14 @@ describe("the play button names one next step", () => {
     expect(playFlowPhase(facts({ check: check(false), confirmed: true, preparing: true }))).toBe("running");
     expect(playFlowPhase(facts({ check: check(false), confirmed: true, task: task("running"), taskActive: true }))).toBe("running");
     expect(playFlowPhase(facts({ check: check(true), confirmed: true }))).toBe("launch");
+    expect(playFlowPhase(facts({ check: check(true) }))).toBe("launch");
+  });
+
+  it("follows the running observation when it is newer than the finished check", () => {
+    expect(playFlowPhase(facts({ check: check(false), observedReady: true }))).toBe("launch");
+    expect(playFlowPhase(facts({ check: null, observedReady: true }))).toBe("launch");
+    expect(playFlowPhase(facts({ check: check(true), observedReady: false }))).toBe("confirm");
+    expect(playFlowPhase(facts({ check: check(false), observedReady: null }))).toBe("confirm");
     expect(playFlowPhase(facts({ check: check(true), confirmed: true, launchPending: true }))).toBe("starting");
     expect(playFlowPhase(facts({ check: check(true), confirmed: true, session: session("running", true) }))).toBe("stop");
   });
@@ -37,10 +45,9 @@ describe("the play checklist", () => {
     { id: "check", automatic: true }, { id: "install", automatic: true }, { id: "steam-account", automatic: false },
     { id: "launch", automatic: true }, { id: "recovery", automatic: false },
   ] } as unknown as ScenarioSop;
-  it("reflects observed facts for automatic steps and the confirmation for the player's own", () => {
-    expect(playChecklist(sop, { check: check(false), confirmed: false, session: null }).map(i => [i.id, i.done]))
-      .toEqual([["check", true], ["install", false], ["steam-account", false], ["launch", false]]);
-    expect(playChecklist(sop, { check: check(true), confirmed: true, session: session("running", true) }).every(i => i.done)).toBe(true);
+  it("lists the steps to read, without the recovery note", () => {
+    expect(playChecklist(sop).map(i => [i.id, i.automatic]))
+      .toEqual([["check", true], ["install", true], ["steam-account", false], ["launch", true]]);
   });
   it("asks again when the steps or the connection change", () => {
     const usb = checklistSignature(sop, "usb");

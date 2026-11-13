@@ -398,7 +398,16 @@ fn orc_sto_009_snapshot_identifier_rejects_traversal_and_invalid_characters() {
         .expect("alphanumeric, dash and underscore identifiers must be accepted");
     // The public grammar gate (for callers re-validating ids recovered from
     // persisted payloads) shares the same vectors — single grammar source.
-    for id in ["", "../escape", "a/b", "a\\b", "a b", "快照", "a.b", ".hidden"] {
+    for id in [
+        "",
+        "../escape",
+        "a/b",
+        "a\\b",
+        "a b",
+        "快照",
+        "a.b",
+        ".hidden",
+    ] {
         assert_eq!(
             FileSystemSnapshotStore::validate_snapshot_id(id)
                 .unwrap_err()

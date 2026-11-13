@@ -208,10 +208,19 @@ impl LibraryDownloadService {
             return Ok(Some(prior.task_id));
         }
         let removed = self.bdl.removed_local_entries()?;
-        let copies: Vec<_> = self.bdl.library_copy_evidence()?.into_iter().filter(|copy| !removed.contains(&copy.copy.warehouse_item_id)).collect();
+        let copies: Vec<_> = self
+            .bdl
+            .library_copy_evidence()?
+            .into_iter()
+            .filter(|copy| !removed.contains(&copy.copy.warehouse_item_id))
+            .collect();
         let reference_hashes: HashSet<_> = copies
             .iter()
-            .filter(|copy| (copy.downloadable_id.is_some() || copy.archive_downloadable_id.is_some() && copy.archive_current) && copy.copy.role == CopyRole::Original)
+            .filter(|copy| {
+                (copy.downloadable_id.is_some()
+                    || copy.archive_downloadable_id.is_some() && copy.archive_current)
+                    && copy.copy.role == CopyRole::Original
+            })
             .map(|copy| copy.copy.artifact_sha256.as_str())
             .collect();
         let candidate_ids: HashSet<_> = copies

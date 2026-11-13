@@ -18,6 +18,206 @@
       "type": "string",
       "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))Assets/[^\\\\:\\u0000]+$"
     },
+    "optimizerMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "overall",
+        "stats",
+        "triangles",
+        "materialSlots",
+        "meshes",
+        "skinnedMeshes",
+        "textureBytes",
+        "textureComplete",
+        "meshBytes",
+        "meshComplete",
+        "physBones",
+        "physBonesKnown"
+      ],
+      "properties": {
+        "platform": {
+          "enum": [
+            "",
+            "pc",
+            "android"
+          ]
+        },
+        "overall": {
+          "enum": [
+            "",
+            "None",
+            "Excellent",
+            "Good",
+            "Medium",
+            "Poor",
+            "VeryPoor"
+          ]
+        },
+        "stats": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "category",
+              "rating",
+              "text"
+            ],
+            "properties": {
+              "category": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600,
+                "pattern": "^[^\\u0000]+$"
+              },
+              "rating": {
+                "enum": [
+                  "Excellent",
+                  "Good",
+                  "Medium",
+                  "Poor",
+                  "VeryPoor"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 600,
+                "pattern": "^[^\\u0000]*$"
+              }
+            }
+          }
+        },
+        "triangles": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "materialSlots": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "meshes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "skinnedMeshes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "textureBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "textureComplete": {
+          "type": "boolean"
+        },
+        "meshBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "meshComplete": {
+          "type": "boolean"
+        },
+        "physBones": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "physBonesKnown": {
+          "type": "boolean"
+        }
+      }
+    },
+    "optimizerReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "localMeasurementOnly",
+        "enabled",
+        "measuredAt",
+        "before",
+        "after",
+        "detail"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "not_run",
+            "measured",
+            "failed"
+          ]
+        },
+        "localMeasurementOnly": {
+          "const": true
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "measuredAt": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "before": {
+          "$ref": "#/$defs/optimizerMetrics"
+        },
+        "after": {
+          "$ref": "#/$defs/optimizerMetrics"
+        },
+        "detail": {
+          "type": "string",
+          "maxLength": 600,
+          "pattern": "^[^\\u0000]*$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "measured"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "measuredAt": {
+                "minLength": 1
+              },
+              "before": {
+                "properties": {
+                  "platform": {
+                    "enum": [
+                      "pc",
+                      "android"
+                    ]
+                  }
+                }
+              },
+              "after": {
+                "properties": {
+                  "platform": {
+                    "enum": [
+                      "pc",
+                      "android"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
     "sourceId": {
       "type": "string",
       "minLength": 1,
@@ -1059,7 +1259,8 @@
         "amf_sdk_fix",
         "amf_ft_patch",
         "amf_texture_import",
-        "amf_outfit_remove"
+        "amf_outfit_remove",
+        "amf_optimizer"
       ]
     },
     "status": {
@@ -1612,6 +1813,19 @@
             "$ref": "#/$defs/outfitRemovalApplied"
           }
         },
+        "optimizerReport": {
+          "$ref": "#/$defs/optimizerReport"
+        },
+        "optimizerWarnings": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "osc_gimmick_possible"
+            ]
+          }
+        },
         "materialPaths": {
           "type": "array",
           "maxItems": 4096,
@@ -1677,6 +1891,39 @@
                 "maxItems": 1,
                 "items": {
                   "$ref": "#/$defs/outfitRemovalApplied"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "amf_optimizer"
+          },
+          "status": {
+            "const": "succeeded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "required": [
+              "optimizerReport"
+            ],
+            "properties": {
+              "optimizerReport": {
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "measured",
+                      "failed"
+                    ]
+                  }
                 }
               }
             }

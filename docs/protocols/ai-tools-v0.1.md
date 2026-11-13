@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.11.0
+> Document version: 0.15.0
 > Status: Candidate
-> Updated: 2026-11-01
+> Updated: 2026-11-12
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -45,26 +45,29 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | Tools | Authority |
 | --- | --- |
 | `vua_status`, `vua_tasks`, `vua_task` | Current capabilities/task facts |
-| `vua_sop`, `vua_check_environment` | Independent [scenario read family](scenario-environment-v0.1.md) |
+| `vua_play_setups`, `vua_sop`, `vua_check_environment` | Independent [scenario read family](scenario-environment-v0.1.md) and [play-setup catalog/SOP v0.2](scenario-environment-v0.2.md) |
 | `vua_unity_license` | Metadata-only [Unity license hints](unity-license-v0.1.md) and historical checks; starts no program |
 | `vua_plan_installation`, `vua_request_installation` | Existing digest-bound deployment plan/execute |
 | `vua_play_status`, `vua_request_play` | Existing route observations and card-owned launch/stop; preexisting applications retained |
-| `vua_tool_status`, `vua_request_tool` | Candidate Steam connections for VRCFaceTracking, OpenVR Space Calibrator, OVR Advanced Settings, OVR Toolkit, OyasumiVR and OVR Overlay Translator |
+| `vua_tool_status`, `vua_request_tool` | Candidate Steam connections for VRCFaceTracking, OpenVR Space Calibrator, OVR Advanced Settings, OVR Toolkit, OyasumiVR, OVR Overlay Translator, ChilloutVR, Reborn, Desktop+ and fpsVR |
 | `vua_library`, `vua_material_files` | Bounded existing local AMF/BDL library queries; no login/download/upload |
 | `vua_terms`, `vua_terms_check` | Recorded [VN3 terms](terms-v0.1.md) of BOOTH products and one use checked across several; local evidence only |
 | `vua_amf_materials`, `vua_amf_run`, `vua_amf_plan`, `vua_amf_release` | Candidate material-first read/plan facts and a finished Avatar's turntable and uploads |
 | `vua_request_amf_prepare`, `vua_request_amf_assemble`, `vua_request_amf_reinspect`, `vua_request_amf_open` | Existing [AMF production](amf-production-v0.1.md) authority and Bridge v5 |
+| `vua_request_amf_local_test` | Local Windows PC SDK test of a finished Avatar; ordinary player approval, no upload rights confirmation |
 | `vua_request_amf_upload` | [Managed upload](amf-production-v0.1.md#release); confirmed on the release page with the player's rights confirmation |
 | `vua_request_cancel_task` | Existing revision-bound cancellation request |
 | `vua_action_status` | Local approval receipt; never grants approval |
 | `vua_withdraw_request` | Withdraws a request still waiting for the player; nothing runs |
 
 The two Steam tools accept the `toolId` values from `EXTERNAL_TOOL_IDS` in
-`packages/contracts/src/external-tool.ts`; other IDs are rejected by the MCP input schema.
+`packages/contracts/src/external-tool.ts` apart from VRChat and SteamVR, which agents reach through
+the play tools; other IDs are rejected by the MCP input schema.
 For example, `vua_tool_status {"toolId":"space"}` reads Space Calibrator's installation and
 process facts. `vua_request_tool {"toolId":"space","action":"start"}` queues a request for the
 player to approve on the Tools page before dispatch. Actions and observed fields follow
-[external tool connection v0.2](external-tool-v0.2.md). Installation or a running process does
+[external tool connection v0.4](external-tool-v0.4.md), and a reinstall stays with the player on the
+tool's own page. Installation or a running process does
 not establish module, hardware, tracking or OSC configuration.
 
 `vua_amf_plan` without a selection plans VUA's [recommendation](amf-production-v0.1.md) and returns
@@ -112,9 +115,10 @@ and result-fact counts. Each prefab has only `path`, `name`, `isAvatar` and `hum
 SDK review retains its state, platform, overall rating, issue counts by level and category
 ratings. A run with version records gives the five newest in `revisions` and their number in
 `revisionCount`; the run Resource holds them all. Rendered previews follow the
-link as before. `vua_amf_release` returns turntable/editor state and the latest three upload
-summaries, their total count within the Gateway view, and a link to the release URI. Read the
-Resource for full checks, bindings, diagnostics and upload explanations.
+link as before. `vua_amf_release` returns turntable/editor state, the last observed upload
+eligibility, the latest three upload and local-test summaries, their respective counts within
+the Gateway view, and a link to the release URI. Read the Resource for full checks, bindings,
+diagnostics and SDK explanations.
 
 The report-shaped synthetic regression fixtures assert fewer than 10,000 UTF-8 bytes of text
 per default `vua_status`, `vua_tasks`, `vua_amf_run` and `vua_library` response. This measurement
@@ -194,6 +198,12 @@ before asking the player. While a step runs, `vua_amf_run` data carries its
 [progress](amf-production-v0.1.md#progress-stop-and-continue): the step, its elapsed and usual
 seconds and, inside Unity, the Unity stage, imported count and last log activity.
 
+A local test request from `vua_request_amf_local_test` carries only the run. It is reviewed and
+approved through the ordinary action queue, then dispatches `amf.production.localTest`. It does
+not accept an upload name or rights confirmation. The release summary includes the latest three
+local tests, their count and timestamped upload eligibility; the full release Resource retains
+the Provider response. A successful local build is not confirmation that the player wore it in VRChat.
+
 An upload request from `vua_request_amf_upload` carries only the run. Its confirmation is the
 release page's upload dialog: the player names a new Avatar and confirms the content rights
 statement, and only that confirmation completes and dispatches `amf.production.upload`. The
@@ -240,6 +250,10 @@ The [Recipe v0.5 contract](amf-recipe-v0.5.md) owns statuses, match rules and di
 
 ## Document changelog
 
+- 0.15.0 (2026-11-12): add Desktop+ and fpsVR to the Steam tools (`external-tool v0.4`).
+- 0.14.0 (2026-11-11): add `vua_play_setups` (`environment.listPlaySetups` `v0.2`) and `vua_sop` `selection` (`environment.getScenarioSop` `v0.2`) while keeping `v0.1` scenario SOP queries intact.
+- 0.13.0 (2026-11-08): request approved local Avatar tests and read bounded test summaries and upload eligibility.
+- 0.12.0 (2026-11-06): add ChilloutVR and Reborn to the Steam tools; VRChat and SteamVR stay with the play tools, and a reinstall stays with the player.
 - 0.10.1 (2026-10-31): the connection page opens from its own top-bar button instead of Help.
 - 0.10.0 (2026-10-29): expose all six connected Steam tools through contract-derived MCP tool IDs, retaining player approval on the Tools page and installation/process-only observations.
 - 0.9.0 (2026-10-24): expose complete Recipe material checklists and reviewed mapping differences.

@@ -11,6 +11,9 @@ const destinations = {
   android_modules: ["https://docs.unity.com/en-us/hub/add-modules"],
 } as const;
 
+/** The official page PICO's own software installs from. */
+export const PICO_RUNTIME_PAGE = destinations.pico_runtime[0];
+
 export interface DeploymentManualHandoff {
   readonly component: keyof typeof destinations;
   readonly officialUrl: string;

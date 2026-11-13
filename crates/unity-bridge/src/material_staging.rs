@@ -65,9 +65,9 @@ pub fn staging_root(temp_root: &Path, session_id: &str) -> io::Result<PathBuf> {
 fn validate_session_id(session_id: &str) -> io::Result<()> {
     let valid = !session_id.is_empty()
         && session_id.len() <= 128
-        && session_id
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || character == '-' || character == '_');
+        && session_id.chars().all(|character| {
+            character.is_ascii_alphanumeric() || character == '-' || character == '_'
+        });
     if valid {
         Ok(())
     } else {
@@ -98,7 +98,10 @@ impl StagingProject {
             root.join("ProjectSettings").join("ProjectVersion.txt"),
             STAGING_PROJECT_VERSION_TXT,
         )?;
-        fs::write(root.join("Packages").join("manifest.json"), STAGING_MANIFEST_JSON)?;
+        fs::write(
+            root.join("Packages").join("manifest.json"),
+            STAGING_MANIFEST_JSON,
+        )?;
         // The scaffold (Bridge package + MA compile stub) is what makes the
         // staging project able to execute Bridge commands at all; without
         // it the first dispatch fails for lack of a batchmode entry point.

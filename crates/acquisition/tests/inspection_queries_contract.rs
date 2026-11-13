@@ -22,18 +22,15 @@ use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
 fn methods_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../schemas/inspection-queries/v0.1/methods")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/inspection-queries/v0.1/methods")
 }
 
 fn examples_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../schemas/inspection-queries/v0.1/examples")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/inspection-queries/v0.1/examples")
 }
 
 fn evidence_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../schemas/inspection-evidence/v0.1")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/inspection-evidence/v0.1")
 }
 
 fn read_json_at(dir: &Path, relative: &str) -> Value {
@@ -62,7 +59,10 @@ fn sub_schema_validator(method: &str, def_suffix: &str) -> Validator {
     // Same compilation shape as the production-use-case v0.2 vector tests
     // (crates/provider-host/tests/production_use_case_vectors.rs).
     let schema = read_json(&format!("{method}.schema.json"));
-    let defs = schema.get("$defs").expect("method schema has $defs").clone();
+    let defs = schema
+        .get("$defs")
+        .expect("method schema has $defs")
+        .clone();
     let sub = defs
         .get(format!("{method}{def_suffix}").as_str())
         .expect("sub schema")
@@ -170,9 +170,11 @@ fn get_result_document_double_validates_against_the_evidence_body_schema() {
     // in force by the accepted arbitration) while the envelope validates
     // against the method face.
     let get_result = result_validator("inspection-get");
-    let body_validator =
-        jsonschema::validator_for(&read_json_at(&evidence_dir(), "inspection-evidence.schema.json"))
-            .expect("evidence body schema compiles");
+    let body_validator = jsonschema::validator_for(&read_json_at(
+        &evidence_dir(),
+        "inspection-evidence.schema.json",
+    ))
+    .expect("evidence body schema compiles");
 
     let vector = read_example("inspection-get.result.json");
     let errors = violations(&get_result, &vector);
@@ -191,7 +193,10 @@ fn get_result_document_double_validates_against_the_evidence_body_schema() {
     // The sibling positive vector of the draft body (five dimensions with a
     // producing operation per dimension) also rides the read face: the
     // vocabulary row consumes the draft shape as-is.
-    let full = read_json_at(&evidence_dir(), "examples/full-five-dimensions.inspection.json");
+    let full = read_json_at(
+        &evidence_dir(),
+        "examples/full-five-dimensions.inspection.json",
+    );
     let envelope = json!({
         "inspectionId": full["inspectionId"],
         "inspectionDocument": full,
@@ -214,7 +219,13 @@ fn list_entry_is_an_identity_row_and_never_inlines_the_body() {
     let entry = &schema["$defs"]["entry"];
     assert_eq!(entry["additionalProperties"], json!(false));
     let properties = entry["properties"].as_object().expect("entry properties");
-    for banned in ["dimensions", "checks", "bridge", "notes", "inspectionDocument"] {
+    for banned in [
+        "dimensions",
+        "checks",
+        "bridge",
+        "notes",
+        "inspectionDocument",
+    ] {
         assert!(
             !properties.contains_key(banned),
             "the list entry must not inline body member '{banned}'"

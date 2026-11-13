@@ -67,7 +67,10 @@ pub mod codes {
 /// weakened entry.
 fn validate_entry(index: usize, entry: &AllowlistEntryV01) -> Result<(), AllowlistLoadError> {
     let at = |detail: String| {
-        AllowlistLoadError::new(codes::ELEMENT_INCOMPLETE, format!("entries[{index}]: {detail}"))
+        AllowlistLoadError::new(
+            codes::ELEMENT_INCOMPLETE,
+            format!("entries[{index}]: {detail}"),
+        )
     };
     for (field, value) in [
         ("processName", &entry.process_name),
@@ -79,7 +82,9 @@ fn validate_entry(index: usize, entry: &AllowlistEntryV01) -> Result<(), Allowli
         ("releaseNotes", &entry.release_notes),
     ] {
         if value.trim().is_empty() {
-            return Err(at(format!("{field} is required (R2 four elements + provenance)")));
+            return Err(at(format!(
+                "{field} is required (R2 four elements + provenance)"
+            )));
         }
     }
     if entry.process_name != entry.process_name.to_ascii_lowercase() {

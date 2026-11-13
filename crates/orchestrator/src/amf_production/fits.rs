@@ -138,7 +138,12 @@ pub struct FitRef {
 /// A fit identity names a bounded plain file in the store.
 fn fit_id_path(root: &Path, fit_id: &str) -> Option<PathBuf> {
     let rest = fit_id.strip_prefix("fit-")?;
-    if rest.is_empty() || rest.len() > 72 || !rest.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_')) {
+    if rest.is_empty()
+        || rest.len() > 72
+        || !rest
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
+    {
         return None;
     }
     Some(root.join("fits").join(format!("{fit_id}.json")))
@@ -158,7 +163,9 @@ impl FitStore {
     }
     /// Every stored fit, newest first; unreadable or unparseable records are skipped.
     pub fn list(&self) -> Vec<StoredFit> {
-        let Ok(entries) = fs::read_dir(self.dir()) else { return Vec::new() };
+        let Ok(entries) = fs::read_dir(self.dir()) else {
+            return Vec::new();
+        };
         let mut fits: Vec<StoredFit> = entries
             .flatten()
             .filter_map(|entry| {
@@ -181,7 +188,9 @@ impl FitStore {
     }
     /// The stored fit with this exact garment and Avatar identity, when one exists.
     pub fn find(&self, garment: &FitIdentity, avatar: &FitIdentity) -> Option<StoredFit> {
-        self.list().into_iter().find(|fit| fit.garment == *garment && fit.avatar == *avatar)
+        self.list()
+            .into_iter()
+            .find(|fit| fit.garment == *garment && fit.avatar == *avatar)
     }
     pub fn save(&self, fit: &StoredFit) -> Result<(), AppErrorV1> {
         let Some(path) = fit_id_path(&self.root, &fit.fit_id) else {
@@ -194,7 +203,9 @@ impl FitStore {
     }
     /// Deletes the fit; false when no such fit exists.
     pub fn delete(&self, fit_id: &str) -> Result<bool, AppErrorV1> {
-        let Some(path) = fit_id_path(&self.root, fit_id) else { return Ok(false) };
+        let Some(path) = fit_id_path(&self.root, fit_id) else {
+            return Ok(false);
+        };
         match fs::remove_file(path) {
             Ok(()) => Ok(true),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
@@ -223,7 +234,11 @@ pub fn default_fit_name(garment_name: &str, avatar_name: &str) -> String {
         .filter(|c| !c.is_whitespace())
         .take(80)
         .collect();
-    if name.is_empty() { "Fit".into() } else { name }
+    if name.is_empty() {
+        "Fit".into()
+    } else {
+        name
+    }
 }
 
 /// A fit name is a single line of 1–80 characters without control characters that contains
@@ -294,7 +309,11 @@ pub(crate) fn changes_file(run: &ProductionRun) -> PathBuf {
 fn write_json_atomic(path: &Path, value: &impl Serialize) -> Result<(), AppErrorV1> {
     fs::create_dir_all(path.parent().expect("fit file parent")).map_err(io_error)?;
     let pending = path.with_extension("pending");
-    fs::write(&pending, serde_json::to_vec_pretty(value).map_err(io_error)?).map_err(io_error)?;
+    fs::write(
+        &pending,
+        serde_json::to_vec_pretty(value).map_err(io_error)?,
+    )
+    .map_err(io_error)?;
     fs::rename(&pending, path).map_err(io_error)
 }
 
@@ -305,8 +324,14 @@ pub fn fit_identity(
     selection: &AssemblySelection,
     source_id: &str,
 ) -> Option<(FitIdentity, FitIdentity)> {
-    let outfit = selection.outfits.iter().find(|outfit| outfit.source_id == source_id)?;
-    let garment_source = run.sources.iter().find(|source| source.source_id == source_id)?;
+    let outfit = selection
+        .outfits
+        .iter()
+        .find(|outfit| outfit.source_id == source_id)?;
+    let garment_source = run
+        .sources
+        .iter()
+        .find(|source| source.source_id == source_id)?;
     let avatar_candidate = run
         .prefabs
         .iter()
@@ -350,12 +375,29 @@ impl AmfProductionEngine {
             .outfits
             .iter()
             .filter_map(|outfit| {
-                let source = run.sources.iter().find(|source| source.source_id == outfit.source_id);
-                let material_id = run.recipe_material_sources.iter().find(|(_,id)| **id == outfit.source_id).map(|(material,_)| material.clone()).or_else(|| source.map(|source| {
-                    format!("m-{}", source.sha256.strip_prefix("sha256:").unwrap_or(&source.sha256))
-                }));
-                if let Some(recipe_fit) =
-                    material_id.as_ref().and_then(|id| recipe_fits.iter().find(|fit| fit.material_id == *id))
+                let source = run
+                    .sources
+                    .iter()
+                    .find(|source| source.source_id == outfit.source_id);
+                let material_id = run
+                    .recipe_material_sources
+                    .iter()
+                    .find(|(_, id)| **id == outfit.source_id)
+                    .map(|(material, _)| material.clone())
+                    .or_else(|| {
+                        source.map(|source| {
+                            format!(
+                                "m-{}",
+                                source
+                                    .sha256
+                                    .strip_prefix("sha256:")
+                                    .unwrap_or(&source.sha256)
+                            )
+                        })
+                    });
+                if let Some(recipe_fit) = material_id
+                    .as_ref()
+                    .and_then(|id| recipe_fits.iter().find(|fit| fit.material_id == *id))
                 {
                     return Some(AppliedFit {
                         source_id: outfit.source_id.clone(),
@@ -392,7 +434,9 @@ impl AmfProductionEngine {
                         }
                     }
             });
-        let changes = overlay.map(|file| file.fit_changes).unwrap_or_else(|| run.fit_changes.clone());
+        let changes = overlay
+            .map(|file| file.fit_changes)
+            .unwrap_or_else(|| run.fit_changes.clone());
         let store = self.fit_store();
         let available = run
             .selection
@@ -438,7 +482,10 @@ impl AmfProductionEngine {
             .iter()
             .find(|entry| entry.source_id == source_id)
             .ok_or_else(|| {
-                production_error("fit_changes_missing", "This garment reports no adjustments to save. Check the line again.")
+                production_error(
+                    "fit_changes_missing",
+                    "This garment reports no adjustments to save. Check the line again.",
+                )
             })?;
         if changes_digest(&run.run_id, source_id, entry) != digest {
             return Err(production_error(
@@ -447,22 +494,35 @@ impl AmfProductionEngine {
             ));
         }
         let selection = run.selection.clone().filter(|selection| {
-            selection.outfits.iter().any(|outfit| outfit.source_id == source_id)
+            selection
+                .outfits
+                .iter()
+                .any(|outfit| outfit.source_id == source_id)
         });
         let selection = selection.ok_or_else(|| {
-            production_error("fit_changes_missing", "This garment is not part of the line's current selection.")
+            production_error(
+                "fit_changes_missing",
+                "This garment is not part of the line's current selection.",
+            )
         })?;
         let (garment, avatar) = fit_identity(&run, &selection, source_id).ok_or_else(|| {
-            production_error("fit_changes_missing", "This garment's identity is not fully observed. Reinspect the line.")
+            production_error(
+                "fit_changes_missing",
+                "This garment's identity is not fully observed. Reinspect the line.",
+            )
         })?;
         let baseline_path = baseline_file(&run);
         let mut baseline: FitBaseline = fs::read(&baseline_path)
             .ok()
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .ok_or_else(|| {
-                production_error("fit_baseline_missing", "The assembly baseline is missing. Assemble the line again, then save the fit.")
+                production_error(
+                    "fit_baseline_missing",
+                    "The assembly baseline is missing. Assemble the line again, then save the fit.",
+                )
             })?;
-        let Some(baseline_garment) = baseline.garments.iter().find(|g| g.source_id == source_id) else {
+        let Some(baseline_garment) = baseline.garments.iter().find(|g| g.source_id == source_id)
+        else {
             return Err(production_error(
                 "fit_baseline_missing",
                 "The assembly baseline does not cover this garment. Assemble the line again, then save the fit.",
@@ -516,7 +576,11 @@ impl AmfProductionEngine {
             }
         };
         store.save(&fit)?;
-        if let Some(garment) = baseline.garments.iter_mut().find(|g| g.source_id == source_id) {
+        if let Some(garment) = baseline
+            .garments
+            .iter_mut()
+            .find(|g| g.source_id == source_id)
+        {
             garment.objects = fit.objects.clone();
         }
         write_json_atomic(&baseline_path, &baseline)?;
@@ -532,7 +596,13 @@ impl AmfProductionEngine {
                 if remaining.is_empty() {
                     fs::remove_file(&path).map_err(io_error)?;
                 } else {
-                    write_json_atomic(&path, &FitChangesFile { fit_changes: remaining, ..file })?;
+                    write_json_atomic(
+                        &path,
+                        &FitChangesFile {
+                            fit_changes: remaining,
+                            ..file
+                        },
+                    )?;
                 }
             }
         }
@@ -553,9 +623,9 @@ impl AmfProductionEngine {
             ));
         }
         let store = self.fit_store();
-        let mut fit = store
-            .get(fit_id)
-            .ok_or_else(|| production_error("fit_not_found", "There is no saved fit with this ID."))?;
+        let mut fit = store.get(fit_id).ok_or_else(|| {
+            production_error("fit_not_found", "There is no saved fit with this ID.")
+        })?;
         fit.name = name.to_owned();
         fit.updated_at = SystemClock.now_rfc3339();
         store.save(&fit)?;
@@ -564,7 +634,10 @@ impl AmfProductionEngine {
 
     pub fn delete_fit(&self, fit_id: &str) -> Result<(), AppErrorV1> {
         if !self.fit_store().delete(fit_id)? {
-            return Err(production_error("fit_not_found", "There is no saved fit with this ID."));
+            return Err(production_error(
+                "fit_not_found",
+                "There is no saved fit with this ID.",
+            ));
         }
         Ok(())
     }

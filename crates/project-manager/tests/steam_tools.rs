@@ -124,16 +124,31 @@ fn absent_unreadable_and_untrusted_metadata_do_not_become_installed() {
             inspect_libraries(&[], false, false, spec).presence,
             "missing"
         );
-        assert_eq!(
-            inspect_libraries(&[], true, true, spec).presence,
-            "unknown"
-        );
+        assert_eq!(inspect_libraries(&[], true, true, spec).presence, "unknown");
         for text in [
-            format!("\"appid\" \"123\" \"StateFlags\" \"4\" \"installdir\" \"{}\"", spec.install_dir),
-            format!("\"appid\" \"{}\" \"StateFlags\" \"4\" \"installdir\" \"../outside\"", spec.app_id),
-            format!("\"appid\" \"{}\" \"StateFlags\" \"4\" \"installdir\" \"C:\\private\"", spec.app_id),
-            format!("\"appid\" \"{0}\" \"appid\" \"{0}\" \"StateFlags\" \"4\" \"installdir\" \"{1}\"", spec.app_id, spec.install_dir),
-        ] { fs::write(fixture.manifest_path(), text).unwrap(); assert_eq!(inspect_libraries(&[fixture.common()], true, false, spec).presence, "unknown"); }
+            format!(
+                "\"appid\" \"123\" \"StateFlags\" \"4\" \"installdir\" \"{}\"",
+                spec.install_dir
+            ),
+            format!(
+                "\"appid\" \"{}\" \"StateFlags\" \"4\" \"installdir\" \"../outside\"",
+                spec.app_id
+            ),
+            format!(
+                "\"appid\" \"{}\" \"StateFlags\" \"4\" \"installdir\" \"C:\\private\"",
+                spec.app_id
+            ),
+            format!(
+                "\"appid\" \"{0}\" \"appid\" \"{0}\" \"StateFlags\" \"4\" \"installdir\" \"{1}\"",
+                spec.app_id, spec.install_dir
+            ),
+        ] {
+            fs::write(fixture.manifest_path(), text).unwrap();
+            assert_eq!(
+                inspect_libraries(&[fixture.common()], true, false, spec).presence,
+                "unknown"
+            );
+        }
         fs::write(fixture.manifest_path(), [255, 254]).unwrap();
         assert_eq!(
             inspect_libraries(&[fixture.common()], true, false, spec).presence,
@@ -161,7 +176,11 @@ fn a_second_fixed_tool_uses_only_its_own_manifest_directory_and_executable() {
     assert_eq!(installed.build_id.as_deref(), Some("123"));
     assert_eq!(
         installed.executable,
-        Some(fixture.common().join("01spacecalibrator/SpaceCalibrator.exe"))
+        Some(
+            fixture
+                .common()
+                .join("01spacecalibrator/SpaceCalibrator.exe")
+        )
     );
     // A complete space installation answers nothing about another tool.
     assert_eq!(

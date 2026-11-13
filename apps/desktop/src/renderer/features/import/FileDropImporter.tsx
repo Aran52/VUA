@@ -1,10 +1,44 @@
 import { useEffect, useRef, useState } from "react";
+import type { AmfModuleApiV01, AmfModuleSnapshotV01 } from "@vua/contracts";
 import { Icon } from "@vua/design-system";
 import { Button } from "../../components/primitives/Button.tsx";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { useAmfModule, useGateway } from "../../gateway/index.ts";
 import { strings, format, TERMS } from "../../i18n/index.ts";
 import "./file-drop.css";
+
+export function waitForAmfStartup(
+  port: Pick<AmfModuleApiV01, "snapshot" | "subscribe">,
+  initial: AmfModuleSnapshotV01,
+  timeoutMs = 15_000,
+): Promise<AmfModuleSnapshotV01> {
+  if (!initial.installed || initial.state !== "starting") return Promise.resolve(initial);
+  return new Promise(resolve => {
+    let latest = initial;
+    let settled = false;
+    let unsubscribe: (() => void) | null = null;
+    const finish = (next: AmfModuleSnapshotV01) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      unsubscribe?.();
+      resolve(next);
+    };
+    const timer = setTimeout(() => finish(latest), timeoutMs);
+    unsubscribe = port.subscribe(next => {
+      latest = next;
+      if (next.state !== "starting") finish(next);
+    });
+    if (settled) {
+      unsubscribe();
+      return;
+    }
+    void port.snapshot().then(next => {
+      latest = next;
+      if (next.state !== "starting") finish(next);
+    }).catch(() => {});
+  });
+}
 
 /** The host catches native drops; AMF owns copying and the normal task channel. */
 export function FileDropImporter({ onOpenLibrary }: { onOpenLibrary: () => void }) {
@@ -29,10 +63,14 @@ export function FileDropImporter({ onOpenLibrary }: { onOpenLibrary: () => void 
       const face = window.vua?.library;
       if (typeof face?.resolveDroppedFiles !== "function") { setPending(null); setError(copy.unavailable); setDialogOpen(true); return; }
       const snapshot = enable ? await gateway.amfModule.setEnabled(true) : null;
-      const current = snapshot?.snapshot ?? await gateway.amfModule.snapshot();
+      let current = snapshot?.snapshot ?? await gateway.amfModule.snapshot();
       if (snapshot?.outcome === "busy") { setError(copy.busy); setDialogOpen(true); return; }
+      if (!enable && current.installed && current.state === "starting") {
+        current = await waitForAmfStartup(gateway.amfModule, current);
+      }
       if (current.state !== "ready" || snapshot?.outcome === "failed") { setPending(files); setDialogOpen(true); if (enable) setError(copy.failed); return; }
       const paths = await face.resolveDroppedFiles(files);
+      if (paths.length === 0) { commandId.current = null; setPending(null); setDialogOpen(false); return; }
       commandId.current ??= `whcmd-${crypto.randomUUID()}`;
       const outcome = await gateway.warehouseCommands.importPaths(paths, { commandId: commandId.current });
       if (!outcome.ok || !("accepted" in outcome)) { setPending(files); setError(copy.failed); setDialogOpen(true); return; }
@@ -56,12 +94,15 @@ export function FileDropImporter({ onOpenLibrary }: { onOpenLibrary: () => void 
   useEffect(() => {
     let depth = 0;
     const nativeFiles = (event: DragEvent) => event.dataTransfer?.types.includes("Files") === true;
+    const ignoredTarget = (event: DragEvent) => event.target instanceof Element && event.target.closest("[data-share-drop],input,textarea") !== null;
     const enter = (event: DragEvent) => {
       if (!nativeFiles(event)) return;
+      if (ignoredTarget(event)) { depth = 0; setDragging(false); return; }
       event.preventDefault(); depth++; setDragging(true);
     };
     const over = (event: DragEvent) => {
       if (!nativeFiles(event)) return;
+      if (ignoredTarget(event)) { depth = 0; setDragging(false); return; }
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = busy.current ? "none" : "copy";
     };
@@ -71,9 +112,13 @@ export function FileDropImporter({ onOpenLibrary }: { onOpenLibrary: () => void 
     };
     const drop = (event: DragEvent) => {
       if (!nativeFiles(event)) return;
-      event.preventDefault(); event.stopPropagation(); depth = 0; setDragging(false);
+      if (ignoredTarget(event)) { depth = 0; setDragging(false); return; }
       // Read before DataTransfer's protected store closes; no File contents leave VUA.
       const files = Array.from(event.dataTransfer?.files ?? []);
+      if (event.target instanceof Element && event.target.closest(".vua-control") !== null && files.length === 1 && /\.(png|jpe?g|gif|webp)$/iu.test(files[0]!.name)) {
+        depth = 0; setDragging(false); return;
+      }
+      event.preventDefault(); event.stopPropagation(); depth = 0; setDragging(false);
       if (files.length > 0) beginRef.current(files);
     };
     const reset = () => { depth = 0; setDragging(false); };

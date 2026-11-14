@@ -54,11 +54,19 @@ describe("pose-graph v0.1 contract", () => {
     const base = structuredClone(vectors.validResults[0]) as {
       poseGraph: {
         pharosHub: {
+          telemetryFresh: boolean;
           wearableNodes: { slot: string; state: string; footHeadingAvailable: boolean }[];
         };
       };
     };
-    base.poseGraph.pharosHub.wearableNodes[0]!.footHeadingAvailable = true;
+    const disconnectedNode = base.poseGraph.pharosHub.wearableNodes.find(
+      node => node.state === "not_connected",
+    )!;
+    disconnectedNode.footHeadingAvailable = true;
     expect(isPoseGraphResultV01(base)).toBe(false);
+
+    const stale = structuredClone(vectors.validResults[0]) as typeof base;
+    stale.poseGraph.pharosHub.telemetryFresh = false;
+    expect(isPoseGraphResultV01(stale)).toBe(false);
   });
 });

@@ -58,13 +58,18 @@ export function GlbInspectionSection({
       <p className="vua-caption vua-text-secondary">{copy.subtitle}</p>
       <ul className="vua-glb-inspection__list">
         {result.items.map((item) => (
-          <li key={`${item.copyId}:${item.fileName}`} className="vua-glb-inspection__item">
+          <li key={`${item.copyId}:${item.sourceKind}:${item.fileName}`} className="vua-glb-inspection__item">
             <div className="vua-glb-inspection__row">
               <span className="vua-glb-inspection__name" title={item.fileName}>
                 <Icon name="file" size={16} />
                 <span>{item.fileName}</span>
               </span>
               <span className="vua-glb-inspection__badges">
+                {item.sourceKind === "zip_member" && item.containerFileName ? (
+                  <Badge tone="neutral">
+                    {format(copy.zipMemberBadge, { archive: item.containerFileName })}
+                  </Badge>
+                ) : null}
                 <Badge tone={item.format === "vrm_1_0" ? "success" : item.format === "vrm_0_x" ? "warning" : "neutral"}>
                   {copy.formats[item.format]}
                 </Badge>
@@ -92,11 +97,62 @@ export function GlbInspectionSection({
                     })}
                   </span>
                 ) : null}
+                {item.format === "glb_2_0" && item.objectHeadClearance.mountOffsetCenterMeters ? (
+                  <span>
+                    {format(copy.mountCenterLine, {
+                      x: formatMeters(item.objectHeadClearance.mountOffsetCenterMeters[0]),
+                      y: formatMeters(item.objectHeadClearance.mountOffsetCenterMeters[1]),
+                      z: formatMeters(item.objectHeadClearance.mountOffsetCenterMeters[2]),
+                    })}
+                  </span>
+                ) : null}
                 {item.objectHeadClearance.status !== "unknown" ? (
                   <span>{copy.clearance[item.objectHeadClearance.status]}</span>
                 ) : null}
+                {item.contentSummary ? (
+                  <span>
+                    {format(copy.geometryLine, {
+                      tris: item.contentSummary.triangleEstimate.toLocaleString(),
+                      meshes: item.contentSummary.meshCount,
+                    })}
+                  </span>
+                ) : null}
+                {item.materialSummary && item.materialSummary.mtoonMaterialCount > 0 ? (
+                  <span>
+                    {format(copy.mtoonLine, {
+                      mtoon: item.materialSummary.mtoonMaterialCount,
+                      total: item.materialSummary.materialCount,
+                    })}
+                  </span>
+                ) : null}
+                {item.textureSummary && item.textureSummary.externalUriTextureCount > 0 ? (
+                  <span>
+                    {format(copy.externalTextureWarning, {
+                      count: item.textureSummary.externalUriTextureCount,
+                    })}
+                  </span>
+                ) : null}
+                {item.secondaryMotion
+                && (item.secondaryMotion.springBoneJointCount > 0 || item.secondaryMotion.expressionCount > 0) ? (
+                  <span>
+                    {format(copy.secondaryMotionLine, {
+                      springs: item.secondaryMotion.springBoneJointCount,
+                      expressions: item.secondaryMotion.expressionCount,
+                    })}
+                  </span>
+                ) : null}
                 {item.vrm ? (
                   <span>{format(copy.bonesLine, { bones: item.vrm.boneCount })}</span>
+                ) : null}
+                {item.vrm?.hasFullBodyBones ? (
+                  <span>{item.vrm.hasToeBones ? copy.pharosFbtReady : copy.pharosFbtNoToes}</span>
+                ) : null}
+                {item.vrm?.headBoneHeightMeters !== null && item.vrm?.headBoneHeightMeters !== undefined ? (
+                  <span>
+                    {format(copy.headHeightLine, {
+                      height: formatMeters(item.vrm.headBoneHeightMeters),
+                    })}
+                  </span>
                 ) : null}
               </div>
             ) : null}

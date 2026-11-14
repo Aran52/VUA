@@ -9,6 +9,7 @@
     "capturedAt",
     "openxr",
     "steamvrDrivers",
+    "blockedSteamvrDrivers",
     "lastHeadsetHint",
     "poseSources",
     "pharosHub"
@@ -48,7 +49,28 @@
           "alvr",
           "virtual_desktop",
           "lighthouse",
-          "pharos"
+          "pharos",
+          "mocopi",
+          "haritorax",
+          "rebocap"
+        ]
+      }
+    },
+    "blockedSteamvrDrivers": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "space_calibrator",
+          "slimevr",
+          "alvr",
+          "virtual_desktop",
+          "lighthouse",
+          "pharos",
+          "mocopi",
+          "haritorax",
+          "rebocap"
         ]
       }
     },
@@ -59,8 +81,8 @@
     },
     "poseSources": {
       "type": "array",
-      "minItems": 6,
-      "maxItems": 6,
+      "minItems": 10,
+      "maxItems": 10,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -73,6 +95,10 @@
               "slimevr",
               "pico_motion",
               "lighthouse",
+              "space_calibrator",
+              "mocopi",
+              "haritorax",
+              "rebocap",
               "eye_face_osc"
             ]
           },
@@ -92,6 +118,9 @@
       "additionalProperties": false,
       "required": [
         "state",
+        "telemetryState",
+        "calibrationState",
+        "spatialAnchorReady",
         "activeModes",
         "wearableNodes",
         "stereoBaseStationCount",
@@ -100,6 +129,15 @@
       "properties": {
         "state": {
           "enum": ["not_detected", "driver_registered", "running"]
+        },
+        "telemetryState": {
+          "enum": ["missing", "live", "stale", "malformed"]
+        },
+        "calibrationState": {
+          "enum": ["unknown", "uncalibrated", "calibrating", "calibrated"]
+        },
+        "spatialAnchorReady": {
+          "type": "boolean"
         },
         "activeModes": {
           "type": "array",
@@ -121,13 +159,32 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["slot", "state", "footHeadingAvailable"],
+            "required": [
+              "slot",
+              "state",
+              "trackingMode",
+              "batteryPercent",
+              "footHeadingAvailable"
+            ],
             "properties": {
               "slot": {
                 "enum": ["left_foot", "right_foot", "waist", "chest"]
               },
               "state": {
                 "enum": ["not_connected", "connected"]
+              },
+              "trackingMode": {
+                "oneOf": [
+                  { "type": "null" },
+                  {
+                    "enum": ["optical_imu", "passive_retroreflective", "imu_only"]
+                  }
+                ]
+              },
+              "batteryPercent": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "maximum": 100
               },
               "footHeadingAvailable": {
                 "type": "boolean"

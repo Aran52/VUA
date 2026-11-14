@@ -739,6 +739,52 @@ pub(crate) mod os {
         }
         Ok(false)
     }
+    /// Collects all live lowercase process basenames matching `candidates_lower` in a single
+    /// Toolhelp32 snapshot pass (1 kernel snapshot instead of N), filtering exited zombies.
+    #[cfg(windows)]
+    pub(crate) fn running_from_candidates(
+        candidates_lower: &[&str],
+    ) -> std::io::Result<std::collections::BTreeSet<String>> {
+        use windows_sys::Win32::{
+            Foundation::{CloseHandle, ERROR_NO_MORE_FILES, INVALID_HANDLE_VALUE},
+            System::Diagnostics::ToolHelp::{
+                CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+                TH32CS_SNAPPROCESS,
+            },
+        };
+        let handle = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
+        if handle == INVALID_HANDLE_VALUE {
+            return Err(std::io::Error::last_os_error());
+        }
+        let mut entry: PROCESSENTRY32W = unsafe { std::mem::zeroed() };
+        entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+        let mut more = unsafe { Process32FirstW(handle, &mut entry) };
+        let mut matched = std::collections::BTreeSet::new();
+        while more != 0 {
+            let end = entry
+                .szExeFile
+                .iter()
+                .position(|c| *c == 0)
+                .unwrap_or(entry.szExeFile.len());
+            let name = String::from_utf16_lossy(&entry.szExeFile[..end]).to_lowercase();
+            if !matched.contains(&name) && candidates_lower.iter().any(|c| *c == name) {
+                let exited_zombie =
+                    matches!(identity(entry.th32ProcessID), Err(e) if e.raw_os_error() == Some(87));
+                if !exited_zombie {
+                    matched.insert(name);
+                }
+            }
+            more = unsafe { Process32NextW(handle, &mut entry) };
+        }
+        let error = std::io::Error::last_os_error();
+        unsafe {
+            CloseHandle(handle);
+        }
+        if error.raw_os_error() != Some(ERROR_NO_MORE_FILES as i32) {
+            return Err(error);
+        }
+        Ok(matched)
+    }
     #[cfg(windows)]
     pub(crate) fn close(expected: &ProcessIdentity) -> std::io::Result<()> {
         use windows_sys::Win32::{

@@ -1943,6 +1943,7 @@ mod tests {
             steam_install_candidates: vec![base.join("Steam")],
             openvrpaths: vec![base.join("openvrpaths.vrpath")],
             pico_connect_settings_candidates: vec![base.join("PICO Connect").join("settings.json")],
+            pharos_status_candidates: Vec::new(),
             registry: Arc::new(FakeRegistrySource::new()),
             ..EnvironmentRoots::default()
         }

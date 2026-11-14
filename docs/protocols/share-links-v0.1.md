@@ -1,6 +1,6 @@
 # Share links v0.1
 
-> Document version: 0.1.1
+> Document version: 0.1.2
 > Status: Candidate
 > Updated: 2026-11-14
 > Owner: AMF / Hosting
@@ -13,8 +13,8 @@ publication and receiving UI belong to separate slices.
 
 ## Documents and validation
 
-The service accepts the closed share schemas for [Recipe v0.4](../../schemas/amf-recipe/v0.4/share.schema.json)
-and [v0.5](../../schemas/amf-recipe/v0.5/share.schema.json), plus
+The service accepts the closed share schemas for [Recipe v0.4](../../schemas/amf-recipe/v0.4/share.schema.json),
+[v0.5](../../schemas/amf-recipe/v0.5/share.schema.json) and [v0.6](../../schemas/amf-recipe/v0.6/share.schema.json), plus
 [selection-share v0.1](../../schemas/selection-share/v0.1/share.schema.json). Dispatch uses
 `kind: "vua.selection"` for selections and `formatVersion` for each kind. Unknown kinds,
 versions and fields are refused without coercing, stripping or defaulting submitted values.
@@ -70,6 +70,7 @@ Each includes the complete declaration, exact canonical text, full digest and ex
 | --- | --- |
 | Recipe v0.4 | `3P3J7H0EGWP1` |
 | Recipe v0.5 with fit and shop | `NF5MQDQ4N075` |
+| Recipe v0.6 with Avatar Optimizer | `QTET2ZW9J8FD` |
 | Product selection | `4X82FFD451H4` |
 | Unicode product selection | `N5JWEY1QS9V2` |
 
@@ -178,5 +179,6 @@ Production installation and real phone/desktop end-to-end acceptance remain auth
 
 ## Document changelog
 
+- 0.1.2 (2026-11-14): add `recipe-v06` (`QTET2ZW9J8FD`) cross-client golden vector in `codes.json` and `schemas/share-links/v0.1/code-vectors.json`, and wire `parsePhrSpatialUrl` guidance in `AmfRecipeImportDialog`.
 - 0.1.1 (2026-11-14): document client-side `parsePhrSpatialUrl` (`https://ph-r.com/s/<id>` and `phr://s/<id>`, distinct from `/r/<CODE>`) and `phr:` per-attempt confirmation allowlist in Electron navigation policy.
 - 0.1.0 (2026-10-28): Candidate service, selection format, golden vectors and Node implementation.

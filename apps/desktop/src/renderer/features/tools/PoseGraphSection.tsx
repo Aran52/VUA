@@ -7,7 +7,8 @@ import { format, strings } from "../../i18n/index.ts";
 
 const copy = strings.poseGraph;
 
-function sourceTone(state: PoseSourceStateV01): "success" | "neutral" {
+function sourceTone(state: PoseSourceStateV01, detailCode: string | null): "success" | "warning" | "neutral" {
+  if (detailCode === "blocked_by_safe_mode") return "warning";
   return state === "active" || state === "ready" ? "success" : "neutral";
 }
 
@@ -96,19 +97,47 @@ export function PoseGraphSection() {
                     ? snapshot.pharosHub.activeModes.map((mode) => copy.pharosModes[mode]).join(" · ")
                     : copy.pharosNoActiveModes}
                 </span>
-                <Badge tone={snapshot.pharosHub.state === "running" ? "success" : "neutral"}>
-                  {copy.pharosStates[snapshot.pharosHub.state]}
-                </Badge>
+                <span className="vua-pose-graph__badges">
+                  <Badge tone={snapshot.pharosHub.state === "running" ? "success" : "neutral"}>
+                    {copy.pharosStates[snapshot.pharosHub.state]}
+                  </Badge>
+                  {snapshot.pharosHub.telemetryState !== "missing" ? (
+                    <Badge tone={snapshot.pharosHub.telemetryState === "live" ? "success" : "warning"}>
+                      {copy.pharosTelemetry[snapshot.pharosHub.telemetryState]}
+                    </Badge>
+                  ) : null}
+                  {snapshot.pharosHub.spatialAnchorReady ? (
+                    <Badge tone="success">{copy.pharosSpatialAnchorReady}</Badge>
+                  ) : null}
+                </span>
               </div>
+              {snapshot.pharosHub.telemetryState === "live"
+              && (snapshot.pharosHub.stereoBaseStationCount !== null || snapshot.pharosHub.panoramicAnchorCount !== null) ? (
+                <p className="vua-pose-graph__meta">
+                  {format(copy.pharosStationsLine, {
+                    stereo: snapshot.pharosHub.stereoBaseStationCount ?? 0,
+                    anchors: snapshot.pharosHub.panoramicAnchorCount ?? 0,
+                  })}
+                  {" · "}
+                  {copy.pharosCalibration[snapshot.pharosHub.calibrationState]}
+                </p>
+              ) : null}
               {snapshot.pharosHub.wearableNodes.some((node) => node.state === "connected") ? (
                 <div className="vua-pose-graph__badges">
                   {snapshot.pharosHub.wearableNodes
                     .filter((node) => node.state === "connected")
-                    .map((node) => (
-                      <Badge key={node.slot} tone="success">
-                        {copy.pharosSlots[node.slot]}
-                      </Badge>
-                    ))}
+                    .map((node) => {
+                      const modeLabel = node.trackingMode ? ` · ${copy.pharosNodeModes[node.trackingMode]}` : "";
+                      const batteryLabel = node.batteryPercent !== null ? ` (${node.batteryPercent}%)` : "";
+                      return (
+                        <Badge
+                          key={node.slot}
+                          tone={node.trackingMode === "passive_retroreflective" ? "warning" : "success"}
+                        >
+                          {`${copy.pharosSlots[node.slot]}${modeLabel}${batteryLabel}`}
+                        </Badge>
+                      );
+                    })}
                 </div>
               ) : null}
             </div>
@@ -123,9 +152,13 @@ export function PoseGraphSection() {
                     <strong>{copy.sourceNames[source.sourceId]}</strong>
                   </div>
                   <div className="vua-pose-graph__badges">
-                    <Badge tone={sourceTone(source.state)}>
-                      {copy.sourceStates[source.state]}
-                    </Badge>
+                    {source.detailCode === "blocked_by_safe_mode" ? (
+                      <Badge tone="warning">{copy.blockedBySafeMode}</Badge>
+                    ) : (
+                      <Badge tone={sourceTone(source.state, source.detailCode)}>
+                        {copy.sourceStates[source.state]}
+                      </Badge>
+                    )}
                   </div>
                 </li>
               ))}
@@ -138,12 +171,17 @@ export function PoseGraphSection() {
               <p className="vua-pose-graph__meta">{copy.driversEmpty}</p>
             ) : (
               <ul className="vua-pose-graph__drivers">
-                {snapshot.steamvrDrivers.map((driverId) => (
-                  <li key={driverId} className="vua-pose-graph__driver">
-                    <span>{copy.driverNames[driverId]}</span>
-                    <Badge tone="success">{copy.sourceStates.installed}</Badge>
-                  </li>
-                ))}
+                {snapshot.steamvrDrivers.map((driverId) => {
+                  const blocked = snapshot.blockedSteamvrDrivers.includes(driverId);
+                  return (
+                    <li key={driverId} className="vua-pose-graph__driver">
+                      <span>{copy.driverNames[driverId]}</span>
+                      <Badge tone={blocked ? "warning" : "success"}>
+                        {blocked ? copy.blockedBySafeMode : copy.sourceStates.installed}
+                      </Badge>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

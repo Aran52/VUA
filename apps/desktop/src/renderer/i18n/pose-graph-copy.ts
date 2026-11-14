@@ -18,6 +18,25 @@ const en = {
     driver_registered: "Driver registered",
     running: "Hub running",
   },
+  pharosTelemetry: {
+    missing: "No telemetry",
+    live: "Live telemetry",
+    stale: "Stale heartbeat",
+    malformed: "Invalid status",
+  },
+  pharosCalibration: {
+    unknown: "Uncalibrated",
+    uncalibrated: "Needs calibration",
+    calibrating: "Calibrating…",
+    calibrated: "Calibrated",
+  },
+  pharosSpatialAnchorReady: "PH-R spatial anchor ready",
+  pharosNodeModes: {
+    optical_imu: "Optical+IMU",
+    passive_retroreflective: "Passive retroreflective",
+    imu_only: "IMU",
+  },
+  pharosStationsLine: "{stereo} stereo stations · {anchors} spatial anchors",
   pharosModes: {
     optical_stereo_2x2x2: "Optical stereo 2×2×2",
     imu_fusion: "IMU fusion",
@@ -38,6 +57,10 @@ const en = {
     slimevr: "SlimeVR Server",
     pico_motion: "PICO Motion Tracker",
     lighthouse: "SteamVR Lighthouse",
+    space_calibrator: "OpenVR Space Calibrator",
+    mocopi: "Sony mocopi",
+    haritorax: "Shiftall HaritoraX",
+    rebocap: "Rebocap",
     eye_face_osc: "Eye & face OSC (VRCFT)",
   },
   sourceStates: {
@@ -46,6 +69,7 @@ const en = {
     installed: "Installed",
     not_detected: "Not detected",
   },
+  blockedBySafeMode: "Blocked by Safe Mode",
   driversTitle: "Registered SteamVR pose drivers",
   driversEmpty: "No external SteamVR pose drivers detected.",
   driverNames: {
@@ -55,6 +79,9 @@ const en = {
     virtual_desktop: "Virtual Desktop Streamer",
     lighthouse: "SteamVR Lighthouse",
     pharos: "Pharos OpenVR Driver",
+    mocopi: "Sony mocopi OpenVR Driver",
+    haritorax: "Shiftall HaritoraX Driver",
+    rebocap: "Rebocap OpenVR Driver",
   },
 };
 
@@ -80,6 +107,25 @@ const zhCN: PoseGraphCopy = {
     driver_registered: "驱动已注册",
     running: "中枢运行中",
   },
+  pharosTelemetry: {
+    missing: "无实时遥测",
+    live: "遥测在线",
+    stale: "心跳已过期",
+    malformed: "状态文件异常",
+  },
+  pharosCalibration: {
+    unknown: "未标定",
+    uncalibrated: "待标定",
+    calibrating: "正在标定…",
+    calibrated: "已完成标定",
+  },
+  pharosSpatialAnchorReady: "PH-R 免扫码空间锚就绪",
+  pharosNodeModes: {
+    optical_imu: "主动光学+IMU",
+    passive_retroreflective: "被动反光降级",
+    imu_only: "纯 IMU",
+  },
+  pharosStationsLine: "{stereo} 台双目基站 · {anchors} 台空间锚基站",
   pharosModes: {
     optical_stereo_2x2x2: "双目立体光学 2×2×2",
     imu_fusion: "IMU 惯性融合",
@@ -100,6 +146,10 @@ const zhCN: PoseGraphCopy = {
     slimevr: "SlimeVR Server",
     pico_motion: "PICO 体感追踪器",
     lighthouse: "SteamVR 基站定位",
+    space_calibrator: "OpenVR Space Calibrator 空间校准",
+    mocopi: "Sony mocopi",
+    haritorax: "Shiftall HaritoraX",
+    rebocap: "Rebocap",
     eye_face_osc: "眼追与面捕 OSC (VRCFT)",
   },
   sourceStates: {
@@ -108,6 +158,7 @@ const zhCN: PoseGraphCopy = {
     installed: "已安装",
     not_detected: "未检测到",
   },
+  blockedBySafeMode: "已被安全模式拦截",
   driversTitle: "已注册的 SteamVR 姿态驱动",
   driversEmpty: "未检测到第三方 SteamVR 姿态驱动。",
   driverNames: {
@@ -117,6 +168,9 @@ const zhCN: PoseGraphCopy = {
     virtual_desktop: "Virtual Desktop Streamer",
     lighthouse: "SteamVR Lighthouse",
     pharos: "Pharos OpenVR 驱动",
+    mocopi: "Sony mocopi OpenVR 驱动",
+    haritorax: "Shiftall HaritoraX 驱动",
+    rebocap: "Rebocap OpenVR 驱动",
   },
 };
 
@@ -140,6 +194,25 @@ const zhTW: PoseGraphCopy = {
     driver_registered: "驅動已註冊",
     running: "中樞執行中",
   },
+  pharosTelemetry: {
+    missing: "無即時遙測",
+    live: "遙測連線中",
+    stale: "心跳已過期",
+    malformed: "狀態檔異常",
+  },
+  pharosCalibration: {
+    unknown: "未標定",
+    uncalibrated: "待標定",
+    calibrating: "正在標定…",
+    calibrated: "已完成標定",
+  },
+  pharosSpatialAnchorReady: "PH-R 免掃碼空間錨就緒",
+  pharosNodeModes: {
+    optical_imu: "主動光學+IMU",
+    passive_retroreflective: "被動反光降級",
+    imu_only: "純 IMU",
+  },
+  pharosStationsLine: "{stereo} 台雙目基地台 · {anchors} 台空間錨基地台",
   pharosModes: {
     optical_stereo_2x2x2: "雙目立體光學 2×2×2",
     imu_fusion: "IMU 慣性融合",
@@ -160,6 +233,10 @@ const zhTW: PoseGraphCopy = {
     slimevr: "SlimeVR Server",
     pico_motion: "PICO 體感追蹤器",
     lighthouse: "SteamVR 基地台定位",
+    space_calibrator: "OpenVR Space Calibrator 空間校準",
+    mocopi: "Sony mocopi",
+    haritorax: "Shiftall HaritoraX",
+    rebocap: "Rebocap",
     eye_face_osc: "眼追與臉捕 OSC (VRCFT)",
   },
   sourceStates: {
@@ -168,6 +245,7 @@ const zhTW: PoseGraphCopy = {
     installed: "已安裝",
     not_detected: "未偵測到",
   },
+  blockedBySafeMode: "已被安全模式攔截",
   driversTitle: "已註冊的 SteamVR 姿態驅動",
   driversEmpty: "未偵測到第三方 SteamVR 姿態驅動。",
   driverNames: {
@@ -177,6 +255,9 @@ const zhTW: PoseGraphCopy = {
     virtual_desktop: "Virtual Desktop Streamer",
     lighthouse: "SteamVR Lighthouse",
     pharos: "Pharos OpenVR 驅動",
+    mocopi: "Sony mocopi OpenVR 驅動",
+    haritorax: "Shiftall HaritoraX 驅動",
+    rebocap: "Rebocap OpenVR 驅動",
   },
 };
 
@@ -200,6 +281,25 @@ const ja: PoseGraphCopy = {
     driver_registered: "ドライバー登録済み",
     running: "ハブ起動中",
   },
+  pharosTelemetry: {
+    missing: "テレメトリなし",
+    live: "ライブ接続",
+    stale: "更新タイムアウト",
+    malformed: "ステータス異常",
+  },
+  pharosCalibration: {
+    unknown: "未キャリブレーション",
+    uncalibrated: "要キャリブレーション",
+    calibrating: "キャリブレーション中…",
+    calibrated: "キャリブレーション済み",
+  },
+  pharosSpatialAnchorReady: "PH-R 空間アンカー準備完了",
+  pharosNodeModes: {
+    optical_imu: "光学+IMU",
+    passive_retroreflective: "パッシブ再帰反射",
+    imu_only: "IMU 単体",
+  },
+  pharosStationsLine: "ステレオ基地局 {stereo} · 空間アンカー {anchors}",
   pharosModes: {
     optical_stereo_2x2x2: "光学ステレオ 2×2×2",
     imu_fusion: "IMU フュージョン",
@@ -220,6 +320,10 @@ const ja: PoseGraphCopy = {
     slimevr: "SlimeVR Server",
     pico_motion: "PICO モーショントラッカー",
     lighthouse: "SteamVR ベースステーション",
+    space_calibrator: "OpenVR Space Calibrator",
+    mocopi: "Sony mocopi",
+    haritorax: "Shiftall HaritoraX",
+    rebocap: "Rebocap",
     eye_face_osc: "アイ・フェイストラッキング OSC (VRCFT)",
   },
   sourceStates: {
@@ -228,6 +332,7 @@ const ja: PoseGraphCopy = {
     installed: "導入済み",
     not_detected: "未検出",
   },
+  blockedBySafeMode: "セーフモードにより無効化",
   driversTitle: "登録済み SteamVR ポーズドライバー",
   driversEmpty: "外部 SteamVR ポーズドライバーは検出されていません。",
   driverNames: {
@@ -237,6 +342,9 @@ const ja: PoseGraphCopy = {
     virtual_desktop: "Virtual Desktop Streamer",
     lighthouse: "SteamVR Lighthouse",
     pharos: "Pharos OpenVR ドライバー",
+    mocopi: "Sony mocopi OpenVR ドライバー",
+    haritorax: "Shiftall HaritoraX ドライバー",
+    rebocap: "Rebocap OpenVR ドライバー",
   },
 };
 
@@ -260,6 +368,25 @@ const ko: PoseGraphCopy = {
     driver_registered: "드라이버 등록됨",
     running: "허브 실행 중",
   },
+  pharosTelemetry: {
+    missing: "텔레메트리 없음",
+    live: "실시간 텔레메트리",
+    stale: "하트비트 만료",
+    malformed: "상태 파일 오류",
+  },
+  pharosCalibration: {
+    unknown: "미보정",
+    uncalibrated: "보정 필요",
+    calibrating: "보정 중…",
+    calibrated: "보정 완료",
+  },
+  pharosSpatialAnchorReady: "PH-R 공간 앵커 준비됨",
+  pharosNodeModes: {
+    optical_imu: "광학+IMU",
+    passive_retroreflective: "수동 재귀반사 폴백",
+    imu_only: "IMU 전용",
+  },
+  pharosStationsLine: "스테레오 베이스스테이션 {stereo}대 · 공간 앵커 {anchors}대",
   pharosModes: {
     optical_stereo_2x2x2: "광학 스테레오 2×2×2",
     imu_fusion: "IMU 퓨전",
@@ -280,6 +407,10 @@ const ko: PoseGraphCopy = {
     slimevr: "SlimeVR Server",
     pico_motion: "PICO 모션 트래커",
     lighthouse: "SteamVR 베이스스테이션",
+    space_calibrator: "OpenVR Space Calibrator",
+    mocopi: "Sony mocopi",
+    haritorax: "Shiftall HaritoraX",
+    rebocap: "Rebocap",
     eye_face_osc: "시선·페이셜 OSC (VRCFT)",
   },
   sourceStates: {
@@ -288,6 +419,7 @@ const ko: PoseGraphCopy = {
     installed: "설치됨",
     not_detected: "감지되지 않음",
   },
+  blockedBySafeMode: "안전 모드에 의해 차단됨",
   driversTitle: "등록된 SteamVR 포즈 드라이버",
   driversEmpty: "감지된 외부 SteamVR 포즈 드라이버가 없어요.",
   driverNames: {
@@ -297,6 +429,9 @@ const ko: PoseGraphCopy = {
     virtual_desktop: "Virtual Desktop Streamer",
     lighthouse: "SteamVR Lighthouse",
     pharos: "Pharos OpenVR 드라이버",
+    mocopi: "Sony mocopi OpenVR 드라이버",
+    haritorax: "Shiftall HaritoraX 드라이버",
+    rebocap: "Rebocap OpenVR 드라이버",
   },
 };
 

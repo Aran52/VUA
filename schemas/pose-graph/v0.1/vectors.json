@@ -23,27 +23,59 @@
           "presence": "found",
           "runtimeName": "SteamVR"
         },
-        "steamvrDrivers": ["space_calibrator", "slimevr"],
+        "steamvrDrivers": ["space_calibrator", "slimevr", "pharos"],
+        "blockedSteamvrDrivers": ["space_calibrator"],
         "lastHeadsetHint": "PICO 4 Ultra",
         "poseSources": [
           { "sourceId": "headset_6dof", "state": "ready", "detailCode": "openxr_ready" },
-          { "sourceId": "pharos", "state": "not_detected", "detailCode": null },
+          { "sourceId": "pharos", "state": "active", "detailCode": "telemetry_live" },
           { "sourceId": "slimevr", "state": "active", "detailCode": "process_running" },
           { "sourceId": "pico_motion", "state": "installed", "detailCode": "app_installed" },
           { "sourceId": "lighthouse", "state": "ready", "detailCode": "calibrator_registered" },
+          { "sourceId": "space_calibrator", "state": "installed", "detailCode": "blocked_by_safe_mode" },
+          { "sourceId": "mocopi", "state": "not_detected", "detailCode": null },
+          { "sourceId": "haritorax", "state": "not_detected", "detailCode": null },
+          { "sourceId": "rebocap", "state": "not_detected", "detailCode": null },
           { "sourceId": "eye_face_osc", "state": "not_detected", "detailCode": null }
         ],
         "pharosHub": {
-          "state": "not_detected",
-          "activeModes": [],
+          "state": "running",
+          "telemetryState": "live",
+          "calibrationState": "calibrated",
+          "spatialAnchorReady": true,
+          "activeModes": ["optical_stereo_2x2x2", "imu_fusion", "passive_retroreflective", "panoramic_spatial_anchor"],
           "wearableNodes": [
-            { "slot": "left_foot", "state": "not_connected", "footHeadingAvailable": false },
-            { "slot": "right_foot", "state": "not_connected", "footHeadingAvailable": false },
-            { "slot": "waist", "state": "not_connected", "footHeadingAvailable": false },
-            { "slot": "chest", "state": "not_connected", "footHeadingAvailable": false }
+            {
+              "slot": "left_foot",
+              "state": "connected",
+              "trackingMode": "optical_imu",
+              "batteryPercent": 86,
+              "footHeadingAvailable": true
+            },
+            {
+              "slot": "right_foot",
+              "state": "connected",
+              "trackingMode": "passive_retroreflective",
+              "batteryPercent": 0,
+              "footHeadingAvailable": true
+            },
+            {
+              "slot": "waist",
+              "state": "connected",
+              "trackingMode": "optical_imu",
+              "batteryPercent": 71,
+              "footHeadingAvailable": false
+            },
+            {
+              "slot": "chest",
+              "state": "not_connected",
+              "trackingMode": null,
+              "batteryPercent": null,
+              "footHeadingAvailable": false
+            }
           ],
-          "stereoBaseStationCount": null,
-          "panoramicAnchorCount": null
+          "stereoBaseStationCount": 2,
+          "panoramicAnchorCount": 1
         }
       }
     }
@@ -58,12 +90,56 @@
           "runtimeName": "C:\\Program Files\\Steam\\steamxr_win64.json"
         },
         "steamvrDrivers": [],
+        "blockedSteamvrDrivers": [],
         "lastHeadsetHint": null,
         "poseSources": [],
         "pharosHub": {
           "state": "not_detected",
+          "telemetryState": "missing",
+          "calibrationState": "unknown",
+          "spatialAnchorReady": false,
           "activeModes": [],
           "wearableNodes": [],
+          "stereoBaseStationCount": null,
+          "panoramicAnchorCount": null
+        }
+      }
+    },
+    {
+      "poseGraph": {
+        "schemaVersion": "vua.pose-graph/v0.1",
+        "capturedAt": "2026-11-14T00:00:00Z",
+        "openxr": {
+          "presence": "missing",
+          "runtimeName": null
+        },
+        "steamvrDrivers": [],
+        "blockedSteamvrDrivers": [],
+        "lastHeadsetHint": null,
+        "poseSources": [
+          { "sourceId": "headset_6dof", "state": "not_detected", "detailCode": null },
+          { "sourceId": "pharos", "state": "not_detected", "detailCode": null },
+          { "sourceId": "slimevr", "state": "not_detected", "detailCode": null },
+          { "sourceId": "pico_motion", "state": "not_detected", "detailCode": null },
+          { "sourceId": "lighthouse", "state": "not_detected", "detailCode": null },
+          { "sourceId": "space_calibrator", "state": "not_detected", "detailCode": null },
+          { "sourceId": "mocopi", "state": "not_detected", "detailCode": null },
+          { "sourceId": "haritorax", "state": "not_detected", "detailCode": null },
+          { "sourceId": "rebocap", "state": "not_detected", "detailCode": null },
+          { "sourceId": "eye_face_osc", "state": "not_detected", "detailCode": null }
+        ],
+        "pharosHub": {
+          "state": "not_detected",
+          "telemetryState": "stale",
+          "calibrationState": "unknown",
+          "spatialAnchorReady": true,
+          "activeModes": [],
+          "wearableNodes": [
+            { "slot": "left_foot", "state": "not_connected", "trackingMode": null, "batteryPercent": null, "footHeadingAvailable": false },
+            { "slot": "right_foot", "state": "not_connected", "trackingMode": null, "batteryPercent": null, "footHeadingAvailable": false },
+            { "slot": "waist", "state": "not_connected", "trackingMode": null, "batteryPercent": null, "footHeadingAvailable": false },
+            { "slot": "chest", "state": "not_connected", "trackingMode": null, "batteryPercent": null, "footHeadingAvailable": false }
+          ],
           "stereoBaseStationCount": null,
           "panoramicAnchorCount": null
         }

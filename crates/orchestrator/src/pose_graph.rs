@@ -1,20 +1,23 @@
-//! Candidate `pose-graph v0.1`: Host-owned read-only observation of local OpenXR runtime,
-//! SteamVR external pose drivers, companion pose applications, and the Pharos optical+IMU
-//! dual-mode tracking hub contract.
+//! Candidate `pose-graph v0.1` (`0.2.0`): Host-owned read-only observation of local OpenXR
+//! runtime, SteamVR external pose drivers (`openvrpaths.vrpath` + `driver.vrdrivermanifest` +
+//! `steamvr.vrsettings` Safe Mode blocks), companion pose applications, and the Pharos
+//! optical+IMU dual-mode tracking hub contract with live `hub-status.json` freshness gating.
 //!
 //! Safety & honesty invariants:
 //! - Read-only local observation; never opens foreign process memory or binds network sockets.
 //! - OpenXR runtime names and headset hints are sanitized display labels (`<= 80` UTF-16 code
 //!   units) stripped of filesystem path separators (`\`, `/`, `:`).
-//! - `steamvrDrivers` emits only closed vocabulary identifiers.
+//! - `steamvrDrivers` and `blockedSteamvrDrivers` emit only closed vocabulary identifiers.
 //! - Pharos wearable slots (`left_foot`, `right_foot`, `waist`, `chest`) and station counts
-//!   never fabricate connected hardware or synthetic counts when live telemetry is absent.
+//!   never fabricate connected hardware or synthetic counts when live telemetry is absent or
+//!   stale (`> 15 s` old or Pharos process not running).
 
 use crate::environment::EnvironmentRoots;
-use crate::time::Clock;
+use crate::time::{rfc3339_offset_millis, Clock};
 use crate::win_registry::RegistryHive;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -23,17 +26,58 @@ pub const POSE_GRAPH_SCHEMA: &str = "vua.pose-graph/v0.1";
 
 const OPENXR_REGISTRY_SUBKEY: &str = "SOFTWARE\\Khronos\\OpenXR\\1";
 const STEAM_REGISTRY_SUBKEY: &str = "SOFTWARE\\WOW6432Node\\Valve\\Steam";
+const MAX_HUB_STATUS_BYTES: u64 = 65_536;
+const MAX_DRIVER_MANIFEST_BYTES: u64 = 65_536;
+const TELEMETRY_MAX_AGE_MS: i64 = 15_000;
+const TELEMETRY_MAX_FUTURE_SKEW_MS: i64 = -2_000;
 
-pub const POSE_SOURCE_IDS: [&str; 6] = [
+pub const POSE_SOURCE_IDS: [&str; 10] = [
     "headset_6dof",
     "pharos",
     "slimevr",
     "pico_motion",
     "lighthouse",
+    "space_calibrator",
+    "mocopi",
+    "haritorax",
+    "rebocap",
     "eye_face_osc",
 ];
 
+pub const STEAMVR_POSE_DRIVER_IDS: [&str; 9] = [
+    "space_calibrator",
+    "slimevr",
+    "alvr",
+    "virtual_desktop",
+    "lighthouse",
+    "pharos",
+    "mocopi",
+    "haritorax",
+    "rebocap",
+];
+
 pub const PHAROS_WEARABLE_SLOTS: [&str; 4] = ["left_foot", "right_foot", "waist", "chest"];
+
+const CANDIDATE_EXE_NAMES: [&str; 16] = [
+    "vrserver.exe",
+    "vrcompositor.exe",
+    "pharos.exe",
+    "pharos-hub.exe",
+    "slimevr.exe",
+    "slimevr-server.exe",
+    "picoconnect.exe",
+    "pico connect.exe",
+    "spacecalibrator.exe",
+    "mocopi.exe",
+    "mocopi receiver.exe",
+    "mocopireceiver.exe",
+    "haritoraconfigurator.exe",
+    "shiftallvrbridge.exe",
+    "haritorax-interpreter.exe",
+    "rebocap.exe",
+];
+
+const EXTRA_CANDIDATE_EXES: [&str; 1] = ["vrcfacetracking.exe"];
 
 /// Returned when OS process liveness enumeration is unavailable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,6 +95,22 @@ impl std::error::Error for PoseProbeUnavailable {}
 /// live host processes.
 pub trait PoseProcessProbe: Send + Sync {
     fn is_process_running(&self, exe_name: &str) -> Result<bool, PoseProbeUnavailable>;
+
+    /// Batch query for a closed candidate executable list so OS implementations take a single
+    /// kernel snapshot per observation instead of N separate passes.
+    fn running_from_candidates(
+        &self,
+        candidates: &[&str],
+    ) -> Result<BTreeSet<String>, PoseProbeUnavailable> {
+        let mut out = BTreeSet::new();
+        for exe in candidates {
+            let lower = exe.to_ascii_lowercase();
+            if self.is_process_running(&lower)? {
+                out.insert(lower);
+            }
+        }
+        Ok(out)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,6 +133,8 @@ pub struct PoseSourceObservation {
 pub struct PharosWearableSlotObservation {
     pub slot: &'static str,
     pub state: &'static str,
+    pub tracking_mode: Option<&'static str>,
+    pub battery_percent: Option<u8>,
     pub foot_heading_available: bool,
 }
 
@@ -80,6 +142,9 @@ pub struct PharosWearableSlotObservation {
 #[serde(rename_all = "camelCase")]
 pub struct PharosHubObservation {
     pub state: &'static str,
+    pub telemetry_state: &'static str,
+    pub calibration_state: &'static str,
+    pub spatial_anchor_ready: bool,
     pub active_modes: Vec<&'static str>,
     pub wearable_nodes: Vec<PharosWearableSlotObservation>,
     pub stereo_base_station_count: Option<u64>,
@@ -93,6 +158,7 @@ pub struct PoseGraphSnapshotV01 {
     pub captured_at: String,
     pub openxr: OpenXrRuntimeObservation,
     pub steamvr_drivers: Vec<&'static str>,
+    pub blocked_steamvr_drivers: Vec<&'static str>,
     pub last_headset_hint: Option<String>,
     pub pose_sources: Vec<PoseSourceObservation>,
     pub pharos_hub: PharosHubObservation,
@@ -118,9 +184,10 @@ impl PoseGraphService {
     }
 
     pub fn observe(&self) -> PoseGraphSnapshotV01 {
+        let captured_at = self.clock.now_rfc3339();
         let openxr = inspect_openxr(&self.roots);
         let steamvr_drivers = inspect_openvr_drivers(&self.roots);
-        let last_headset_hint = inspect_last_headset_hint(&self.roots);
+        let (last_headset_hint, blocked_steamvr_drivers) = inspect_steamvr_settings(&self.roots);
 
         let steam_commons = effective_steam_common_roots(&self.roots);
         let steamvr_installed = steam_commons.iter().any(|r| r.join("SteamVR").is_dir());
@@ -137,15 +204,39 @@ impl PoseGraphService {
         let pico_installed = self.roots.vr_runtime_roots.pico.iter().any(|r| r.exists());
         let slimevr_installed = is_slimevr_installed(&self.roots);
 
-        let running = |exe: &str| matches!(self.probe.is_process_running(exe), Ok(true));
+        let mut all_candidates =
+            Vec::with_capacity(CANDIDATE_EXE_NAMES.len() + EXTRA_CANDIDATE_EXES.len());
+        all_candidates.extend_from_slice(&CANDIDATE_EXE_NAMES);
+        all_candidates.extend_from_slice(&EXTRA_CANDIDATE_EXES);
+        let running_set = self
+            .probe
+            .running_from_candidates(&all_candidates)
+            .unwrap_or_default();
+        let running = |exe: &str| running_set.contains(exe);
+
         let vrserver_running = running("vrserver.exe") || running("vrcompositor.exe");
         let pharos_running = running("pharos.exe") || running("pharos-hub.exe");
         let slimevr_running = running("slimevr.exe") || running("slimevr-server.exe");
         let pico_running = running("picoconnect.exe") || running("pico connect.exe");
         let calibrator_running = running("spacecalibrator.exe");
+        let mocopi_running = running("mocopi.exe")
+            || running("mocopi receiver.exe")
+            || running("mocopireceiver.exe");
+        let haritorax_running = running("haritoraconfigurator.exe")
+            || running("shiftallvrbridge.exe")
+            || running("haritorax-interpreter.exe");
+        let rebocap_running = running("rebocap.exe");
         let vrcft_running = running("vrcfacetracking.exe");
 
         let has_driver = |id: &str| steamvr_drivers.contains(&id);
+        let is_blocked = |id: &str| blocked_steamvr_drivers.contains(&id);
+
+        let pharos_hub = inspect_pharos_hub(
+            &self.roots,
+            pharos_running,
+            has_driver("pharos"),
+            &captured_at,
+        );
 
         let headset_source = if vrserver_running || pico_running {
             PoseSourceObservation {
@@ -177,7 +268,17 @@ impl PoseGraphService {
             PoseSourceObservation {
                 source_id: "pharos",
                 state: "active",
-                detail_code: Some("hub_running"),
+                detail_code: Some(if pharos_hub.telemetry_state == "live" {
+                    "telemetry_live"
+                } else {
+                    "hub_running"
+                }),
+            }
+        } else if is_blocked("pharos") {
+            PoseSourceObservation {
+                source_id: "pharos",
+                state: "installed",
+                detail_code: Some("blocked_by_safe_mode"),
             }
         } else if has_driver("pharos") {
             PoseSourceObservation {
@@ -198,6 +299,12 @@ impl PoseGraphService {
                 source_id: "slimevr",
                 state: "active",
                 detail_code: Some("process_running"),
+            }
+        } else if is_blocked("slimevr") {
+            PoseSourceObservation {
+                source_id: "slimevr",
+                state: "installed",
+                detail_code: Some("blocked_by_safe_mode"),
             }
         } else if has_driver("slimevr") {
             PoseSourceObservation {
@@ -271,6 +378,57 @@ impl PoseGraphService {
             }
         };
 
+        let space_calibrator_source = if calibrator_running {
+            PoseSourceObservation {
+                source_id: "space_calibrator",
+                state: "active",
+                detail_code: Some("process_running"),
+            }
+        } else if is_blocked("space_calibrator") {
+            PoseSourceObservation {
+                source_id: "space_calibrator",
+                state: "installed",
+                detail_code: Some("blocked_by_safe_mode"),
+            }
+        } else if has_driver("space_calibrator") {
+            PoseSourceObservation {
+                source_id: "space_calibrator",
+                state: "ready",
+                detail_code: Some("driver_registered"),
+            }
+        } else if space_calibrator_installed {
+            PoseSourceObservation {
+                source_id: "space_calibrator",
+                state: "installed",
+                detail_code: Some("app_installed"),
+            }
+        } else {
+            PoseSourceObservation {
+                source_id: "space_calibrator",
+                state: "not_detected",
+                detail_code: None,
+            }
+        };
+
+        let mocopi_source = companion_driver_source(
+            "mocopi",
+            mocopi_running,
+            has_driver("mocopi"),
+            is_blocked("mocopi"),
+        );
+        let haritorax_source = companion_driver_source(
+            "haritorax",
+            haritorax_running,
+            has_driver("haritorax"),
+            is_blocked("haritorax"),
+        );
+        let rebocap_source = companion_driver_source(
+            "rebocap",
+            rebocap_running,
+            has_driver("rebocap"),
+            is_blocked("rebocap"),
+        );
+
         let eye_face_source = if vrcft_running {
             PoseSourceObservation {
                 source_id: "eye_face_osc",
@@ -291,34 +449,12 @@ impl PoseGraphService {
             }
         };
 
-        let pharos_state = if pharos_running {
-            "running"
-        } else if has_driver("pharos") {
-            "driver_registered"
-        } else {
-            "not_detected"
-        };
-
-        let pharos_hub = PharosHubObservation {
-            state: pharos_state,
-            active_modes: Vec::new(),
-            wearable_nodes: PHAROS_WEARABLE_SLOTS
-                .into_iter()
-                .map(|slot| PharosWearableSlotObservation {
-                    slot,
-                    state: "not_connected",
-                    foot_heading_available: false,
-                })
-                .collect(),
-            stereo_base_station_count: None,
-            panoramic_anchor_count: None,
-        };
-
         PoseGraphSnapshotV01 {
             schema_version: POSE_GRAPH_SCHEMA,
-            captured_at: self.clock.now_rfc3339(),
+            captured_at,
             openxr,
             steamvr_drivers,
+            blocked_steamvr_drivers,
             last_headset_hint,
             pose_sources: vec![
                 headset_source,
@@ -326,10 +462,238 @@ impl PoseGraphService {
                 slimevr_source,
                 pico_source,
                 lighthouse_source,
+                space_calibrator_source,
+                mocopi_source,
+                haritorax_source,
+                rebocap_source,
                 eye_face_source,
             ],
             pharos_hub,
         }
+    }
+}
+
+fn companion_driver_source(
+    source_id: &'static str,
+    is_running: bool,
+    driver_registered: bool,
+    driver_blocked: bool,
+) -> PoseSourceObservation {
+    if is_running {
+        PoseSourceObservation {
+            source_id,
+            state: "active",
+            detail_code: Some("process_running"),
+        }
+    } else if driver_blocked {
+        PoseSourceObservation {
+            source_id,
+            state: "installed",
+            detail_code: Some("blocked_by_safe_mode"),
+        }
+    } else if driver_registered {
+        PoseSourceObservation {
+            source_id,
+            state: "ready",
+            detail_code: Some("driver_registered"),
+        }
+    } else {
+        PoseSourceObservation {
+            source_id,
+            state: "not_detected",
+            detail_code: None,
+        }
+    }
+}
+
+fn disconnected_wearable_nodes() -> Vec<PharosWearableSlotObservation> {
+    PHAROS_WEARABLE_SLOTS
+        .into_iter()
+        .map(|slot| PharosWearableSlotObservation {
+            slot,
+            state: "not_connected",
+            tracking_mode: None,
+            battery_percent: None,
+            foot_heading_available: false,
+        })
+        .collect()
+}
+
+fn idle_pharos_hub(state: &'static str, telemetry_state: &'static str) -> PharosHubObservation {
+    PharosHubObservation {
+        state,
+        telemetry_state,
+        calibration_state: "unknown",
+        spatial_anchor_ready: false,
+        active_modes: Vec::new(),
+        wearable_nodes: disconnected_wearable_nodes(),
+        stereo_base_station_count: None,
+        panoramic_anchor_count: None,
+    }
+}
+
+fn inspect_pharos_hub(
+    roots: &EnvironmentRoots,
+    pharos_running: bool,
+    driver_registered: bool,
+    captured_at_rfc3339: &str,
+) -> PharosHubObservation {
+    let hub_state = if pharos_running {
+        "running"
+    } else if driver_registered {
+        "driver_registered"
+    } else {
+        "not_detected"
+    };
+
+    let mut candidate_file = None;
+    for candidate in &roots.pharos_status_candidates {
+        let Ok(meta) = fs::symlink_metadata(candidate) else {
+            continue;
+        };
+        if meta.file_type().is_symlink() || !meta.is_file() {
+            continue;
+        }
+        candidate_file = Some((candidate, meta.len()));
+        break;
+    }
+
+    let Some((status_path, file_len)) = candidate_file else {
+        return idle_pharos_hub(hub_state, "missing");
+    };
+    if file_len == 0 || file_len > MAX_HUB_STATUS_BYTES {
+        return idle_pharos_hub(hub_state, "malformed");
+    }
+    let Ok(raw_text) = fs::read_to_string(status_path) else {
+        return idle_pharos_hub(hub_state, "malformed");
+    };
+    let Ok(Value::Object(doc)) = serde_json::from_str::<Value>(&raw_text) else {
+        return idle_pharos_hub(hub_state, "malformed");
+    };
+
+    let Some(updated_str) = doc.get("updatedAt").and_then(Value::as_str) else {
+        return idle_pharos_hub(hub_state, "malformed");
+    };
+    let (Some(now_ms), Some(updated_ms)) = (
+        rfc3339_offset_millis(captured_at_rfc3339),
+        rfc3339_offset_millis(updated_str),
+    ) else {
+        return idle_pharos_hub(hub_state, "malformed");
+    };
+    let Some(age_ms) = now_ms.checked_sub(updated_ms) else {
+        return idle_pharos_hub(hub_state, "malformed");
+    };
+
+    // Honesty gate: never report connected hardware unless Pharos is live right now
+    // AND the telemetry heartbeat is within [-2s, +15s].
+    if !pharos_running || !(TELEMETRY_MAX_FUTURE_SKEW_MS..=TELEMETRY_MAX_AGE_MS).contains(&age_ms) {
+        return idle_pharos_hub(hub_state, "stale");
+    }
+
+    let mut active_modes = Vec::new();
+    if let Some(modes) = doc.get("activeModes").and_then(Value::as_array) {
+        for raw_mode in modes.iter().filter_map(Value::as_str) {
+            let mapped = match raw_mode {
+                "optical_stereo_2x2x2" => Some("optical_stereo_2x2x2"),
+                "imu_fusion" => Some("imu_fusion"),
+                "passive_retroreflective" => Some("passive_retroreflective"),
+                "panoramic_spatial_anchor" => Some("panoramic_spatial_anchor"),
+                _ => None,
+            };
+            if let Some(mode) = mapped {
+                if !active_modes.contains(&mode) {
+                    active_modes.push(mode);
+                }
+            }
+        }
+    }
+
+    let calibration_state = match doc.get("calibrationState").and_then(Value::as_str) {
+        Some("uncalibrated") => "uncalibrated",
+        Some("calibrating") => "calibrating",
+        Some("calibrated") => "calibrated",
+        _ => "unknown",
+    };
+
+    let nodes_obj = doc.get("wearableNodes").and_then(Value::as_object);
+    let wearable_nodes = PHAROS_WEARABLE_SLOTS
+        .into_iter()
+        .map(|slot| {
+            let Some(node) = nodes_obj
+                .and_then(|m| m.get(slot))
+                .and_then(Value::as_object)
+            else {
+                return PharosWearableSlotObservation {
+                    slot,
+                    state: "not_connected",
+                    tracking_mode: None,
+                    battery_percent: None,
+                    foot_heading_available: false,
+                };
+            };
+            let connected = node.get("connected").and_then(Value::as_bool) == Some(true)
+                || node.get("state").and_then(Value::as_str) == Some("connected");
+            if !connected {
+                return PharosWearableSlotObservation {
+                    slot,
+                    state: "not_connected",
+                    tracking_mode: None,
+                    battery_percent: None,
+                    foot_heading_available: false,
+                };
+            }
+            let tracking_mode = match node.get("trackingMode").and_then(Value::as_str) {
+                Some("optical_imu") => Some("optical_imu"),
+                Some("passive_retroreflective") => Some("passive_retroreflective"),
+                Some("imu_only") => Some("imu_only"),
+                _ => None,
+            };
+            let battery_percent = node
+                .get("batteryPercent")
+                .and_then(Value::as_u64)
+                .filter(|v| *v <= 100)
+                .map(|v| v as u8);
+            let foot_heading_available = matches!(slot, "left_foot" | "right_foot")
+                && node
+                    .get("footHeadingAvailable")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+            PharosWearableSlotObservation {
+                slot,
+                state: "connected",
+                tracking_mode,
+                battery_percent,
+                foot_heading_available,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let stereo_base_station_count = doc
+        .get("stereoBaseStationCount")
+        .and_then(Value::as_u64)
+        .filter(|v| *v <= 16);
+    let panoramic_anchor_count = doc
+        .get("panoramicAnchorCount")
+        .and_then(Value::as_u64)
+        .filter(|v| *v <= 8);
+
+    let spatial_anchor_ready = doc
+        .get("spatialAnchorReady")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+        || (calibration_state == "calibrated"
+            && active_modes.contains(&"panoramic_spatial_anchor")
+            && panoramic_anchor_count.is_some_and(|n| n >= 1));
+
+    PharosHubObservation {
+        state: "running",
+        telemetry_state: "live",
+        calibration_state,
+        spatial_anchor_ready,
+        active_modes,
+        wearable_nodes,
+        stereo_base_station_count,
+        panoramic_anchor_count,
     }
 }
 
@@ -340,7 +704,6 @@ pub fn sanitize_pose_label(raw: &str, max_utf16: usize) -> Option<String> {
     if trimmed.is_empty() {
         return None;
     }
-    // Reject obvious filesystem paths outright rather than leaking path segments.
     let bytes = trimmed.as_bytes();
     let looks_like_drive_path = bytes.len() >= 3
         && bytes[0].is_ascii_alphabetic()
@@ -428,26 +791,8 @@ fn inspect_openxr(roots: &EnvironmentRoots) -> OpenXrRuntimeObservation {
     }
 }
 
-fn inspect_openvr_drivers(roots: &EnvironmentRoots) -> Vec<&'static str> {
-    let mut entries_lower = Vec::new();
-    for vrpath in &roots.openvrpaths {
-        if !vrpath.is_file() {
-            continue;
-        }
-        if let Ok(text) = fs::read_to_string(vrpath) {
-            if let Ok(val) = serde_json::from_str::<Value>(&text) {
-                if let Some(arr) = val.get("external_drivers").and_then(Value::as_array) {
-                    for item in arr.iter().filter_map(Value::as_str) {
-                        entries_lower.push(item.to_ascii_lowercase());
-                    }
-                }
-            }
-        }
-        break;
-    }
-
-    let mut matched = Vec::new();
-    let rules: [(&str, &[&str]); 6] = [
+fn classify_driver_token(token_lower: &str) -> Option<&'static str> {
+    let rules: [(&str, &[&str]); 9] = [
         (
             "space_calibrator",
             &["01spacecalibrator", "spacecalibrator", "space_calibrator"],
@@ -460,19 +805,72 @@ fn inspect_openvr_drivers(roots: &EnvironmentRoots) -> Vec<&'static str> {
         ),
         ("lighthouse", &["lighthouse"]),
         ("pharos", &["pharos"]),
+        ("mocopi", &["mocopi"]),
+        ("haritorax", &["haritorax", "haritora", "shiftall"]),
+        ("rebocap", &["rebocap"]),
     ];
     for (driver_id, needles) in rules {
-        if entries_lower
+        if needles.iter().any(|needle| token_lower.contains(needle)) {
+            return Some(driver_id);
+        }
+    }
+    None
+}
+
+fn inspect_openvr_drivers(roots: &EnvironmentRoots) -> Vec<&'static str> {
+    let mut raw_paths = Vec::new();
+    for vrpath in &roots.openvrpaths {
+        if !vrpath.is_file() {
+            continue;
+        }
+        if let Ok(text) = fs::read_to_string(vrpath) {
+            if let Ok(val) = serde_json::from_str::<Value>(&text) {
+                if let Some(arr) = val.get("external_drivers").and_then(Value::as_array) {
+                    for item in arr.iter().filter_map(Value::as_str).take(64) {
+                        raw_paths.push(item.to_owned());
+                    }
+                }
+            }
+        }
+        break;
+    }
+
+    let mut discovered_tokens = Vec::new();
+    for raw_dir in &raw_paths {
+        discovered_tokens.push(raw_dir.to_ascii_lowercase());
+        let manifest = Path::new(raw_dir).join("driver.vrdrivermanifest");
+        if let Ok(meta) = fs::symlink_metadata(&manifest) {
+            if !meta.file_type().is_symlink()
+                && meta.is_file()
+                && meta.len() <= MAX_DRIVER_MANIFEST_BYTES
+            {
+                if let Ok(text) = fs::read_to_string(&manifest) {
+                    if let Ok(val) = serde_json::from_str::<Value>(&text) {
+                        if let Some(name) = val.get("name").and_then(Value::as_str) {
+                            discovered_tokens.push(name.to_ascii_lowercase());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut matched = Vec::new();
+    for canonical in STEAMVR_POSE_DRIVER_IDS {
+        if discovered_tokens
             .iter()
-            .any(|entry| needles.iter().any(|needle| entry.contains(needle)))
+            .any(|tok| classify_driver_token(tok) == Some(canonical))
         {
-            matched.push(driver_id);
+            matched.push(canonical);
         }
     }
     matched
 }
 
-fn inspect_last_headset_hint(roots: &EnvironmentRoots) -> Option<String> {
+fn inspect_steamvr_settings(roots: &EnvironmentRoots) -> (Option<String>, Vec<&'static str>) {
+    let mut hint: Option<String> = None;
+    let mut blocked = Vec::new();
+
     for candidate in steamvr_settings_candidates(roots) {
         let Ok(raw) = fs::read_to_string(&candidate) else {
             continue;
@@ -480,40 +878,64 @@ fn inspect_last_headset_hint(roots: &EnvironmentRoots) -> Option<String> {
         let Ok(Value::Object(obj)) = serde_json::from_str::<Value>(&raw) else {
             continue;
         };
-        let last_known = obj.get("LastKnown").and_then(Value::as_object).or_else(|| {
-            obj.get("steamvr")
-                .and_then(Value::as_object)
-                .and_then(|s| s.get("LastKnown"))
-                .and_then(Value::as_object)
-        });
-        let Some(last_known) = last_known else {
-            continue;
-        };
-        let mfg = last_known
-            .get("HMDManufacturer")
-            .and_then(Value::as_str)
-            .and_then(|s| sanitize_pose_label(s, 40));
-        let model = last_known
-            .get("HMDModel")
-            .and_then(Value::as_str)
-            .and_then(|s| sanitize_pose_label(s, 60));
-        let combined = match (mfg, model) {
-            (Some(m), Some(md)) => {
-                if md.to_ascii_lowercase().starts_with(&m.to_ascii_lowercase()) {
-                    Some(md)
-                } else {
-                    sanitize_pose_label(&format!("{m} {md}"), 80)
+
+        if hint.is_none() {
+            let last_known = obj.get("LastKnown").and_then(Value::as_object).or_else(|| {
+                obj.get("steamvr")
+                    .and_then(Value::as_object)
+                    .and_then(|s| s.get("LastKnown"))
+                    .and_then(Value::as_object)
+            });
+            if let Some(last_known) = last_known {
+                let mfg = last_known
+                    .get("HMDManufacturer")
+                    .and_then(Value::as_str)
+                    .and_then(|s| sanitize_pose_label(s, 40));
+                let model = last_known
+                    .get("HMDModel")
+                    .and_then(Value::as_str)
+                    .and_then(|s| sanitize_pose_label(s, 60));
+                hint = match (mfg, model) {
+                    (Some(m), Some(md)) => {
+                        if md.to_ascii_lowercase().starts_with(&m.to_ascii_lowercase()) {
+                            Some(md)
+                        } else {
+                            sanitize_pose_label(&format!("{m} {md}"), 80)
+                        }
+                    }
+                    (None, Some(md)) => Some(md),
+                    (Some(m), None) => Some(m),
+                    (None, None) => None,
+                };
+            }
+        }
+
+        for (key, val) in &obj {
+            let Some(driver_suffix) = key.strip_prefix("driver_") else {
+                continue;
+            };
+            let is_blocked = val
+                .as_object()
+                .and_then(|d| d.get("blocked_by_safe_mode"))
+                .and_then(Value::as_bool)
+                == Some(true);
+            if !is_blocked {
+                continue;
+            }
+            if let Some(canonical) = classify_driver_token(&driver_suffix.to_ascii_lowercase()) {
+                if !blocked.contains(&canonical) {
+                    blocked.push(canonical);
                 }
             }
-            (None, Some(md)) => Some(md),
-            (Some(m), None) => Some(m),
-            (None, None) => None,
-        };
-        if combined.is_some() {
-            return combined;
         }
+        break;
     }
-    None
+
+    let ordered_blocked = STEAMVR_POSE_DRIVER_IDS
+        .into_iter()
+        .filter(|id| blocked.contains(id))
+        .collect();
+    (hint, ordered_blocked)
 }
 
 fn steamvr_settings_candidates(roots: &EnvironmentRoots) -> Vec<PathBuf> {
@@ -571,15 +993,34 @@ fn steamvr_settings_candidates(roots: &EnvironmentRoots) -> Vec<PathBuf> {
 }
 
 fn effective_steam_common_roots(roots: &EnvironmentRoots) -> Vec<PathBuf> {
-    let mut install = roots
-        .registry
-        .get_string(
+    let mut install = None;
+    for (hive, subkey, value_name) in [
+        (
             RegistryHive::LocalMachine,
             STEAM_REGISTRY_SUBKEY,
             "InstallPath",
-        )
-        .map(PathBuf::from)
-        .filter(|p| p.is_dir());
+        ),
+        (
+            RegistryHive::LocalMachine,
+            "SOFTWARE\\Valve\\Steam",
+            "InstallPath",
+        ),
+        (
+            RegistryHive::CurrentUser,
+            "Software\\Valve\\Steam",
+            "SteamPath",
+        ),
+    ] {
+        if let Some(found) = roots
+            .registry
+            .get_string(hive, subkey, value_name)
+            .map(PathBuf::from)
+            .filter(|p| p.is_dir())
+        {
+            install = Some(found);
+            break;
+        }
+    }
     if install.is_none() {
         install = roots
             .steam_install_candidates
@@ -699,6 +1140,7 @@ mod tests {
             openvrpaths: Vec::new(),
             vcc_settings_candidates: Vec::new(),
             pico_connect_settings_candidates: Vec::new(),
+            pharos_status_candidates: Vec::new(),
         }
     }
 
@@ -719,19 +1161,25 @@ mod tests {
         assert_eq!(snap.openxr.presence, "missing");
         assert_eq!(snap.openxr.runtime_name, None);
         assert!(snap.steamvr_drivers.is_empty());
+        assert!(snap.blocked_steamvr_drivers.is_empty());
         assert_eq!(snap.last_headset_hint, None);
-        assert_eq!(snap.pose_sources.len(), 6);
+        assert_eq!(snap.pose_sources.len(), 10);
         for (idx, id) in POSE_SOURCE_IDS.iter().enumerate() {
             assert_eq!(snap.pose_sources[idx].source_id, *id);
             assert_eq!(snap.pose_sources[idx].state, "not_detected");
             assert_eq!(snap.pose_sources[idx].detail_code, None);
         }
         assert_eq!(snap.pharos_hub.state, "not_detected");
+        assert_eq!(snap.pharos_hub.telemetry_state, "missing");
+        assert_eq!(snap.pharos_hub.calibration_state, "unknown");
+        assert!(!snap.pharos_hub.spatial_anchor_ready);
         assert!(snap.pharos_hub.active_modes.is_empty());
         assert_eq!(snap.pharos_hub.wearable_nodes.len(), 4);
         for (idx, slot) in PHAROS_WEARABLE_SLOTS.iter().enumerate() {
             assert_eq!(snap.pharos_hub.wearable_nodes[idx].slot, *slot);
             assert_eq!(snap.pharos_hub.wearable_nodes[idx].state, "not_connected");
+            assert_eq!(snap.pharos_hub.wearable_nodes[idx].tracking_mode, None);
+            assert_eq!(snap.pharos_hub.wearable_nodes[idx].battery_percent, None);
             assert!(!snap.pharos_hub.wearable_nodes[idx].foot_heading_available);
         }
         assert_eq!(snap.pharos_hub.stereo_base_station_count, None);
@@ -739,10 +1187,18 @@ mod tests {
     }
 
     #[test]
-    fn aggregates_openxr_openvr_drivers_headset_hint_and_pharos_without_path_leaks() {
+    fn aggregates_openxr_manifest_drivers_safe_mode_blocks_and_redacts_paths() {
         let dir = TestDir::new();
         let openxr_json = dir.path().join("steamxr_win64.json");
         fs::write(&openxr_json, r#"{"runtime":{"name":"SteamVR"}}"#).unwrap();
+
+        let custom_mocopi_dir = dir.path().join("CustomVendorDir");
+        fs::create_dir_all(&custom_mocopi_dir).unwrap();
+        fs::write(
+            custom_mocopi_dir.join("driver.vrdrivermanifest"),
+            json!({ "name": "mocopi" }).to_string(),
+        )
+        .unwrap();
 
         let steam_cfg = dir.path().join("steam_config");
         fs::create_dir_all(&steam_cfg).unwrap();
@@ -752,6 +1208,9 @@ mod tests {
                 "LastKnown": {
                     "HMDManufacturer": "PICO",
                     "HMDModel": "PICO 4 Ultra"
+                },
+                "driver_01spacecalibrator": {
+                    "blocked_by_safe_mode": true
                 }
             })
             .to_string(),
@@ -767,6 +1226,7 @@ mod tests {
                     "C:\\Users\\SecretUser\\AppData\\Local\\01spacecalibrator",
                     "C:\\Program Files\\SlimeVR Server\\steamvr",
                     "D:\\Pharos\\driver_pharos",
+                    custom_mocopi_dir.to_string_lossy(),
                     "C:\\Users\\SecretUser\\CustomPrivateDriver"
                 ]
             })
@@ -800,16 +1260,12 @@ mod tests {
         assert_eq!(snap.openxr.runtime_name.as_deref(), Some("SteamVR"));
         assert_eq!(
             snap.steamvr_drivers,
-            vec!["space_calibrator", "slimevr", "pharos"]
+            vec!["space_calibrator", "slimevr", "pharos", "mocopi"]
         );
+        assert_eq!(snap.blocked_steamvr_drivers, vec!["space_calibrator"]);
         assert_eq!(snap.last_headset_hint.as_deref(), Some("PICO 4 Ultra"));
         assert_eq!(snap.pharos_hub.state, "driver_registered");
-        // Even with driver registered, hardware nodes stay honestly not_connected without live telemetry.
-        assert!(snap
-            .pharos_hub
-            .wearable_nodes
-            .iter()
-            .all(|n| n.state == "not_connected" && !n.foot_heading_available));
+        assert_eq!(snap.pharos_hub.telemetry_state, "missing");
 
         let by_id = |id: &str| {
             snap.pose_sources
@@ -822,11 +1278,123 @@ mod tests {
         assert_eq!(by_id("slimevr").state, "active");
         assert_eq!(by_id("pico_motion").state, "installed");
         assert_eq!(by_id("lighthouse").state, "ready");
+        assert_eq!(by_id("space_calibrator").state, "installed");
+        assert_eq!(
+            by_id("space_calibrator").detail_code,
+            Some("blocked_by_safe_mode")
+        );
+        assert_eq!(by_id("mocopi").state, "ready");
+        assert_eq!(by_id("haritorax").state, "not_detected");
+        assert_eq!(by_id("rebocap").state, "not_detected");
         assert_eq!(by_id("eye_face_osc").state, "not_detected");
 
         let serialized = serde_json::to_string(&snap).unwrap();
         assert!(!serialized.contains("SecretUser"));
         assert!(!serialized.contains("CustomPrivateDriver"));
+        assert!(!serialized.contains("CustomVendorDir"));
+    }
+
+    #[test]
+    fn reads_live_pharos_dual_mode_telemetry_and_rejects_stale_or_stopped_status_files() {
+        let dir = TestDir::new();
+        let status_file = dir.path().join("hub-status.json");
+        fs::write(
+            &status_file,
+            json!({
+                "updatedAt": "2026-11-14T10:00:05.000Z",
+                "calibrationState": "calibrated",
+                "activeModes": [
+                    "optical_stereo_2x2x2",
+                    "imu_fusion",
+                    "passive_retroreflective",
+                    "panoramic_spatial_anchor"
+                ],
+                "stereoBaseStationCount": 2,
+                "panoramicAnchorCount": 1,
+                "wearableNodes": {
+                    "left_foot": {
+                        "connected": true,
+                        "trackingMode": "optical_imu",
+                        "batteryPercent": 82,
+                        "footHeadingAvailable": true
+                    },
+                    "right_foot": {
+                        "connected": true,
+                        "trackingMode": "passive_retroreflective",
+                        "batteryPercent": 0,
+                        "footHeadingAvailable": true
+                    },
+                    "waist": {
+                        "connected": true,
+                        "trackingMode": "optical_imu",
+                        "batteryPercent": 64
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let mut roots = empty_roots(dir.path(), FakeRegistrySource::new());
+        roots.pharos_status_candidates = vec![status_file];
+
+        // 1. Live running Pharos within 15s -> full dual-mode telemetry + passive fallback on depleted right_foot.
+        let mut running = HashSet::new();
+        running.insert("pharos-hub.exe".to_owned());
+        let live_svc = PoseGraphService::new(
+            roots,
+            Arc::new(StubPoseProbe {
+                running: running.clone(),
+            }),
+            Arc::new(FixedClock::new(&["2026-11-14T10:00:12.000Z"])),
+        );
+        let live = live_svc.observe();
+        assert_eq!(live.pharos_hub.state, "running");
+        assert_eq!(live.pharos_hub.telemetry_state, "live");
+        assert_eq!(live.pharos_hub.calibration_state, "calibrated");
+        assert!(live.pharos_hub.spatial_anchor_ready);
+        assert_eq!(live.pharos_hub.stereo_base_station_count, Some(2));
+        assert_eq!(live.pharos_hub.panoramic_anchor_count, Some(1));
+        assert_eq!(
+            live.pharos_hub.wearable_nodes[0],
+            PharosWearableSlotObservation {
+                slot: "left_foot",
+                state: "connected",
+                tracking_mode: Some("optical_imu"),
+                battery_percent: Some(82),
+                foot_heading_available: true,
+            }
+        );
+        assert_eq!(
+            live.pharos_hub.wearable_nodes[1],
+            PharosWearableSlotObservation {
+                slot: "right_foot",
+                state: "connected",
+                tracking_mode: Some("passive_retroreflective"),
+                battery_percent: Some(0),
+                foot_heading_available: true,
+            }
+        );
+        assert_eq!(live.pharos_hub.wearable_nodes[3].state, "not_connected");
+
+        // 2. Stale (> 15s old) -> refuses to claim connected hardware.
+        let mut roots_stale = empty_roots(dir.path(), FakeRegistrySource::new());
+        roots_stale.pharos_status_candidates = vec![dir.path().join("hub-status.json")];
+        let stale_svc = PoseGraphService::new(
+            roots_stale,
+            Arc::new(StubPoseProbe { running }),
+            Arc::new(FixedClock::new(&["2026-11-14T10:00:30.000Z"])),
+        );
+        let stale = stale_svc.observe();
+        assert_eq!(stale.pharos_hub.telemetry_state, "stale");
+        assert!(!stale.pharos_hub.spatial_anchor_ready);
+        assert!(stale.pharos_hub.active_modes.is_empty());
+        assert_eq!(stale.pharos_hub.stereo_base_station_count, None);
+        assert!(stale
+            .pharos_hub
+            .wearable_nodes
+            .iter()
+            .all(|n| n.state == "not_connected" && n.battery_percent.is_none()));
     }
 
     #[test]

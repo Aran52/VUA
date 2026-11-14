@@ -1,6 +1,6 @@
 const en = {
   title: "GLB / VRM & Object-Head check",
-  subtitle: "Header-only glTF 2.0 / VRM 1.0 inspection and PH-R Stage 1 MR Object-Head ≥ 5 cm clearance check.",
+  subtitle: "Header-only glTF 2.0 / VRM 1.0 inspection (including unexpanded .zip archives) and PH-R Stage 1 MR Object-Head ≥ 5 cm clearance check.",
   formats: {
     vrm_1_0: "VRMC_vrm 1.0",
     vrm_0_x: "VRM 0.x",
@@ -22,8 +22,17 @@ const en = {
     likely_unscaled: "Suspect non-meter scale",
     unknown: "Bounds unavailable",
   },
+  zipMemberBadge: "In {archive}",
   dimensions: "{x} × {y} × {z} m",
+  mountCenterLine: "Center ({x}, {y}, {z}) m",
   bonesLine: "{bones} bones",
+  pharosFbtReady: "Pharos 15-bone FBT + toes",
+  pharosFbtNoToes: "Pharos 15-bone FBT",
+  headHeightLine: "Head Y {height} m",
+  geometryLine: "{tris} tris · {meshes} meshes",
+  mtoonLine: "{mtoon}/{total} MToon",
+  externalTextureWarning: "{count} external texture URIs",
+  secondaryMotionLine: "{springs} SpringBones · {expressions} expressions",
   vrmMetaLine: "{title} (VRM {spec})",
   truncatedNote: "Showing the first inspected 3D binary artifacts.",
 };
@@ -32,7 +41,7 @@ type GlbInspectionCopy = typeof en;
 
 const zhCN: GlbInspectionCopy = {
   title: "GLB / VRM 与 Object-Head 规格检查",
-  subtitle: "基于文件头的 glTF 2.0 / VRM 1.0 结构核验与 PH-R Stage 1 MR Object-Head ≥ 5 cm 头显净空检查。",
+  subtitle: "基于文件头的 glTF 2.0 / VRM 1.0 结构核验（支持免解压扫描 .zip 成员）与 PH-R Stage 1 MR Object-Head ≥ 5 cm 头显净空检查。",
   formats: {
     vrm_1_0: "VRMC_vrm 1.0",
     vrm_0_x: "VRM 0.x",
@@ -54,15 +63,24 @@ const zhCN: GlbInspectionCopy = {
     likely_unscaled: "尺寸比例异常",
     unknown: "包围盒未知",
   },
+  zipMemberBadge: "位于 {archive}",
   dimensions: "{x} × {y} × {z} m",
+  mountCenterLine: "中心偏移 ({x}, {y}, {z}) m",
   bonesLine: "{bones} 骨骼",
+  pharosFbtReady: "Pharos 全身 15 骨 + 脚趾就绪",
+  pharosFbtNoToes: "Pharos 全身 15 骨就绪",
+  headHeightLine: "头骨高度 {height} m",
+  geometryLine: "{tris} 三角面 · {meshes} 网格",
+  mtoonLine: "{mtoon}/{total} MToon 材质",
+  externalTextureWarning: "{count} 处外部贴图路径依赖",
+  secondaryMotionLine: "{springs} 物理关节 · {expressions} 表情",
   vrmMetaLine: "{title}（VRM {spec}）",
   truncatedNote: "仅展示前序已检测的 3D 二进制工件。",
 };
 
 const zhTW: GlbInspectionCopy = {
   title: "GLB / VRM 與 Object-Head 規格檢查",
-  subtitle: "基於檔頭的 glTF 2.0 / VRM 1.0 結構核驗與 PH-R Stage 1 MR Object-Head ≥ 5 cm 頭顯淨空檢查。",
+  subtitle: "基於檔頭的 glTF 2.0 / VRM 1.0 結構核驗（支援免解壓掃描 .zip 成員）與 PH-R Stage 1 MR Object-Head ≥ 5 cm 頭顯淨空檢查。",
   formats: {
     vrm_1_0: "VRMC_vrm 1.0",
     vrm_0_x: "VRM 0.x",
@@ -84,15 +102,24 @@ const zhTW: GlbInspectionCopy = {
     likely_unscaled: "尺寸比例異常",
     unknown: "包圍盒未知",
   },
+  zipMemberBadge: "位於 {archive}",
   dimensions: "{x} × {y} × {z} m",
+  mountCenterLine: "中心偏移 ({x}, {y}, {z}) m",
   bonesLine: "{bones} 骨骼",
+  pharosFbtReady: "Pharos 全身 15 骨 + 腳趾就緒",
+  pharosFbtNoToes: "Pharos 全身 15 骨就緒",
+  headHeightLine: "頭骨高度 {height} m",
+  geometryLine: "{tris} 三角面 · {meshes} 網格",
+  mtoonLine: "{mtoon}/{total} MToon 材質",
+  externalTextureWarning: "{count} 處外部貼圖路徑依賴",
+  secondaryMotionLine: "{springs} 物理關節 · {expressions} 表情",
   vrmMetaLine: "{title}（VRM {spec}）",
   truncatedNote: "僅顯示前序已檢查的 3D 二進位檔案。",
 };
 
 const ja: GlbInspectionCopy = {
   title: "GLB / VRM・Object-Head 仕様チェック",
-  subtitle: "ヘッダー解析による glTF 2.0 / VRM 1.0 判定と、PH-R Stage 1 MR Object-Head（≥ 5 cm クリアランス）確認。",
+  subtitle: "ヘッダー解析による glTF 2.0 / VRM 1.0 判定（未展開 .zip 内スキャン対応）と、PH-R Stage 1 MR Object-Head（≥ 5 cm クリアランス）確認。",
   formats: {
     vrm_1_0: "VRMC_vrm 1.0",
     vrm_0_x: "VRM 0.x",
@@ -114,15 +141,24 @@ const ja: GlbInspectionCopy = {
     likely_unscaled: "非メートル単位の可能性",
     unknown: "境界サイズ不明",
   },
+  zipMemberBadge: "{archive} 内",
   dimensions: "{x} × {y} × {z} m",
+  mountCenterLine: "中心オフセット ({x}, {y}, {z}) m",
   bonesLine: "{bones} ボーン",
+  pharosFbtReady: "Pharos 全身 15 ボーン + 足指対応",
+  pharosFbtNoToes: "Pharos 全身 15 ボーン対応",
+  headHeightLine: "Head 高さ {height} m",
+  geometryLine: "{tris} 三角面 · {meshes} メッシュ",
+  mtoonLine: "{mtoon}/{total} MToon",
+  externalTextureWarning: "外部テクスチャ URI {count} 件",
+  secondaryMotionLine: "揺れ骨 {springs} · 表情 {expressions}",
   vrmMetaLine: "{title}（VRM {spec}）",
   truncatedNote: "先頭の 3D バイナリファイルのみ表示しています。",
 };
 
 const ko: GlbInspectionCopy = {
   title: "GLB / VRM 및 Object-Head 규격 점검",
-  subtitle: "파일 헤더 기반 glTF 2.0 / VRM 1.0 판별 및 PH-R Stage 1 MR Object-Head(≥ 5 cm 여유 공간) 확인.",
+  subtitle: "파일 헤더 기반 glTF 2.0 / VRM 1.0 판별(미압축해제 .zip 내부 스캔 지원) 및 PH-R Stage 1 MR Object-Head(≥ 5 cm 여유 공간) 확인.",
   formats: {
     vrm_1_0: "VRMC_vrm 1.0",
     vrm_0_x: "VRM 0.x",
@@ -144,8 +180,17 @@ const ko: GlbInspectionCopy = {
     likely_unscaled: "비미터 스케일 의심",
     unknown: "바운딩 크기 미확인",
   },
+  zipMemberBadge: "{archive} 내부",
   dimensions: "{x} × {y} × {z} m",
+  mountCenterLine: "중심 오프셋 ({x}, {y}, {z}) m",
   bonesLine: "본 {bones}개",
+  pharosFbtReady: "Pharos 전신 15본 + 발가락 준비됨",
+  pharosFbtNoToes: "Pharos 전신 15본 준비됨",
+  headHeightLine: "머리 높이 {height} m",
+  geometryLine: "삼각형 {tris}개 · 메시 {meshes}개",
+  mtoonLine: "{mtoon}/{total} MToon",
+  externalTextureWarning: "외부 텍스처 URI {count}개",
+  secondaryMotionLine: "스프링본 {springs} · 표정 {expressions}",
   vrmMetaLine: "{title}(VRM {spec})",
   truncatedNote: "앞부분의 3D 바이너리 파일만 표시하고 있어요.",
 };

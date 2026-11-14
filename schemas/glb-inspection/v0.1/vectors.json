@@ -31,12 +31,40 @@
         {
           "copyId": "copy-vrm1",
           "fileName": "Avatar_v1.vrm",
+          "sourceKind": "standalone_file",
+          "containerFileName": null,
           "sizeBytes": 14820352,
           "format": "vrm_1_0",
-          "extensionsUsed": ["VRMC_vrm", "VRMC_springBone"],
+          "extensionsUsed": ["VRMC_vrm", "VRMC_springBone", "VRMC_materials_mtoon"],
+          "contentSummary": {
+            "meshCount": 6,
+            "primitiveCount": 14,
+            "triangleEstimate": 38420,
+            "skinCount": 1,
+            "nodeCount": 94,
+            "animationCount": 0
+          },
+          "materialSummary": {
+            "materialCount": 8,
+            "unlitMaterialCount": 0,
+            "mtoonMaterialCount": 8
+          },
+          "textureSummary": {
+            "textureCount": 12,
+            "embeddedImageCount": 12,
+            "externalUriTextureCount": 0
+          },
+          "secondaryMotion": {
+            "springBoneJointCount": 24,
+            "nodeConstraintCount": 2,
+            "expressionCount": 18
+          },
           "vrm": {
             "specVersion": "1.0",
             "hasHumanoidHeadBone": true,
+            "hasFullBodyBones": true,
+            "hasToeBones": true,
+            "headBoneHeightMeters": 1.32,
             "boneCount": 52,
             "modelName": "Kipfel",
             "authors": ["Studio Example"],
@@ -53,16 +81,42 @@
           "objectHeadClearance": {
             "status": "passes",
             "referenceHeadHmdMeters": [0.22, 0.26, 0.28],
-            "marginsMeters": [0.12, 0.61, 0.015]
+            "marginsMeters": [0.12, 0.61, 0.015],
+            "mountOffsetCenterMeters": [0.0, 0.74, 0.005]
           },
           "phrReadiness": "ready_vrm1_humanoid"
         },
         {
-          "copyId": "copy-tvhead",
-          "fileName": "RetroMonitorHead.glb",
+          "copyId": "copy-tvhead-zip",
+          "fileName": "Models/RetroMonitorHead.glb",
+          "sourceKind": "zip_member",
+          "containerFileName": "RetroMonitorHead_Pack.zip",
           "sizeBytes": 2097152,
           "format": "glb_2_0",
           "extensionsUsed": ["KHR_materials_unlit"],
+          "contentSummary": {
+            "meshCount": 2,
+            "primitiveCount": 3,
+            "triangleEstimate": 4200,
+            "skinCount": 0,
+            "nodeCount": 5,
+            "animationCount": 0
+          },
+          "materialSummary": {
+            "materialCount": 2,
+            "unlitMaterialCount": 2,
+            "mtoonMaterialCount": 0
+          },
+          "textureSummary": {
+            "textureCount": 2,
+            "embeddedImageCount": 2,
+            "externalUriTextureCount": 0
+          },
+          "secondaryMotion": {
+            "springBoneJointCount": 0,
+            "nodeConstraintCount": 0,
+            "expressionCount": 0
+          },
           "vrm": null,
           "boundsMeters": {
             "size": [0.38, 0.4, 0.42],
@@ -72,7 +126,8 @@
           "objectHeadClearance": {
             "status": "passes",
             "referenceHeadHmdMeters": [0.22, 0.26, 0.28],
-            "marginsMeters": [0.08, 0.07, 0.07]
+            "marginsMeters": [0.08, 0.07, 0.07],
+            "mountOffsetCenterMeters": [0.0, 0.0, 0.0]
           },
           "phrReadiness": "ready_object_head"
         }
@@ -87,15 +142,22 @@
         {
           "copyId": "copy-leak",
           "fileName": "C:\\Users\\Alice\\Secrets\\Head.glb",
+          "sourceKind": "standalone_file",
+          "containerFileName": null,
           "sizeBytes": 128,
           "format": "glb_2_0",
           "extensionsUsed": [],
+          "contentSummary": null,
+          "materialSummary": null,
+          "textureSummary": null,
+          "secondaryMotion": null,
           "vrm": null,
           "boundsMeters": null,
           "objectHeadClearance": {
             "status": "unknown",
             "referenceHeadHmdMeters": [0.22, 0.26, 0.28],
-            "marginsMeters": null
+            "marginsMeters": null,
+            "mountOffsetCenterMeters": null
           },
           "phrReadiness": "clearance_insufficient"
         }

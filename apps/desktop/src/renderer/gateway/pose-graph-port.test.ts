@@ -14,23 +14,31 @@ describe("forward-compatibility gateway ports", () => {
         capturedAt: "2026-11-14T00:00:00Z",
         openxr: { presence: "found", runtimeName: "SteamVR OpenXR" },
         steamvrDrivers: ["space_calibrator", "pharos"],
+        blockedSteamvrDrivers: [],
         lastHeadsetHint: "Quest 3",
         poseSources: [
           { sourceId: "headset_6dof", state: "ready", detailCode: null },
-          { sourceId: "pharos", state: "active", detailCode: "hub_running" },
+          { sourceId: "pharos", state: "active", detailCode: "telemetry_live" },
           { sourceId: "slimevr", state: "not_detected", detailCode: null },
           { sourceId: "pico_motion", state: "not_detected", detailCode: null },
           { sourceId: "lighthouse", state: "installed", detailCode: null },
+          { sourceId: "space_calibrator", state: "ready", detailCode: "driver_registered" },
+          { sourceId: "mocopi", state: "not_detected", detailCode: null },
+          { sourceId: "haritorax", state: "not_detected", detailCode: null },
+          { sourceId: "rebocap", state: "not_detected", detailCode: null },
           { sourceId: "eye_face_osc", state: "not_detected", detailCode: null },
         ],
         pharosHub: {
           state: "running",
+          telemetryState: "live",
+          calibrationState: "calibrated",
+          spatialAnchorReady: true,
           activeModes: ["optical_stereo_2x2x2", "imu_fusion"],
           wearableNodes: [
-            { slot: "left_foot", state: "connected", footHeadingAvailable: true },
-            { slot: "right_foot", state: "connected", footHeadingAvailable: true },
-            { slot: "waist", state: "connected", footHeadingAvailable: false },
-            { slot: "chest", state: "not_connected", footHeadingAvailable: false },
+            { slot: "left_foot", state: "connected", trackingMode: "optical_imu", batteryPercent: 85, footHeadingAvailable: true },
+            { slot: "right_foot", state: "connected", trackingMode: "passive_retroreflective", batteryPercent: 0, footHeadingAvailable: true },
+            { slot: "waist", state: "connected", trackingMode: "optical_imu", batteryPercent: 72, footHeadingAvailable: false },
+            { slot: "chest", state: "not_connected", trackingMode: null, batteryPercent: null, footHeadingAvailable: false },
           ],
           stereoBaseStationCount: 2,
           panoramicAnchorCount: 1,
@@ -51,6 +59,7 @@ describe("forward-compatibility gateway ports", () => {
       params: { schemaVersion: "0.1" },
     });
     expect(snapshot.pharosHub.state).toBe("running");
+    expect(snapshot.pharosHub.spatialAnchorReady).toBe(true);
     expect(snapshot.poseSources.find((s) => s.sourceId === "pharos")?.state).toBe("active");
   });
 
@@ -62,16 +71,42 @@ describe("forward-compatibility gateway ports", () => {
       items: [
         {
           copyId: "cpy-1",
-          fileName: "head.glb",
+          fileName: "Props/head.glb",
+          sourceKind: "zip_member",
+          containerFileName: "head_bundle.zip",
           sizeBytes: 2048,
           format: "glb_2_0",
           extensionsUsed: [],
+          contentSummary: {
+            meshCount: 1,
+            primitiveCount: 1,
+            triangleEstimate: 1200,
+            skinCount: 0,
+            nodeCount: 1,
+            animationCount: 0,
+          },
+          materialSummary: {
+            materialCount: 1,
+            unlitMaterialCount: 0,
+            mtoonMaterialCount: 0,
+          },
+          textureSummary: {
+            textureCount: 0,
+            embeddedImageCount: 0,
+            externalUriTextureCount: 0,
+          },
+          secondaryMotion: {
+            springBoneJointCount: 0,
+            nodeConstraintCount: 0,
+            expressionCount: 0,
+          },
           vrm: null,
           boundsMeters: { size: [0.35, 0.40, 0.42], min: [-0.175, 0, -0.21], max: [0.175, 0.4, 0.21] },
           objectHeadClearance: {
             status: "passes",
             referenceHeadHmdMeters: [0.22, 0.26, 0.28],
-            marginsMeters: [0.13, 0.14, 0.14],
+            marginsMeters: [0.065, 0.07, 0.07],
+            mountOffsetCenterMeters: [0, 0.2, 0],
           },
           phrReadiness: "ready_object_head",
         },
@@ -91,6 +126,7 @@ describe("forward-compatibility gateway ports", () => {
       params: { schemaVersion: "0.1", productId: "booth:12345" },
     });
     expect(result.items[0]?.phrReadiness).toBe("ready_object_head");
+    expect(result.items[0]?.sourceKind).toBe("zip_member");
   });
 
   it("checks PH-R VN3 presets via terms.checkUse v0.2", async () => {

@@ -473,6 +473,8 @@ pub struct EnvironmentRoots {
     pub vcc_settings_candidates: Vec<PathBuf>,
     /// PICO Connect streaming settings candidates (Roaming first, LOCALAPPDATA fallback).
     pub pico_connect_settings_candidates: Vec<PathBuf>,
+    /// Pharos Optical+IMU Hub live status file candidates (`LOCALAPPDATA`).
+    pub pharos_status_candidates: Vec<PathBuf>,
 }
 
 impl Default for EnvironmentRoots {
@@ -534,6 +536,15 @@ impl Default for EnvironmentRoots {
                 PathBuf::from(&local_app_data)
                     .join("PICO Connect")
                     .join("settings.json"),
+            ],
+            pharos_status_candidates: vec![
+                PathBuf::from(&local_app_data)
+                    .join("Pharos")
+                    .join("hub-status.json"),
+                PathBuf::from(&local_app_data)
+                    .join("PH-R")
+                    .join("Tracking")
+                    .join("hub-status.json"),
             ],
         }
     }
@@ -1126,6 +1137,7 @@ impl EnvironmentEngine {
                             "path": editor.path.to_string_lossy(),
                             "classification": classification,
                             "guidanceCode": guidance_code,
+                            "isUnity63Lts": editor_targets::is_unity_63_lts(&editor.parsed),
                         })
                     })
                     .collect();

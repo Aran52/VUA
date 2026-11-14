@@ -347,7 +347,7 @@ describe("built-in MCP, using the official HTTP client", () => {
       { name: "vua_request_play", arguments: { route: "desktop", action: "start" } },
     ]) expect((await client.callTool(request)).isError).toBe(true);
     expect(calls).toEqual([]);
-    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_terms", "vua_terms_check", "vua_amf_run", "vua_recipe_materials", "vua_recipe_apply_plan", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
+    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_terms", "vua_terms_check", "vua_amf_run", "vua_recipe_materials", "vua_recipe_apply_plan", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_installer_tool_status", "vua_diagnose_symptom", "vua_recipe", "vua_amf_face_tracking_plan", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
       expect(() => aiGatewayRequest(spec, {}, "test")).not.toThrow();
     }
   });
@@ -591,5 +591,40 @@ describe("run summary", () => {
     expect(summary.revisionCount).toBe(50);
     expect(summary.revisions).toEqual(revisions.slice(0, 5));
     expect("revisions" in (runSummary({ runId: "n3-a", phase: "ready" }) as Record<string, unknown>)).toBe(false);
+  });
+
+  it("exposes local diagnostics, official-installer tools, Recipes, face-tracking plans, and library v0.3 filters", async () => {
+    const { client, calls, service } = await setup(async request => {
+      if (request.method === "environment.planDeployment") return envelope(request, { deploymentPlan: { digest } });
+      if (request.method === "diagnostics.observeLocal") return envelope(request, { localDiagnostics: { clientRunning: false, osc: { avatarConfigCount: 2 } } });
+      if (request.method === "diagnostics.diagnoseSymptom") return envelope(request, { symptomDiagnosis: { symptom: request.params.symptom, sopSteps: [{ stepId: "osc_enable_radial_menu" }] } });
+      if (request.method === "tools.observeInstaller") return envelope(request, { installerTool: { toolId: request.params.toolId, presence: "installed", running: false } });
+      if (request.method === "amf.production.listRecipes") return envelope(request, { recipes: [{ recipeId: "recipe-1", title: "Winter" }] });
+      if (request.method === "amf.production.getRecipe") return envelope(request, { recipe: { recipeId: request.params.recipeId, title: "Winter" } });
+      if (request.method === "amf.production.faceTrackingPlan") return envelope(request, { planDigest: digest, parameterBudget: { state: "fits", usedBits: 120, limitBits: 256 } });
+      return envelope(request, { ok: true });
+    });
+
+    expect((await client.callTool({ name: "vua_local_diagnostics", arguments: {} })).isError).toBeFalsy();
+    expect((await client.callTool({ name: "vua_diagnose_symptom", arguments: { symptom: "osc_or_face_tracking_not_responding" } })).isError).toBeFalsy();
+    expect((await client.callTool({ name: "vua_installer_tool_status", arguments: { toolId: "slimevr" } })).isError).toBeFalsy();
+    expect((await client.callTool({ name: "vua_plan_installation", arguments: { intent: { tools: ["slimevr", "vrcx"] } } })).isError).toBeFalsy();
+    expect((await client.callTool({ name: "vua_recipes", arguments: {} })).isError).toBeFalsy();
+    expect((await client.callTool({ name: "vua_recipe", arguments: { recipeId: "recipe-1" } })).isError).toBeFalsy();
+    expect((await client.callTool({ name: "vua_amf_face_tracking_plan", arguments: { runId: "n3-test", menuId: digest } })).isError).toBeFalsy();
+    expect((await client.callTool({ name: "vua_library", arguments: { sort: "added_desc", vn3: { state: "readable", items: ["C", "I"] } } })).isError).toBeFalsy();
+    expect(calls.find(c => c.method === "library.list")?.params).toEqual({
+      schemaVersion: "0.3",
+      limit: 25,
+      sort: "added_desc",
+      vn3: { state: "readable", items: ["C", "I"] },
+    });
+
+    // Approval-gated installer tool launch and OSC cache clear review current facts first.
+    const instReq = await client.callTool({ name: "vua_request_installer_tool", arguments: { toolId: "vrcx", action: "start" } });
+    expect(instReq.isError).toBeFalsy();
+    const oscReq = await client.callTool({ name: "vua_request_clear_osc_cache", arguments: {} });
+    expect(oscReq.isError).toBeFalsy();
+    expect(service.snapshot().requests.map(r => r.tool)).toEqual(["vua_request_installer_tool", "vua_request_clear_osc_cache"]);
   });
 });

@@ -456,6 +456,10 @@ export class AiToolsServer {
       reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "environment.observePlay", params: { route: request.params.route } });
     } else if (request.method === "tools.actConnection") {
       reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "tools.observeConnection", params: { toolId: request.params.toolId } });
+    } else if (request.method === "tools.actInstaller") {
+      reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "tools.observeInstaller", params: { toolId: request.params.toolId } });
+    } else if (request.method === "diagnostics.clearOscAvatarCache") {
+      reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "diagnostics.observeLocal", params: { schemaVersion: "0.1" } });
     }
     if (!this.enabled) throw new Error("connection_disabled");
     if ([...this.approvals.values()].filter(a => a.view.state === "pending" || a.view.state === "running").length >= 4) throw new Error("review_pending_requests_first");

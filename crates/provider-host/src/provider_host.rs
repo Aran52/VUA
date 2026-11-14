@@ -240,6 +240,7 @@ struct EnvironmentServices {
     tools: HashMap<&'static str, vua_orchestrator::external_tools::ToolService>,
     installer_tools: HashMap<&'static str, vua_orchestrator::external_tools::InstallerToolService>,
     network: vua_orchestrator::network::NetworkService,
+    local_diagnostics: vua_orchestrator::local_diagnostics::LocalDiagnosticsService,
     deployment: vua_orchestrator::deployment::DeploymentService,
     engine: EnvironmentEngine,
 }
@@ -1009,6 +1010,11 @@ pub fn run_provider_host_with_legacy(
                 Arc::new(vua_project_manager::network_probe::HttpsNetworkProbe),
                 Arc::new(SystemClock),
             ),
+            local_diagnostics: vua_orchestrator::local_diagnostics::LocalDiagnosticsService::new(
+                config.roots.clone(),
+                Arc::new(vua_project_manager::local_diagnostics_win::WindowsLocalDiagnosticsProbe),
+                Arc::new(SystemClock),
+            ),
             deployment: vua_orchestrator::deployment::DeploymentService::new(
                 Arc::new(vua_project_manager::deployment_adapter::WindowsDeploymentAdapter::new(config.roots.clone())),
                 TaskRuntime::with_sqlite(store.clone(), Arc::new(SystemClock), Arc::new(NanosTaskIdGenerator::default()))?),
@@ -1681,6 +1687,21 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
     }
     if matches!(
         method,
+        "diagnostics.observeLocal"
+            | "diagnostics.diagnoseSymptom"
+            | "diagnostics.clearOscAvatarCache"
+            | "diagnostics.updateClientConfig"
+    ) {
+        return crate::local_diagnostics_routes::request(
+            state.environment.as_ref().map(|s| &s.local_diagnostics),
+            method,
+            request,
+            request_id,
+            correlation_id,
+        );
+    }
+    if matches!(
+        method,
         "environment.listPlaySetups"
             | "environment.getScenarioSop"
             | "environment.checkScenarioEnvironment"
@@ -2010,6 +2031,10 @@ fn served_capabilities(state: &HostState) -> Value {
         {"operationId": "tools.actConnection", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "tools.observeInstaller", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "tools.actInstaller", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "diagnostics.observeLocal", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "diagnostics.diagnoseSymptom", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "diagnostics.clearOscAvatarCache", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "diagnostics.updateClientConfig", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "environment.startPlay", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "environment.stopPlay", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         deployment_capability(state, "environment.planDeployment"),

@@ -19,6 +19,7 @@ pub mod external_tools;
 mod filesystem;
 mod inspection_evidence;
 mod journal;
+pub mod local_diagnostics;
 mod material_types;
 mod model;
 pub mod network;

@@ -1337,7 +1337,7 @@ fn tcp_reachable(probe: &str) -> bool {
 /// kernel32 `GetDiskFreeSpaceExW` export directly — one well-understood call
 /// instead of a new dependency (ORC-DEV-005).
 #[cfg(windows)]
-fn free_disk_bytes(path: &Path) -> Result<(u64, u64), Option<String>> {
+pub(crate) fn free_disk_bytes(path: &Path) -> Result<(u64, u64), Option<String>> {
     use std::os::windows::ffi::OsStrExt;
 
     #[link(name = "kernel32")]
@@ -1366,6 +1366,6 @@ fn free_disk_bytes(path: &Path) -> Result<(u64, u64), Option<String>> {
 }
 
 #[cfg(not(windows))]
-fn free_disk_bytes(_path: &Path) -> Result<(u64, u64), Option<String>> {
+pub(crate) fn free_disk_bytes(_path: &Path) -> Result<(u64, u64), Option<String>> {
     Err(Some(error_codes::UNSUPPORTED_PLATFORM.to_owned()))
 }

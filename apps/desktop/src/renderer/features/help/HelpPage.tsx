@@ -1,5 +1,5 @@
 import type { PageId } from "../../app/nav-model.ts";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon, type IconName } from "@vua/design-system";
 import { currentLocale, strings } from "../../i18n/index.ts";
 import { structureCopy } from "../../i18n/structure-copy.ts";
@@ -9,9 +9,21 @@ import "./help.css";
 import { AiToolsPage } from "./AiToolsPage.tsx";
 import { VuaGuide } from "./VuaGuide.tsx";
 import { EncyclopediaPage } from "./EncyclopediaPage.tsx";
+import { LocalDiagnosticsPanel } from "./LocalDiagnosticsPanel.tsx";
 import { GuideEntryButton } from "../guide/GuideEntryButton.tsx";
 import { GUIDE_TARGETS } from "../guide/guide-target.ts";
 import { LicensedEntryGuides } from "./LicensedEntryGuides.tsx";
+
+function isDiagnosticsHash(): boolean {
+  try {
+    const raw = window.location.hash.replace(/^#/, "");
+    const queryIndex = raw.indexOf("?");
+    if (queryIndex < 0) return false;
+    return new URLSearchParams(raw.slice(queryIndex + 1)).get("sub") === "diagnostics";
+  } catch {
+    return false;
+  }
+}
 
 const hints = structureCopy[currentLocale].help;
 
@@ -34,12 +46,27 @@ export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeG
   const copy = strings.journey;
   const faq = strings.helpFaq;
   const [openFailed, setOpenFailed] = useState(false);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(isDiagnosticsHash);
+  useEffect(() => {
+    if (page !== "help") {
+      setDiagnosticsOpen(false);
+      return;
+    }
+    const sync = () => setDiagnosticsOpen(isDiagnosticsHash());
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, [page]);
   if (page === "help-ai") return <div className="vua-page vua-help-child" data-focus-scope>
     <header className="vua-page__hero vua-environment-heading"><h1 className="vua-title">{strings.aiTools.title}</h1></header>
     <AiToolsPage navigate={navigate} />
   </div>;
   if (page === "help-encyclopedia") return <EncyclopediaPage onBack={() => navigate("help")} guideRequest={guideRequest} acknowledgeGuide={acknowledgeGuide} />;
   if (page === "help-wizard") return <VuaGuide onBack={() => navigate("help")} navigate={navigate} />;
+  if (diagnosticsOpen) return <LocalDiagnosticsPanel onBack={() => {
+    setDiagnosticsOpen(false);
+    try { window.location.hash = "help"; } catch { /* Hash stays optional in restricted frames. */ }
+  }} />;
 
   const openGameGuide = () => {
     setOpenFailed(false);
@@ -78,6 +105,10 @@ export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeG
         <HelpRow id="help-tour" icon="question" title={strings.tour.paletteEntry} onClick={startTour} />
         <HelpRow id="help-wizard" icon="arrow-right" title={copy.wizard} onClick={() => navigate("help-wizard")} />
         <HelpRow id="help-encyclopedia" icon="folder" title={copy.guide} onClick={() => navigate("help-encyclopedia")} />
+        <HelpRow id="help-diagnostics" icon="gauge" title={strings.localDiagnostics.entryTitle} hint={strings.localDiagnostics.entryHint} onClick={() => {
+          setDiagnosticsOpen(true);
+          try { window.location.hash = "help?sub=diagnostics"; } catch { /* Hash stays optional in restricted frames. */ }
+        }} />
         <HelpRow id="help-game-assistant" icon="anim" title={copy.gameGuide} hint={hints.gameHint} onClick={openGameGuide} />
       </div>
       {openFailed ? <p role="status">{strings.helpUi.openFailed}</p> : null}

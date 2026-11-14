@@ -246,6 +246,11 @@ export class MockOrchestratorProviderV01 implements OrchestratorProviderV01 {
         return this.#failure(request, this.#error("vua.installer_tool.unavailable", "unavailable", "errors.externalTool.unavailable", request.correlationId, false, false));
       case "environment.inspectManagerApps":
         return this.#failure(request, this.#error("vua.manager_apps.unavailable", "unavailable", "errors.playSession.unavailable", request.correlationId, false, false));
+      case "diagnostics.observeLocal":
+      case "diagnostics.diagnoseSymptom":
+      case "diagnostics.clearOscAvatarCache":
+      case "diagnostics.updateClientConfig":
+        return this.#failure(request, this.#error("vua.local_diagnostics.unavailable", "unavailable", "errors.localDiagnostics.unavailable", request.correlationId, false, false));
       case "environment.planDeployment":
       case "environment.executeDeployment":
         return this.#failure(request, this.#error("vua.deployment.unavailable", "unavailable", "errors.deployment.failed", request.correlationId, false, false));

@@ -147,6 +147,16 @@ function toApplicationRequest(
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "tools.actInstaller":
       return { ...base, kind: "command", method: request.method, commandId: request.params.commandId, params: { toolId: request.params.toolId, action: request.params.action } };
+    case "diagnostics.observeLocal":
+      return { ...base, kind: "query", method: request.method, params: request.params };
+    case "diagnostics.diagnoseSymptom":
+      return { ...base, kind: "query", method: request.method, params: request.params };
+    case "diagnostics.clearOscAvatarCache":
+      return { ...base, kind: "command", method: request.method, commandId: request.params.commandId, params: { schemaVersion: request.params.schemaVersion } };
+    case "diagnostics.updateClientConfig": {
+      const { commandId, ...params } = request.params;
+      return { ...base, kind: "command", method: request.method, commandId, params };
+    }
     case "environment.inspectManagerApps":
       return { ...base, kind: "query", method: request.method, params: {} };
     case "environment.startPlay": case "environment.stopPlay":

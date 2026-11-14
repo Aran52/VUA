@@ -938,6 +938,20 @@ function AppShell({
       { id: "help-wizard", group: "pages", label: strings.journey.wizard, hint: strings.journey.help, keywords: "wizard beginner concepts", run: () => navigate("help-wizard") },
       { id: "help-encyclopedia", group: "pages", label: strings.journey.guide, hint: strings.journey.help, keywords: "encyclopedia wiki knowledge", run: () => navigate("help-encyclopedia") },
       { id: "help-ai", group: "pages", label: strings.aiTools.title, hint: strings.aiTools.shortTitle, keywords: "mcp ai agent claude cursor codex", run: () => navigate("help-ai") },
+      {
+        id: "help-diagnostics",
+        group: "pages",
+        label: strings.localDiagnostics.entryTitle,
+        hint: strings.journey.help,
+        keywords: "diagnostics troubleshoot osc cache steamvr eac crash fps mic",
+        run: () => {
+          navigate("help");
+          try {
+            window.location.hash = "help?sub=diagnostics";
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
+          } catch { /* Hash stays optional in restricted frames. */ }
+        },
+      },
       ...TOOL_HUB_GROUPS.flatMap(group => group.tools.map(tool => ({
         id: `tool-${tool.id}`,
         group: "pages" as const,

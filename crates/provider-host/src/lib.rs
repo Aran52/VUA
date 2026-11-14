@@ -35,6 +35,7 @@ mod deployment_routes;
 mod external_tool_routes;
 mod game_window_routes;
 mod known_packages;
+mod local_diagnostics_routes;
 mod network_routes;
 mod play_session_routes;
 mod scenario_routes;

@@ -1,4 +1,4 @@
-import { EXTERNAL_TOOL_IDS, EXTERNAL_TOOL_NAMES, type AiActionRequestV01, type ExternalToolId } from "@vua/contracts";
+import { EXTERNAL_TOOL_IDS, EXTERNAL_TOOL_NAMES, INSTALLER_TOOL_IDS, INSTALLER_TOOL_NAMES, type AiActionRequestV01, type ExternalToolId, type InstallerToolId } from "@vua/contracts";
 import { currentLocale, format, strings } from "../../i18n/index.ts";
 import { Card } from "../../components/primitives/Card.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
@@ -8,7 +8,21 @@ const copy = strings.aiTools;
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 export const requestTitle = (request: AiActionRequestV01) => copy.tools[request.tool as keyof typeof copy.tools] ?? request.title;
 function outcome(request: AiActionRequestV01): string {
-  const keys: Record<string, keyof typeof copy.outcomes> = { vua_request_installation: "installation", vua_request_play: "play", vua_request_tool: "tool", vua_request_amf_prepare: "prepare", vua_request_amf_assemble: "assemble", vua_request_amf_reinspect: "reinspect", vua_request_amf_open: "open", vua_request_amf_upload: "upload", vua_request_cancel_task: "cancel" };
+  const keys: Record<string, keyof typeof copy.outcomes> = {
+    vua_request_installation: "installation",
+    vua_request_play: "play",
+    vua_request_tool: "tool",
+    vua_request_installer_tool: "installerTool",
+    vua_request_clear_osc_cache: "clearOscCache",
+    vua_request_amf_prepare: "prepare",
+    vua_request_amf_assemble: "assemble",
+    vua_request_amf_reinspect: "reinspect",
+    vua_request_amf_close_editor: "closeEditor",
+    vua_request_amf_open: "open",
+    vua_request_amf_local_test: "localTest",
+    vua_request_amf_upload: "upload",
+    vua_request_cancel_task: "cancel",
+  };
   return copy.outcomes[keys[request.tool] ?? "cancel"];
 }
 /** File or folder name without directories or extension: "Meiyun_v2.1.0/Meiyun.unitypackage" → "Meiyun". */
@@ -43,6 +57,7 @@ function Review({ request }: { request: AiActionRequestV01 }) {
     </li>)}</ul></> : null}
     {params.route ? <p>{strings.deployment.purposes[params.route as keyof typeof strings.deployment.purposes] ?? String(params.route)}</p> : null}
     {(EXTERNAL_TOOL_IDS as readonly unknown[]).includes(params.toolId) ? <p><strong>{EXTERNAL_TOOL_NAMES[params.toolId as ExternalToolId]}</strong></p> : null}
+    {(INSTALLER_TOOL_IDS as readonly unknown[]).includes(params.toolId) ? <p><strong>{INSTALLER_TOOL_NAMES[params.toolId as InstallerToolId]}</strong></p> : null}
     {params.action ? <p>{copy.actions[params.action as keyof typeof copy.actions] ?? String(params.action)}</p> : null}
     {materials.length > 0 ? <><h4>{copy.materials}</h4><ul>{materials.map(({ source, fact }, i) => fact
       ? <Material key={i} role={fact.role ?? source.role} name={fact.name} item={fact.itemName} />

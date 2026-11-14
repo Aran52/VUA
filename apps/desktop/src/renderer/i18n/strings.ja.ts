@@ -26,6 +26,7 @@ import { avatarOptimizerCopy } from "./avatar-optimizer-copy.ts";
 import { guideChannelCopy } from "./guide-channel-copy.ts";
 import { recipeDraftFlowCopy } from "./recipe-draft-flow-copy.ts";
 import { installerToolCopy } from "./installer-tool-copy.ts";
+import { localDiagnosticsCopy } from "./local-diagnostics-copy.ts";
 import type { Strings } from "./strings.en.ts";
 
 /**
@@ -63,6 +64,7 @@ export const strings: Strings = {
   guideChannel: guideChannelCopy["ja"],
   recipeDraftFlow: recipeDraftFlowCopy["ja"],
   installerTool: installerToolCopy["ja"],
+  localDiagnostics: localDiagnosticsCopy["ja"],
   websiteTests: {
     title: "接続テスト", test: "テスト", testAll: "すべてテスト", testing: "テスト中…",
     add: "サイトを追加", edit: "サイトを編集", editSite: "{name} を編集", testSite: "{name} をテスト",

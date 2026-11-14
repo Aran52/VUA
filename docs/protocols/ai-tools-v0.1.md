@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.15.0
+> Document version: 0.16.0
 > Status: Candidate
-> Updated: 2026-11-12
+> Updated: 2026-11-14
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -47,12 +47,15 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_status`, `vua_tasks`, `vua_task` | Current capabilities/task facts |
 | `vua_play_setups`, `vua_sop`, `vua_check_environment` | Independent [scenario read family](scenario-environment-v0.1.md) and [play-setup catalog/SOP v0.2](scenario-environment-v0.2.md) |
 | `vua_unity_license` | Metadata-only [Unity license hints](unity-license-v0.1.md) and historical checks; starts no program |
-| `vua_plan_installation`, `vua_request_installation` | Existing digest-bound deployment plan/execute |
+| `vua_plan_installation`, `vua_request_installation` | Existing digest-bound deployment plan/execute (`purposes` and/or official-installer `tools`) |
+| `vua_local_diagnostics`, `vua_diagnose_symptom`, `vua_request_clear_osc_cache` | Privacy-safe [local diagnostics](local-diagnostics-v0.1.md), symptom-to-SOP checks, and approval-gated offline OSC cache cleanup |
 | `vua_play_status`, `vua_request_play` | Existing route observations and card-owned launch/stop; preexisting applications retained |
 | `vua_tool_status`, `vua_request_tool` | Candidate Steam connections for VRCFaceTracking, OpenVR Space Calibrator, OVR Advanced Settings, OVR Toolkit, OyasumiVR, OVR Overlay Translator, ChilloutVR, Reborn, Desktop+ and fpsVR |
-| `vua_library`, `vua_material_files` | Bounded existing local AMF/BDL library queries; no login/download/upload |
+| `vua_installer_tool_status`, `vua_request_installer_tool` | Official-installer companion tools (`installer-tool v0.1`: SlimeVR Server, VRCT, VRCX, VRCS) |
+| `vua_library`, `vua_material_files` | Bounded existing local AMF/BDL library queries (including `v0.3` `sort` and `vn3` filters); no login/download/upload |
 | `vua_terms`, `vua_terms_check` | Recorded [VN3 terms](terms-v0.1.md) of BOOTH products and one use checked across several; local evidence only |
-| `vua_amf_materials`, `vua_amf_run`, `vua_amf_plan`, `vua_amf_release` | Candidate material-first read/plan facts and a finished Avatar's turntable and uploads |
+| `vua_recipes`, `vua_recipe` | Saved local Avatar Recipe summaries and full Recipe documents |
+| `vua_amf_materials`, `vua_amf_run`, `vua_amf_plan`, `vua_amf_face_tracking_plan`, `vua_amf_release` | Candidate material-first read/plan facts, face-tracking patch plans, and a finished Avatar's turntable and uploads |
 | `vua_request_amf_prepare`, `vua_request_amf_assemble`, `vua_request_amf_reinspect`, `vua_request_amf_open` | Existing [AMF production](amf-production-v0.1.md) authority and Bridge v5 |
 | `vua_request_amf_local_test` | Local Windows PC SDK test of a finished Avatar; ordinary player approval, no upload rights confirmation |
 | `vua_request_amf_upload` | [Managed upload](amf-production-v0.1.md#release); confirmed on the release page with the player's rights confirmation |
@@ -250,6 +253,7 @@ The [Recipe v0.5 contract](amf-recipe-v0.5.md) owns statuses, match rules and di
 
 ## Document changelog
 
+- 0.16.0 (2026-11-14): add `vua_local_diagnostics`, `vua_diagnose_symptom`, `vua_request_clear_osc_cache` (`local-diagnostics v0.1`), `vua_installer_tool_status`, `vua_request_installer_tool` and `ToolDeploymentIntent` (`installer-tool v0.1` / `environment-deployment v0.1`), `vua_recipes`, `vua_recipe`, `vua_amf_face_tracking_plan`, `vua_library` `v0.3` `sort`/`vn3` filters, and compact `optimizer`/`faceTracking`/`parameterBudget` fields in `vua_amf_run`.
 - 0.15.0 (2026-11-12): add Desktop+ and fpsVR to the Steam tools (`external-tool v0.4`).
 - 0.14.0 (2026-11-11): add `vua_play_setups` (`environment.listPlaySetups` `v0.2`) and `vua_sop` `selection` (`environment.getScenarioSop` `v0.2`) while keeping `v0.1` scenario SOP queries intact.
 - 0.13.0 (2026-11-08): request approved local Avatar tests and read bounded test summaries and upload eligibility.

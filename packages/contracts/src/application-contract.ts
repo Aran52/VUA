@@ -11,6 +11,15 @@ import { type GameWindowObservationResultV1 } from "./game-window.js";
 import { isPlayCommandId, isPlayParams, type PlayRoute, type PlaySessionResult } from "./play-session.js";
 import { isExternalToolParams, type ExternalToolAction, type ExternalToolId, type ExternalToolResult } from "./external-tool.js";
 import { isInstallerToolParams, type InstallerToolAction, type InstallerToolId, type InstallerToolResult } from "./installer-tool.js";
+import {
+  isLocalDiagnosticsParams,
+  type ClientConfigUpdateParamsV01,
+  type ClientConfigUpdateReceiptResultV01,
+  type LocalDiagnosticsResultV01,
+  type OscCacheClearReceiptResultV01,
+  type SymptomDiagnosisResultV01,
+  type SymptomIdV01,
+} from "./local-diagnostics-v01.js";
 import type { ManagerAppsResult } from "./manager-apps.js";
 import { isDownloadEventV01 } from "./download-events.js";
 import { isCatalogSyncPageRequestV01, type CatalogSyncPageRequestV01 } from "./catalog-sync.js";
@@ -2886,6 +2895,10 @@ export type ApplicationRequestV01 =
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly method: "tools.actConnection"; readonly commandId: string; readonly params: { readonly toolId: ExternalToolId; readonly action: ExternalToolAction } })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "tools.observeInstaller"; readonly params: { readonly toolId: InstallerToolId } })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly method: "tools.actInstaller"; readonly commandId: string; readonly params: { readonly toolId: InstallerToolId; readonly action: InstallerToolAction } })
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "diagnostics.observeLocal"; readonly params: { readonly schemaVersion: "0.1" } })
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "diagnostics.diagnoseSymptom"; readonly params: { readonly schemaVersion: "0.1"; readonly symptom: SymptomIdV01 } })
+  | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly method: "diagnostics.clearOscAvatarCache"; readonly commandId: string; readonly params: { readonly schemaVersion: "0.1" } })
+  | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly method: "diagnostics.updateClientConfig"; readonly commandId: string; readonly params: ClientConfigUpdateParamsV01 })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly method: "environment.startPlay" | "environment.stopPlay"; readonly commandId: string; readonly params: { readonly route: PlayRoute } })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.checkNetwork"; readonly params: { readonly intent: NetworkIntent } })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.testWebsites"; readonly params: WebsiteTestParams })
@@ -3062,6 +3075,10 @@ export type ApplicationSuccessValueV01 =
   | PlaySessionResult
   | ExternalToolResult
   | InstallerToolResult
+  | LocalDiagnosticsResultV01
+  | SymptomDiagnosisResultV01
+  | OscCacheClearReceiptResultV01
+  | ClientConfigUpdateReceiptResultV01
   | NetworkResult
   | WebsiteTestResult
   | GameWindowObservationResultV1
@@ -3333,6 +3350,20 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
     const command = value.method === "tools.actInstaller";
     return value.kind === (command ? "command" : "query") && hasExactKeys(value, command ? ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"] : ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
       && isInstallerToolParams(value.params, command) && (!command || isPlayCommandId(value.commandId));
+  }
+  if (
+    value.method === "diagnostics.observeLocal"
+    || value.method === "diagnostics.diagnoseSymptom"
+    || value.method === "diagnostics.clearOscAvatarCache"
+    || value.method === "diagnostics.updateClientConfig"
+  ) {
+    const command = value.method === "diagnostics.clearOscAvatarCache" || value.method === "diagnostics.updateClientConfig";
+    return value.kind === (command ? "command" : "query")
+      && hasExactKeys(value, command
+        ? ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"]
+        : ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
+      && isLocalDiagnosticsParams(value.method, value.params, false)
+      && (!command || isPlayCommandId(value.commandId));
   }
   if (value.method === "environment.observePlay" || value.method === "environment.startPlay" || value.method === "environment.stopPlay") {
     const command = value.method !== "environment.observePlay";

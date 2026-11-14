@@ -7,6 +7,7 @@ import { createLivePlayPort } from "./live-play-port.ts";
 import { createLiveInstallerToolPort, createLiveToolPort } from "./live-tool-port.ts";
 import { createCreatorInventoryPort } from "./creator-inventory-port.ts";
 import { createLiveNetworkPort } from "./live-network-port.ts";
+import { createLiveLocalDiagnosticsPort } from "./local-diagnostics-port.ts";
 import type { ApplicationEventV01, TaskEventV01 } from "@vua/contracts";
 import type { StoredGoalsV1 } from "../app/onboarding-model.ts";
 import { projectEnvironmentSnapshot, projectTaskItem } from "./contract-projection.ts";
@@ -175,6 +176,7 @@ function createLiveEnvironmentPort(client: GatewayClient): EnvironmentPort {
     installerTools: createLiveInstallerToolPort(client),
     managers: createCreatorInventoryPort(client),
     network: createLiveNetworkPort(client),
+    diagnostics: createLiveLocalDiagnosticsPort(client),
     snapshot: fetchView,
     subscribe(callback) {
       // 契约 v0.1 尚无环境事件;capability.changed 时重取快照保持新鲜

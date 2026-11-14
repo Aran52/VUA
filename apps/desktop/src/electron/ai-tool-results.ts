@@ -87,18 +87,20 @@ export function runSummary(value: unknown): unknown {
   const result = isRecord(value.result) ? value.result : null;
   const facts = result && isRecord(result.facts) ? result.facts : null;
   const sdk = facts && isRecord(facts.sdkReview) ? facts.sdkReview : null;
+  const ft = facts && isRecord(facts.faceTracking) ? facts.faceTracking : null;
   const issues = sdk ? rows(sdk.issues) : [];
   // A line keeps up to 50 revisions; the summary names the newest and the Resource holds them all.
-  return { ...pick(value, ["schemaVersion", "runId", "revision", "phase", "taskId", "createdAt", "completedAt", "selection", "error", "recovery", "progress", "usualDurations"]),
+  return { ...pick(value, ["schemaVersion", "runId", "revision", "phase", "taskId", "createdAt", "completedAt", "selection", "optimizer", "error", "recovery", "progress", "usualDurations"]),
     ...(isAmfEditorCloseResult(value.editorClose) ? {editorClose:{...value.editorClose,detail:safeErrorMessage(value.editorClose.detail)}} : {}),
     ...(Array.isArray(value.revisions) ? { revisionCount: value.revisions.length, revisions: value.revisions.slice(0, RUN_SUMMARY_REVISIONS) } : {}),
     sources: rows(value.sources).map(source => pick(source, ["sourceId", "role", "itemName"])),
     stepCount: count(value.steps), steps: rows(value.steps).slice(-20).map(step => pick(step, ["key", "name", "state", "startedAt", "endedAt"])),
     prefabs: prefabs(value.prefabs),
-    result: result ? { ...pick(result, ["officialSdkChecks", "visualReview", "packageVersions"]), diagnosticCount: count(result.diagnostics),
-      facts: facts ? { ...pick(facts, ["avatarGlobalObjectId", "avatarName", "projectFingerprint", "observedSelection"]),
+    result: result ? { ...pick(result, ["officialSdkChecks", "visualReview", "packageVersions", "parameterBudget"]), diagnosticCount: count(result.diagnostics),
+      facts: facts ? { ...pick(facts, ["avatarGlobalObjectId", "avatarName", "projectFingerprint", "observedSelection", "parameterBudget"]),
         prefabCount: count(facts.prefabs), previewCount: count(facts.previews),
         ...pick(facts, ["missingReferences", "hasMissingScripts", "sdkDescriptorRecognized", "sdkSignedIn", "officialSdkChecks", "visualReview"]),
+        ...(ft ? { faceTracking: { ...pick(ft, ["state", "truncated"]), menuCount: count(ft.menus) } } : {}),
         instanceCount: count(facts.instances), missingShaderMaterialCount: count(facts.missingShaderMaterials),
         sdkReview: sdk ? { ...pick(sdk, ["state", "platform", "overall"]), issueCount: count(sdk.issues),
           issuesByLevel: Object.fromEntries([...new Set(issues.map(issue => String(issue.level)))].map(level => [level, issues.filter(issue => issue.level === level).length])),

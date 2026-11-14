@@ -14,6 +14,7 @@ pub mod editor_verify;
 pub mod environment_managers;
 pub mod game_window;
 pub mod import_copy;
+pub mod local_diagnostics_win;
 pub mod manager_apps;
 pub mod network_probe;
 pub mod play_session;

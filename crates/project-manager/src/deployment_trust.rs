@@ -27,6 +27,17 @@ pub(super) fn trusted_pico_installer(path: &Path) -> bool {
         && signature_leaf_cn_matches(path, &["Douyin Vision Co., Ltd."])
 }
 
+/// Official Easy Anti-Cheat (EOS) binaries shipped with VRChat (`EasyAntiCheat_EOS_Setup.exe`,
+/// `start_protected_game.exe`, and `EasyAntiCheat_EOS.exe`). Real-machine S0 verification
+/// confirmed leaf subject CN `EasyAntiCheat Oy` (Epic Games subsidiary); both exact CNs are accepted.
+pub(crate) const EAC_TRUSTED_LEAF_SIGNERS: &[&str] = &["EasyAntiCheat Oy", "Epic Games, Inc."];
+
+pub(crate) fn trusted_eac_binary(path: &Path) -> bool {
+    path.is_absolute()
+        && path.is_file()
+        && signature_leaf_cn_matches(path, EAC_TRUSTED_LEAF_SIGNERS)
+}
+
 fn unity_signature(path: &Path, china: bool) -> bool {
     signature_leaf_cn_matches(
         path,

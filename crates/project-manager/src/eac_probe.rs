@@ -306,3 +306,718 @@ pub mod os_source {
         ))
     }
 }
+
+// ============================================================================
+// EAC Probe v0.2 (Candidate additive family — v0.1 above remains untouched)
+// ============================================================================
+
+pub mod v02 {
+    use serde::Serialize;
+    use std::collections::{HashMap, HashSet};
+    use std::path::Path;
+    use std::sync::{Arc, Mutex};
+    use vua_orchestrator::{
+        Clock, EnvironmentRoots, FindingSeverity, ManagerDiagnostic, RegistryHive, RegistrySource,
+        SystemClock,
+    };
+
+    use crate::deployment_trust::trusted_eac_binary;
+    use crate::eac_allowlist::{
+        find_entry, path_pattern_matches, AllowlistV01, EAC_ALLOWLIST_SCHEMA_VERSION,
+    };
+    use crate::eac_install::{
+        EacBinaryState, EacFolderState, EacInstallStateV02, InstallSource, WindowsInstallSource,
+    };
+    use crate::eac_logs::{EacLogFinding, LogSource, WindowsVrchatLogSource};
+    use crate::eac_recovery::{
+        plan_recovery, EacConclusionV02, EacRecoverySettings, EacRecoveryStepId,
+    };
+    use crate::eac_service::{
+        EacServiceName, EacServiceState, ServiceStatusSource, WindowsServiceStatusSource,
+    };
+
+    pub const EAC_PROBE_SCHEMA_VERSION_V02: &str = "vua.eac-probe/v0.2";
+
+    pub mod codes_v02 {
+        pub const PROCESS_UNREADABLE: &str = "vua.eac_probe.process_unreadable";
+        pub const WINDOW_UNREADABLE: &str = "vua.eac_probe.window_unreadable";
+        pub const SERVICE_UNREADABLE: &str = "vua.eac_probe.service_unreadable";
+        pub const STEAM_UNREADABLE: &str = "vua.eac_probe.steam_unreadable";
+        pub const INSTALL_UNREADABLE: &str = "vua.eac_probe.install_unreadable";
+        pub const LOG_UNREADABLE: &str = "vua.eac_probe.log_unreadable";
+        pub const INSTALL_PATH_UNKNOWN: &str = "vua.eac_probe.install_path_unknown";
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+    #[serde(rename_all = "snake_case")]
+    pub enum ProcessKindV02 {
+        EacLoader,
+        EacService,
+        VrchatGame,
+        VrchatLauncher,
+        VrchatOverlay,
+    }
+
+    impl ProcessKindV02 {
+        pub fn classify(image_name: &str) -> Option<Self> {
+            match image_name.to_ascii_lowercase().as_str() {
+                "easyanticheat.exe" => Some(Self::EacLoader),
+                "easyanticheat_eos.exe" | "easyanticheatservice.exe" => Some(Self::EacService),
+                "vrchat.exe" => Some(Self::VrchatGame),
+                "start_protected_game.exe" | "launch.exe" => Some(Self::VrchatLauncher),
+                _ => None,
+            }
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct ProcessEntryV02 {
+        pub image_name: String,
+        pub pid: u32,
+        pub created: Option<u64>,
+        pub path: Option<String>,
+    }
+
+    pub trait ProcessSnapshotSourceV02: Send + Sync {
+        fn snapshot_v02(&self) -> Result<Vec<ProcessEntryV02>, String>;
+    }
+
+    pub trait WindowVisibilitySource: Send + Sync {
+        fn visible_window_pids(&self) -> Result<HashSet<u32>, String>;
+    }
+
+    pub trait SteamRunningSource: Send + Sync {
+        fn running_flag(&self) -> Result<Option<u8>, String>;
+    }
+
+    pub trait CandidateSignatureVerifier: Send + Sync {
+        fn is_trusted_eac_binary(&self, path: &Path) -> bool;
+    }
+
+    #[derive(Debug, Default, Clone, Copy)]
+    pub struct WindowsCandidateSignatureVerifier;
+
+    impl CandidateSignatureVerifier for WindowsCandidateSignatureVerifier {
+        fn is_trusted_eac_binary(&self, path: &Path) -> bool {
+            trusted_eac_binary(path)
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct RegistrySteamRunningSource {
+        registry: Arc<dyn RegistrySource>,
+    }
+
+    impl RegistrySteamRunningSource {
+        pub fn new(registry: Arc<dyn RegistrySource>) -> Self {
+            Self { registry }
+        }
+    }
+
+    impl SteamRunningSource for RegistrySteamRunningSource {
+        fn running_flag(&self) -> Result<Option<u8>, String> {
+            Ok(self
+                .registry
+                .get_dword(
+                    RegistryHive::CurrentUser,
+                    r"Software\Valve\Steam\Apps\438100",
+                    "Running",
+                )
+                .map(|val| if val == 0 { 0 } else { 1 }))
+        }
+    }
+
+    #[derive(Debug, Default, Clone, Copy)]
+    pub struct WindowsWindowVisibilitySource;
+
+    impl WindowVisibilitySource for WindowsWindowVisibilitySource {
+        fn visible_window_pids(&self) -> Result<HashSet<u32>, String> {
+            use crate::game_window::{os_source::WindowsGameWindowSource, GameWindowSource};
+            let windows = WindowsGameWindowSource
+                .top_level_windows()
+                .map_err(|err| format!("window enumeration failed: {err}"))?;
+            Ok(windows
+                .into_iter()
+                .filter(|w| w.visible && !w.tool && w.rect.width > 0 && w.rect.height > 0)
+                .map(|w| w.pid)
+                .collect())
+        }
+    }
+
+    #[derive(Debug, Default, Clone, Copy)]
+    pub struct WindowsProcessSnapshotSourceV02;
+
+    impl ProcessSnapshotSourceV02 for WindowsProcessSnapshotSourceV02 {
+        fn snapshot_v02(&self) -> Result<Vec<ProcessEntryV02>, String> {
+            snapshot_windows_v02()
+        }
+    }
+
+    #[cfg(windows)]
+    fn query_process_created_and_path(pid: u32) -> (Option<u64>, Option<String>) {
+        use windows_sys::Win32::{
+            Foundation::{CloseHandle, FILETIME},
+            System::Threading::{
+                GetProcessTimes, OpenProcess, QueryFullProcessImageNameW,
+                PROCESS_QUERY_LIMITED_INFORMATION,
+            },
+        };
+        let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+        if handle.is_null() {
+            return (None, None);
+        }
+        let mut creation = FILETIME::default();
+        let mut exit = FILETIME::default();
+        let mut kernel = FILETIME::default();
+        let mut user = FILETIME::default();
+        let times_ok = unsafe {
+            GetProcessTimes(handle, &mut creation, &mut exit, &mut kernel, &mut user) != 0
+        };
+        let created = times_ok.then(|| {
+            (u64::from(creation.dwHighDateTime) << 32) | u64::from(creation.dwLowDateTime)
+        });
+
+        let mut buf = [0u16; 4096];
+        let mut len = buf.len() as u32;
+        let path_ok =
+            unsafe { QueryFullProcessImageNameW(handle, 0, buf.as_mut_ptr(), &mut len) != 0 };
+        let path = (path_ok && len > 0).then(|| String::from_utf16_lossy(&buf[..len as usize]));
+        unsafe { CloseHandle(handle) };
+        (created, path)
+    }
+
+    #[cfg(windows)]
+    fn snapshot_windows_v02() -> Result<Vec<ProcessEntryV02>, String> {
+        use std::mem::zeroed;
+        use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
+        use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+            CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+            TH32CS_SNAPPROCESS,
+        };
+
+        let handle = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
+        if handle == INVALID_HANDLE_VALUE {
+            return Err(format!(
+                "CreateToolhelp32Snapshot failed: {}",
+                std::io::Error::last_os_error()
+            ));
+        }
+
+        let mut entries = Vec::new();
+        let mut entry: PROCESSENTRY32W = unsafe { zeroed() };
+        entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+
+        unsafe {
+            if Process32FirstW(handle, &mut entry) != 0 {
+                loop {
+                    let len = entry
+                        .szExeFile
+                        .iter()
+                        .position(|c| *c == 0)
+                        .unwrap_or(entry.szExeFile.len());
+                    let name = String::from_utf16_lossy(&entry.szExeFile[..len]);
+                    if !name.is_empty() && ProcessKindV02::classify(&name).is_some() {
+                        let pid = entry.th32ProcessID;
+                        let (created, path) = query_process_created_and_path(pid);
+                        entries.push(ProcessEntryV02 {
+                            image_name: name,
+                            pid,
+                            created,
+                            path,
+                        });
+                    }
+                    if Process32NextW(handle, &mut entry) == 0 {
+                        break;
+                    }
+                }
+            }
+            CloseHandle(handle);
+        }
+        Ok(entries)
+    }
+
+    #[cfg(not(windows))]
+    fn snapshot_windows_v02() -> Result<Vec<ProcessEntryV02>, String> {
+        Err("EAC probe v0.2 requires Windows".to_owned())
+    }
+
+    #[derive(Debug, Default)]
+    pub struct ServiceObservationTracker {
+        first_seen: Mutex<HashMap<EacServiceName, String>>,
+    }
+
+    impl ServiceObservationTracker {
+        pub fn observe(
+            &self,
+            name: EacServiceName,
+            present: bool,
+            state: EacServiceState,
+            now_rfc3339: &str,
+        ) -> Option<String> {
+            let Ok(mut map) = self.first_seen.lock() else {
+                return None;
+            };
+            if present && state.is_active_or_transitioning() {
+                Some(
+                    map.entry(name)
+                        .or_insert_with(|| now_rfc3339.to_owned())
+                        .clone(),
+                )
+            } else {
+                map.remove(&name);
+                None
+            }
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct EacProcessFindingV02 {
+        pub name: String,
+        pub pid: u32,
+        pub created: Option<String>,
+        pub kind: ProcessKindV02,
+        pub path: Option<String>,
+        pub has_visible_window: bool,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct EacServiceFindingV02 {
+        pub name: EacServiceName,
+        pub present: bool,
+        pub state: EacServiceState,
+        pub first_observed_at: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct EacSteamStateV02 {
+        pub running_flag: Option<u8>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct EacTerminationCandidateV02 {
+        pub name: String,
+        pub pid: u32,
+        pub created: String,
+        pub path: String,
+        pub publisher_evidence: String,
+        pub allowlist_reason: String,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct EacTerminationCapabilityV02 {
+        pub state: &'static str,
+        pub reason: &'static str,
+        pub candidate: Option<EacTerminationCandidateV02>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct EacProbeSnapshotV02 {
+        pub schema_version: &'static str,
+        pub captured_at: String,
+        pub processes: Vec<EacProcessFindingV02>,
+        pub services: [EacServiceFindingV02; 2],
+        pub steam: EacSteamStateV02,
+        pub install: EacInstallStateV02,
+        pub log_findings: Vec<EacLogFinding>,
+        pub conclusion: EacConclusionV02,
+        pub guidance_code: &'static str,
+        pub plan: Vec<EacRecoveryStepId>,
+        pub termination_capability: EacTerminationCapabilityV02,
+        pub diagnostics: Vec<ManagerDiagnostic>,
+    }
+
+    pub struct EacSources<'a> {
+        pub processes: &'a dyn ProcessSnapshotSourceV02,
+        pub windows: &'a dyn WindowVisibilitySource,
+        pub services: &'a dyn ServiceStatusSource,
+        pub steam: &'a dyn SteamRunningSource,
+        pub install: &'a dyn InstallSource,
+        pub logs: &'a dyn LogSource,
+        pub tracker: &'a ServiceObservationTracker,
+        pub allowlist: &'a AllowlistV01,
+        pub signature_verifier: &'a dyn CandidateSignatureVerifier,
+        pub experimental_termination_enabled: bool,
+    }
+
+    pub fn probe_eac_v02(sources: &EacSources<'_>, clock: &dyn Clock) -> EacProbeSnapshotV02 {
+        let captured_at = clock.now_rfc3339();
+        let mut diagnostics = Vec::new();
+        let mut read_failed = false;
+
+        let raw_processes = match sources.processes.snapshot_v02() {
+            Ok(list) => list,
+            Err(err) => {
+                read_failed = true;
+                diagnostics.push(ManagerDiagnostic {
+                    code: codes_v02::PROCESS_UNREADABLE,
+                    severity: FindingSeverity::Error,
+                    detail: err,
+                });
+                Vec::new()
+            }
+        };
+
+        let visible_pids = match sources.windows.visible_window_pids() {
+            Ok(pids) => pids,
+            Err(err) => {
+                read_failed = true;
+                diagnostics.push(ManagerDiagnostic {
+                    code: codes_v02::WINDOW_UNREADABLE,
+                    severity: FindingSeverity::Warning,
+                    detail: err,
+                });
+                HashSet::new()
+            }
+        };
+
+        let mut processes: Vec<EacProcessFindingV02> = raw_processes
+            .into_iter()
+            .filter_map(|entry| {
+                ProcessKindV02::classify(&entry.image_name).map(|kind| EacProcessFindingV02 {
+                    name: entry.image_name,
+                    pid: entry.pid,
+                    created: entry.created.map(|ticks| ticks.to_string()),
+                    kind,
+                    path: entry.path,
+                    has_visible_window: visible_pids.contains(&entry.pid),
+                })
+            })
+            .collect();
+        processes.sort_by_key(|p| (p.kind, p.pid));
+
+        let (services, eos_present, eos_binary_path) = match sources.services.query_services() {
+            Ok([eos, eos_sys]) => {
+                if eos.state == EacServiceState::Unreadable
+                    || eos_sys.state == EacServiceState::Unreadable
+                {
+                    read_failed = true;
+                }
+                let eos_obs =
+                    sources
+                        .tracker
+                        .observe(eos.name, eos.present, eos.state, &captured_at);
+                let eos_sys_obs = sources.tracker.observe(
+                    eos_sys.name,
+                    eos_sys.present,
+                    eos_sys.state,
+                    &captured_at,
+                );
+                (
+                    [
+                        EacServiceFindingV02 {
+                            name: EacServiceName::EasyAntiCheatEos,
+                            present: eos.present,
+                            state: eos.state,
+                            first_observed_at: eos_obs,
+                        },
+                        EacServiceFindingV02 {
+                            name: EacServiceName::EasyAntiCheatEosSys,
+                            present: eos_sys.present,
+                            state: eos_sys.state,
+                            first_observed_at: eos_sys_obs,
+                        },
+                    ],
+                    eos.present,
+                    eos.binary_path,
+                )
+            }
+            Err(err) => {
+                read_failed = true;
+                diagnostics.push(ManagerDiagnostic {
+                    code: codes_v02::SERVICE_UNREADABLE,
+                    severity: FindingSeverity::Warning,
+                    detail: err,
+                });
+                (
+                    [
+                        EacServiceFindingV02 {
+                            name: EacServiceName::EasyAntiCheatEos,
+                            present: false,
+                            state: EacServiceState::Unreadable,
+                            first_observed_at: None,
+                        },
+                        EacServiceFindingV02 {
+                            name: EacServiceName::EasyAntiCheatEosSys,
+                            present: false,
+                            state: EacServiceState::Unreadable,
+                            first_observed_at: None,
+                        },
+                    ],
+                    false,
+                    None,
+                )
+            }
+        };
+
+        let running_flag = match sources.steam.running_flag() {
+            Ok(flag) => flag,
+            Err(err) => {
+                read_failed = true;
+                diagnostics.push(ManagerDiagnostic {
+                    code: codes_v02::STEAM_UNREADABLE,
+                    severity: FindingSeverity::Warning,
+                    detail: err,
+                });
+                None
+            }
+        };
+
+        let install = match sources
+            .install
+            .inspect_install(eos_present, eos_binary_path.as_deref())
+        {
+            Ok(obs) => {
+                if obs.install.eac_folder == EacFolderState::Unknown {
+                    read_failed = true;
+                    diagnostics.push(ManagerDiagnostic {
+                        code: codes_v02::INSTALL_PATH_UNKNOWN,
+                        severity: FindingSeverity::Warning,
+                        detail: "VRChat installation directory was not detected.".to_owned(),
+                    });
+                }
+                obs.install
+            }
+            Err(err) => {
+                read_failed = true;
+                diagnostics.push(ManagerDiagnostic {
+                    code: codes_v02::INSTALL_UNREADABLE,
+                    severity: FindingSeverity::Warning,
+                    detail: err,
+                });
+                EacInstallStateV02 {
+                    eac_folder: EacFolderState::Unknown,
+                    setup_signature: EacBinaryState::Unknown,
+                    service_binary: EacBinaryState::Unknown,
+                }
+            }
+        };
+
+        let log_findings = match sources.logs.read_recent_findings() {
+            Ok(findings) => findings,
+            Err(err) => {
+                read_failed = true;
+                diagnostics.push(ManagerDiagnostic {
+                    code: codes_v02::LOG_UNREADABLE,
+                    severity: FindingSeverity::Warning,
+                    detail: err,
+                });
+                Vec::new()
+            }
+        };
+
+        // R4: ANY running VRChat.exe process counts as an active session for termination refusal.
+        let any_vrchat_game = processes
+            .iter()
+            .any(|p| p.kind == ProcessKindV02::VrchatGame);
+        let visible_vrchat_game = processes
+            .iter()
+            .any(|p| p.kind == ProcessKindV02::VrchatGame && p.has_visible_window);
+        let windowless_vrchat_game = processes
+            .iter()
+            .any(|p| p.kind == ProcessKindV02::VrchatGame && !p.has_visible_window);
+        let any_launcher_or_loader = processes.iter().any(|p| {
+            matches!(
+                p.kind,
+                ProcessKindV02::VrchatLauncher | ProcessKindV02::EacLoader
+            )
+        });
+
+        let termination_capability = evaluate_termination_capability(
+            &processes,
+            any_vrchat_game,
+            sources.allowlist,
+            sources.signature_verifier,
+            sources.experimental_termination_enabled,
+        );
+
+        let eos_service = &services[0];
+        let eos_sys_service = &services[1];
+        let service_still_unloading = (eos_sys_service.present
+            && eos_sys_service.state.is_active_or_transitioning())
+            || (eos_service.present && eos_service.state.is_active_or_transitioning());
+
+        let conclusion = if read_failed {
+            EacConclusionV02::Unknown
+        } else if visible_vrchat_game {
+            EacConclusionV02::SessionActive
+        } else if windowless_vrchat_game || any_launcher_or_loader {
+            EacConclusionV02::ResidualProcess
+        } else if service_still_unloading {
+            EacConclusionV02::Unloading
+        } else if !eos_service.present || install.eac_folder == EacFolderState::Missing {
+            EacConclusionV02::NotInstalled
+        } else if install.setup_signature != EacBinaryState::Verified
+            || install.service_binary != EacBinaryState::Verified
+        {
+            EacConclusionV02::InstallDamaged
+        } else if running_flag == Some(1) {
+            EacConclusionV02::SteamStale
+        } else {
+            EacConclusionV02::Ready
+        };
+
+        let plan = plan_recovery(
+            conclusion,
+            EacRecoverySettings {
+                experimental_termination_enabled: sources.experimental_termination_enabled,
+                has_verified_termination_candidate: termination_capability.state == "available",
+            },
+        );
+
+        EacProbeSnapshotV02 {
+            schema_version: EAC_PROBE_SCHEMA_VERSION_V02,
+            captured_at,
+            processes,
+            services,
+            steam: EacSteamStateV02 { running_flag },
+            install,
+            log_findings,
+            conclusion,
+            guidance_code: conclusion.guidance_code(),
+            plan,
+            termination_capability,
+            diagnostics,
+        }
+    }
+
+    fn evaluate_termination_capability(
+        processes: &[EacProcessFindingV02],
+        any_vrchat_game: bool,
+        allowlist: &AllowlistV01,
+        verifier: &dyn CandidateSignatureVerifier,
+        experimental_enabled: bool,
+    ) -> EacTerminationCapabilityV02 {
+        if allowlist.entries.is_empty() {
+            return EacTerminationCapabilityV02 {
+                state: "unavailable",
+                reason: "allowlist_empty_no_machine_evidence",
+                candidate: None,
+            };
+        }
+        if any_vrchat_game {
+            return EacTerminationCapabilityV02 {
+                state: "unavailable",
+                reason: "active_vrchat_session",
+                candidate: None,
+            };
+        }
+        for proc in processes {
+            if !matches!(
+                proc.kind,
+                ProcessKindV02::VrchatLauncher | ProcessKindV02::EacLoader
+            ) {
+                continue;
+            }
+            let (Some(created), Some(path)) = (&proc.created, &proc.path) else {
+                continue;
+            };
+            let Some(entry) = find_entry(allowlist, &proc.name) else {
+                continue;
+            };
+            if path_pattern_matches(&entry.expected_path_pattern, path).is_none() {
+                continue;
+            }
+            if !verifier.is_trusted_eac_binary(Path::new(path)) {
+                continue;
+            }
+            let candidate = EacTerminationCandidateV02 {
+                name: proc.name.clone(),
+                pid: proc.pid,
+                created: created.clone(),
+                path: path.clone(),
+                publisher_evidence: entry.publisher_evidence.clone(),
+                allowlist_reason: entry.reason.clone(),
+            };
+            return if experimental_enabled {
+                EacTerminationCapabilityV02 {
+                    state: "available",
+                    reason: "candidate_verified",
+                    candidate: Some(candidate),
+                }
+            } else {
+                EacTerminationCapabilityV02 {
+                    state: "disabled",
+                    reason: "experimental_switch_disabled",
+                    candidate: Some(candidate),
+                }
+            };
+        }
+        EacTerminationCapabilityV02 {
+            state: "unavailable",
+            reason: "no_allowlisted_candidate",
+            candidate: None,
+        }
+    }
+
+    /// Stateful host service owning the in-memory `firstObservedAt` service streak tracker and
+    /// experimental switch state synchronized from Electron Main.
+    pub struct EacProbeService {
+        processes: Arc<dyn ProcessSnapshotSourceV02>,
+        windows: Arc<dyn WindowVisibilitySource>,
+        services: Arc<dyn ServiceStatusSource>,
+        steam: Arc<dyn SteamRunningSource>,
+        install: Arc<dyn InstallSource>,
+        logs: Arc<dyn LogSource>,
+        tracker: ServiceObservationTracker,
+        signature_verifier: Arc<dyn CandidateSignatureVerifier>,
+        clock: Arc<dyn Clock>,
+        experimental_enabled: Mutex<bool>,
+    }
+
+    impl EacProbeService {
+        pub fn windows(roots: EnvironmentRoots) -> Self {
+            let registry = roots.registry.clone();
+            Self {
+                processes: Arc::new(WindowsProcessSnapshotSourceV02),
+                windows: Arc::new(WindowsWindowVisibilitySource),
+                services: Arc::new(WindowsServiceStatusSource),
+                steam: Arc::new(RegistrySteamRunningSource::new(registry)),
+                install: Arc::new(WindowsInstallSource::new(roots)),
+                logs: Arc::new(WindowsVrchatLogSource::default()),
+                tracker: ServiceObservationTracker::default(),
+                signature_verifier: Arc::new(WindowsCandidateSignatureVerifier),
+                clock: Arc::new(SystemClock),
+                experimental_enabled: Mutex::new(false),
+            }
+        }
+
+        pub fn set_experimental_termination(&self, enabled: bool) {
+            if let Ok(mut guard) = self.experimental_enabled.lock() {
+                *guard = enabled;
+            }
+        }
+
+        pub fn experimental_termination(&self) -> bool {
+            self.experimental_enabled
+                .lock()
+                .map(|g| *g)
+                .unwrap_or(false)
+        }
+
+        pub fn inspect(&self) -> EacProbeSnapshotV02 {
+            let empty_allowlist = AllowlistV01 {
+                schema_version: EAC_ALLOWLIST_SCHEMA_VERSION.to_owned(),
+                entries: Vec::new(),
+            };
+            let sources = EacSources {
+                processes: self.processes.as_ref(),
+                windows: self.windows.as_ref(),
+                services: self.services.as_ref(),
+                steam: self.steam.as_ref(),
+                install: self.install.as_ref(),
+                logs: self.logs.as_ref(),
+                tracker: &self.tracker,
+                allowlist: &empty_allowlist,
+                signature_verifier: self.signature_verifier.as_ref(),
+                experimental_termination_enabled: self.experimental_termination(),
+            };
+            probe_eac_v02(&sources, self.clock.as_ref())
+        }
+    }
+}

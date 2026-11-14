@@ -552,6 +552,64 @@ fn sorts_processes_deterministically_by_kind_and_pid() {
 }
 
 #[test]
+fn windows_repair_launcher_refuses_missing_and_unsigned_setup_without_executing() {
+    use vua_project_manager::eac_probe::v02::{
+        EacRepairOutcome, RepairLauncher, WindowsRepairLauncher,
+    };
+
+    let repair_schema_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../schemas/eac-probe/v0.2/repair.schema.json");
+    let repair_schema: Value =
+        serde_json::from_str(&std::fs::read_to_string(repair_schema_path).unwrap()).unwrap();
+    let validator = jsonschema::validator_for(&repair_schema).unwrap();
+
+    let temp_root = std::env::temp_dir().join(format!(
+        "vua-eac-repair-test-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let launcher = WindowsRepairLauncher;
+
+    // 1. Non-existent VRChat root -> not_found
+    let missing_root = launcher.launch_official_repair(&temp_root);
+    assert_eq!(missing_root.outcome, EacRepairOutcome::NotFound);
+    assert_eq!(missing_root.exit_code, None);
+    assert!(validator
+        .validate(&serde_json::to_value(&missing_root).unwrap())
+        .is_ok());
+
+    // 2. VRChat root without EasyAntiCheat_EOS_Setup.exe -> not_found
+    let eac_dir = temp_root.join("EasyAntiCheat");
+    std::fs::create_dir_all(&eac_dir).unwrap();
+    let missing_exe = launcher.launch_official_repair(&temp_root);
+    assert_eq!(missing_exe.outcome, EacRepairOutcome::NotFound);
+    assert!(validator
+        .validate(&serde_json::to_value(&missing_exe).unwrap())
+        .is_ok());
+
+    // 3. Unsigned synthetic PE -> verification_failed (never spawns UAC)
+    let setup_exe = eac_dir.join("EasyAntiCheat_EOS_Setup.exe");
+    let mut synthetic_pe = vec![0u8; 128];
+    synthetic_pe[0] = b'M';
+    synthetic_pe[1] = b'Z';
+    std::fs::write(&setup_exe, synthetic_pe).unwrap();
+    let unsigned_receipt = launcher.launch_official_repair(&temp_root);
+    assert_eq!(
+        unsigned_receipt.outcome,
+        EacRepairOutcome::VerificationFailed
+    );
+    assert_eq!(unsigned_receipt.exit_code, None);
+    assert!(validator
+        .validate(&serde_json::to_value(&unsigned_receipt).unwrap())
+        .is_ok());
+
+    std::fs::remove_dir_all(temp_root).unwrap();
+}
+
+#[test]
 #[ignore = "real-machine read-only probe: inspects local Windows SCM, registry, VRChat EAC files, and logs"]
 fn real_machine_eac_probe_v02() {
     let service = EacProbeService::windows(EnvironmentRoots::default());

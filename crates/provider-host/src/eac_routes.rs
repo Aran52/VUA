@@ -1,9 +1,10 @@
 //! Wire adapter for `eac-probe v0.2` (`environment.inspectEac`,
-//! `environment.configureEacExperimental`, and `environment.terminateEacResidual`).
+//! `environment.configureEacExperimental`, `environment.terminateEacResidual`, and
+//! `environment.launchEacRepair`).
 
 use crate::provider_host::{application_error, application_success, FrameOutcome};
 use serde_json::{json, Value};
-use vua_project_manager::eac_probe::v02::{EacProbeService, EacTerminateError};
+use vua_project_manager::eac_probe::v02::{EacProbeService, EacRepairError, EacTerminateError};
 
 fn valid_identifier(value: Option<&Value>) -> bool {
     value.and_then(Value::as_str).is_some_and(|s| {
@@ -165,6 +166,31 @@ pub(crate) fn request(
                 }
                 Err(EacTerminateError::ProcessUnreadable(_)) => {
                     error("vua.eac_terminate.process_unreadable", "external_failure")
+                }
+            }
+        }
+        "environment.launchEacRepair" => {
+            let Some(params) = valid_command_envelope(request, id, correlation) else {
+                return error("vua.eac_repair.invalid_params", "validation");
+            };
+            let param_keys = ["schemaVersion", "confirmed"];
+            if params.len() != param_keys.len()
+                || !param_keys.iter().all(|k| params.contains_key(*k))
+                || params.get("schemaVersion") != Some(&json!("0.2"))
+                || params.get("confirmed") != Some(&json!(true))
+            {
+                return error("vua.eac_repair.invalid_params", "validation");
+            }
+            let Some(service) = service else {
+                return error("vua.eac_repair.unavailable", "unavailable");
+            };
+            match service.launch_repair() {
+                Ok(outcome) => FrameOutcome::Response(application_success(
+                    id,
+                    serde_json::to_value(outcome).unwrap_or_else(|_| json!({})),
+                )),
+                Err(EacRepairError::ProcessUnreadable(_)) => {
+                    error("vua.eac_repair.process_unreadable", "external_failure")
                 }
             }
         }

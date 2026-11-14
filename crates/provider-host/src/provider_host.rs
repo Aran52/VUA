@@ -1672,6 +1672,7 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
         "environment.inspectEac"
             | "environment.configureEacExperimental"
             | "environment.terminateEacResidual"
+            | "environment.launchEacRepair"
     ) {
         return crate::eac_routes::request(
             state.environment.as_ref().map(|s| &s.eac),
@@ -2025,6 +2026,7 @@ fn served_capabilities(state: &HostState) -> Value {
         {"operationId": "environment.observePlay", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "environment.inspectEac", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "environment.terminateEacResidual", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "environment.launchEacRepair", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "tools.observeConnection", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "tools.actConnection", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "tools.observeInstaller", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},

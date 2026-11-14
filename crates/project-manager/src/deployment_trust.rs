@@ -13,18 +13,37 @@ pub(super) fn trusted_editor_installer(path: &Path, china: bool) -> bool {
     path.is_absolute() && path.is_file() && unity_signature(path, china)
 }
 
+const STEAM_TRUSTED_LEAF_SIGNERS: &[&str] = &["Valve Corp."];
+const PICO_TRUSTED_LEAF_SIGNERS: &[&str] = &["Douyin Vision Co., Ltd."];
+
 /// The Steam bootstrapper is unversioned: the pinned host plus this exact leaf
-/// signer are the whole trust decision (no content digest can be pinned).
-pub(super) fn trusted_steam_installer(path: &Path) -> bool {
-    path.is_absolute() && path.is_file() && signature_leaf_cn_matches(path, &["Valve Corp."])
+/// signer on the locked handle are the whole trust decision (no content digest can be pinned).
+pub(super) fn trusted_steam_installer_locked(
+    locked: &crate::verified_launch::LockedExecutable,
+) -> bool {
+    locked.verify_authenticode_leaf_cn(STEAM_TRUSTED_LEAF_SIGNERS)
 }
 
 /// PICO Connect's publisher of record is ByteDance's Douyin Vision; admission is
-/// this exact leaf signer on top of the pinned version, size and SHA-256.
-pub(super) fn trusted_pico_installer(path: &Path) -> bool {
+/// this exact leaf signer on the locked handle on top of the pinned version, size and SHA-256.
+pub(super) fn trusted_pico_installer_locked(
+    locked: &crate::verified_launch::LockedExecutable,
+) -> bool {
+    locked.verify_authenticode_leaf_cn(PICO_TRUSTED_LEAF_SIGNERS)
+}
+
+#[cfg(test)]
+fn trusted_steam_installer(path: &Path) -> bool {
     path.is_absolute()
         && path.is_file()
-        && signature_leaf_cn_matches(path, &["Douyin Vision Co., Ltd."])
+        && signature_leaf_cn_matches(path, STEAM_TRUSTED_LEAF_SIGNERS)
+}
+
+#[cfg(test)]
+fn trusted_pico_installer(path: &Path) -> bool {
+    path.is_absolute()
+        && path.is_file()
+        && signature_leaf_cn_matches(path, PICO_TRUSTED_LEAF_SIGNERS)
 }
 
 /// Official Easy Anti-Cheat (EOS) binaries shipped with VRChat (`EasyAntiCheat_EOS_Setup.exe`,
@@ -54,8 +73,36 @@ fn signature_leaf_cn_matches(_path: &Path, _accepted: &[&str]) -> bool {
     false
 }
 
+#[cfg(not(windows))]
+pub(crate) fn signature_leaf_cn_matches_handle(
+    _path: &Path,
+    _file: &std::fs::File,
+    _accepted: &[&str],
+) -> bool {
+    false
+}
+
 #[cfg(windows)]
 fn signature_leaf_cn_matches(path: &Path, accepted: &[&str]) -> bool {
+    verify_wintrust_leaf_cn(path, std::ptr::null_mut(), accepted)
+}
+
+#[cfg(windows)]
+pub(crate) fn signature_leaf_cn_matches_handle(
+    path: &Path,
+    file: &std::fs::File,
+    accepted: &[&str],
+) -> bool {
+    use std::os::windows::io::AsRawHandle;
+    path.is_absolute() && verify_wintrust_leaf_cn(path, file.as_raw_handle().cast(), accepted)
+}
+
+#[cfg(windows)]
+fn verify_wintrust_leaf_cn(
+    path: &Path,
+    open_handle: windows_sys::Win32::Foundation::HANDLE,
+    accepted: &[&str],
+) -> bool {
     use std::{mem::size_of, os::windows::ffi::OsStrExt, ptr};
     use windows_sys::Win32::Security::{
         Cryptography::{szOID_COMMON_NAME, CertGetNameStringW, CERT_NAME_ATTR_TYPE},
@@ -71,6 +118,7 @@ fn signature_leaf_cn_matches(path: &Path, accepted: &[&str]) -> bool {
     let mut info = WINTRUST_FILE_INFO {
         cbStruct: size_of::<WINTRUST_FILE_INFO>() as u32,
         pcwszFilePath: wide.as_ptr(),
+        hFile: open_handle,
         ..Default::default()
     };
     let mut data = WINTRUST_DATA {

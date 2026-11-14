@@ -26,6 +26,7 @@ pub mod project_lock;
 pub mod steam_tools;
 pub mod system_resources;
 pub mod tool_install;
+pub mod verified_launch;
 pub mod vpm_backend;
 pub mod vua_identity;
 

@@ -1,10 +1,11 @@
 //! Wire validation tests for `environment.inspectEac`,
-//! `environment.configureEacExperimental`, and `environment.terminateEacResidual`.
+//! `environment.configureEacExperimental`, `environment.terminateEacResidual`, and
+//! `environment.launchEacRepair`.
 
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::{fs, io::Cursor};
 use vua_orchestrator::Clock;
@@ -14,8 +15,9 @@ use vua_project_manager::eac_install::{
 };
 use vua_project_manager::eac_logs::{EacLogFinding, LogSource};
 use vua_project_manager::eac_probe::v02::{
-    CandidateSignatureVerifier, EacProbeService, EacServiceDeps, ProcessEntryV02,
-    ProcessSnapshotSourceV02, ProcessTerminator, SteamRunningSource, WindowVisibilitySource,
+    CandidateSignatureVerifier, EacProbeService, EacRepairOutcome, EacRepairReceiptV02,
+    EacServiceDeps, ProcessEntryV02, ProcessSnapshotSourceV02, ProcessTerminator, RepairLauncher,
+    SteamRunningSource, WindowVisibilitySource,
 };
 use vua_project_manager::eac_service::{
     EacServiceName, EacServiceState, RawServiceObservation, ServiceStatusSource,
@@ -166,11 +168,24 @@ impl ProcessTerminator for SyntheticTerminator {
     }
 }
 
+struct SyntheticRepairLauncher(Arc<AtomicUsize>);
+impl RepairLauncher for SyntheticRepairLauncher {
+    fn launch_official_repair(&self, _vrchat_dir: &Path) -> EacRepairReceiptV02 {
+        self.0.fetch_add(1, Ordering::SeqCst);
+        EacRepairReceiptV02::new(EacRepairOutcome::Completed, Some(0))
+    }
+}
+
 fn build_synthetic_service(
     initial_processes: Vec<ProcessEntryV02>,
     trusted_sig: bool,
-) -> (EacProbeService, Arc<Mutex<Vec<ProcessEntryV02>>>) {
+) -> (
+    EacProbeService,
+    Arc<Mutex<Vec<ProcessEntryV02>>>,
+    Arc<AtomicUsize>,
+) {
     let table = Arc::new(Mutex::new(initial_processes));
+    let repair_calls = Arc::new(AtomicUsize::new(0));
     let service = EacProbeService::with_deps(EacServiceDeps {
         processes: Arc::new(SharedProcesses(table.clone())),
         windows: Arc::new(EmptyWindows),
@@ -180,9 +195,10 @@ fn build_synthetic_service(
         logs: Arc::new(EmptyLogs),
         signature_verifier: Arc::new(SyntheticVerifier(trusted_sig)),
         terminator: Arc::new(SyntheticTerminator(table.clone())),
+        repair_launcher: Arc::new(SyntheticRepairLauncher(repair_calls.clone())),
         clock: Arc::new(SyntheticClock),
     });
-    (service, table)
+    (service, table, repair_calls)
 }
 
 #[test]
@@ -218,7 +234,7 @@ fn inspect_eac_validates_envelope_and_reports_unavailable_without_environment() 
 #[test]
 fn terminate_residual_enforces_experimental_gate_r4_active_session_and_r3_reverification() {
     let launcher_path = r"D:\SteamLibrary\steamapps\common\VRChat\start_protected_game.exe";
-    let (service, table) = build_synthetic_service(
+    let (service, table, _) = build_synthetic_service(
         vec![ProcessEntryV02 {
             image_name: "start_protected_game.exe".to_owned(),
             pid: 5120,
@@ -333,4 +349,90 @@ fn terminate_residual_enforces_experimental_gate_r4_active_session_and_r3_reveri
     assert_eq!(ok_res["value"]["termination"]["postCheck"]["pidGone"], true);
     assert!(ok_res["value"]["termination"].get("guard").is_none());
     assert_eq!(ok_res["value"]["eacSnapshot"]["conclusion"], "ready");
+}
+
+#[test]
+fn launch_eac_repair_validates_closed_params_refuses_active_session_and_validates_schema() {
+    let repair_schema_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../schemas/eac-probe/v0.2/repair.schema.json");
+    let repair_schema: Value =
+        serde_json::from_str(&fs::read_to_string(repair_schema_path).unwrap()).unwrap();
+    let repair_validator = jsonschema::validator_for(&repair_schema).unwrap();
+
+    let probe_schema_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../schemas/eac-probe/v0.2/probe.schema.json");
+    let probe_schema: Value =
+        serde_json::from_str(&fs::read_to_string(probe_schema_path).unwrap()).unwrap();
+    let probe_validator = jsonschema::validator_for(&probe_schema).unwrap();
+
+    let valid_req = json!({
+        "contractVersion": "0.1",
+        "requestId": "req-r1",
+        "correlationId": "corr-r1",
+        "kind": "command",
+        "method": "environment.launchEacRepair",
+        "commandId": "cmd-eac-r1",
+        "params": {
+            "schemaVersion": "0.2",
+            "confirmed": true
+        }
+    });
+
+    // Without environment in stdio host -> unavailable
+    let unavail = invoke_stdio(valid_req.clone());
+    assert_eq!(unavail["ok"], false);
+    assert_eq!(unavail["error"]["code"], "vua.eac_repair.unavailable");
+
+    // Reject caller-supplied path/args or unconfirmed envelopes
+    for invalid_params in [
+        json!({ "schemaVersion": "0.2", "confirmed": false }),
+        json!({ "schemaVersion": "0.1", "confirmed": true }),
+        json!({ "schemaVersion": "0.2", "confirmed": true, "path": r"C:\evil.exe" }),
+        json!({ "schemaVersion": "0.2", "confirmed": true, "args": ["--install"] }),
+    ] {
+        let mut bad = valid_req.clone();
+        bad["params"] = invalid_params;
+        let err = invoke_stdio(bad);
+        assert_eq!(err["ok"], false);
+        assert_eq!(err["error"]["code"], "vua.eac_repair.invalid_params");
+    }
+
+    // Active VRChat session refuses official repair without invoking launcher
+    let (service, table, calls) = build_synthetic_service(
+        vec![ProcessEntryV02 {
+            image_name: "VRChat.exe".to_owned(),
+            pid: 7777,
+            created: Some(134392000090000777),
+            path: Some(r"D:\SteamLibrary\steamapps\common\VRChat\VRChat.exe".to_owned()),
+        }],
+        true,
+    );
+    let refused = invoke_wire(Some(&service), &valid_req);
+    assert_eq!(refused["ok"], true);
+    assert_eq!(
+        refused["value"]["repair"]["outcome"],
+        "active_session_refused"
+    );
+    assert_eq!(refused["value"]["repair"]["exitCode"], Value::Null);
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    assert!(repair_validator
+        .validate(&refused["value"]["repair"])
+        .is_ok());
+    assert!(probe_validator
+        .validate(&refused["value"]["eacSnapshot"])
+        .is_ok());
+
+    // Once VRChat exits, repair runs and returns schema-valid completed receipt + refreshed snapshot
+    table.lock().unwrap().clear();
+    let completed = invoke_wire(Some(&service), &valid_req);
+    assert_eq!(completed["ok"], true);
+    assert_eq!(completed["value"]["repair"]["outcome"], "completed");
+    assert_eq!(completed["value"]["repair"]["exitCode"], 0);
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert!(repair_validator
+        .validate(&completed["value"]["repair"])
+        .is_ok());
+    assert!(probe_validator
+        .validate(&completed["value"]["eacSnapshot"])
+        .is_ok());
 }

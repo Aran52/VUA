@@ -146,9 +146,10 @@ AMF package management and isolated work-project preparation also resolve unbund
 VPM packages directly from their official feeds when requested by materials, explicit player opt-in,
 or saved Recipes (full table and license URLs in [docs/development/known-packages.md](docs/development/known-packages.md)):
 `Modular Avatar` (MIT), `NDMF` (MIT), `AAO: Avatar Optimizer` (MIT), `LilyCalInventory` (MIT),
-`lilAvatarUtils` (MIT), `TexTransTool` (MIT), `FaceEmo` (MIT), `FloorAdjuster` (Zlib),
-`VRCQuestTools` (MIT), `lilToon` (MIT), `Poiyomi Toon Shader` (MIT), `UnlitWF Shader` (Zlib),
-and `VRM Converter for VRChat` (MIT, guide-only). VUA redistributes none of these VPM archives.
+`lilAvatarUtils` (MIT), `NDMF Mesh Simplifier` (MIT), `TexTransTool` (MIT), `FaceEmo` (MIT),
+`ComboGestureExpressions` (MIT), `FloorAdjuster` (Zlib), `VRCQuestTools` (MIT), `lilToon` (MIT),
+`Poiyomi Toon Shader` (MIT), `UnlitWF Shader` (Zlib), `VRM Converter for VRChat` (MIT, guide-only),
+and `UniVRM` (MIT, guide-only). VUA redistributes none of these VPM archives.
 
 If a later VUA release incorporates, modifies or redistributes source/binaries from any external tool,
 review the exact version and all included dependencies before release; preserve applicable license,

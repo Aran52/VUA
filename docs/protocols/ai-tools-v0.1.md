@@ -1,6 +1,6 @@
 # External Agent tools v0.1
 
-> Document version: 0.18.0
+> Document version: 0.19.0
 > Status: Candidate
 > Updated: 2026-11-14
 > Owner: Integration
@@ -13,7 +13,7 @@ slice does not retrofit historical release artifacts or declare N acceptance.
 ## Connection and lifetime
 
 The player opens **MCP** in the top bar (the command bar in Frutiger Aero), enables the connection, copies the supplied
-prompt, and pastes it into an AI tool on the same computer that supports local Streamable HTTP.
+prompt (or copies only the `mcpServers` JSON config snippet via `copyConfig`), and pastes it into an AI tool on the same computer that supports local Streamable HTTP.
 VUA remains open. The prompt explains host/AMF functions, the actual URL and Authorization header,
 available tools, novice explanation guidance and the optional
 [Unity-Skills](https://github.com/Besty0728/Unity-Skills) REST/Skills companion. That companion is
@@ -55,7 +55,7 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_installer_tool_status`, `vua_request_installer_tool` | Official-installer companion tools (`installer-tool v0.1`: SlimeVR Server, VRCT, VRCX, VRCS) |
 | `vua_manager_apps`, `vua_request_open_manager` | Sanitized local presence and approval-gated zero-argument breakaway launch of external creator managers ([manager-apps v0.2](manager-apps-v0.2.md): `unity_hub`, `vcc`, `alcom`); local filesystem paths are omitted |
 | `vua_pose_graph` | Passive read-only [pose and tracking topology](pose-graph-v0.1.md) (`environment.observePoseGraph` `v0.1`: active OpenXR runtime family, external SteamVR OpenVR drivers, FBT/face/Pharos optical+IMU bridges and Space Calibrator hints) |
-| `vua_library`, `vua_material_files`, `vua_glb_inspect`, `vua_request_library_import_groups` | Bounded local AMF/BDL library queries (including `source: "local"`, `availabilityStatus`, `sourceCategory`, `descriptionLinksTo`, and `v0.3` `sort`/`vn3` filters), header-only [GLB / VRM / Object-Head inspection](glb-inspection-v0.1.md) (`library.inspectGlb` `v0.1`), and approval-gated grouped migration intake ([library-migration v0.1](library-migration-v0.1.md)); no login/download/upload |
+| `vua_library`, `vua_material_files`, `vua_glb_inspect`, `vua_request_library_import_groups` | Bounded local AMF/BDL library queries (including `source: "local"`, `format` (`vrm_or_glb` / `unitypackage`), `availabilityStatus`, `sourceCategory`, `descriptionLinksTo`, and `v0.3` `sort`/`vn3` filters), header-only [GLB / VRM / Object-Head inspection](glb-inspection-v0.1.md) (`library.inspectGlb` `v0.1`), and approval-gated grouped migration intake ([library-migration v0.1](library-migration-v0.1.md)); no login/download/upload |
 | `vua_terms`, `vua_terms_check` | Recorded [VN3 terms](terms-v0.1.md) of BOOTH products and one use checked across several, including [v0.2 PH-R presets](terms-v0.2.md) (`phr_personal_avatar`, `phr_object_head`, `phr_shared_space`) with `platformRestrictionHint`; local evidence only |
 | `vua_recipes`, `vua_recipe` | Saved local Avatar Recipe summaries and full Recipe documents |
 | `vua_amf_materials`, `vua_amf_run`, `vua_amf_plan`, `vua_amf_face_tracking_plan`, `vua_amf_texture_plan`, `vua_amf_lighting_plan`, `vua_amf_outfit_removal_plan`, `vua_amf_release` | Candidate material-first read/plan facts, face-tracking patch plans, decoded texture-memory plans, lilToon brightness alignment plans, outfit removal inventories, and a finished Avatar's turntable and uploads |
@@ -118,6 +118,15 @@ use MCP protocol errors whose `data` carries the error fields below.
 `vua_amf_run` returns a summary plus a `resource_link` to its run URI. The summary retains phase,
 revision, progress, selection, source names, the latest 20 steps with their total count, recovery
 and result-fact counts. Each prefab has only `path`, `name`, `isAvatar` and `humanoidBoneCount`.
+
+### Structured MCP Prompts
+
+The server advertises the MCP `prompts` capability (`prompts/list` and `prompts/get`) with four
+parameter-validated workflow templates (`vua-play-setup`, `vua-diagnose-symptom`,
+`vua-amf-assembly`, and `vua-release-check`). Prompt arguments are validated against contract enums
+and run-ID bounds before returning structured user messages; invalid prompt names or arguments fail
+closed with MCP `-32602` (`unsupported_tool_or_parameters`). Prompts never execute tools or approve
+mutations on their own.
 SDK review retains its state, platform, overall rating, issue counts by level and category
 ratings. A run with version records gives the five newest in `revisions` and their number in
 `revisionCount`; the run Resource holds them all. Rendered previews follow the
@@ -256,6 +265,7 @@ The [Recipe v0.5 contract](amf-recipe-v0.5.md) owns statuses, match rules and di
 
 ## Document changelog
 
+- 0.19.0 (2026-11-14): advertise MCP `prompts` (`prompts/list` and `prompts/get` for `vua-play-setup`, `vua-diagnose-symptom`, `vua-amf-assembly`, and `vua-release-check`), add `format` (`vrm_or_glb`, `unitypackage`) filtering on `vua_library`, and add standalone `mcpServers` JSON clipboard copy (`copyConfig`).
 - 0.18.0 (2026-11-14): add `vua_tool_catalog` (`vua.tool-catalog/v0.1`), `vua_request_update_client_config` (`diagnostics.updateClientConfig`), `vua_request_library_import_groups` (`library-migration v0.1`), `vua_library` `source: "local"`/`availabilityStatus`/`sourceCategory`/`descriptionLinksTo` filters, and digest-bound AMF post-assembly plan/apply tools (`vua_amf_texture_plan`, `vua_request_amf_texture_apply`, `vua_amf_lighting_plan`, `vua_request_amf_lighting_apply`, `vua_amf_outfit_removal_plan`, `vua_request_amf_outfit_remove`).
 - 0.17.0 (2026-11-14): add `vua_pose_graph` (`pose-graph v0.1`), `vua_glb_inspect` (`glb-inspection v0.1`), and `terms v0.2` PH-R preset routing (`phr_personal_avatar`, `phr_object_head`, `phr_shared_space`) with `platformRestrictionHint` in `vua_terms_check`.
 - 0.16.1 (2026-11-14): add `vua_manager_apps` sanitized output and `vua_request_open_manager` (`manager-apps v0.2`).

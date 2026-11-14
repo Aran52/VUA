@@ -13,7 +13,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/vua-instance-identity.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-11-14 |
-| docs/protocols/ai-tools-v0.1.md | 0.18.0 | Candidate | Integration | 2026-11-14 |
+| docs/protocols/ai-tools-v0.1.md | 0.19.0 | Candidate | Integration | 2026-11-14 |
 | docs/protocols/amf-production-v0.1.md | 0.44.0 | Candidate | AMF | 2026-11-14 |
 | docs/protocols/amf-recipe-v0.4.md | 0.6.0 | Candidate | AMF | 2026-10-24 |
 | docs/protocols/amf-recipe-v0.5.md | 0.2.1 | Candidate | AMF | 2026-11-11 |
@@ -62,7 +62,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/library-records-v0.2.md | 0.2 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/library-view-v0.1.md | 0.8 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/library-view-v0.2.md | 0.2.1 | Candidate | AMF | 2026-11-06 |
-| docs/protocols/library-view-v0.3.md | 0.3.0 | Candidate | AMF | 2026-11-07 |
+| docs/protocols/library-view-v0.3.md | 0.4.0 | Candidate | AMF | 2026-11-14 |
 | docs/protocols/manager-apps-v0.2.md | 0.1.0 | Candidate | Environment | 2026-11-14 |
 | docs/protocols/material-intake-v0.1.md | 0.1 | Implementation baseline | Production | 2026-09-06 |
 | docs/protocols/material-intake-v0.2.md | 0.2.1 | Frozen | Core | 2026-09-21 |
@@ -89,7 +89,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/recipe-image-share-v0.1.md | 0.1.0 | Candidate | AMF | 2026-10-29 |
 | docs/protocols/recipe-export-v0.1.md | 0.1.2 | Frozen | Core | 2026-09-22 |
 | docs/protocols/recipe-selection-draft-v0.1.md | 0.2.0 | Implementation baseline | AMF | 2026-11-11 |
-| docs/protocols/share-links-v0.1.md | 0.1.2 | Candidate | AMF / Hosting | 2026-11-14 |
+| docs/protocols/share-links-v0.1.md | 0.1.3 | Candidate | AMF / Hosting | 2026-11-14 |
 | docs/protocols/release-handoff-v0.1.md | 0.1 | Frozen | Core | 2026-09-16 |
 | docs/protocols/release-handoff-v0.2.md | 0.2 | Frozen | Core | 2026-09-21 |
 | docs/protocols/scenario-environment-v0.1.md | 0.1.0 | Candidate | Environment | 2026-10-13 |

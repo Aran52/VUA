@@ -447,6 +447,57 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         legacy_folders: &[],
         legacy_files: &[],
     },
+    KnownPackage {
+        id: "com.vrmc.vrm",
+        display_name: "UniVRM",
+        feed_url: "https://esperecyan.github.io/VRMConverterForVRChat/registry.json",
+        official_url: "https://vrm-c.github.io/UniVRM/en/",
+        license: "MIT",
+        license_url: "https://github.com/vrm-c/UniVRM/blob/master/LICENSE.txt",
+        license_checked: "2026-11-14",
+        delivery: Delivery::Guide,
+        material_markers: &[],
+        shader_guids: &[],
+        version_lines: &[],
+        releases: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
+        legacy_folders: &[],
+        legacy_files: &[],
+    },
+    KnownPackage {
+        id: "jp.lilxyzw.ndmf-mesh-simplifier",
+        display_name: "NDMF Mesh Simplifier",
+        feed_url: LILTOON_FEED,
+        official_url: "https://github.com/lilxyzw/NDMFMeshSimplifier",
+        license: "MIT",
+        license_url: "https://github.com/lilxyzw/NDMFMeshSimplifier/blob/main/LICENSE",
+        license_checked: "2026-11-14",
+        delivery: Delivery::Auto,
+        material_markers: &[],
+        shader_guids: &[],
+        version_lines: &[],
+        releases: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
+        legacy_folders: &[],
+        legacy_files: &[],
+    },
+    KnownPackage {
+        id: "dev.hai-vr.cge",
+        display_name: "ComboGestureExpressions",
+        feed_url: "https://hai-vr.github.io/vpm-listing/index.json",
+        official_url: "https://docs.hai-vr.dev/docs/products/combo-gesture-expressions",
+        license: "MIT",
+        license_url: "https://github.com/hai-vr/combo-gesture-expressions-av3/blob/main/LICENSE",
+        license_checked: "2026-11-14",
+        delivery: Delivery::Auto,
+        material_markers: &[],
+        shader_guids: &[],
+        version_lines: &[],
+        releases: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
+        legacy_folders: &[],
+        legacy_files: &[],
+    },
 ];
 
 pub(crate) fn find_known_package(id: &str) -> Option<&'static KnownPackage> {
@@ -1868,6 +1919,12 @@ mod tests {
                 "com.github.kurotu.vrc-quest-tools".to_owned(),
                 "2.10.2".to_owned(),
             ),
+            ("com.vrmc.vrm".to_owned(), "0.128.0".to_owned()),
+            (
+                "jp.lilxyzw.ndmf-mesh-simplifier".to_owned(),
+                "0.4.0".to_owned(),
+            ),
+            ("dev.hai-vr.cge".to_owned(), "3.1.2".to_owned()),
         ]);
         let ids: Vec<_> = pinned_auto_packages(KNOWN_PACKAGES, &pins)
             .map(|package| package.id)
@@ -1884,6 +1941,8 @@ mod tests {
                 "jp.lilxyzw.avatar-utils",
                 "net.narazaka.vrchat.floor-adjuster",
                 "com.github.kurotu.vrc-quest-tools",
+                "jp.lilxyzw.ndmf-mesh-simplifier",
+                "dev.hai-vr.cge",
             ]
         );
         assert!(avatar_optimizer_compatible(Some("3.10.5"), Some("1.14.8")));

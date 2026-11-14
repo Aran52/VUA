@@ -798,5 +798,31 @@ describe("run summary", () => {
       autoGenerate: false,
       commandId: expect.stringMatching(/^ai-/),
     });
+
+    // 5. MCP prompts capability + format-filtered vua_library + standalone JSON config snippet.
+    expect(client.getServerCapabilities()?.prompts).toBeDefined();
+    const listedPrompts = await client.listPrompts();
+    expect(listedPrompts.prompts.map(p => p.name)).toEqual([
+      "vua-play-setup",
+      "vua-diagnose-symptom",
+      "vua-amf-assembly",
+      "vua-release-check",
+    ]);
+    const diagPrompt = await client.getPrompt({ name: "vua-diagnose-symptom", arguments: { symptom: "streaming_blurry_or_compression" } });
+    expect(diagPrompt.messages[0]?.content).toMatchObject({ type: "text", text: expect.stringContaining("streaming_blurry_or_compression") });
+    const releasePrompt = await client.getPrompt({ name: "vua-release-check", arguments: { runId: "n3-test-run", targetPlatform: "phr_vrm" } });
+    expect(releasePrompt.messages[0]?.content).toMatchObject({ type: "text", text: expect.stringContaining("phr_vrm") });
+    await expect(client.getPrompt({ name: "vua-diagnose-symptom", arguments: { symptom: "not_a_symptom" } })).rejects.toMatchObject({ code: -32602 });
+    await expect(client.getPrompt({ name: "vua-release-check", arguments: { runId: "../escape" } })).rejects.toMatchObject({ code: -32602 });
+    await expect(client.getPrompt({ name: "vua-unknown" })).rejects.toMatchObject({ code: -32602 });
+
+    expect((await client.callTool({ name: "vua_library", arguments: { format: "vrm_or_glb" } })).isError).toBeFalsy();
+    expect(calls.findLast(c => c.method === "library.list")?.params).toMatchObject({ schemaVersion: "0.3", format: "vrm_or_glb", limit: 25 });
+    expect((await client.callTool({ name: "vua_library", arguments: { format: "fbx" } })).isError).toBe(true);
+
+    const parsedConfig = JSON.parse(service.configJson()) as { mcpServers: { vua: { type: string; url: string; headers: { Authorization: string } } } };
+    expect(parsedConfig.mcpServers.vua.type).toBe("http");
+    expect(parsedConfig.mcpServers.vua.url).toBe(service.snapshot().endpoint);
+    expect(parsedConfig.mcpServers.vua.headers.Authorization).toMatch(/^Bearer /);
   });
 });

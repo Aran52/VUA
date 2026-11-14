@@ -1,6 +1,6 @@
 # Share links v0.1
 
-> Document version: 0.1.2
+> Document version: 0.1.3
 > Status: Candidate
 > Updated: 2026-11-14
 > Owner: AMF / Hosting
@@ -158,9 +158,12 @@ assembly-plan label. Neither kind displays the player's title anywhere in HTML. 
 notice explains that recipients need their own materials, followed by `vua://share/<CODE>` and
 the official VUA download-page link. There is no fetching of product metadata.
 
-The page uses system fonts, no scripts, external resources, cookies or tracking. Its inline
-stylesheet is allowed by an exact CSP hash; other sources, framing, base changes and forms
-are blocked. All display strings are HTML-escaped. Layout supports narrow mobile screens,
+The page uses system fonts, no scripts, external resources, cookies or tracking. Its `<head>`
+includes `noindex,nofollow,noarchive` plus localized text-only OpenGraph (`og:type`, `og:site_name`,
+`og:title`, `og:description`) and Twitter (`twitter:card=summary`) preview tags derived strictly
+from item count and static localized copy, omitting player-supplied titles and external image URLs.
+Its inline stylesheet is allowed by an exact CSP hash; other sources, framing, base changes and
+forms are blocked. All display strings are HTML-escaped. Layout supports narrow mobile screens,
 keyboard focus and system light/dark preference. Generated translations await native review.
 
 ## Storage and deployment
@@ -179,6 +182,7 @@ Production installation and real phone/desktop end-to-end acceptance remain auth
 
 ## Document changelog
 
+- 0.1.3 (2026-11-14): add privacy-safe text-only OpenGraph/Twitter preview meta tags and `noarchive` robot directive to `materialPage`, never exposing player-supplied titles or external image links.
 - 0.1.2 (2026-11-14): add `recipe-v06` (`QTET2ZW9J8FD`) cross-client golden vector in `codes.json` and `schemas/share-links/v0.1/code-vectors.json`, and wire `parsePhrSpatialUrl` guidance in `AmfRecipeImportDialog`.
 - 0.1.1 (2026-11-14): document client-side `parsePhrSpatialUrl` (`https://ph-r.com/s/<id>` and `phr://s/<id>`, distinct from `/r/<CODE>`) and `phr:` per-attempt confirmation allowlist in Electron navigation policy.
 - 0.1.0 (2026-10-28): Candidate service, selection format, golden vectors and Node implementation.

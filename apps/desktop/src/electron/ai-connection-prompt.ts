@@ -13,9 +13,18 @@ Unity や VR ランタイム、MCP に詳しくない前提で案内してくだ
 제가 Unity나 VR 런타임, MCP를 잘 모르는 초보자라고 생각하고 안내해 주세요. 방금 무엇이 진행되었는지, 다음에 무엇을 하면 되는지, 끝나면 어떤 화면이 보이는지 쉬운 말로 한 번에 한 단계씩만 알려 주세요.`,
 };
 
+/** Pairing MCP JSON snippet for desktop AI clients (Claude Desktop, Cursor, Windsurf, Codex). */
+export function aiConnectionConfigJson(endpoint: string, token: string): string {
+  return JSON.stringify(
+    { mcpServers: { vua: { type: "http", url: endpoint, headers: { Authorization: `Bearer ${token}` } } } },
+    null,
+    2,
+  );
+}
+
 /** Pairing details are shown/copied only on the local connection page, never logged. */
 export function aiConnectionPrompt(locale: AiConnectionLocale, endpoint: string, token: string): string {
-  const configuration = JSON.stringify({ mcpServers: { vua: { type: "http", url: endpoint, headers: { Authorization: `Bearer ${token}` } } } }, null, 2);
+  const configuration = aiConnectionConfigJson(endpoint, token);
   return `${introductions[locale]}
 
 VUA local MCP connection (Streamable HTTP; the MCP SDK negotiates the protocol version):

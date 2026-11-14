@@ -615,6 +615,9 @@ function registerIpc(provider: ModuleProvider): void {
     const prompt = aiTools!.prompt(locale as AiConnectionLocale);
     if (action === "copy-prompt") { clipboard.writeText(prompt); return; } return prompt;
   });
+  ipcMain.handle("vua:ai-tools:copy-config", event => {
+    assertAiSender(event); clipboard.writeText(aiTools!.configJson());
+  });
   ipcMain.handle("vua:ai-tools:resolve", (event, id: unknown, decision: unknown, confirmation: unknown) => {
     assertAiSender(event); if (typeof id !== "string" || id.length > 100 || (decision !== "approve" && decision !== "reject")) throw new Error("invalid_ai_approval");
     if (confirmation !== undefined && !isAiUploadConfirmationV01(confirmation)) throw new Error("invalid_ai_approval");

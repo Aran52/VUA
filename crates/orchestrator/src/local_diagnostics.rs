@@ -25,6 +25,9 @@ pub const LOCAL_DIAGNOSTICS_SCHEMA: &str = "vua.local-diagnostics/v0.1";
 
 const MAX_CACHE_WALK_ENTRIES: usize = 50_000;
 const LOG_TAIL_MAX_BYTES: u64 = 128 * 1024;
+const MAX_CONFIG_JSON_BYTES: u64 = 1024 * 1024;
+const MAX_STEAMVR_SETTINGS_BYTES: u64 = 2 * 1024 * 1024;
+const MAX_SAFE_JS_INT: u64 = 9_007_199_254_740_991;
 const COMMAND_LEDGER_CAPACITY: usize = 256;
 const GIB: u64 = 1024 * 1024 * 1024;
 
@@ -140,6 +143,26 @@ impl OscQueryLoopbackObservation {
     }
 }
 
+fn decode_http_chunked_body(raw: &str) -> Option<String> {
+    let mut rest = raw;
+    let mut out = String::new();
+    loop {
+        let (size_line, after_line) = rest.split_once("\r\n").or_else(|| rest.split_once('\n'))?;
+        let hex_part = size_line.split(';').next()?.trim();
+        let chunk_len = usize::from_str_radix(hex_part, 16).ok()?;
+        if chunk_len == 0 {
+            return Some(out);
+        }
+        if after_line.len() < chunk_len {
+            return None;
+        }
+        out.push_str(&after_line[..chunk_len]);
+        rest = after_line[chunk_len..]
+            .strip_prefix("\r\n")
+            .or_else(|| after_line[chunk_len..].strip_prefix('\n'))?;
+    }
+}
+
 /// Parses an HTTP `GET /?HOST_INFO` response from a loopback OSCQuery server.
 /// Returns `Some(advertised_osc_port)` when valid OSCQuery `HOST_INFO` JSON is returned.
 pub fn parse_oscquery_host_info(raw_http: &[u8]) -> Option<Option<u16>> {
@@ -154,7 +177,20 @@ pub fn parse_oscquery_host_info(raw_http: &[u8]) -> Option<Option<u16>> {
     if !status_line.starts_with("HTTP/1.1 200") && !status_line.starts_with("HTTP/1.0 200") {
         return None;
     }
-    let Value::Object(obj) = serde_json::from_str::<Value>(body.trim()).ok()? else {
+    let is_chunked = head.lines().skip(1).any(|line| {
+        line.split_once(':').is_some_and(|(k, v)| {
+            k.trim().eq_ignore_ascii_case("transfer-encoding")
+                && v.to_ascii_lowercase().contains("chunked")
+        })
+    });
+    let decoded_chunked;
+    let json_payload = if is_chunked {
+        decoded_chunked = decode_http_chunked_body(body)?;
+        decoded_chunked.trim()
+    } else {
+        body.trim()
+    };
+    let Value::Object(obj) = serde_json::from_str::<Value>(json_payload).ok()? else {
         return None;
     };
     let has_marker = obj.get("EXTENSIONS").is_some_and(Value::is_object)
@@ -555,7 +591,13 @@ impl LocalDiagnosticsService {
             return Err(LocalDiagnosticsError::ClientRunning);
         }
 
-        let osc_dir = self.vrchat_root().join("OSC");
+        let vrchat_root = self.vrchat_root();
+        if fs::symlink_metadata(&vrchat_root)
+            .is_ok_and(|m| is_reparse_or_symlink(&m) || !m.is_dir())
+        {
+            return Err(LocalDiagnosticsError::IoFailed);
+        }
+        let osc_dir = vrchat_root.join("OSC");
         let (removed_file_count, freed_bytes) = clear_osc_json_files(&osc_dir)?;
         let receipt = OscCacheClearReceipt {
             schema_version: LOCAL_DIAGNOSTICS_SCHEMA,
@@ -617,14 +659,15 @@ impl LocalDiagnosticsService {
         if fs::symlink_metadata(&config_path).is_ok_and(|m| m.file_type().is_symlink()) {
             return Err(LocalDiagnosticsError::IoFailed);
         }
-        let (mut map, existed) = match fs::read_to_string(&config_path) {
-            Ok(raw) => match serde_json::from_str::<Value>(&raw) {
-                Ok(Value::Object(obj)) => (obj, true),
-                _ => return Err(LocalDiagnosticsError::ConfigMalformed),
-            },
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => (Map::new(), false),
-            Err(_) => return Err(LocalDiagnosticsError::IoFailed),
-        };
+        let (mut map, existed) =
+            match read_bounded_regular_utf8(&config_path, MAX_CONFIG_JSON_BYTES) {
+                Ok(raw) => match serde_json::from_str::<Value>(&raw) {
+                    Ok(Value::Object(obj)) => (obj, true),
+                    _ => return Err(LocalDiagnosticsError::ConfigMalformed),
+                },
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => (Map::new(), false),
+                Err(_) => return Err(LocalDiagnosticsError::IoFailed),
+            };
 
         if let Some(size) = input.cache_size_gb {
             map.insert("cache_size".to_owned(), Value::Number(size.into()));
@@ -709,8 +752,28 @@ fn is_reparse_or_symlink(meta: &fs::Metadata) -> bool {
     meta.file_type().is_symlink()
 }
 
+fn read_bounded_regular_utf8(path: &Path, max_bytes: u64) -> std::io::Result<String> {
+    let meta = fs::symlink_metadata(path)?;
+    if is_reparse_or_symlink(&meta) || !meta.is_file() || meta.len() > max_bytes {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "irregular or oversized file",
+        ));
+    }
+    let file = File::open(path)?;
+    let mut buf = Vec::with_capacity((meta.len() as usize).min(65_536));
+    file.take(max_bytes + 1).read_to_end(&mut buf)?;
+    if (buf.len() as u64) > max_bytes {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "file exceeded byte cap",
+        ));
+    }
+    String::from_utf8(buf).map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))
+}
+
 fn inspect_client_config(path: &Path) -> (ClientConfigObservation, Option<PathBuf>) {
-    let raw = match fs::read_to_string(path) {
+    let raw = match read_bounded_regular_utf8(path, MAX_CONFIG_JSON_BYTES) {
         Ok(raw) => raw,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
             return (ClientConfigObservation::empty("missing"), None);
@@ -726,7 +789,11 @@ fn inspect_client_config(path: &Path) -> (ClientConfigObservation, Option<PathBu
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(PathBuf::from);
-    let u64_field = |key: &str| obj.get(key).and_then(Value::as_u64);
+    let u64_field = |key: &str| {
+        obj.get(key)
+            .and_then(Value::as_u64)
+            .map(|v| v.min(MAX_SAFE_JS_INT))
+    };
     let f64_field = |key: &str| {
         obj.get(key)
             .and_then(Value::as_f64)
@@ -858,6 +925,43 @@ fn inspect_osc_local(osc_dir: &Path, probe: &dyn LocalDiagnosticsProbe) -> OscLo
     let udp9000 = probe.probe_udp_port(9000);
     let udp9001 = probe.probe_udp_port(9001);
     let osc_query = probe.probe_oscquery_loopback();
+
+    match fs::symlink_metadata(osc_dir) {
+        Ok(meta) if is_reparse_or_symlink(&meta) || !meta.is_dir() => {
+            return OscLocalObservation {
+                avatar_cache_presence: "read_failed",
+                avatar_config_count: 0,
+                avatar_cache_bytes: 0,
+                newest_modified_at: None,
+                udp9000,
+                udp9001,
+                osc_query,
+            };
+        }
+        Ok(_) => {}
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            return OscLocalObservation {
+                avatar_cache_presence: "missing",
+                avatar_config_count: 0,
+                avatar_cache_bytes: 0,
+                newest_modified_at: None,
+                udp9000,
+                udp9001,
+                osc_query,
+            };
+        }
+        Err(_) => {
+            return OscLocalObservation {
+                avatar_cache_presence: "read_failed",
+                avatar_config_count: 0,
+                avatar_cache_bytes: 0,
+                newest_modified_at: None,
+                udp9000,
+                udp9001,
+                osc_query,
+            };
+        }
+    }
 
     let entries = match fs::read_dir(osc_dir) {
         Ok(entries) => entries,
@@ -1058,21 +1162,11 @@ fn inspect_streaming_settings(roots: &EnvironmentRoots) -> StreamingSettingsObse
 }
 
 fn inspect_pico_connect_settings(candidates: &[PathBuf]) -> PicoConnectSettingsObservation {
-    let mut saw_read_error = false;
     for path in candidates {
-        let meta = match fs::symlink_metadata(path) {
-            Ok(meta) => meta,
+        let raw = match read_bounded_regular_utf8(path, PICO_SETTINGS_MAX_BYTES) {
+            Ok(raw) => raw,
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(_) => {
-                saw_read_error = true;
-                continue;
-            }
-        };
-        if is_reparse_or_symlink(&meta) || !meta.is_file() || meta.len() > PICO_SETTINGS_MAX_BYTES {
-            return PicoConnectSettingsObservation::empty("read_failed");
-        }
-        let Ok(raw) = fs::read_to_string(path) else {
-            return PicoConnectSettingsObservation::empty("read_failed");
+            Err(_) => return PicoConnectSettingsObservation::empty("read_failed"),
         };
         let Ok(Value::Object(obj)) = serde_json::from_str::<Value>(&raw) else {
             return PicoConnectSettingsObservation::empty("malformed");
@@ -1106,14 +1200,18 @@ fn inspect_pico_connect_settings(candidates: &[PathBuf]) -> PicoConnectSettingsO
             bitrate_mbps,
         };
     }
-    PicoConnectSettingsObservation::empty(if saw_read_error {
-        "read_failed"
-    } else {
-        "missing"
-    })
+    PicoConnectSettingsObservation::empty("missing")
 }
 
 fn clear_osc_json_files(osc_dir: &Path) -> Result<(u64, u64), LocalDiagnosticsError> {
+    match fs::symlink_metadata(osc_dir) {
+        Ok(meta) if is_reparse_or_symlink(&meta) || !meta.is_dir() => {
+            return Err(LocalDiagnosticsError::IoFailed);
+        }
+        Ok(_) => {}
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok((0, 0)),
+        Err(_) => return Err(LocalDiagnosticsError::IoFailed),
+    }
     let entries = match fs::read_dir(osc_dir) {
         Ok(entries) => entries,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok((0, 0)),
@@ -1169,7 +1267,7 @@ fn clear_osc_json_files(osc_dir: &Path) -> Result<(u64, u64), LocalDiagnosticsEr
 fn steamvr_settings_candidates(roots: &EnvironmentRoots) -> Vec<PathBuf> {
     let mut out = Vec::new();
     for vrpath in &roots.openvrpaths {
-        if let Ok(raw) = fs::read_to_string(vrpath) {
+        if let Ok(raw) = read_bounded_regular_utf8(vrpath, MAX_CONFIG_JSON_BYTES) {
             if let Ok(Value::Object(obj)) = serde_json::from_str::<Value>(&raw) {
                 if let Some(configs) = obj.get("config").and_then(Value::as_array) {
                     for entry in configs.iter().filter_map(Value::as_str) {
@@ -1224,7 +1322,7 @@ fn inspect_steamvr_settings(roots: &EnvironmentRoots) -> SteamVrSettingsObservat
     let candidates = steamvr_settings_candidates(roots);
     let mut saw_read_error = false;
     for path in candidates {
-        match fs::read_to_string(&path) {
+        match read_bounded_regular_utf8(&path, MAX_STEAMVR_SETTINGS_BYTES) {
             Ok(raw) => {
                 let Ok(Value::Object(obj)) = serde_json::from_str::<Value>(&raw) else {
                     return SteamVrSettingsObservation::empty("malformed");
@@ -1291,6 +1389,27 @@ fn inspect_steamvr_settings(roots: &EnvironmentRoots) -> SteamVrSettingsObservat
 }
 
 fn inspect_recent_client_log(vrchat_root: &Path) -> RecentClientLogObservation {
+    match fs::symlink_metadata(vrchat_root) {
+        Ok(meta) if is_reparse_or_symlink(&meta) || !meta.is_dir() => {
+            return RecentClientLogObservation {
+                classification: "read_failed",
+                newest_modified_at: None,
+            };
+        }
+        Ok(_) => {}
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            return RecentClientLogObservation {
+                classification: "no_logs",
+                newest_modified_at: None,
+            };
+        }
+        Err(_) => {
+            return RecentClientLogObservation {
+                classification: "read_failed",
+                newest_modified_at: None,
+            };
+        }
+    }
     let entries = match fs::read_dir(vrchat_root) {
         Ok(entries) => entries,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {

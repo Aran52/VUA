@@ -474,7 +474,7 @@ describe("MCP result envelope", () => {
     expect(summary.items.at(-1)!.sourceMatch!.product.imageUrls).toHaveLength(1);
     expect(data(await client.callTool({ name: "vua_library", arguments: { includeImages: true } })).data).toEqual(library);
     expect(calls.every(call => !("includeImages" in call.params))).toBe(true);
-    expect(calls[0]!.params).toEqual({ schemaVersion: "0.1", limit: 25 });
+    expect(calls[0]!.params).toEqual({ schemaVersion: "0.3", limit: 25 });
     expect(reportLibrary.items[0]!.product.imageUrls).toHaveLength(28);
   });
   it("uses a conservative retry table and bounded, sanitized Gateway explanations in every error", async () => {
@@ -723,7 +723,7 @@ describe("run summary", () => {
       },
     })).isError).toBeFalsy();
     expect(calls.at(-1)?.params).toEqual({
-      schemaVersion: "0.1",
+      schemaVersion: "0.3",
       limit: 25,
       source: "local",
       availabilityStatus: "available",

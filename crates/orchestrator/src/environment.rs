@@ -475,6 +475,10 @@ pub struct EnvironmentRoots {
     pub pico_connect_settings_candidates: Vec<PathBuf>,
     /// Pharos Optical+IMU Hub live status file candidates (`LOCALAPPDATA`).
     pub pharos_status_candidates: Vec<PathBuf>,
+    /// VRChat Creator Companion executable candidates (`LOCALAPPDATA\Programs`, `ProgramFiles`).
+    pub vcc_exe_candidates: Vec<PathBuf>,
+    /// ALCOM (`vrc-get-gui`) executable candidates (`LOCALAPPDATA\Programs`, `ProgramFiles`).
+    pub alcom_exe_candidates: Vec<PathBuf>,
 }
 
 impl Default for EnvironmentRoots {
@@ -486,6 +490,8 @@ impl Default for EnvironmentRoots {
             .unwrap_or_else(|_| format!("{user_profile}\\AppData\\Local"));
         let roaming_app_data = std::env::var("APPDATA")
             .unwrap_or_else(|_| format!("{user_profile}\\AppData\\Roaming"));
+        let program_files =
+            std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_owned());
         Self {
             steam_common: vec![PathBuf::from(
                 "C:\\Program Files (x86)\\Steam\\steamapps\\common",
@@ -545,6 +551,31 @@ impl Default for EnvironmentRoots {
                     .join("PH-R")
                     .join("Tracking")
                     .join("hub-status.json"),
+            ],
+            vcc_exe_candidates: vec![
+                PathBuf::from(&local_app_data)
+                    .join("Programs")
+                    .join("VRChat Creator Companion")
+                    .join("CreatorCompanion.exe"),
+                PathBuf::from(&program_files)
+                    .join("VRChat Creator Companion")
+                    .join("CreatorCompanion.exe"),
+            ],
+            alcom_exe_candidates: vec![
+                PathBuf::from(&local_app_data)
+                    .join("Programs")
+                    .join("ALCOM")
+                    .join("ALCOM.exe"),
+                PathBuf::from(&local_app_data)
+                    .join("Programs")
+                    .join("ALCOM")
+                    .join("vrc-get-gui.exe"),
+                PathBuf::from(&program_files)
+                    .join("ALCOM")
+                    .join("ALCOM.exe"),
+                PathBuf::from(&program_files)
+                    .join("ALCOM")
+                    .join("vrc-get-gui.exe"),
             ],
         }
     }

@@ -70,12 +70,14 @@ mod win {
     const ERROR_INSUFFICIENT_BUFFER: u32 = 122;
     const NO_ERROR: u32 = 0;
     const OSCQUERY_TIMEOUT: Duration = Duration::from_millis(120);
-    const OSCQUERY_MAX_BYTES: u64 = 64 * 1024;
+    const OSCQUERY_MAX_BYTES: usize = 64 * 1024;
     const OSCQUERY_CANDIDATE_PROCESSES: &[&str] = &[
         "vrchat.exe",
         "vrcfacetracking.exe",
         "slimevr.exe",
+        "slimevr-server.exe",
         "pharos-hub.exe",
+        "pharos.exe",
     ];
 
     #[repr(C)]
@@ -298,10 +300,40 @@ mod win {
         let _ = stream.set_read_timeout(Some(OSCQUERY_TIMEOUT));
         let _ = stream.set_write_timeout(Some(OSCQUERY_TIMEOUT));
         stream
-            .write_all(b"GET /?HOST_INFO HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+            .write_all(b"GET /?HOST_INFO HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
             .ok()?;
         let mut buf = Vec::with_capacity(4096);
-        stream.take(OSCQUERY_MAX_BYTES).read_to_end(&mut buf).ok()?;
+        let mut chunk = [0u8; 4096];
+        while buf.len() < OSCQUERY_MAX_BYTES {
+            match stream.read(&mut chunk) {
+                Ok(0) => break,
+                Ok(n) => {
+                    let take = n.min(OSCQUERY_MAX_BYTES - buf.len());
+                    buf.extend_from_slice(&chunk[..take]);
+                    if let Some(parsed) = parse_oscquery_host_info(&buf) {
+                        return Some(parsed);
+                    }
+                }
+                Err(err)
+                    if matches!(
+                        err.kind(),
+                        std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                    ) =>
+                {
+                    if buf.is_empty() {
+                        return None;
+                    }
+                    break;
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(_) => {
+                    if buf.is_empty() {
+                        return None;
+                    }
+                    break;
+                }
+            }
+        }
         parse_oscquery_host_info(&buf)
     }
 
@@ -325,7 +357,18 @@ mod win {
             .collect();
         candidates.sort_by_key(|(priority, port, _)| (*priority, *port));
         candidates.dedup_by_key(|(_, port, _)| *port);
-        candidates.truncate(3);
+        // Cap per-process ports to 3 and total probes to 6 so multi-port processes
+        // (e.g. Unity mono/IPC sockets) cannot starve companion OSCQuery listeners.
+        let mut per_priority = [0usize; OSCQUERY_CANDIDATE_PROCESSES.len()];
+        candidates.retain(|(priority, _, _)| {
+            if per_priority[*priority] >= 3 {
+                false
+            } else {
+                per_priority[*priority] += 1;
+                true
+            }
+        });
+        candidates.truncate(6);
 
         for (_, port, exe) in candidates {
             if let Some(osc_port) = query_loopback_oscquery_port(port) {
@@ -383,5 +426,30 @@ mod tests {
         });
         assert_eq!(win::query_loopback_oscquery_port(port), Some(Some(9000)));
         let _ = server.join();
+
+        // Keep-alive server with HTTP/1.1 chunked encoding that never closes TCP within timeout:
+        let keepalive = std::net::TcpListener::bind("127.0.0.1:0").expect("keepalive tcp bind");
+        let keepalive_port = keepalive.local_addr().expect("local_addr").port();
+        let ka_server = std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = keepalive.accept() {
+                let mut req = [0u8; 256];
+                let _ = std::io::Read::read(&mut stream, &mut req);
+                let json =
+                    r#"{"NAME":"VRCFaceTracking","OSC_PORT":9015,"EXTENSIONS":{"ACCESS":true}}"#;
+                let payload = format!(
+                    "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n{:x}\r\n{}\r\n0\r\n\r\n",
+                    json.len(),
+                    json
+                );
+                let _ = std::io::Write::write_all(&mut stream, payload.as_bytes());
+                let _ = std::io::Write::flush(&mut stream);
+                std::thread::sleep(std::time::Duration::from_millis(250));
+            }
+        });
+        assert_eq!(
+            win::query_loopback_oscquery_port(keepalive_port),
+            Some(Some(9015))
+        );
+        let _ = ka_server.join();
     }
 }

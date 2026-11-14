@@ -224,9 +224,12 @@ pub fn plan_prediction(run: &ProductionRun, selection: &AssemblySelection) -> se
     }
     // The Avatar's own parameter row is its Expression Parameters plus its MA Parameters;
     // every outfit's row is the bits that outfit adds, including VUA's own switch.
-    let avatar_bits = parameters
-        .known
-        .then_some(parameters.expression_bits + parameters.avatar_ma_bits);
+    let avatar_bits = parameters.known.then_some(
+        parameters
+            .expression_bits
+            .saturating_add(parameters.avatar_ma_bits),
+    );
+    let mut outfit_bits = parameters.outfits.iter().map(|(.., bits, _)| *bits);
     let mut rows = Vec::with_capacity(selected.len());
     for (role, prefab) in &selected {
         let footprint = prefab.footprint.expect("checked above");
@@ -235,11 +238,7 @@ pub fn plan_prediction(run: &ProductionRun, selection: &AssemblySelection) -> se
         } else if *role == "avatar" {
             avatar_bits
         } else {
-            parameters
-                .outfits
-                .iter()
-                .find(|(source_id, ..)| *source_id == prefab.source_id)
-                .map(|(.., bits, _)| *bits)
+            outfit_bits.next()
         };
         rows.push(PredictedRow {
             source_id: prefab.source_id.clone(),
@@ -263,7 +262,9 @@ pub fn plan_prediction(run: &ProductionRun, selection: &AssemblySelection) -> se
     let parameter_total = rows
         .iter()
         .map(|row| row.parameter_bits)
-        .try_fold(0u32, |total, bits| bits.map(|bits| total + bits));
+        .try_fold(0u32, |total, bits| {
+            bits.map(|bits| total.saturating_add(bits))
+        });
     let total_triangles = sum(|row| row.triangles);
     let total_material_slots = rows.iter().map(|row| row.material_slots).sum::<u32>();
     let total_texture_bytes = sum(|row| row.texture_bytes);
@@ -599,5 +600,77 @@ mod tests {
             "medium"
         );
         assert_eq!(predict_android_rank(20_000, 4, 40 << 20, 8)["rank"], "poor");
+    }
+
+    #[test]
+    fn multi_prefab_single_source_preserves_exact_per_prefab_parameter_bits() {
+        use crate::amf_production::parameter_budget::estimate_parameters;
+
+        let mut coat = candidate(
+            "pack",
+            "Coat",
+            false,
+            Some(footprint(8_000, 10 << 20, 2 << 20)),
+            Some(budget(&[("CoatColor", 8)])),
+        );
+        coat.path = "Assets/pack/Coat.prefab".into();
+        let mut hat = candidate(
+            "pack",
+            "Hat",
+            false,
+            Some(footprint(2_000, 4 << 20, 1 << 20)),
+            Some(budget(&[])),
+        );
+        hat.path = "Assets/pack/Hat.prefab".into();
+
+        let run = run_of(vec![
+            candidate(
+                "avatar",
+                "Base",
+                true,
+                Some(footprint(12_000, 16 << 20, 4 << 20)),
+                Some(budget(&[("VRCEmote", 8)])),
+            ),
+            coat,
+            hat,
+        ]);
+        let sel = AssemblySelection {
+            avatar_prefab: "Assets/avatar.prefab".into(),
+            outfits: vec![
+                OutfitSelection {
+                    source_id: "pack".into(),
+                    prefab_path: "Assets/pack/Coat.prefab".into(),
+                    mode: BindingMode::MergeArmature,
+                    bone: String::new(),
+                    toggle_name: "Coat".into(),
+                    active: true,
+                    saved: true,
+                    group: "Top".into(),
+                },
+                OutfitSelection {
+                    source_id: "pack".into(),
+                    prefab_path: "Assets/pack/Hat.prefab".into(),
+                    mode: BindingMode::MergeArmature,
+                    bone: String::new(),
+                    toggle_name: "Hat".into(),
+                    active: true,
+                    saved: true,
+                    group: "Top".into(),
+                },
+            ],
+        };
+
+        let expected_budget = estimate_parameters(&run, &sel);
+        let plan = plan_prediction(&run, &sel);
+        let rows = plan["rows"].as_array().expect("prediction rows");
+        assert_eq!(rows.len(), 3);
+        // Coat introduces the 8-bit group + its own 8-bit CoatColor = 16 bits;
+        // Hat shares the "Top" group and adds 0 extra bits (not 16 again!).
+        assert_eq!(rows[1]["parameterBits"], 16);
+        assert_eq!(rows[2]["parameterBits"], 0);
+        assert_eq!(
+            plan["total"]["parameterBits"].as_u64(),
+            Some(u64::from(expected_budget.total))
+        );
     }
 }

@@ -204,83 +204,90 @@ pub fn resolve_executable_path(
     roots: &EnvironmentRoots,
     manager_id: ManagerAppId,
 ) -> Option<PathBuf> {
-    inspect(roots)
-        .apps
-        .into_iter()
-        .find(|app| app.component == manager_id.as_str() && app.presence == "found")
-        .and_then(|app| app.path)
+    let app = inspect_one(roots, manager_id);
+    (app.presence == "found")
+        .then_some(app.path)
+        .flatten()
         .map(PathBuf::from)
 }
 
-pub fn inspect(roots: &EnvironmentRoots) -> ManagerApps {
-    let engine = EnvironmentEngine::new(
-        std::sync::Arc::new(vua_orchestrator::StdProcessRunner),
-        std::sync::Arc::new(SystemClock),
-        roots.clone(),
-        std::sync::Arc::new(crate::VccSettingsFileReader),
-    );
-    let hub = engine
-        .inspect_deployment_components()
-        .into_iter()
-        .find(|f| f.id == "unity_hub");
-    let hub_path = hub
-        .as_ref()
-        .and_then(|f| f.facts["exe"].as_str())
-        .map(PathBuf::from);
-    let hub_presence = match hub.as_ref().map(|f| f.presence) {
-        Some(EnvironmentPresence::Detected) if hub_path.as_ref().is_some_and(|p| p.is_file()) => {
-            "found"
-        }
-        Some(EnvironmentPresence::NotDetected) => "not_found",
-        _ => "unknown",
-    };
-    let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
-    let programs = std::env::var_os("ProgramFiles").map(PathBuf::from);
-    let mut apps = vec![ManagerApp {
-        component: "unity_hub",
-        presence: hub_presence,
-        path: hub_path.map(|p| p.to_string_lossy().into_owned()),
-    }];
-    for (component, product, binaries) in [
-        (
-            "vcc",
-            "VRChat Creator Companion",
-            &["CreatorCompanion.exe"][..],
-        ),
-        ("alcom", "ALCOM", &["ALCOM.exe", "vrc-get-gui.exe"][..]),
-    ] {
-        let mut candidates = Vec::new();
-        for root in local
-            .iter()
-            .map(|p| p.join("Programs"))
-            .chain(programs.iter().cloned())
-        {
-            for binary in binaries {
-                candidates.push(root.join(product).join(binary));
+fn inspect_one(roots: &EnvironmentRoots, manager_id: ManagerAppId) -> ManagerApp {
+    match manager_id {
+        ManagerAppId::UnityHub => {
+            let engine = EnvironmentEngine::new(
+                std::sync::Arc::new(vua_orchestrator::StdProcessRunner),
+                std::sync::Arc::new(SystemClock),
+                roots.clone(),
+                std::sync::Arc::new(crate::VccSettingsFileReader),
+            );
+            let hub = engine.inspect_unity_hub();
+            let hub_path = hub.facts["exe"].as_str().map(PathBuf::from);
+            let hub_presence = match hub.presence {
+                EnvironmentPresence::Detected if hub_path.as_ref().is_some_and(|p| p.is_file()) => {
+                    "found"
+                }
+                EnvironmentPresence::NotDetected => "not_found",
+                _ => "unknown",
+            };
+            ManagerApp {
+                component: "unity_hub",
+                presence: hub_presence,
+                path: hub_path.map(|p| p.to_string_lossy().into_owned()),
             }
         }
-        for binary in binaries {
-            for hive in [RegistryHive::CurrentUser, RegistryHive::LocalMachine] {
-                let key = format!(r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{binary}");
-                if let Some(path) = roots.registry.get_string(hive, &key, "") {
-                    candidates.push(PathBuf::from(path.trim_matches('"')));
-                }
-                for product_key in [product.to_owned(), format!("{product}_is1")] {
-                    for prefix in [
-                        r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
-                        r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
-                    ] {
-                        let key = format!(r"{prefix}\{product_key}");
-                        if let Some(root) = roots.registry.get_string(hive, &key, "InstallLocation")
-                        {
-                            candidates.push(PathBuf::from(root.trim_matches('"')).join(binary));
-                        }
+        ManagerAppId::Vcc => inspect_companion_manager(
+            roots,
+            "vcc",
+            "VRChat Creator Companion",
+            &["CreatorCompanion.exe"],
+            &roots.vcc_exe_candidates,
+        ),
+        ManagerAppId::Alcom => inspect_companion_manager(
+            roots,
+            "alcom",
+            "ALCOM",
+            &["ALCOM.exe", "vrc-get-gui.exe"],
+            &roots.alcom_exe_candidates,
+        ),
+    }
+}
+
+fn inspect_companion_manager(
+    roots: &EnvironmentRoots,
+    component: &'static str,
+    product: &str,
+    binaries: &[&str],
+    root_candidates: &[PathBuf],
+) -> ManagerApp {
+    let mut candidates = root_candidates.to_vec();
+    for binary in binaries {
+        for hive in [RegistryHive::CurrentUser, RegistryHive::LocalMachine] {
+            let key = format!(r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{binary}");
+            if let Some(path) = roots.registry.get_string(hive, &key, "") {
+                candidates.push(PathBuf::from(path.trim_matches('"')));
+            }
+            for product_key in [product.to_owned(), format!("{product}_is1")] {
+                for prefix in [
+                    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+                    r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+                ] {
+                    let key = format!(r"{prefix}\{product_key}");
+                    if let Some(root) = roots.registry.get_string(hive, &key, "InstallLocation") {
+                        candidates.push(PathBuf::from(root.trim_matches('"')).join(binary));
                     }
                 }
             }
         }
-        apps.push(discover(component, &candidates));
     }
+    discover(component, &candidates)
+}
+
+pub fn inspect(roots: &EnvironmentRoots) -> ManagerApps {
+    let apps = vec![
+        inspect_one(roots, ManagerAppId::UnityHub),
+        inspect_one(roots, ManagerAppId::Vcc),
+        inspect_one(roots, ManagerAppId::Alcom),
+    ];
     ManagerApps {
         schema_version: "vua.manager-apps/v0.1",
         captured_at: SystemClock.now_rfc3339(),
@@ -337,9 +344,27 @@ mod tests {
     fn fake_roots(root: &Path) -> EnvironmentRoots {
         EnvironmentRoots {
             local_low: root.to_path_buf(),
+            unity_hub_exe_candidates: Vec::new(),
+            unity_hub_registry_display_icon_keys: Vec::new(),
+            vcc_exe_candidates: Vec::new(),
+            alcom_exe_candidates: Vec::new(),
             registry: Arc::new(FakeRegistrySource::new()),
             ..EnvironmentRoots::default()
         }
+    }
+
+    #[test]
+    fn synthetic_roots_never_leak_host_machine_manager_installs() {
+        let root = std::env::temp_dir().join(format!("vua-manager-iso-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let snapshot = inspect(&fake_roots(&root));
+        assert_eq!(snapshot.apps.len(), 3);
+        for app in &snapshot.apps {
+            assert_eq!(app.presence, "not_found", "leaked {}", app.component);
+            assert!(app.path.is_none());
+        }
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

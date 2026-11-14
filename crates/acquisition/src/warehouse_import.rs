@@ -765,7 +765,7 @@ fn migration_import_job(
                                     ctx.emit_progress(serde_json::json!({
                                         "kind": "warehouse.import.generationSubmitFailed",
                                         "warehouseItemId": report.entry.warehouse_item_id,
-                                        "reason": format!("{error:?}"),
+                                        "reason": error.code,
                                     }));
                                 }
                             }
@@ -783,11 +783,12 @@ fn migration_import_job(
                     if matches!(error, ImportError::Cancelled) {
                         return Ok(TaskExit::Cancelled);
                     }
+                    let message = error.to_string();
                     let app = import_error_to_app(error, &spec.correlation_id, &group.root);
                     failures.push(MigrationGroupFailure {
                         name: group.name.clone(),
                         code: app.code.clone(),
-                        message: format!("{app:?}"),
+                        message,
                     });
                 }
             }
@@ -976,7 +977,7 @@ fn import_job(
                                 ctx.emit_progress(serde_json::json!({
                                     "kind": "warehouse.import.generationSubmitFailed",
                                     "warehouseItemId": report.entry.warehouse_item_id,
-                                    "reason": format!("{error:?}"),
+                                    "reason": error.code,
                                 }));
                             } else {
                                 ctx.emit_progress(serde_json::json!({

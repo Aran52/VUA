@@ -51,6 +51,8 @@ fn synthetic_roots(base: &Path) -> EnvironmentRoots {
         vcc_settings_candidates: vec![base.join("vcc/settings.json")],
         pico_connect_settings_candidates: vec![],
         pharos_status_candidates: vec![],
+        vcc_exe_candidates: vec![],
+        alcom_exe_candidates: vec![],
     }
 }
 

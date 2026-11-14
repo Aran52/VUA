@@ -18,7 +18,8 @@ use crate::win_registry::RegistryHive;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeSet;
-use std::fs;
+use std::fs::{self, File};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -28,6 +29,21 @@ const OPENXR_REGISTRY_SUBKEY: &str = "SOFTWARE\\Khronos\\OpenXR\\1";
 const STEAM_REGISTRY_SUBKEY: &str = "SOFTWARE\\WOW6432Node\\Valve\\Steam";
 const MAX_HUB_STATUS_BYTES: u64 = 65_536;
 const MAX_DRIVER_MANIFEST_BYTES: u64 = 65_536;
+const MAX_OPENVR_JSON_BYTES: u64 = 2 * 1024 * 1024;
+
+fn read_bounded_regular_utf8(path: &Path, max_bytes: u64) -> Option<String> {
+    let meta = fs::symlink_metadata(path).ok()?;
+    if meta.file_type().is_symlink() || !meta.is_file() || meta.len() > max_bytes {
+        return None;
+    }
+    let file = File::open(path).ok()?;
+    let mut buf = Vec::with_capacity((meta.len() as usize).min(65_536));
+    file.take(max_bytes + 1).read_to_end(&mut buf).ok()?;
+    if (buf.len() as u64) > max_bytes {
+        return None;
+    }
+    String::from_utf8(buf).ok()
+}
 const TELEMETRY_MAX_AGE_MS: i64 = 15_000;
 const TELEMETRY_MAX_FUTURE_SKEW_MS: i64 = -2_000;
 
@@ -771,8 +787,7 @@ fn inspect_openxr(roots: &EnvironmentRoots) -> OpenXrRuntimeObservation {
             runtime_name: None,
         };
     }
-    let label = fs::read_to_string(Path::new(manifest_path))
-        .ok()
+    let label = read_bounded_regular_utf8(Path::new(manifest_path), MAX_DRIVER_MANIFEST_BYTES)
         .and_then(|text| serde_json::from_str::<Value>(&text).ok())
         .and_then(|val| {
             val.pointer("/runtime/name")
@@ -820,15 +835,13 @@ fn classify_driver_token(token_lower: &str) -> Option<&'static str> {
 fn inspect_openvr_drivers(roots: &EnvironmentRoots) -> Vec<&'static str> {
     let mut raw_paths = Vec::new();
     for vrpath in &roots.openvrpaths {
-        if !vrpath.is_file() {
+        let Some(text) = read_bounded_regular_utf8(vrpath, MAX_OPENVR_JSON_BYTES) else {
             continue;
-        }
-        if let Ok(text) = fs::read_to_string(vrpath) {
-            if let Ok(val) = serde_json::from_str::<Value>(&text) {
-                if let Some(arr) = val.get("external_drivers").and_then(Value::as_array) {
-                    for item in arr.iter().filter_map(Value::as_str).take(64) {
-                        raw_paths.push(item.to_owned());
-                    }
+        };
+        if let Ok(val) = serde_json::from_str::<Value>(&text) {
+            if let Some(arr) = val.get("external_drivers").and_then(Value::as_array) {
+                for item in arr.iter().filter_map(Value::as_str).take(64) {
+                    raw_paths.push(item.to_owned());
                 }
             }
         }
@@ -839,17 +852,10 @@ fn inspect_openvr_drivers(roots: &EnvironmentRoots) -> Vec<&'static str> {
     for raw_dir in &raw_paths {
         discovered_tokens.push(raw_dir.to_ascii_lowercase());
         let manifest = Path::new(raw_dir).join("driver.vrdrivermanifest");
-        if let Ok(meta) = fs::symlink_metadata(&manifest) {
-            if !meta.file_type().is_symlink()
-                && meta.is_file()
-                && meta.len() <= MAX_DRIVER_MANIFEST_BYTES
-            {
-                if let Ok(text) = fs::read_to_string(&manifest) {
-                    if let Ok(val) = serde_json::from_str::<Value>(&text) {
-                        if let Some(name) = val.get("name").and_then(Value::as_str) {
-                            discovered_tokens.push(name.to_ascii_lowercase());
-                        }
-                    }
+        if let Some(text) = read_bounded_regular_utf8(&manifest, MAX_DRIVER_MANIFEST_BYTES) {
+            if let Ok(val) = serde_json::from_str::<Value>(&text) {
+                if let Some(name) = val.get("name").and_then(Value::as_str) {
+                    discovered_tokens.push(name.to_ascii_lowercase());
                 }
             }
         }
@@ -872,7 +878,7 @@ fn inspect_steamvr_settings(roots: &EnvironmentRoots) -> (Option<String>, Vec<&'
     let mut blocked = Vec::new();
 
     for candidate in steamvr_settings_candidates(roots) {
-        let Ok(raw) = fs::read_to_string(&candidate) else {
+        let Some(raw) = read_bounded_regular_utf8(&candidate, MAX_OPENVR_JSON_BYTES) else {
             continue;
         };
         let Ok(Value::Object(obj)) = serde_json::from_str::<Value>(&raw) else {
@@ -941,7 +947,7 @@ fn inspect_steamvr_settings(roots: &EnvironmentRoots) -> (Option<String>, Vec<&'
 fn steamvr_settings_candidates(roots: &EnvironmentRoots) -> Vec<PathBuf> {
     let mut out = Vec::new();
     for vrpath in &roots.openvrpaths {
-        if let Ok(raw) = fs::read_to_string(vrpath) {
+        if let Some(raw) = read_bounded_regular_utf8(vrpath, MAX_OPENVR_JSON_BYTES) {
             if let Ok(Value::Object(obj)) = serde_json::from_str::<Value>(&raw) {
                 if let Some(configs) = obj.get("config").and_then(Value::as_array) {
                     for entry in configs.iter().filter_map(Value::as_str) {
@@ -1141,6 +1147,8 @@ mod tests {
             vcc_settings_candidates: Vec::new(),
             pico_connect_settings_candidates: Vec::new(),
             pharos_status_candidates: Vec::new(),
+            vcc_exe_candidates: Vec::new(),
+            alcom_exe_candidates: Vec::new(),
         }
     }
 

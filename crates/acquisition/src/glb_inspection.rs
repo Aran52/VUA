@@ -381,6 +381,9 @@ fn inspect_unexpanded_zip_members(
     }
 }
 
+const MAX_SAFE_JS_INT: u64 = 9_007_199_254_740_991;
+const MAX_COORD_METERS: f64 = 1.0e9;
+
 fn build_inspected_item(
     copy_id: String,
     file_name: String,
@@ -394,7 +397,7 @@ fn build_inspected_item(
         file_name,
         source_kind,
         container_file_name,
-        size_bytes,
+        size_bytes: size_bytes.min(MAX_SAFE_JS_INT),
         format: parsed.format,
         extensions_used: parsed.extensions_used,
         content_summary: parsed.content_summary,
@@ -417,7 +420,7 @@ pub fn sanitize_relative_file_name(raw: &str) -> String {
     let normalized = raw.replace('\\', "/");
     let segments = normalized
         .split('/')
-        .filter(|seg| !seg.is_empty() && *seg != "." && *seg != ".." && !seg.contains(':'))
+        .filter(|seg| !seg.is_empty() && *seg != "." && !seg.contains("..") && !seg.contains(':'))
         .collect::<Vec<_>>();
     let joined = if segments.is_empty() {
         "artifact.glb".to_owned()
@@ -434,10 +437,11 @@ pub fn sanitize_relative_file_name(raw: &str) -> String {
         out.push(ch);
         utf16 += len;
     }
-    if out.is_empty() {
+    let trimmed = out.trim_end_matches(['/', '.']);
+    if trimmed.is_empty() {
         "artifact.glb".to_owned()
     } else {
-        out
+        trimmed.to_owned()
     }
 }
 
@@ -997,8 +1001,11 @@ fn parse_vrm_0_x(
 }
 
 fn round6(v: f64) -> f64 {
+    if !v.is_finite() {
+        return 0.0;
+    }
     let r = (v * 1_000_000.0).round() / 1_000_000.0;
-    if r == 0.0 {
+    if !r.is_finite() || r == 0.0 {
         0.0
     } else {
         r
@@ -1070,7 +1077,13 @@ fn transform_point(m: &Mat4, p: [f64; 3]) -> Option<[f64; 3]> {
     let x = m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12];
     let y = m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13];
     let z = m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14];
-    if x.is_finite() && y.is_finite() && z.is_finite() {
+    if x.is_finite()
+        && y.is_finite()
+        && z.is_finite()
+        && x.abs() <= MAX_COORD_METERS
+        && y.abs() <= MAX_COORD_METERS
+        && z.abs() <= MAX_COORD_METERS
+    {
         Some([x, y, z])
     } else {
         None
@@ -1682,5 +1695,45 @@ mod tests {
             sanitize_relative_file_name("..\\..\\Sub\\Avatar.vrm"),
             "Sub/Avatar.vrm"
         );
+        assert_eq!(sanitize_relative_file_name("v1../Avatar.vrm"), "Avatar.vrm");
+        let long_prefix = format!("{}/..tail.glb", "a".repeat(510));
+        let sanitized = sanitize_relative_file_name(&long_prefix);
+        assert!(!sanitized.contains(".."));
+        assert!(!sanitized.ends_with('/'));
+    }
+
+    #[test]
+    fn guards_against_extreme_accessor_floats_and_clamps_zip64_size_bytes() {
+        let extreme = pack_synthetic_glb(
+            &json!({
+                "asset": { "version": "2.0" },
+                "scene": 0,
+                "scenes": [{ "nodes": [0] }],
+                "nodes": [{ "mesh": 0, "scale": [1e200, 1e200, 1e200] }],
+                "meshes": [{ "primitives": [{ "attributes": { "POSITION": 0 } }] }],
+                "accessors": [{
+                    "type": "VEC3",
+                    "min": [-1e200, -1e200, -1e200],
+                    "max": [1e200, 1e200, 1e200]
+                }]
+            }),
+            0,
+        );
+        let parsed = inspect_glb_bytes(&extreme);
+        assert!(parsed.bounds_meters.is_none());
+        assert_eq!(parsed.object_head_clearance.status, "unknown");
+
+        let mut cursor = std::io::Cursor::new(&extreme);
+        let item = build_inspected_item(
+            "copy-1".to_owned(),
+            "Avatar.vrm".to_owned(),
+            "zip_member",
+            Some("bundle.zip".to_owned()),
+            u64::MAX,
+            inspect_glb_reader(&mut cursor),
+        );
+        assert_eq!(item.size_bytes, MAX_SAFE_JS_INT);
+        let serialized = serde_json::to_string(&item).unwrap();
+        assert!(!serialized.contains(":null,") || serialized.contains("\"vrm\":null"));
     }
 }

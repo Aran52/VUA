@@ -144,8 +144,7 @@ export function aiGatewayRequest(spec:AiToolSpec,args:Record<string,unknown>,req
   let params={...args,...spec.fixed}; let method=spec.method;
   if(spec.name==="vua_library") {
     const {includeImages: _includeImages,...query}=params;
-    const schemaVersion=args.sort!==undefined||args.vn3!==undefined?"0.3":"0.1";
-    params={limit:25,...query,schemaVersion};
+    params={limit:25,...query,schemaVersion:"0.3"};
   }
   if(spec.name==="vua_tasks")params={};
   if(spec.name==="vua_glb_inspect") {

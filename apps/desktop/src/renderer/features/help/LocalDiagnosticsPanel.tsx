@@ -10,7 +10,7 @@ import { Icon } from "@vua/design-system";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { useEscapeClose } from "../../components/use-escape-close.ts";
-import { useGateway } from "../../gateway/index.ts";
+import { useAmfModule, useGateway } from "../../gateway/index.ts";
 import { format, strings } from "../../i18n/index.ts";
 import "./local-diagnostics.css";
 
@@ -144,7 +144,9 @@ export function LocalDiagnosticsPanel({
 }) {
   useEscapeClose(true, onBack);
   const port = useGateway().environment.diagnostics;
+  const amf = useAmfModule();
   const copy = strings.localDiagnostics;
+  const symptomStripRef = useRef<HTMLDivElement>(null);
   const [snapshot, setSnapshot] = useState<LocalDiagnosticsSnapshotV01 | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [unavailable, setUnavailable] = useState(() => !port);
@@ -501,7 +503,29 @@ export function LocalDiagnosticsPanel({
           <section className="vua-local-diag__section" aria-labelledby="local-diag-symptoms-heading">
             <h2 id="local-diag-symptoms-heading">{copy.symptomsSectionTitle}</h2>
             <p className="vua-local-diag__subtitle">{copy.symptomsSubtitle}</p>
-            <div className="vua-local-diag__symptoms" role="group" aria-label={copy.symptomsSectionTitle}>
+            <div
+              ref={symptomStripRef}
+              className="vua-local-diag__symptoms"
+              role="group"
+              aria-label={copy.symptomsSectionTitle}
+              onKeyDown={event => {
+                if (event.key !== "ArrowRight" && event.key !== "ArrowLeft" && event.key !== "Home" && event.key !== "End") return;
+                const buttons = Array.from(symptomStripRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+                if (buttons.length === 0) return;
+                const index = buttons.indexOf(event.target as HTMLButtonElement);
+                if (index < 0) return;
+                event.preventDefault();
+                const nextIndex =
+                  event.key === "Home"
+                    ? 0
+                    : event.key === "End"
+                      ? buttons.length - 1
+                      : (index + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
+                const nextSymptom = SYMPTOM_IDS_V01[nextIndex];
+                buttons[nextIndex]?.focus();
+                if (nextSymptom) void selectSymptom(nextSymptom);
+              }}
+            >
               {SYMPTOM_IDS_V01.map(symptom => (
                 <Button
                   key={symptom}
@@ -553,7 +577,11 @@ export function LocalDiagnosticsPanel({
                   <ol className="vua-local-diag__steps">
                     {diagnosis.sopSteps.map(step => {
                       const localized = copy.sopSteps[step.stepId as keyof typeof copy.sopSteps];
-                      const jump = navigate ? sopJumpForStep(step.stepId) : null;
+                      const rawJump = navigate ? sopJumpForStep(step.stepId) : null;
+                      const jump =
+                        rawJump && (amf.installed || (rawJump.page !== "workshop" && rawJump.page !== "release"))
+                          ? rawJump
+                          : null;
                       return (
                         <li key={step.stepId} className="vua-local-diag__step">
                           <div className="vua-local-diag__step-head">
@@ -580,6 +608,28 @@ export function LocalDiagnosticsPanel({
                     })}
                   </ol>
                 </div>
+                {diagnosis.suggestedHelper !== "none" ? (
+                  <div className="vua-local-diag__step-actions">
+                    <Button
+                      variant="subtle"
+                      data-nav-id={`diag-suggested-helper-${diagnosis.suggestedHelper}`}
+                      onClick={() => {
+                        const selector =
+                          diagnosis.suggestedHelper === "clear_osc_avatar_cache"
+                            ? '[data-helper="osc-cache"]'
+                            : '[data-helper="client-config"]';
+                        const card = document.querySelector<HTMLElement>(selector);
+                        card?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                        card?.querySelector<HTMLElement>("input:not(:disabled), button:not(:disabled)")?.focus();
+                      }}
+                    >
+                      {diagnosis.suggestedHelper === "clear_osc_avatar_cache"
+                        ? copy.sopActions.jumpToOscHelper
+                        : copy.sopActions.jumpToConfigHelper}
+                      <Icon name="arrow-right" size={16} />
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </section>

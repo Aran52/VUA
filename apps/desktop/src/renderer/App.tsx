@@ -1,7 +1,7 @@
 import { formatDateTime } from "./i18n/index.ts";
 import { Suspense, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSidebarGlide } from "./components/use-sidebar-glide.ts";
-import type { DesktopShellCommandV1, GuideTargetV1 } from "@vua/contracts";
+import { SYMPTOM_IDS_V01, type DesktopShellCommandV1, type GuideTargetV1 } from "@vua/contracts";
 import { saveDebugMode, useDebugMode } from "./app/debug-mode.ts";
 import {
   availablePage,
@@ -957,6 +957,17 @@ function AppShell({
         keywords: "diagnostics troubleshoot osc cache steamvr eac crash fps mic",
         run: () => navigate("help", "help?sub=diagnostics"),
       },
+      {
+        id: "pose-topology",
+        group: "pages",
+        label: strings.poseGraph.title,
+        hint: strings.journey.tools,
+        keywords: "pose fbt pharos slimevr openxr openvr tracker space calibrator mocopi haritorax",
+        run: () => {
+          navigate("tools-discover");
+          requestAnimationFrame(() => document.querySelector(".vua-pose-graph")?.scrollIntoView({ block: "start" }));
+        },
+      },
       ...TOOL_HUB_GROUPS.flatMap(group => group.tools.map(tool => ({
         id: `tool-${tool.id}`,
         group: "pages" as const,
@@ -1023,6 +1034,14 @@ function AppShell({
         keywords: "saver effects animation gpu performance",
         run: pagePrefs.onSaverToggle,
       },
+      ...SYMPTOM_IDS_V01.map(symptom => ({
+        id: `diagnose-${symptom}`,
+        group: "actions" as const,
+        label: strings.localDiagnostics.symptoms[symptom],
+        hint: strings.localDiagnostics.entryTitle,
+        keywords: `diagnose symptom troubleshoot ${symptom.replaceAll("_", " ")}`,
+        run: () => navigate("help", `help?sub=diagnostics&symptom=${symptom}`),
+      })),
     ];
     return [...pages, ...guides, ...actions];
     // navigate 由 App 每次渲染新建;命令表重建成本低,无需缓存

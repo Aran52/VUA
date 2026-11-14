@@ -268,7 +268,7 @@
   padding: 0 var(--vua-space-2);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-control);
-  background: var(--vua-bg);
+  background: var(--vua-bg-canvas);
   color: var(--vua-text-strong);
 }
 

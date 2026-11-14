@@ -15,6 +15,8 @@ export const localDiagnosticsCopy = {
       openPlay: "Open Launch",
       openUnitySetup: "Open Unity setup",
       openFinishedAvatars: "Open Finished Avatars",
+      jumpToOscHelper: "Jump to OSC cache cleanup below",
+      jumpToConfigHelper: "Jump to cache limit settings below",
     },
     unavailable: "Local diagnostics are unavailable in this session.",
     cards: {
@@ -333,6 +335,8 @@ export const localDiagnosticsCopy = {
       openPlay: "打开启动页",
       openUnitySetup: "打开 Unity 环境",
       openFinishedAvatars: "打开成品页",
+      jumpToOscHelper: "定位到下方 OSC 缓存清理卡片",
+      jumpToConfigHelper: "定位到下方缓存容量设置卡片",
     },
     unavailable: "当前会话暂不可用本地诊断功能。",
     cards: {
@@ -651,6 +655,8 @@ export const localDiagnosticsCopy = {
       openPlay: "開啟啟動頁",
       openUnitySetup: "開啟 Unity 環境",
       openFinishedAvatars: "開啟成品頁",
+      jumpToOscHelper: "跳至下方 OSC 快取清理卡片",
+      jumpToConfigHelper: "跳至下方快取容量設定卡片",
     },
     unavailable: "目前工作階段暫時無法使用本機診斷功能。",
     cards: {
@@ -969,6 +975,8 @@ export const localDiagnosticsCopy = {
       openPlay: "起動ページを開く",
       openUnitySetup: "Unity 環境を開く",
       openFinishedAvatars: "完成アバターを開く",
+      jumpToOscHelper: "下の OSC キャッシュ消去へ移動",
+      jumpToConfigHelper: "下のキャッシュ上限設定へ移動",
     },
     unavailable: "このセッションではローカル診断を利用できません。",
     cards: {
@@ -1287,6 +1295,8 @@ export const localDiagnosticsCopy = {
       openPlay: "실행 페이지 열기",
       openUnitySetup: "Unity 환경 열기",
       openFinishedAvatars: "완성 아바타 열기",
+      jumpToOscHelper: "아래 OSC 캐시 비우기로 이동",
+      jumpToConfigHelper: "아래 캐시 한도 설정으로 이동",
     },
     unavailable: "현재 세션에서는 로컬 진단을 사용할 수 없어요.",
     cards: {

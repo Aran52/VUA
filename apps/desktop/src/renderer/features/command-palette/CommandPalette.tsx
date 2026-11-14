@@ -104,6 +104,12 @@ export function CommandPalette({
               } else if (event.key === "ArrowUp") {
                 event.preventDefault();
                 setCursor(moveCursor(active, -1, results.length));
+              } else if (event.key === "PageUp" || (event.key === "Home" && (query === "" || event.ctrlKey))) {
+                event.preventDefault();
+                setCursor(0);
+              } else if (event.key === "PageDown" || (event.key === "End" && (query === "" || event.ctrlKey))) {
+                event.preventDefault();
+                setCursor(Math.max(0, results.length - 1));
               } else if (event.key === "Enter") {
                 event.preventDefault();
                 const command = results[active];

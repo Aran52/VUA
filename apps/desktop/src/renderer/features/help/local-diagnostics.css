@@ -116,13 +116,13 @@
 }
 
 .vua-local-diag__finding[data-severity="attention"] > svg {
-  color: var(--vua-danger);
+  color: var(--vua-error-text);
   flex-shrink: 0;
   margin-top: var(--vua-space-1);
 }
 
 .vua-local-diag__finding[data-severity="warning"] > svg {
-  color: var(--vua-warning);
+  color: var(--vua-warning-text);
   flex-shrink: 0;
   margin-top: var(--vua-space-1);
 }

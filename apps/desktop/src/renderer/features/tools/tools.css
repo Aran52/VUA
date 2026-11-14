@@ -86,7 +86,7 @@
 .vua-tools-filter-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-2) var(--vua-space-3); padding: var(--vua-space-2) var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-card); background: var(--vua-bg-panel); }
 .vua-tools-filter-bar__goals, .vua-tools-filter-bar__meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2); }
 .vua-tools-filter-bar__count { color: var(--vua-text-secondary); font: var(--vua-font-caption); }
-.vua-tools-filter-pill--active { border-color: var(--vua-accent-border); background: var(--vua-bg-hover); color: var(--vua-text-strong); font-weight: var(--vua-weight-strong); }
+.vua-tools-filter-pill--active { border-color: var(--vua-border-focus); background: var(--vua-accent-tint); color: var(--vua-text-strong); font-weight: var(--vua-weight-strong); }
 
 .vua-pose-graph { display: flex; flex-direction: column; gap: var(--vua-space-3); }
 .vua-pose-graph__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--vua-space-2) var(--vua-space-4); }

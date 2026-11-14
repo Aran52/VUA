@@ -50,6 +50,130 @@ export function GlbInspectionSection({
     return null;
   }
 
+  type InspectedItem = GlbInspectionResultV01["items"][number];
+  const isReadyItem = (item: InspectedItem): boolean =>
+    item.phrReadiness === "ready_vrm1_humanoid" || item.phrReadiness === "ready_object_head";
+
+  const visibleItems: InspectedItem[] = [];
+  const overflowItems: InspectedItem[] = [];
+  if (result.items.length <= 2) {
+    visibleItems.push(...result.items);
+  } else {
+    for (const item of result.items) {
+      if (!isReadyItem(item) || visibleItems.length < 2) {
+        visibleItems.push(item);
+      } else {
+        overflowItems.push(item);
+      }
+    }
+  }
+
+  const renderItem = (item: InspectedItem) => (
+    <li key={`${item.copyId}:${item.sourceKind}:${item.fileName}`} className="vua-glb-inspection__item">
+      <div className="vua-glb-inspection__row">
+        <span className="vua-glb-inspection__name" title={item.fileName}>
+          <Icon name="file" size={16} />
+          <span>{item.fileName}</span>
+        </span>
+        <span className="vua-glb-inspection__badges">
+          {item.sourceKind === "zip_member" && item.containerFileName ? (
+            <Badge tone="neutral">
+              {format(copy.zipMemberBadge, { archive: item.containerFileName })}
+            </Badge>
+          ) : null}
+          <Badge tone={item.format === "vrm_1_0" ? "success" : item.format === "vrm_0_x" ? "warning" : "neutral"}>
+            {copy.formats[item.format]}
+          </Badge>
+          <Badge tone={readinessTone(item.phrReadiness)}>
+            {copy.readiness[item.phrReadiness]}
+          </Badge>
+        </span>
+      </div>
+      {item.format !== "invalid_glb" ? (
+        <div className="vua-glb-inspection__meta">
+          {item.vrm?.modelName ? (
+            <span>
+              {format(copy.vrmMetaLine, {
+                title: item.vrm.modelName,
+                spec: item.vrm.specVersion ?? "1.0",
+              })}
+            </span>
+          ) : null}
+          {item.boundsMeters ? (
+            <span>
+              {format(copy.dimensions, {
+                x: formatMeters(item.boundsMeters.size[0]),
+                y: formatMeters(item.boundsMeters.size[1]),
+                z: formatMeters(item.boundsMeters.size[2]),
+              })}
+            </span>
+          ) : null}
+          {item.format === "glb_2_0" && item.objectHeadClearance.mountOffsetCenterMeters ? (
+            <span>
+              {format(copy.mountCenterLine, {
+                x: formatMeters(item.objectHeadClearance.mountOffsetCenterMeters[0]),
+                y: formatMeters(item.objectHeadClearance.mountOffsetCenterMeters[1]),
+                z: formatMeters(item.objectHeadClearance.mountOffsetCenterMeters[2]),
+              })}
+            </span>
+          ) : null}
+          {item.objectHeadClearance.status !== "unknown" ? (
+            <span>{copy.clearance[item.objectHeadClearance.status]}</span>
+          ) : null}
+          {item.objectHeadClearance.status === "insufficient_margin"
+          || item.objectHeadClearance.status === "likely_unscaled" ? (
+            <span className="vua-glb-inspection__hint">{copy.clearanceActionHint}</span>
+          ) : null}
+          {item.contentSummary ? (
+            <span>
+              {format(copy.geometryLine, {
+                tris: item.contentSummary.triangleEstimate.toLocaleString(),
+                meshes: item.contentSummary.meshCount,
+              })}
+            </span>
+          ) : null}
+          {item.materialSummary && item.materialSummary.mtoonMaterialCount > 0 ? (
+            <span>
+              {format(copy.mtoonLine, {
+                mtoon: item.materialSummary.mtoonMaterialCount,
+                total: item.materialSummary.materialCount,
+              })}
+            </span>
+          ) : null}
+          {item.textureSummary && item.textureSummary.externalUriTextureCount > 0 ? (
+            <span>
+              {format(copy.externalTextureWarning, {
+                count: item.textureSummary.externalUriTextureCount,
+              })}
+            </span>
+          ) : null}
+          {item.secondaryMotion
+          && (item.secondaryMotion.springBoneJointCount > 0 || item.secondaryMotion.expressionCount > 0) ? (
+            <span>
+              {format(copy.secondaryMotionLine, {
+                springs: item.secondaryMotion.springBoneJointCount,
+                expressions: item.secondaryMotion.expressionCount,
+              })}
+            </span>
+          ) : null}
+          {item.vrm ? (
+            <span>{format(copy.bonesLine, { bones: item.vrm.boneCount })}</span>
+          ) : null}
+          {item.vrm?.hasFullBodyBones ? (
+            <span>{item.vrm.hasToeBones ? copy.pharosFbtReady : copy.pharosFbtNoToes}</span>
+          ) : null}
+          {item.vrm?.headBoneHeightMeters !== null && item.vrm?.headBoneHeightMeters !== undefined ? (
+            <span>
+              {format(copy.headHeightLine, {
+                height: formatMeters(item.vrm.headBoneHeightMeters),
+              })}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
+  );
+
   return (
     <section className="vua-warehouse-detail__section vua-glb-inspection" aria-label={copy.title}>
       <div className="vua-warehouse-detail__section-head">
@@ -57,108 +181,16 @@ export function GlbInspectionSection({
       </div>
       <p className="vua-caption vua-text-secondary">{copy.subtitle}</p>
       <ul className="vua-glb-inspection__list">
-        {result.items.map((item) => (
-          <li key={`${item.copyId}:${item.sourceKind}:${item.fileName}`} className="vua-glb-inspection__item">
-            <div className="vua-glb-inspection__row">
-              <span className="vua-glb-inspection__name" title={item.fileName}>
-                <Icon name="file" size={16} />
-                <span>{item.fileName}</span>
-              </span>
-              <span className="vua-glb-inspection__badges">
-                {item.sourceKind === "zip_member" && item.containerFileName ? (
-                  <Badge tone="neutral">
-                    {format(copy.zipMemberBadge, { archive: item.containerFileName })}
-                  </Badge>
-                ) : null}
-                <Badge tone={item.format === "vrm_1_0" ? "success" : item.format === "vrm_0_x" ? "warning" : "neutral"}>
-                  {copy.formats[item.format]}
-                </Badge>
-                <Badge tone={readinessTone(item.phrReadiness)}>
-                  {copy.readiness[item.phrReadiness]}
-                </Badge>
-              </span>
-            </div>
-            {item.format !== "invalid_glb" ? (
-              <div className="vua-glb-inspection__meta">
-                {item.vrm?.modelName ? (
-                  <span>
-                    {format(copy.vrmMetaLine, {
-                      title: item.vrm.modelName,
-                      spec: item.vrm.specVersion ?? "1.0",
-                    })}
-                  </span>
-                ) : null}
-                {item.boundsMeters ? (
-                  <span>
-                    {format(copy.dimensions, {
-                      x: formatMeters(item.boundsMeters.size[0]),
-                      y: formatMeters(item.boundsMeters.size[1]),
-                      z: formatMeters(item.boundsMeters.size[2]),
-                    })}
-                  </span>
-                ) : null}
-                {item.format === "glb_2_0" && item.objectHeadClearance.mountOffsetCenterMeters ? (
-                  <span>
-                    {format(copy.mountCenterLine, {
-                      x: formatMeters(item.objectHeadClearance.mountOffsetCenterMeters[0]),
-                      y: formatMeters(item.objectHeadClearance.mountOffsetCenterMeters[1]),
-                      z: formatMeters(item.objectHeadClearance.mountOffsetCenterMeters[2]),
-                    })}
-                  </span>
-                ) : null}
-                {item.objectHeadClearance.status !== "unknown" ? (
-                  <span>{copy.clearance[item.objectHeadClearance.status]}</span>
-                ) : null}
-                {item.contentSummary ? (
-                  <span>
-                    {format(copy.geometryLine, {
-                      tris: item.contentSummary.triangleEstimate.toLocaleString(),
-                      meshes: item.contentSummary.meshCount,
-                    })}
-                  </span>
-                ) : null}
-                {item.materialSummary && item.materialSummary.mtoonMaterialCount > 0 ? (
-                  <span>
-                    {format(copy.mtoonLine, {
-                      mtoon: item.materialSummary.mtoonMaterialCount,
-                      total: item.materialSummary.materialCount,
-                    })}
-                  </span>
-                ) : null}
-                {item.textureSummary && item.textureSummary.externalUriTextureCount > 0 ? (
-                  <span>
-                    {format(copy.externalTextureWarning, {
-                      count: item.textureSummary.externalUriTextureCount,
-                    })}
-                  </span>
-                ) : null}
-                {item.secondaryMotion
-                && (item.secondaryMotion.springBoneJointCount > 0 || item.secondaryMotion.expressionCount > 0) ? (
-                  <span>
-                    {format(copy.secondaryMotionLine, {
-                      springs: item.secondaryMotion.springBoneJointCount,
-                      expressions: item.secondaryMotion.expressionCount,
-                    })}
-                  </span>
-                ) : null}
-                {item.vrm ? (
-                  <span>{format(copy.bonesLine, { bones: item.vrm.boneCount })}</span>
-                ) : null}
-                {item.vrm?.hasFullBodyBones ? (
-                  <span>{item.vrm.hasToeBones ? copy.pharosFbtReady : copy.pharosFbtNoToes}</span>
-                ) : null}
-                {item.vrm?.headBoneHeightMeters !== null && item.vrm?.headBoneHeightMeters !== undefined ? (
-                  <span>
-                    {format(copy.headHeightLine, {
-                      height: formatMeters(item.vrm.headBoneHeightMeters),
-                    })}
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
-          </li>
-        ))}
+        {visibleItems.map(renderItem)}
       </ul>
+      {overflowItems.length > 0 ? (
+        <details className="vua-glb-inspection__more">
+          <summary>{format(copy.moreFilesSummary, { count: overflowItems.length })}</summary>
+          <ul className="vua-glb-inspection__list">
+            {overflowItems.map(renderItem)}
+          </ul>
+        </details>
+      ) : null}
       {result.truncated ? <p className="vua-caption vua-text-secondary">{copy.truncatedNote}</p> : null}
     </section>
   );

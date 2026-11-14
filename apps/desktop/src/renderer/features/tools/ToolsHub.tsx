@@ -11,6 +11,7 @@ import type { PageId } from "../../app/nav-model.ts";
 import { currentLocale, format, strings } from "../../i18n/index.ts";
 import { structureCopy } from "../../i18n/structure-copy.ts";
 import { Button } from "../../components/primitives/Button.tsx";
+import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import { VrcftCard } from "./VrcftCard.tsx";
 import { SteamToolCard } from "./SteamToolCard.tsx";
 import { InstallerToolCard } from "./InstallerToolCard.tsx";
@@ -190,7 +191,25 @@ export function ToolsHub({
         </span>
       </div>
     </div>
-    {filteredGroups.map(group => <ToolGroup key={group.key} title={strings.journey[group.key]} group={group} selected={selected} onSelect={setSelected} onPrepareSteam={onPrepareSteam} />)}
+    {filteredGroups.length === 0 ? (
+      <EmptyState
+        title={filterCopy.emptyTitle}
+        action={
+          <Button
+            variant="subtle"
+            data-testid="tools-filter-reset"
+            onClick={() => {
+              setGoalFilter("all");
+              setFreeOnly(false);
+            }}
+          >
+            {filterCopy.emptyReset}
+          </Button>
+        }
+      />
+    ) : (
+      filteredGroups.map(group => <ToolGroup key={group.key} title={strings.journey[group.key]} group={group} selected={selected} onSelect={setSelected} onPrepareSteam={onPrepareSteam} />)
+    )}
     <PoseGraphSection navigate={navigate} />
   </div>;
 }

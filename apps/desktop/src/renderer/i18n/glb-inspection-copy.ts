@@ -34,6 +34,8 @@ const en = {
   externalTextureWarning: "{count} external texture URIs",
   secondaryMotionLine: "{springs} SpringBones · {expressions} expressions",
   vrmMetaLine: "{title} (VRM {spec})",
+  clearanceActionHint: "Scale to meters and leave ≥ 5 cm around the HMD mount origin.",
+  moreFilesSummary: "Show {count} more ready 3D files",
   truncatedNote: "Showing the first inspected 3D binary artifacts.",
 };
 
@@ -75,6 +77,8 @@ const zhCN: GlbInspectionCopy = {
   externalTextureWarning: "{count} 处外部贴图路径依赖",
   secondaryMotionLine: "{springs} 物理关节 · {expressions} 表情",
   vrmMetaLine: "{title}（VRM {spec}）",
+  clearanceActionHint: "请统一为米制比例，并在头显挂载原点周围保留 ≥ 5 cm 净空。",
+  moreFilesSummary: "展开其余 {count} 个就绪 3D 文件",
   truncatedNote: "仅展示前序已检测的 3D 二进制工件。",
 };
 
@@ -114,6 +118,8 @@ const zhTW: GlbInspectionCopy = {
   externalTextureWarning: "{count} 處外部貼圖路徑依賴",
   secondaryMotionLine: "{springs} 物理關節 · {expressions} 表情",
   vrmMetaLine: "{title}（VRM {spec}）",
+  clearanceActionHint: "請統一為公尺比例，並在頭顯掛載原點周圍保留 ≥ 5 cm 淨空。",
+  moreFilesSummary: "展開其餘 {count} 個就緒 3D 檔案",
   truncatedNote: "僅顯示前序已檢查的 3D 二進位檔案。",
 };
 
@@ -153,6 +159,8 @@ const ja: GlbInspectionCopy = {
   externalTextureWarning: "外部テクスチャ URI {count} 件",
   secondaryMotionLine: "揺れ骨 {springs} · 表情 {expressions}",
   vrmMetaLine: "{title}（VRM {spec}）",
+  clearanceActionHint: "メートル単位に揃え、HMD マウント原点周囲に 5 cm 以上の余白を確保してください。",
+  moreFilesSummary: "残り {count} 件の対応済み 3D ファイルを表示",
   truncatedNote: "先頭の 3D バイナリファイルのみ表示しています。",
 };
 
@@ -192,6 +200,8 @@ const ko: GlbInspectionCopy = {
   externalTextureWarning: "외부 텍스처 URI {count}개",
   secondaryMotionLine: "스프링본 {springs} · 표정 {expressions}",
   vrmMetaLine: "{title}(VRM {spec})",
+  clearanceActionHint: "미터 단위로 맞추고 HMD 마운트 원점 주변에 5 cm 이상 여유 공간을 확보하세요.",
+  moreFilesSummary: "준비된 나머지 3D 파일 {count}개 더 보기",
   truncatedNote: "앞부분의 3D 바이너리 파일만 표시하고 있어요.",
 };
 

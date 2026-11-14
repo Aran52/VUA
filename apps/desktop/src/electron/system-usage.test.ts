@@ -96,4 +96,26 @@ describe("collector freshness and lifecycle", () => {
     expect(collector.snapshotV2().ramTotalBytes).toBeGreaterThan(0);
     collector.stop();
   });
+  it("pauses sampling while hidden, decodes split UTF-8 multibyte chunks, and resumes cleanly", () => {
+    vi.useFakeTimers();
+    const children = [nativeChild(), nativeChild()];
+    let index = 0;
+    const spawnImpl = vi.fn(() => children[index++]!);
+    const collector = new SystemUsageCollector({ platform: "win32", spawnImpl: spawnImpl as unknown as typeof spawn });
+    collector.start("provider.exe");
+    expect(spawnImpl).toHaveBeenCalledTimes(1);
+    const frameBytes = Buffer.from(JSON.stringify({ cpuUsagePercent: 18, gpus: [gpu("显卡-RTX", 42)] }) + "\n", "utf8");
+    const splitIndex = frameBytes.indexOf(Buffer.from("显卡", "utf8")) + 1;
+    children[0]!.stdout.write(frameBytes.subarray(0, splitIndex));
+    children[0]!.stdout.write(frameBytes.subarray(splitIndex));
+    expect(collector.snapshotV2()).toMatchObject({ cpuUsagePercent: 18, gpuName: "显卡-RTX", gpuUsagePercent: 42 });
+    collector.pause();
+    expect(children[0]!.kill).toHaveBeenCalledTimes(1);
+    expect(collector.snapshotV2().gpuName).toBeNull();
+    vi.advanceTimersByTime(RESOURCE_RESPAWN_DELAY_MS * 2);
+    expect(spawnImpl).toHaveBeenCalledTimes(1);
+    collector.resume();
+    expect(spawnImpl).toHaveBeenCalledTimes(2);
+    collector.stop();
+  });
 });

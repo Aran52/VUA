@@ -93,6 +93,52 @@ pub struct ProductTerms {
     pub sources: Vec<TermsSource>,
 }
 
+impl ProductTerms {
+    pub fn not_observed(product_id: impl Into<String>) -> Self {
+        Self {
+            schema_version: "0.1".into(),
+            product_id: product_id.into(),
+            state: "not_observed".into(),
+            observed_at: None,
+            capture_problem: None,
+            sources: Vec::new(),
+        }
+    }
+}
+
+fn compute_product_terms_state<'a>(
+    observed_at: Option<&str>,
+    capture_problem: Option<&str>,
+    sources: &'a [TermsSource],
+) -> &'a str {
+    let downloadable: Vec<_> = sources
+        .iter()
+        .filter(|s| s.link.google_file_id.is_some())
+        .collect();
+    if capture_problem.is_some() {
+        "unsupported"
+    } else if observed_at.is_none() {
+        "not_observed"
+    } else if downloadable.is_empty() {
+        if sources.is_empty() {
+            "no_vn3"
+        } else {
+            "link_only"
+        }
+    } else if downloadable.iter().all(|s| s.status == "parsed") {
+        "parsed"
+    } else if downloadable.iter().any(|s| s.status == "parsed") {
+        "partial"
+    } else if downloadable
+        .iter()
+        .all(|s| s.status == downloadable[0].status)
+    {
+        &downloadable[0].status
+    } else {
+        "partial"
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct TermsProduct {
     pub product_id: String,
@@ -362,39 +408,178 @@ impl BdlStore {
             }
             sources.push(source);
         }
-        let downloadable: Vec<_> = sources
-            .iter()
-            .filter(|s| s.link.google_file_id.is_some())
-            .collect();
-        let state = if capture_problem.is_some() {
-            "unsupported"
-        } else if observed_at.is_none() {
-            "not_observed"
-        } else if downloadable.is_empty() {
-            if sources.is_empty() {
-                "no_vn3"
-            } else {
-                "link_only"
-            }
-        } else if downloadable.iter().all(|s| s.status == "parsed") {
-            "parsed"
-        } else if downloadable.iter().any(|s| s.status == "parsed") {
-            "partial"
-        } else if downloadable
-            .iter()
-            .all(|s| s.status == downloadable[0].status)
-        {
-            &downloadable[0].status
-        } else {
-            "partial"
-        };
+        let state = compute_product_terms_state(
+            observed_at.as_deref(),
+            capture_problem.as_deref(),
+            &sources,
+        )
+        .to_owned();
         Ok(ProductTerms {
             schema_version: "0.1".into(),
             product_id: product.into(),
-            state: state.into(),
+            state,
             observed_at,
             capture_problem,
             sources,
         })
+    }
+
+    /// Loads every recorded product's VN3 terms evidence in four bulk queries under one lock,
+    /// avoiding N+1 queries when annotating or filtering an entire library view.
+    pub fn all_product_terms(
+        &self,
+    ) -> Result<std::collections::HashMap<String, ProductTerms>, BdlStoreError> {
+        use std::collections::{BTreeSet, HashMap};
+
+        let connection = self.connection.lock().expect("SQLite connection poisoned");
+
+        let mut items_by_doc: HashMap<(String, String, String), Vec<TermItem>> = HashMap::new();
+        {
+            let mut stmt = connection.prepare(
+                "SELECT source_id,sha256,parser_version,item,term_key,value,condition,raw_text,summary_raw_text
+                 FROM vn3_document_items ORDER BY source_id,sha256,parser_version,item",
+            )?;
+            let rows = stmt.query_map([], |row| {
+                Ok((
+                    (
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ),
+                    TermItem {
+                        item: row.get(3)?,
+                        term_key: row.get(4)?,
+                        value: row.get(5)?,
+                        condition: row.get(6)?,
+                        raw_text: row.get(7)?,
+                        summary_raw_text: row.get(8)?,
+                    },
+                ))
+            })?;
+            for row in rows {
+                let (key, item) = row?;
+                items_by_doc.entry(key).or_default().push(item);
+            }
+        }
+
+        let mut docs_by_key: HashMap<(String, String, String), TermsDocument> = HashMap::new();
+        {
+            let mut stmt = connection.prepare(
+                "SELECT source_id,sha256,parser_version,status,generator_version,vn3_version,language,content_title,licensor,credit_notation,hashtags,agreement_version,special_note,warnings
+                 FROM vn3_documents",
+            )?;
+            let mut rows = stmt.query([])?;
+            while let Some(row) = rows.next()? {
+                let source_id: String = row.get(0)?;
+                let sha256: String = row.get(1)?;
+                let parser_version: String = row.get(2)?;
+                let hashtags_raw: String = row.get(10)?;
+                let warnings_raw: String = row.get(13)?;
+                let key = (source_id, sha256.clone(), parser_version.clone());
+                let items = items_by_doc.remove(&key).unwrap_or_default();
+                docs_by_key.insert(
+                    key,
+                    TermsDocument {
+                        sha256,
+                        parser_version,
+                        status: row.get(3)?,
+                        generator_version: row.get(4)?,
+                        vn3_version: row.get(5)?,
+                        language: row.get(6)?,
+                        content_title: row.get(7)?,
+                        licensor: row.get(8)?,
+                        credit_notation: row.get(9)?,
+                        hashtags: serde_json::from_str(&hashtags_raw)?,
+                        agreement_version: row.get(11)?,
+                        special_note: row.get(12)?,
+                        warnings: serde_json::from_str(&warnings_raw)?,
+                        items,
+                    },
+                );
+            }
+        }
+
+        let mut snapshots: HashMap<String, (String, Option<String>)> = HashMap::new();
+        let mut product_ids: BTreeSet<String> = BTreeSet::new();
+        {
+            let mut stmt = connection
+                .prepare("SELECT product_id,observed_at,problem FROM product_terms_snapshots")?;
+            let rows = stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            })?;
+            for row in rows {
+                let (product_id, observed_at, problem) = row?;
+                product_ids.insert(product_id.clone());
+                snapshots.insert(product_id, (observed_at, problem));
+            }
+        }
+
+        let mut sources_by_product: HashMap<String, Vec<TermsSource>> = HashMap::new();
+        {
+            let mut stmt = connection.prepare(
+                "SELECT p.product_id,s.source_id,s.source_kind,s.source_url,s.google_file_id,s.status,s.fetched_at,s.problem,s.sha256,s.parser_version
+                 FROM product_terms_sources p JOIN terms_sources s USING(source_id)
+                 ORDER BY p.product_id,s.source_id",
+            )?;
+            let mut rows = stmt.query([])?;
+            while let Some(row) = rows.next()? {
+                let product_id: String = row.get(0)?;
+                let source_id: String = row.get(1)?;
+                let sha: Option<String> = row.get(8)?;
+                let parser: Option<String> = row.get(9)?;
+                let document = match (sha, parser) {
+                    (Some(sha), Some(parser)) => {
+                        docs_by_key.get(&(source_id.clone(), sha, parser)).cloned()
+                    }
+                    _ => None,
+                };
+                product_ids.insert(product_id.clone());
+                sources_by_product
+                    .entry(product_id)
+                    .or_default()
+                    .push(TermsSource {
+                        link: TermsLink {
+                            source_id,
+                            source_kind: row.get(2)?,
+                            source_url: row.get(3)?,
+                            google_file_id: row.get(4)?,
+                        },
+                        status: row.get(5)?,
+                        fetched_at: row.get(6)?,
+                        problem: row.get(7)?,
+                        document,
+                    });
+            }
+        }
+
+        let mut out = HashMap::with_capacity(product_ids.len());
+        for product_id in product_ids {
+            let captured = snapshots.remove(&product_id);
+            let observed_at = captured.as_ref().map(|c| c.0.clone());
+            let capture_problem = captured.and_then(|c| c.1);
+            let sources = sources_by_product.remove(&product_id).unwrap_or_default();
+            let state = compute_product_terms_state(
+                observed_at.as_deref(),
+                capture_problem.as_deref(),
+                &sources,
+            )
+            .to_owned();
+            out.insert(
+                product_id.clone(),
+                ProductTerms {
+                    schema_version: "0.1".into(),
+                    product_id,
+                    state,
+                    observed_at,
+                    capture_problem,
+                    sources,
+                },
+            );
+        }
+        Ok(out)
     }
 }

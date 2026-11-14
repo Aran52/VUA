@@ -468,7 +468,13 @@ impl LocalDiagnosticsService {
         }
 
         let vrchat_root = self.vrchat_root();
+        if fs::symlink_metadata(&vrchat_root).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Err(LocalDiagnosticsError::IoFailed);
+        }
         let config_path = vrchat_root.join("config.json");
+        if fs::symlink_metadata(&config_path).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Err(LocalDiagnosticsError::IoFailed);
+        }
         let (mut map, existed) = match fs::read_to_string(&config_path) {
             Ok(raw) => match serde_json::from_str::<Value>(&raw) {
                 Ok(Value::Object(obj)) => (obj, true),
@@ -489,13 +495,18 @@ impl LocalDiagnosticsService {
         let mut backup_written = false;
         if existed {
             let backup_path = vrchat_root.join("config.json.vua.bak");
+            if fs::symlink_metadata(&backup_path).is_ok_and(|m| m.file_type().is_symlink()) {
+                return Err(LocalDiagnosticsError::IoFailed);
+            }
             fs::copy(&config_path, &backup_path).map_err(|_| LocalDiagnosticsError::IoFailed)?;
             backup_written = true;
         }
 
         let serialized = serde_json::to_vec_pretty(&Value::Object(map))
             .map_err(|_| LocalDiagnosticsError::IoFailed)?;
-        let temp_path = vrchat_root.join(format!("config.json.{}.tmp", std::process::id()));
+        static CONFIG_TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let seq = CONFIG_TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let temp_path = vrchat_root.join(format!("config.json.{}.{seq:x}.tmp", std::process::id()));
         let write_result = (|| -> std::io::Result<()> {
             let mut file = OpenOptions::new()
                 .create(true)
@@ -553,18 +564,7 @@ fn remember_command(
 }
 
 fn is_reparse_or_symlink(meta: &fs::Metadata) -> bool {
-    if meta.file_type().is_symlink() {
-        return true;
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
-        if (meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT) != 0 {
-            return true;
-        }
-    }
-    false
+    meta.file_type().is_symlink()
 }
 
 fn inspect_client_config(path: &Path) -> (ClientConfigObservation, Option<PathBuf>) {
@@ -1368,7 +1368,7 @@ fn build_sop_steps(
                     step_id: "perf_reduce_steamvr_supersampling",
                     layer: "steamvr_openxr",
                     title: "Lower compounded SteamVR render resolution scaling",
-                    instruction: "SteamVR global or per-app VRChat resolution scale is above 130%-150%, which multiplies pixel load on top of your streaming Codec resolution. Reset SteamVRVRChat per-app resolution toward 100%.",
+                    instruction: "SteamVR global or per-app VRChat resolution scale is above 130%-150%, which multiplies pixel load on top of your streaming Codec resolution. Reset SteamVR VRChat per-app resolution toward 100%.",
                 });
             }
             if has("log_d3d11_crash_detected") {
@@ -1467,7 +1467,7 @@ fn build_sop_steps(
                 step_id: "upload_trust_rank_and_2fa",
                 layer: "avatar_sdk",
                 title: "Verify New User+ trust rank and VRChat SDK sign-in",
-                instruction: "Uploading custom Avatars requires at least 'New User' trust rank on a VRChat account (not a unmerged Steam/Quest stub account) plus completed 2FA verification in the SDK panel.",
+                instruction: "Uploading custom Avatars requires at least 'New User' trust rank on a VRChat account (not an unmerged Steam/Quest stub account) plus completed 2FA verification in the SDK panel.",
             });
             steps.push(DiagnosticSopStep {
                 step_id: "upload_blueprint_id_ownership",

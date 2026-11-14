@@ -285,17 +285,39 @@ pub struct DetachedEditorSpawner;
 impl EditorSpawner for DetachedEditorSpawner {
     fn spawn(&self, executable: &Path, args: &[String]) -> std::io::Result<u32> {
         use std::process::{Command, Stdio};
-        let mut command = Command::new(executable);
-        command
-            .args(args)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        strip_sensitive_env(&mut command);
-        // Dropping the child detaches it (std does not kill on drop): the
-        // editor outlives this call and is managed by the user/OS.
-        let pid = command.spawn()?.id();
-        Ok(pid)
+        let build = |_breakaway: bool| {
+            let mut command = Command::new(executable);
+            command
+                .args(args)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null());
+            strip_sensitive_env(&mut command);
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                use windows_sys::Win32::System::Threading::{
+                    CREATE_BREAKAWAY_FROM_JOB, CREATE_NEW_PROCESS_GROUP,
+                };
+                let flags = if _breakaway {
+                    CREATE_BREAKAWAY_FROM_JOB | CREATE_NEW_PROCESS_GROUP
+                } else {
+                    CREATE_NEW_PROCESS_GROUP
+                };
+                command.creation_flags(flags);
+            }
+            command
+        };
+        // Break away from the provider job on Windows so closing VUA never kills an
+        // interactive Unity SDK upload session; fall back if an outer OS job denies breakaway.
+        let child = match build(true).spawn() {
+            Ok(child) => child,
+            Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
+                build(false).spawn()?
+            }
+            Err(err) => return Err(err),
+        };
+        Ok(child.id())
     }
 }
 

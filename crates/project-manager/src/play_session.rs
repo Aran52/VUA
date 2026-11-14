@@ -280,10 +280,17 @@ fn remember(
 }
 fn same_path(left: &std::path::Path, right: &std::path::Path) -> bool {
     fn normalize(path: &std::path::Path) -> String {
-        path.to_string_lossy()
-            .trim_start_matches(r"\\?\")
-            .replace('/', "\\")
-            .to_lowercase()
+        let raw = path.to_string_lossy();
+        let stripped = if let Some(unc) = raw
+            .get(..8)
+            .filter(|prefix| prefix.eq_ignore_ascii_case(r"\\?\UNC\"))
+            .and_then(|_| raw.get(8..))
+        {
+            std::borrow::Cow::Owned(format!(r"\\{unc}"))
+        } else {
+            std::borrow::Cow::Borrowed(raw.strip_prefix(r"\\?\").unwrap_or(&raw))
+        };
+        stripped.replace('/', "\\").to_lowercase()
     }
     normalize(left) == normalize(right)
 }

@@ -676,6 +676,8 @@ fn compute_scene_bounds_meters(gltf: &Value) -> Option<GlbBoundsMetersV01> {
     let mut global_max = [f64::NEG_INFINITY; 3];
     let mut found_any = false;
     let mut active_path = HashSet::new();
+    let mut visits = 0usize;
+    const MAX_SCENE_VISITS: usize = 16_384;
 
     #[allow(clippy::too_many_arguments)]
     fn visit_node(
@@ -686,13 +688,19 @@ fn compute_scene_bounds_meters(gltf: &Value) -> Option<GlbBoundsMetersV01> {
         meshes: &[Value],
         accessors: &[Value],
         active_path: &mut HashSet<usize>,
+        visits: &mut usize,
         global_min: &mut [f64; 3],
         global_max: &mut [f64; 3],
         found_any: &mut bool,
     ) {
-        if depth > MAX_SCENE_DEPTH || node_idx >= nodes.len() || !active_path.insert(node_idx) {
+        if *visits >= MAX_SCENE_VISITS
+            || depth > MAX_SCENE_DEPTH
+            || node_idx >= nodes.len()
+            || !active_path.insert(node_idx)
+        {
             return;
         }
+        *visits += 1;
         let node = &nodes[node_idx];
         let local = node_local_matrix(node);
         let world = mul_mat4(parent_world, &local);
@@ -754,6 +762,7 @@ fn compute_scene_bounds_meters(gltf: &Value) -> Option<GlbBoundsMetersV01> {
                     meshes,
                     accessors,
                     active_path,
+                    visits,
                     global_min,
                     global_max,
                     found_any,
@@ -772,6 +781,7 @@ fn compute_scene_bounds_meters(gltf: &Value) -> Option<GlbBoundsMetersV01> {
             meshes,
             accessors,
             &mut active_path,
+            &mut visits,
             &mut global_min,
             &mut global_max,
             &mut found_any,

@@ -102,6 +102,7 @@ pub struct ManagerAppLauncher {
     resolver: Arc<ExecutableResolver>,
     spawner: Arc<dyn ManagerProcessSpawner>,
     clock: Arc<dyn Clock>,
+    launch_gate: Mutex<()>,
     ledger: Mutex<BTreeMap<String, ManagerAppLaunch>>,
 }
 
@@ -112,6 +113,7 @@ impl ManagerAppLauncher {
             resolver: Arc::new(resolve_executable_path),
             spawner: Arc::new(WindowsManagerProcessSpawner),
             clock: Arc::new(SystemClock),
+            launch_gate: Mutex::new(()),
             ledger: Mutex::new(BTreeMap::new()),
         }
     }
@@ -127,6 +129,7 @@ impl ManagerAppLauncher {
             resolver,
             spawner,
             clock,
+            launch_gate: Mutex::new(()),
             ledger: Mutex::new(BTreeMap::new()),
         }
     }
@@ -139,6 +142,7 @@ impl ManagerAppLauncher {
         if !valid_command_id(command_id) {
             return Err("invalid_command");
         }
+        let _gate = self.launch_gate.lock().map_err(|_| "unavailable")?;
         {
             let ledger = self.ledger.lock().map_err(|_| "unavailable")?;
             if let Some(existing) = ledger.get(command_id) {
@@ -262,11 +266,15 @@ pub fn inspect(roots: &EnvironmentRoots) -> ManagerApps {
                     candidates.push(PathBuf::from(path.trim_matches('"')));
                 }
                 for product_key in [product.to_owned(), format!("{product}_is1")] {
-                    let key = format!(
-                        r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{product_key}"
-                    );
-                    if let Some(root) = roots.registry.get_string(hive, &key, "InstallLocation") {
-                        candidates.push(PathBuf::from(root.trim_matches('"')).join(binary));
+                    for prefix in [
+                        r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+                        r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+                    ] {
+                        let key = format!(r"{prefix}\{product_key}");
+                        if let Some(root) = roots.registry.get_string(hive, &key, "InstallLocation")
+                        {
+                            candidates.push(PathBuf::from(root.trim_matches('"')).join(binary));
+                        }
                     }
                 }
             }

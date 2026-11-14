@@ -322,8 +322,28 @@ function ensureCatalogEnricher(): void {
 // 失败的运行在 provider 侧不产生任务,通知中心/任务轮询永远等不到——此处
 // 记下终态码,probe 面据此让渲染层把「已开始」翻成失败提示
 let catalogSyncLastTerminal: { runId: string; code: string | null } | null = null;
-// 系统资源占用采集器(顶栏占用查看器):whenReady 启动,退出前 stop
+// 系统资源占用采集器(顶栏占用查看器):whenReady 启动,全部窗口最小化/隐藏至托盘时暂停采样,退出前 stop
 const systemUsage = new SystemUsageCollector();
+let anyWindowShown = false;
+function syncSystemUsageVisibility(): void {
+  if (shutdownStarted) return;
+  const anyVisible = BrowserWindow.getAllWindows().some(
+    window => !window.isDestroyed() && window.isVisible() && !window.isMinimized(),
+  );
+  if (anyVisible) {
+    anyWindowShown = true;
+    systemUsage.resume();
+  } else if (anyWindowShown && startupWindow === null) {
+    systemUsage.pause();
+  }
+}
+app.on("browser-window-created", (_event, window) => {
+  window.on("show", syncSystemUsageVisibility);
+  window.on("hide", syncSystemUsageVisibility);
+  window.on("minimize", syncSystemUsageVisibility);
+  window.on("restore", syncSystemUsageVisibility);
+  window.on("closed", syncSystemUsageVisibility);
+});
 const lastAppliedIntentSeq = new Map<string, number>();
 let shutdownStarted = false;
 

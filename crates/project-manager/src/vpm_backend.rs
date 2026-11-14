@@ -82,9 +82,22 @@ impl VrcGetLibBackend {
                 )
                 .with_param("reason", ParamValue::Text(error.to_string()))
             })?;
+        let http = reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(15))
+            .timeout(std::time::Duration::from_secs(300))
+            .build()
+            .map_err(|error| {
+                AppErrorV1::new(
+                    error_codes::BACKEND_UNAVAILABLE,
+                    ErrorCategory::Unavailable,
+                    "errors.vpm.backendUnavailable",
+                    "corr-vpm-lib-init",
+                )
+                .with_param("reason", ParamValue::Text(error.to_string()))
+            })?;
         Ok(Self {
             runtime,
-            http: reqwest::Client::new(),
+            http,
             catalog_http,
             environment_root: default_environment_root(),
             offline,
@@ -143,8 +156,19 @@ impl VrcGetLibBackend {
         )
         .map_err(|e| repo_fetch_failed(e.to_string()))?;
         fs::rename(pending, target).map_err(|e| repo_fetch_failed(e.to_string()))?;
-        fs::write(self.environment_root.join("vua-sdk-source.json"), serde_json::to_vec(&json!({"schemaVersion":"0.1","fetchedFrom":SOURCE,"repositoryId":"com.vrchat.repos.official"})).expect("SDK source serialization"))
-            .map_err(|e| repo_fetch_failed(e.to_string()))?;
+        let sdk_source = self.environment_root.join("vua-sdk-source.json");
+        let sdk_source_pending = sdk_source.with_extension("pending");
+        fs::write(
+            &sdk_source_pending,
+            serde_json::to_vec(&json!({
+                "schemaVersion": "0.1",
+                "fetchedFrom": SOURCE,
+                "repositoryId": "com.vrchat.repos.official"
+            }))
+            .expect("SDK source serialization"),
+        )
+        .map_err(|e| repo_fetch_failed(e.to_string()))?;
+        fs::rename(sdk_source_pending, sdk_source).map_err(|e| repo_fetch_failed(e.to_string()))?;
         Ok(())
     }
 

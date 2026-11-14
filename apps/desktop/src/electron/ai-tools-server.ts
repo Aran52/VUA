@@ -172,8 +172,14 @@ export class AiToolsServer {
     if (http) { http.closeAllConnections(); await new Promise<void>(resolve => http.close(() => resolve())); }
   }
   private async prune(): Promise<void> {
-    for (const session of this.sessions.values()) if (this.now() - session.touched > SESSION_IDLE_MS) await session.server.close();
-    this.changed();
+    let pruned = false;
+    for (const session of [...this.sessions.values()]) {
+      if (this.now() - session.touched > SESSION_IDLE_MS) {
+        pruned = true;
+        await session.server.close();
+      }
+    }
+    if (pruned) this.changed();
   }
   private reply(res: ServerResponse, code: number, error: string): void {
     res.writeHead(code, { "Content-Type": "application/json", "Cache-Control": "no-store" }); res.end(JSON.stringify({ error }));

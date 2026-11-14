@@ -157,8 +157,10 @@ impl<T: Serialize + DeserializeOwned> StateFile<T> {
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent).map_err(StateFileError::Io)?;
         }
+        static STATE_TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let seq = STATE_TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let mut temp_os = self.path.clone().into_os_string();
-        temp_os.push(format!(".{}.tmp", std::process::id()));
+        temp_os.push(format!(".{}.{seq:x}.tmp", std::process::id()));
         let temp = PathBuf::from(temp_os);
         let write_result = (|| -> std::io::Result<()> {
             use std::io::Write;

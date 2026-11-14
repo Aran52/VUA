@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use vua_bdl_store::{ArtifactMode, BdlStore, CopyRole, LibraryCopyEvidence, LibraryProductDates};
 
-const SORTS: [&str; 9] = [
+const SORTS: [&str; 10] = [
     "added_desc",
     "added_asc",
     "title_asc",
@@ -16,6 +16,7 @@ const SORTS: [&str; 9] = [
     "price_desc",
     "published_desc",
     "size_desc",
+    "size_asc",
 ];
 const VN3_STATES: [&str; 4] = ["readable", "no_vn3", "unread", "unreadable"];
 /// X is the creator's free text, so it has no value to filter on.
@@ -379,7 +380,11 @@ pub fn list(
             row["sizeBytes"] = json!(present_size(attached, &presences));
         }
     }
-    let sources = crate::library_reconcile::SourceIndex::new(&products);
+    let downloadable_names = bdl.library_downloadable_names()?;
+    let sources = crate::library_reconcile::SourceIndex::with_downloadable_names(
+        &products,
+        &downloadable_names,
+    );
     for mut entry in entries {
         let unassociated: Vec<_> = copies_of_entry
             .get(entry.warehouse_item_id.as_str())
@@ -835,7 +840,7 @@ fn annotate_vn3(
         .chars()
         .map(|letter| (letter.to_string(), 0))
         .collect();
-    let mut details: HashMap<String, crate::terms::TermsDetail> = HashMap::new();
+    let mut details = crate::terms::all_product_details(bdl)?;
     for row in rows.iter_mut() {
         let counted = category.is_none_or(|category| row["sourceCategory"] == *category);
         let Some(id) = terms_product_id(row).map(str::to_owned) else {
@@ -845,11 +850,11 @@ fn annotate_vn3(
             }
             continue;
         };
-        if !details.contains_key(&id) {
-            let detail = crate::terms::product_detail(bdl, &id)?;
-            details.insert(id.clone(), detail);
-        }
-        let detail = &details[&id];
+        let detail = details.entry(id).or_insert_with_key(|missing_id| {
+            crate::terms::detail_from_product_terms(
+                vua_bdl_store::terms::ProductTerms::not_observed(missing_id.clone()),
+            )
+        });
         let group = vn3_group(&detail.product.state);
         let matched = (!filter.items.is_empty())
             .then(|| vn3_match(detail, &filter.items, filter.include_contact))
@@ -1252,5 +1257,23 @@ mod added_tests {
             (&rows[0]["addedAt"], &rows[1]["addedAt"]),
             (&Value::Null, &json!("2026-09-01T00:00:00.000Z"))
         );
+    }
+
+    #[test]
+    fn size_asc_is_accepted_by_sorts_and_orders_smallest_first() {
+        assert!(SORTS.contains(&"size_asc"));
+        let mut a = product("booth:1", FIRST_SYNC);
+        a["sizeBytes"] = json!(5_000_000u64);
+        let mut b = product("booth:2", FIRST_SYNC);
+        b["sizeBytes"] = json!(120_000u64);
+        let mut c = product("booth:3", FIRST_SYNC);
+        c["sizeBytes"] = json!(900_000u64);
+        let mut rows = vec![a, b, c];
+        sort_rows(&mut rows, "size_asc", &HashMap::new());
+        let ids: Vec<_> = rows
+            .iter()
+            .filter_map(|r| r["product"]["productId"].as_str())
+            .collect();
+        assert_eq!(ids, ["booth:2", "booth:3", "booth:1"]);
     }
 }

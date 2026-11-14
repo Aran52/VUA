@@ -146,36 +146,34 @@ impl RecipeDocumentStore {
         fs::create_dir_all(&self.root).map_err(|error| RecipeSaveError::StoreIo {
             detail: error.to_string(),
         })?;
-        let temporary = self.root.join(format!(".{recipe_id}.tmp"));
+        static RECIPE_TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let seq = RECIPE_TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let temporary = self
+            .root
+            .join(format!(".{recipe_id}.{}.{seq:x}.tmp", std::process::id()));
         let bytes =
             serde_json::to_vec_pretty(&stored).map_err(|error| RecipeSaveError::StoreIo {
                 detail: error.to_string(),
             })?;
-        {
+        let write_result = (|| -> std::io::Result<()> {
             let mut output = OpenOptions::new()
                 .create(true)
                 .write(true)
                 .truncate(true)
-                .open(&temporary)
-                .map_err(|error| RecipeSaveError::StoreIo {
-                    detail: error.to_string(),
-                })?;
-            output
-                .write_all(&bytes)
-                .map_err(|error| RecipeSaveError::StoreIo {
-                    detail: error.to_string(),
-                })?;
-            output
-                .sync_all()
-                .map_err(|error| RecipeSaveError::StoreIo {
-                    detail: error.to_string(),
-                })?;
+                .open(&temporary)?;
+            output.write_all(&bytes)?;
+            output.sync_all()?;
+            drop(output);
+            // Replace is safe here: recipes are mutable documents (unlike
+            // evidence/records), fenced by the baseRevision check above.
+            fs::rename(&temporary, &path)
+        })();
+        if let Err(error) = write_result {
+            let _ = fs::remove_file(&temporary);
+            return Err(RecipeSaveError::StoreIo {
+                detail: error.to_string(),
+            });
         }
-        // Replace is safe here: recipes are mutable documents (unlike
-        // evidence/records), fenced by the baseRevision check above.
-        fs::rename(&temporary, &path).map_err(|error| RecipeSaveError::StoreIo {
-            detail: error.to_string(),
-        })?;
         Ok(stored)
     }
 

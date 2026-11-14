@@ -166,11 +166,17 @@ mod native {
         }
     }
 
-    fn adapters() -> Vec<GpuSample> {
+    type AdapterStaticCache = std::collections::HashMap<(String, u64), (&'static str, Option<u64>)>;
+
+    /// Queries static adapter architecture via D3D12 at most once per newly observed
+    /// `(AdapterLuid, DedicatedVideoMemory)` pair so periodic refreshes never wake a
+    /// sleeping `D3cold` discrete laptop GPU.
+    fn adapters(cache: &mut AdapterStaticCache) -> Vec<GpuSample> {
         let Ok(factory) = (unsafe { CreateDXGIFactory1::<IDXGIFactory1>() }) else {
             return vec![];
         };
         let mut result = vec![];
+        let mut seen_keys = std::collections::HashSet::new();
         for index in 0..32 {
             let Ok(adapter) = (unsafe { factory.EnumAdapters1(index) }) else {
                 break;
@@ -182,65 +188,79 @@ mod native {
             {
                 continue;
             }
-            let mut device: Option<ID3D12Device> = None;
-            let mut architecture = D3D12_FEATURE_DATA_ARCHITECTURE::default();
-            let kind =
-                if unsafe { D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_11_0, &mut device) }
-                    .is_ok()
-                    && device.as_ref().is_some_and(|device| unsafe {
-                        device
-                            .CheckFeatureSupport(
-                                D3D12_FEATURE_ARCHITECTURE,
-                                (&mut architecture as *mut D3D12_FEATURE_DATA_ARCHITECTURE).cast(),
-                                std::mem::size_of::<D3D12_FEATURE_DATA_ARCHITECTURE>() as u32,
-                            )
-                            .is_ok()
-                    })
-                {
-                    if architecture.UMA.as_bool() {
-                        "integrated"
+            let id = format!(
+                "luid_0x{:08x}_0x{:08x}",
+                desc.AdapterLuid.HighPart as u32, desc.AdapterLuid.LowPart
+            );
+            let dedicated_mem = desc.DedicatedVideoMemory as u64;
+            let cache_key = (id.clone(), dedicated_mem);
+            seen_keys.insert(cache_key.clone());
+            let (kind, dedicated_total_bytes) = *cache.entry(cache_key).or_insert_with(|| {
+                let mut device: Option<ID3D12Device> = None;
+                let mut architecture = D3D12_FEATURE_DATA_ARCHITECTURE::default();
+                let kind =
+                    if unsafe { D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_11_0, &mut device) }
+                        .is_ok()
+                        && device.as_ref().is_some_and(|device| unsafe {
+                            device
+                                .CheckFeatureSupport(
+                                    D3D12_FEATURE_ARCHITECTURE,
+                                    (&mut architecture as *mut D3D12_FEATURE_DATA_ARCHITECTURE)
+                                        .cast(),
+                                    std::mem::size_of::<D3D12_FEATURE_DATA_ARCHITECTURE>() as u32,
+                                )
+                                .is_ok()
+                        })
+                    {
+                        if architecture.UMA.as_bool() {
+                            "integrated"
+                        } else {
+                            "discrete"
+                        }
                     } else {
-                        "discrete"
-                    }
-                } else {
-                    "unknown"
-                };
+                        "unknown"
+                    };
+                // UMA reservations are RAM, not a discrete VRAM capacity.
+                let dedicated_total_bytes = (kind == "discrete"
+                    && dedicated_mem > 0
+                    && device
+                        .as_ref()
+                        .is_some_and(|device| unsafe { device.GetNodeCount() } == 1))
+                .then_some(dedicated_mem);
+                (kind, dedicated_total_bytes)
+            });
             let length = desc
                 .Description
                 .iter()
                 .position(|c| *c == 0)
                 .unwrap_or(desc.Description.len());
             result.push(GpuSample {
-                id: format!(
-                    "luid_0x{:08x}_0x{:08x}",
-                    desc.AdapterLuid.HighPart as u32, desc.AdapterLuid.LowPart
-                ),
+                id,
                 name: String::from_utf16_lossy(&desc.Description[..length]),
                 kind,
                 usage_percent: None,
                 dedicated_used_bytes: None,
-                // UMA reservations are RAM, not a discrete VRAM capacity.
-                dedicated_total_bytes: (kind == "discrete"
-                    && desc.DedicatedVideoMemory > 0
-                    && device
-                        .as_ref()
-                        .is_some_and(|device| unsafe { device.GetNodeCount() } == 1))
-                .then_some(desc.DedicatedVideoMemory as u64),
+                dedicated_total_bytes,
             });
         }
+        cache.retain(|key, _| seen_keys.contains(key));
         result
     }
 
     pub struct Sampler {
         query: Option<Query>,
+        adapter_cache: AdapterStaticCache,
         adapters: Vec<GpuSample>,
         ticks: u32,
     }
     impl Default for Sampler {
         fn default() -> Self {
+            let mut adapter_cache = AdapterStaticCache::new();
+            let adapters = adapters(&mut adapter_cache);
             Self {
                 query: Query::open(),
-                adapters: adapters(),
+                adapter_cache,
+                adapters,
                 ticks: 0,
             }
         }
@@ -249,7 +269,7 @@ mod native {
         pub fn sample(&mut self) -> ResourceSample {
             self.ticks += 1;
             if self.ticks.is_multiple_of(15) {
-                self.adapters = adapters();
+                self.adapters = adapters(&mut self.adapter_cache);
                 if self.query.is_none() {
                     self.query = Query::open();
                 }

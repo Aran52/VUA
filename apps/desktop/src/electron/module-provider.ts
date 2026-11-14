@@ -330,6 +330,11 @@ export class ModuleProvider implements OrchestratorProviderV01 {
       // tick, so rows keep their place while concurrent downloads run.
       const tasks = [...hostTasks, ...amfTasks];
       for (const task of tasks) if (!this.#taskFirstSeen.has(task.taskId)) this.#taskFirstSeen.set(task.taskId, task.updatedAt);
+      if ((!this.#enabled || optional?.ok) && (this.#taskFirstSeen.size > 2_048 || this.#taskOwners.size > 2_048)) {
+        const liveIds = new Set(tasks.map(task => task.taskId));
+        for (const id of this.#taskFirstSeen.keys()) if (!liveIds.has(id)) this.#taskFirstSeen.delete(id);
+        for (const id of this.#taskOwners.keys()) if (!liveIds.has(id)) this.#taskOwners.delete(id);
+      }
       const firstSeen = (task: TaskSnapshotV01) => this.#taskFirstSeen.get(task.taskId) ?? task.updatedAt;
       return { ...core, value: { contractVersion: this.contractVersion,
         revision: this.#nextRevision(core.value.revision, optional?.ok && "revision" in optional.value ? optional.value.revision : 0),

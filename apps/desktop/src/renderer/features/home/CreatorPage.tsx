@@ -8,6 +8,7 @@ import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { SlideDrawer } from "../../components/SlideDrawer.tsx";
 import { Badge } from "../../components/primitives/Badge.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
+import { CopyableText } from "../../components/primitives/CopyableText.tsx";
 import { toast } from "../../components/primitives/toast-store.ts";
 import { DeploymentPanel } from "../deployer/DeploymentPanel.tsx";
 import { openExternalUrl } from "../../app/open-external.ts";
@@ -77,7 +78,7 @@ export function CreatorPage({ onOpenAmf, onWorkshop }: { onOpenAmf: () => void; 
         {unity6.length ? <>
           <RouteTile title={strings.journey.unity6} kind="unity" id="route-unity6" developing selected={detail === "unity6"} expanded={detail === "unity6"} controls="route-unity6-details" onClick={() => toggle("unity6")} />
           <SlideDrawer id="route-unity6-details" open={detail === "unity6"} label={strings.journey.unity6} className="vua-creator-drawer"><section className="vua-environment-detail">
-            {detailHeader(strings.journey.unity6)}{unity6.map(editor => <p key={editor.path}><strong>Unity {editor.version}</strong>{editor.version.startsWith("6000.3.") ? <> <Badge tone="neutral">{copy.unity63LtsBadge}</Badge></> : null}<br /><code style={{ overflowWrap: "anywhere" }}>{editor.path}</code></p>)}{unity6.some(editor => editor.version.startsWith("6000.3.")) ? <p className="vua-caption vua-text-secondary" style={{ overflowWrap: "anywhere" }}>{copy.unity63LtsNote}</p> : null}
+            {detailHeader(strings.journey.unity6)}{unity6.map(editor => <p key={editor.path}><strong>Unity {editor.version}</strong>{editor.version.startsWith("6000.3.") ? <> <Badge tone="neutral">{copy.unity63LtsBadge}</Badge></> : null}<br /><CopyableText value={editor.path} copyLabel={strings.controlCenter.packages.copyPath} copiedLabel={strings.controlCenter.packages.copiedPath} /></p>)}{unity6.some(editor => editor.version.startsWith("6000.3.")) ? <p className="vua-caption vua-text-secondary" style={{ overflowWrap: "anywhere" }}>{copy.unity63LtsNote}</p> : null}
           </section></SlideDrawer>
         </> : <Tooltip block content={strings.journey.developingTip}><RouteTile title={strings.journey.unity6} kind="unity" id="route-unity6" developing disabled /></Tooltip>}
       </div>
@@ -87,7 +88,7 @@ export function CreatorPage({ onOpenAmf, onWorkshop }: { onOpenAmf: () => void; 
         return <div className="vua-card-entry" data-card-entry={`editor-${e.version}`} key={e.path}>
           <RouteTile title={`Unity ${e.version}`} kind="unity" id={`editor-${e.version}`} selected={selected} expanded={selected} controls={detailId} onClick={() => toggle(e)} />
           <SlideDrawer id={detailId} open={selected} label={`Unity ${e.version}`} className="vua-creator-drawer"><section className="vua-environment-detail">
-            {detailHeader(`Unity ${e.version}`)}<p>{copy.otherEditor}</p><code>{e.path}</code><Button onClick={() => setDetail("unity2022")}>{copy.choose2022}</Button>
+            {detailHeader(`Unity ${e.version}`)}<p>{copy.otherEditor}</p><CopyableText value={e.path} copyLabel={strings.controlCenter.packages.copyPath} copiedLabel={strings.controlCenter.packages.copiedPath} /><Button onClick={() => setDetail("unity2022")}>{copy.choose2022}</Button>
           </section></SlideDrawer>
         </div>;
       })}
@@ -99,7 +100,7 @@ export function CreatorPage({ onOpenAmf, onWorkshop }: { onOpenAmf: () => void; 
         return <div className="vua-card-entry" data-card-entry={`manager-${app}`} key={app}>
           <div className="vua-manager-card" data-manager={app}><RouteTile title={name(app)} kind={app === "unity_hub" ? "unity" : undefined} icon="folder" id={`manager-${app}`} selected={detail === app} expanded={detail === app} controls={`manager-${app}-details`} onClick={() => toggle(app)} status={<span className="vua-manager-card__status" role="status">{status}</span>} /></div>
           <SlideDrawer id={`manager-${app}-details`} open={detail === app} label={name(app)} className="vua-creator-drawer"><section className="vua-environment-detail">
-            {detailHeader(name(app))}{app !== "unity_hub" ? <p>{config(inventory?.[app] ?? null)}</p> : null}{found?.path ? <><h3>{copy.paths}</h3><code>{found.path}</code></> : null}<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{found?.presence === "found" && port?.openManager ? <Button variant="primary" data-nav-id={`open-manager-${app}`} disabled={openingManager !== null} onClick={() => void openManager(app)}>{openingManager === app ? copy.starting : format(copy.openManager, { tool: name(app) })}</Button> : null}<Button onClick={() => void openExternalUrl(official(app))}>{found?.presence === "found" ? format(reinstallFromPage, { tool: name(app) }) : copy.official}</Button></div>
+            {detailHeader(name(app))}{app !== "unity_hub" ? <p>{config(inventory?.[app] ?? null)}</p> : null}{found?.path ? <><h3>{copy.paths}</h3><CopyableText value={found.path} copyLabel={strings.controlCenter.packages.copyPath} copiedLabel={strings.controlCenter.packages.copiedPath} /></> : null}<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{found?.presence === "found" && port?.openManager ? <Button variant="primary" data-nav-id={`open-manager-${app}`} disabled={openingManager !== null} onClick={() => void openManager(app)}>{openingManager === app ? copy.starting : format(copy.openManager, { tool: name(app) })}</Button> : null}<Button onClick={() => void openExternalUrl(official(app))}>{found?.presence === "found" ? format(reinstallFromPage, { tool: name(app) }) : copy.official}</Button></div>
           </section></SlideDrawer>
         </div>;
       })}

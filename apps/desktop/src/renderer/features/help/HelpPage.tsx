@@ -38,7 +38,7 @@ function HelpRow({ id, icon, title, hint, onClick }: { id: string; icon: IconNam
 
 export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeGuide }: {
   page: "help" | "help-wizard" | "help-encyclopedia" | "help-ai";
-  navigate: (page: PageId) => void;
+  navigate: (page: PageId, hash?: string) => void;
   startTour: () => void;
   guideRequest: GuideRequest | null;
   acknowledgeGuide: (nonce: number) => void;
@@ -63,7 +63,7 @@ export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeG
   </div>;
   if (page === "help-encyclopedia") return <EncyclopediaPage onBack={() => navigate("help")} guideRequest={guideRequest} acknowledgeGuide={acknowledgeGuide} />;
   if (page === "help-wizard") return <VuaGuide onBack={() => navigate("help")} navigate={navigate} />;
-  if (diagnosticsOpen) return <LocalDiagnosticsPanel onBack={() => {
+  if (diagnosticsOpen) return <LocalDiagnosticsPanel navigate={navigate} onBack={() => {
     setDiagnosticsOpen(false);
     try { window.location.hash = "help"; } catch { /* Hash stays optional in restricted frames. */ }
   }} />;

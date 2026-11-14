@@ -1445,8 +1445,21 @@ export function WarehousePage({
       <div className="vua-warehouse__filters" role="search" aria-label={copy.searchAria}>
         <label className="vua-warehouse__searchbox">
           <Icon name="search" size={16} />
-          <input type="search" className="vua-warehouse__search" aria-label={copy.searchAria} placeholder={view.search}
-            value={query.text} onChange={event => changeFilters(() => setQuery({ text: event.target.value }))} />
+          <input
+            type="search"
+            className="vua-warehouse__search"
+            aria-label={copy.searchAria}
+            placeholder={view.search}
+            value={query.text}
+            onChange={event => changeFilters(() => setQuery({ text: event.target.value }))}
+            onKeyDown={event => {
+              if (event.key === "Escape" && query.text !== "") {
+                event.preventDefault();
+                event.stopPropagation();
+                changeFilters(() => setQuery({ text: "" }));
+              }
+            }}
+          />
         </label>
         <div className="vua-warehouse__select">
           <select className="vua-warehouse__filter" aria-label={copy.filters.source} value={source} onChange={event => changeFilters(() => setSource(event.target.value as typeof source))}>

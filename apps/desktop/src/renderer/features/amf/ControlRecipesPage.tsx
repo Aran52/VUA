@@ -385,6 +385,13 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
                   placeholder={copy.searchPlaceholder}
                   aria-label={copy.searchPlaceholder}
                   onChange={event => setRecipeQuery(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === "Escape" && recipeQuery !== "") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setRecipeQuery("");
+                    }
+                  }}
                 />
               )}
               <Button variant="subtle" onClick={() => setResetKey(value => value + 1)}><Icon name="refresh" size={16}/>{copy.reset}</Button>
@@ -617,6 +624,13 @@ function RecipeList({ totalCount, summaries, query, onQueryChange, readinessFilt
           placeholder={copy.searchPlaceholder}
           aria-label={copy.searchPlaceholder}
           onChange={event => onQueryChange(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === "Escape" && query !== "") {
+              event.preventDefault();
+              event.stopPropagation();
+              onQueryChange("");
+            }
+          }}
         />
         <span className="vua-control__switch vua-segments" role="group" aria-label={copy.listLabel}>
           <SegmentBar selected={readinessFilter} />

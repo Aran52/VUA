@@ -10,6 +10,7 @@ import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { SegmentBar } from "../../components/SegmentBar.tsx";
 import { SlideDrawer } from "../../components/SlideDrawer.tsx";
+import { useEscapeClose } from "../../components/use-escape-close.ts";
 import { strings, presentationCopy, format } from "../../i18n/index.ts";
 import { PackagesPage } from "../packages/PackagesPage.tsx";
 import { InstallConfirmDialog } from "../packages/InstallConfirmDialog.tsx";
@@ -122,13 +123,28 @@ function ProjectsScreen({ projects, loading, registeredFailed, onOpen, onNavigat
   const groups = (["work", "unity"] as const).map(kind => ({ kind, rows: shown.filter(project => project.kind === kind) })).filter(group => group.rows.length > 0);
   return <section className="vua-control__screen" aria-label={copy.views.projects}>
     <div className="vua-control__stage-bar">
-      <input type="search" className="vua-control__search" value={query} placeholder={copy.searchProjects} aria-label={copy.searchProjects} onChange={event => setQuery(event.target.value)}/>
+      <input
+        type="search"
+        className="vua-control__search"
+        value={query}
+        placeholder={copy.searchProjects}
+        aria-label={copy.searchProjects}
+        onChange={event => setQuery(event.target.value)}
+        onKeyDown={event => {
+          if (event.key === "Escape" && query !== "") {
+            event.preventDefault();
+            event.stopPropagation();
+            setQuery("");
+          }
+        }}
+      />
       <Button variant="subtle" onClick={onReload}><Icon name="refresh" size={16}/>{copy.reload}</Button>
       <Button onClick={() => onNavigate("workshop")}>{factory.newLine}</Button>
     </div>
     {registeredFailed && <p className="vua-caption vua-control__warn"><Icon name="warning" size={16}/>{copy.projectsUnreadable}</p>}
     {loading ? <p role="status" className="vua-caption vua-text-secondary">{strings.amfProduction.loading}</p>
       : projects.length === 0 ? <div className="vua-control__panel vua-control__empty"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><Icon name="folder" size={24}/><p className="vua-text-secondary">{copy.projectsEmpty}</p></div>
+      : shown.length === 0 ? <p role="status" className="vua-caption vua-text-secondary">{copy.projectsNoMatch}</p>
       : groups.map(group => <section key={group.kind} className="vua-control__group">
         <h2 className="vua-control__group-head"><span>{copy.groups[group.kind]}</span><small>{copy.groupHints[group.kind]}</small><span className="vua-control__count">{group.rows.length}</span></h2>
         <ul className="vua-control__projects">{group.rows.map(project => <li key={project.key}>
@@ -289,7 +305,21 @@ function ProjectScreen({ project, level, blocks, repos, catalog, onBack, onNavig
               <span>{repo.name}</span><small>{pkg.sources[repo.kind]}</small></label>)}
           </fieldset>
         </details>}
-        <input type="search" className="vua-control__search" value={query} placeholder={copy.searchPackages} aria-label={copy.searchPackages} onChange={event => setQuery(event.target.value)}/>
+        <input
+          type="search"
+          className="vua-control__search"
+          value={query}
+          placeholder={copy.searchPackages}
+          aria-label={copy.searchPackages}
+          onChange={event => setQuery(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === "Escape" && query !== "") {
+              event.preventDefault();
+              event.stopPropagation();
+              setQuery("");
+            }
+          }}
+        />
         <label className="vua-control__check"><input type="checkbox" checked={prerelease} onChange={event => { if (event.target.checked) setAskPrerelease(true); else setPrerelease(false); }}/>{copy.showPrerelease}</label>
         {canInstall && updates.length > 0 && <Button disabled={busy} onClick={() => { void previewInstall(updates); }}><Icon name="arrow-up" size={16}/>{format(copy.updateAll, { count: updates.length })}</Button>}
       </div>
@@ -410,6 +440,7 @@ function ReposScreen({ view, blocks, repos, catalog, adding, setAdding, onChange
   view: LiveView; blocks: Blocks; repos: readonly ControlRepo[]; catalog: readonly RepoCatalogRepoRowV01[] | null; onChanged: () => void;
   adding: RepoAdding; setAdding: (value: RepoAdding) => void;
 }) {
+  useEscapeClose(adding !== "closed", () => setAdding("closed"));
   const gateway = useGateway();
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");

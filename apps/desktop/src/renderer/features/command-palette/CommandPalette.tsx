@@ -138,10 +138,10 @@ export function CommandPalette({
                 ) : null}
               </li>
             ))}
-            {results.length === 0 ? (
-              <li className="vua-palette__empty vua-text-secondary">{copy.empty}</li>
-            ) : null}
           </ul>
+          {results.length === 0 ? (
+            <p role="status" className="vua-palette__empty vua-text-secondary">{copy.empty}</p>
+          ) : null}
         </div>
       </div>
     </ModalOwnerContext>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   SYMPTOM_IDS_V01,
   type LocalDiagnosticsSnapshotV01,
@@ -7,7 +7,9 @@ import {
   type UdpPortObservationV01,
 } from "@vua/contracts";
 import { Icon } from "@vua/design-system";
+import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
+import { useEscapeClose } from "../../components/use-escape-close.ts";
 import { useGateway } from "../../gateway/index.ts";
 import { format, strings } from "../../i18n/index.ts";
 import "./local-diagnostics.css";
@@ -37,7 +39,100 @@ function formatError(err: unknown, copy: typeof strings.localDiagnostics.errors)
   return format(copy.generic, { code });
 }
 
-export function LocalDiagnosticsPanel({ onBack }: { onBack: () => void }) {
+type SopJumpKey = keyof typeof strings.localDiagnostics.sopActions;
+
+function sopJumpForStep(stepId: string): { readonly page: PageId; readonly labelKey: SopJumpKey } | null {
+  switch (stepId) {
+    case "osc_resolve_port_9000_conflict":
+    case "osc_align_oscquery_port":
+    case "osc_verify_radial_menu_and_companion":
+      return { page: "tools-discover", labelKey: "openTools" };
+    case "osc_check_avatar_parameters":
+    case "perf_avatar_texture_memory_optimization":
+      return { page: "workshop", labelKey: "openWorkshop" };
+    case "steamvr_unblock_safe_mode_drivers":
+    case "crash_steamvr_openxr_runtime":
+      return { page: "env-play", labelKey: "openPlay" };
+    case "upload_unity_2022_3_22f1_and_sdk_checks":
+      return { page: "env-create", labelKey: "openUnitySetup" };
+    case "upload_trust_rank_and_2fa":
+    case "upload_blueprint_id_ownership":
+      return { page: "release", labelKey: "openFinishedAvatars" };
+    default:
+      return null;
+  }
+}
+
+/** Builds a zero-path, zero-username, zero-device-name diagnostic summary safe for pasting. */
+export function buildRedactedDiagnosticSummary(
+  snapshot: LocalDiagnosticsSnapshotV01,
+  diagnosis: SymptomDiagnosisV01 | null,
+): string {
+  return JSON.stringify(
+    {
+      schemaVersion: snapshot.schemaVersion,
+      clientRunning: snapshot.clientRunning,
+      recentLog: snapshot.recentClientLog.classification,
+      cache: {
+        presence: snapshot.clientCache.presence,
+        used: formatBytes(snapshot.clientCache.totalBytes),
+        free: formatBytes(snapshot.clientCache.driveFreeBytes),
+        cacheSizeGb: snapshot.clientConfig.cacheSizeGb,
+        cacheExpiryDelayDays: snapshot.clientConfig.cacheExpiryDelayDays,
+      },
+      osc: {
+        udp9000: snapshot.osc.udp9000.state,
+        udp9001: snapshot.osc.udp9001.state,
+        avatarConfigCount: snapshot.osc.avatarConfigCount,
+        oscQuery: {
+          state: snapshot.osc.oscQuery.state,
+          httpPort: snapshot.osc.oscQuery.httpPort,
+          advertisedOscPort: snapshot.osc.oscQuery.advertisedOscPort,
+        },
+      },
+      steamvr: {
+        presence: snapshot.steamvrSettings.presence,
+        renderTargetMultiplier: snapshot.steamvrSettings.renderTargetMultiplier,
+        vrchatResolutionScale: snapshot.steamvrSettings.vrchatResolutionScale,
+        blockedDriverCount: snapshot.steamvrSettings.blockedDrivers.length,
+      },
+      audio: {
+        defaultCaptureRole: snapshot.audioEndpoints.defaultCaptureRole,
+        virtualMicHijack: snapshot.audioEndpoints.virtualMicHijack,
+        communicationsMismatch: snapshot.audioEndpoints.communicationsMismatch,
+      },
+      streaming: {
+        questLink: {
+          presence: snapshot.streamingSettings.questLink.presence,
+          encodeResolutionWidth: snapshot.streamingSettings.questLink.encodeResolutionWidth,
+          encodeBitrateMbps: snapshot.streamingSettings.questLink.encodeBitrateMbps,
+        },
+        picoConnect: {
+          presence: snapshot.streamingSettings.picoConnect.presence,
+          preset: snapshot.streamingSettings.picoConnect.preset,
+          bitrateMbps: snapshot.streamingSettings.picoConnect.bitrateMbps,
+        },
+      },
+      diagnosis: diagnosis
+        ? {
+            symptom: diagnosis.symptom,
+            findings: diagnosis.findings.map(finding => finding.code),
+          }
+        : null,
+    },
+    null,
+    2,
+  );
+}
+
+export function LocalDiagnosticsPanel({
+  onBack,
+  navigate,
+}: {
+  onBack: () => void;
+  navigate?: ((page: PageId, hash?: string) => void) | undefined;
+}) {
+  useEscapeClose(true, onBack);
   const port = useGateway().environment.diagnostics;
   const copy = strings.localDiagnostics;
   const [snapshot, setSnapshot] = useState<LocalDiagnosticsSnapshotV01 | null>(null);
@@ -46,6 +141,12 @@ export function LocalDiagnosticsPanel({ onBack }: { onBack: () => void }) {
   const [selectedSymptom, setSelectedSymptom] = useState<SymptomIdV01>("osc_or_face_tracking_not_responding");
   const [diagnosis, setDiagnosis] = useState<SymptomDiagnosisV01 | null>(null);
   const [diagnosing, setDiagnosing] = useState(false);
+  const [summaryCopied, setSummaryCopied] = useState(false);
+  const copyTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (copyTimerRef.current !== null) window.clearTimeout(copyTimerRef.current);
+  }, []);
 
   const [cacheSizeInput, setCacheSizeInput] = useState("20");
   const [cacheExpiryInput, setCacheExpiryInput] = useState("30");
@@ -157,6 +258,21 @@ export function LocalDiagnosticsPanel({ onBack }: { onBack: () => void }) {
     }
   };
 
+  const handleCopySummary = async () => {
+    if (!snapshot) return;
+    try {
+      await navigator.clipboard?.writeText(buildRedactedDiagnosticSummary(snapshot, diagnosis));
+      setSummaryCopied(true);
+      if (copyTimerRef.current !== null) window.clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = window.setTimeout(() => {
+        setSummaryCopied(false);
+        copyTimerRef.current = null;
+      }, 1800);
+    } catch {
+      /* Restricted clipboard environments stay quiet. */
+    }
+  };
+
   return (
     <div className="vua-page vua-help-child vua-local-diag" data-focus-scope data-local-diagnostics>
       <header className="vua-page__hero vua-environment-heading">
@@ -170,6 +286,16 @@ export function LocalDiagnosticsPanel({ onBack }: { onBack: () => void }) {
             <Icon name="refresh" size={16} />
             {refreshing ? copy.refreshing : copy.refresh}
           </Button>
+          {snapshot ? (
+            <Button
+              variant="subtle"
+              data-nav-id="diagnostics-copy-summary"
+              onClick={() => void handleCopySummary()}
+            >
+              <Icon name={summaryCopied ? "check" : "copy"} size={16} />
+              <span aria-live="polite">{summaryCopied ? copy.copiedSummary : copy.copySummary}</span>
+            </Button>
+          ) : null}
           <Button variant="subtle" data-back data-nav-id="help-child-back" onClick={onBack}>
             {strings.journey.backToHelp}
           </Button>
@@ -351,13 +477,13 @@ export function LocalDiagnosticsPanel({ onBack }: { onBack: () => void }) {
             </div>
 
             {diagnosing && !diagnosis ? (
-              <p className="vua-local-diag__status" role="status">{copy.diagnosing}</p>
+              <p className="vua-local-diag__status" role="status" aria-live="polite">{copy.diagnosing}</p>
             ) : diagnosis ? (
               <div className="vua-local-diag__panel" data-symptom-diagnosis={diagnosis.symptom}>
                 <div>
                   <h3>{copy.findingsTitle}</h3>
                   {diagnosis.findings.length === 0 ? (
-                    <p className="vua-local-diag__status">{copy.findingsClean}</p>
+                    <p className="vua-local-diag__status" role="status" aria-live="polite">{copy.findingsClean}</p>
                   ) : (
                     <ul className="vua-local-diag__findings">
                       {diagnosis.findings.map(finding => (
@@ -388,6 +514,7 @@ export function LocalDiagnosticsPanel({ onBack }: { onBack: () => void }) {
                   <ol className="vua-local-diag__steps">
                     {diagnosis.sopSteps.map(step => {
                       const localized = copy.sopSteps[step.stepId as keyof typeof copy.sopSteps];
+                      const jump = navigate ? sopJumpForStep(step.stepId) : null;
                       return (
                         <li key={step.stepId} className="vua-local-diag__step">
                           <div className="vua-local-diag__step-head">
@@ -397,6 +524,18 @@ export function LocalDiagnosticsPanel({ onBack }: { onBack: () => void }) {
                             </span>
                           </div>
                           <p>{localized ? localized.instruction : step.instruction}</p>
+                          {jump && navigate ? (
+                            <div className="vua-local-diag__step-actions">
+                              <Button
+                                variant="subtle"
+                                data-nav-id={`sop-jump-${step.stepId}`}
+                                onClick={() => navigate(jump.page)}
+                              >
+                                {copy.sopActions[jump.labelKey]}
+                                <Icon name="arrow-right" size={16} />
+                              </Button>
+                            </div>
+                          ) : null}
                         </li>
                       );
                     })}

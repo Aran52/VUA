@@ -538,7 +538,7 @@ interface PageActions {
   /** 指挥台首页(S-VFX-2):打开命令面板 */
   openPalette: () => void;
   /** 指挥台首页(S-VFX-2):速达卡跳转 */
-  navigate: (target: PageId) => void;
+  navigate: (target: PageId, hash?: string) => void;
   openAccounts: () => void;
   startTour: () => void;
 }
@@ -699,10 +699,19 @@ function AppShell({
     }
     if (settingsReturn) window.history.replaceState({ ...window.history.state, vuaSettingsReturn: settingsReturn, vuaSettingsReturnHash: settingsReturnHash }, "");
   }, [page, settingsOpen, settingsReturn, settingsReturnHash]);
-  const navigate = (target: PageId) => {
+  const navigate = (target: PageId, hash?: string) => {
     target = availablePage(target, amf.installed);
+    const desiredHash = hash !== undefined && readHashPage(hash) === target ? hash : undefined;
     if (target === page) {
       if (showOnboarding && !settingsOpen) onOnboardingComplete({ status: "skipped", goals: [], environments: [] });
+      const nextHash = desiredHash ?? target;
+      const currentHash = window.location.hash.replace(/^#\/?/, "");
+      if (!showOnboarding && currentHash !== nextHash) {
+        navigatePage(target, true, desiredHash);
+        try {
+          window.dispatchEvent(new HashChangeEvent("hashchange"));
+        } catch { /* Restricted frames without HashChangeEvent stay safe. */ }
+      }
       return;
     }
     if (target.startsWith("settings-")) {
@@ -710,18 +719,18 @@ function AppShell({
         setSettingsReturn(page);
         setSettingsReturnHash(readHashPage() === page ? window.location.hash : undefined);
       }
-      navigatePage(target);
+      navigatePage(target, true, desiredHash);
       return;
     }
     const source = settingsOpen ? settingsReturn : page;
-    if (source?.startsWith("help-") && target === "help") {
+    if (source?.startsWith("help-") && target === "help" && desiredHash === undefined) {
       setSettingsReturn(null);
       navigatePage("help");
       return;
     }
     setSettingsReturn(null);
     if (showOnboarding) onOnboardingComplete({ status: "skipped", goals: [], environments: [] });
-    navigatePage(target);
+    navigatePage(target, true, desiredHash);
   };
   useEffect(() => {
     if (!amf.installed && isAmfPage(page)) navigatePage("settings-modules");
@@ -944,13 +953,7 @@ function AppShell({
         label: strings.localDiagnostics.entryTitle,
         hint: strings.journey.help,
         keywords: "diagnostics troubleshoot osc cache steamvr eac crash fps mic",
-        run: () => {
-          navigate("help");
-          try {
-            window.location.hash = "help?sub=diagnostics";
-            window.dispatchEvent(new HashChangeEvent("hashchange"));
-          } catch { /* Hash stays optional in restricted frames. */ }
-        },
+        run: () => navigate("help", "help?sub=diagnostics"),
       },
       ...TOOL_HUB_GROUPS.flatMap(group => group.tools.map(tool => ({
         id: `tool-${tool.id}`,
@@ -958,12 +961,7 @@ function AppShell({
         label: tool.title,
         hint: strings.journey[group.key],
         keywords: `${tool.id} ${toolHints[tool.id as keyof typeof toolHints] ?? ""}`,
-        run: () => {
-          navigate("tools-discover");
-          try {
-            window.location.hash = `tools-discover?tool=${encodeURIComponent(tool.id)}`;
-          } catch { /* Hash stays optional in restricted frames. */ }
-        },
+        run: () => navigate("tools-discover", `tools-discover?tool=${encodeURIComponent(tool.id)}`),
       }))),
     ];
     const guides: CommandItem[] = GUIDE_ARTICLES.map(article => ({

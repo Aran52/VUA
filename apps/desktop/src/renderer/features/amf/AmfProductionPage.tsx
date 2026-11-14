@@ -634,7 +634,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
             void port.saveRecipe(runId,recipeTitle.trim() || run.result?.facts?.avatarName || copy.title).then(setSavedRecipe)
               .catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
           }}><label className="vua-n3__field">{copy.recipeName}<input value={recipeTitle} maxLength={120} placeholder={run.result.facts.avatarName || copy.title} onChange={e => setRecipeTitle(e.target.value)}/></label>
-          <Button type="submit" variant="primary" disabled={ftLocked}>{copy.saveRecipe}</Button></form>}
+          <Button type="submit" variant="default" disabled={ftLocked}>{copy.saveRecipe}</Button></form>}
       </Card>}
       <details className="vua-n3__advanced vua-line__source-details"><summary>{ui.details}</summary><dl><dt>{ui.lineId}</dt><dd>{run.runId}</dd><dt>{copy.editor}</dt><dd>{run.editor.version}</dd></dl><code>{run.projectRoot}</code><ul>{materials.map(material => <li key={material.id}>{material.item}<small>{material.name} · {material.id}</small></li>)}</ul></details>
       {shown === "face" && port && <FaceTrackingCard port={port} run={run} disabled={busy} onUnityHolds={e => fail(e)}

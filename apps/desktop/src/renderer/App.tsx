@@ -704,13 +704,11 @@ function AppShell({
     const desiredHash = hash !== undefined && readHashPage(hash) === target ? hash : undefined;
     if (target === page) {
       if (showOnboarding && !settingsOpen) onOnboardingComplete({ status: "skipped", goals: [], environments: [] });
-      const nextHash = desiredHash ?? target;
       const currentHash = window.location.hash.replace(/^#\/?/, "");
-      if (!showOnboarding && currentHash !== nextHash) {
+      const resetDiagnosticsSubpage = target === "help" && desiredHash === undefined && currentHash.startsWith("help?");
+      const nextHash = desiredHash ?? (resetDiagnosticsSubpage ? "help" : undefined);
+      if (!showOnboarding && nextHash !== undefined && currentHash !== nextHash) {
         navigatePage(target, true, desiredHash);
-        try {
-          window.dispatchEvent(new HashChangeEvent("hashchange"));
-        } catch { /* Restricted frames without HashChangeEvent stay safe. */ }
       }
       return;
     }

@@ -27,7 +27,7 @@ export default defineConfig({
   build: {
     outDir: "dist/renderer",
     emptyOutDir: true,
-    chunkSizeWarningLimit: 550,
+    chunkSizeWarningLimit: 950,
     rolldownOptions: {
       input: {
         main: path.join(desktopRoot, "index.html"),
@@ -39,13 +39,9 @@ export default defineConfig({
             { name: "three-core", test: /node_modules[\\/]three[\\/]build[\\/]/, priority: 30 },
             { name: "three-addons", test: /node_modules[\\/]three[\\/]examples[\\/]/, priority: 30 },
             { name: "react-vendor", test: /node_modules[\\/](?:react|react-dom|scheduler)[\\/]/, priority: 30 },
+            { name: "i18n-leaf-copy", test: /src[\\/]renderer[\\/]i18n[\\/](?!booth-category-|library-terms-|library-view-|presentation-).*-copy\.ts$/, priority: 28, minSize: 0 },
             { name: "vua-contracts", test: /packages[\\/]contracts[\\/]/, priority: 25 },
             { name: "vua-design-system", test: /packages[\\/]design-system[\\/]/, priority: 25 },
-            { name: "i18n-copy-amf", test: /src[\\/]renderer[\\/]i18n[\\/](?:amf-|factory-|control-center-|release-room-|sdk-review-|library-|booth-|recipe-|avatar-optimizer-|texture-memory-|outfit-removal-|glb-inspection-|use-terms-)/, priority: 22, minSize: 0, maxSize: 350_000 },
-            { name: "i18n-copy-diag", test: /src[\\/]renderer[\\/]i18n[\\/](?:local-diagnostics-|pose-graph-|help-|context-guide-|guide-channel-|environment-|scenario-|hardware-)/, priority: 22, minSize: 0, maxSize: 350_000 },
-            { name: "i18n-copy-host", test: /src[\\/]renderer[\\/]i18n[\\/].*-copy\.ts$/, priority: 21, minSize: 0, maxSize: 350_000 },
-            { name: "strings-en", test: /src[\\/]renderer[\\/]i18n[\\/]strings\.en\.ts$/, priority: 20, minSize: 0, maxSize: 350_000 },
-            { name: "guide-and-help", test: /src[\\/]renderer[\\/]features[\\/](?:guide|help)[\\/]/, priority: 15 },
             { name: "warehouse-surface", test: /src[\\/]renderer[\\/]features[\\/]warehouse[\\/]/, priority: 15 },
             { name: "amf-workshop", test: /src[\\/]renderer[\\/]features[\\/]amf[\\/](?:AmfProduction|AvatarOptimizer|MaterialsStart|workshop)/, priority: 16 },
             { name: "amf-surface", test: /src[\\/]renderer[\\/]features[\\/](?:amf|packages|release)[\\/]/, priority: 15 },

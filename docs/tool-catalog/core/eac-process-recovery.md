@@ -25,10 +25,13 @@ so it can only be a core module and is never exposed to web content, overlays, o
 Read-only diagnosis lives separately in [`core.eac-status`](eac-status.md); prefer normal exit,
 waiting for driver unload, restarting Windows, or official EAC repair before process termination.
 
-Official EAC repair launch holds a read-locked handle (`FILE_SHARE_READ`) across WinVerifyTrust
-signature verification (`EasyAntiCheat Oy` / `Epic Games, Inc.`) and invokes
-`EasyAntiCheat_EOS_Setup.exe` via Windows UAC (`runas`) with no arguments only after per-invocation
-user confirmation and only when no VRChat session is active.
+Official EAC repair launch sits behind the same experimental opt-in switch (when disabled, VUA only
+opens the verified EAC folder in Windows Explorer so the player runs official repair manually).
+When enabled and confirmed per invocation, it rejects ancestor reparse points/junctions, holds a
+read-locked handle (`FILE_SHARE_READ`) pinned to its resolved Win32 DOS path across WinVerifyTrust
+signature verification (`EasyAntiCheat Oy` / `Epic Games, Inc.`), refuses during active VRChat
+sessions, and hands Windows UAC (`runas`, no CLI arguments) execution to a dedicated worker thread
+so provider requests never block.
 
 Only a reviewed allowlist of user-mode residual processes is eligible for termination. Verify and
 display process name, PID, creation timestamp, absolute path, available signer/publisher, and reason;

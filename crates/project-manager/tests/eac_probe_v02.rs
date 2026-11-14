@@ -489,13 +489,15 @@ fn sorts_processes_deterministically_by_kind_and_pid() {
             image_name: "start_protected_game.exe".to_owned(),
             pid: 500,
             created: None,
-            path: None,
+            path: Some(
+                r"D:\SteamLibrary\steamapps\common\VRChat\start_protected_game.exe".to_owned(),
+            ),
         },
         ProcessEntryV02 {
             image_name: "VRChat.exe".to_owned(),
             pid: 300,
             created: None,
-            path: None,
+            path: Some(r"D:\SteamLibrary\steamapps\common\VRChat\VRChat.exe".to_owned()),
         },
         ProcessEntryV02 {
             image_name: "EasyAntiCheat_EOS.exe".to_owned(),
@@ -554,7 +556,7 @@ fn sorts_processes_deterministically_by_kind_and_pid() {
 #[test]
 fn windows_repair_launcher_refuses_missing_and_unsigned_setup_without_executing() {
     use vua_project_manager::eac_probe::v02::{
-        EacRepairOutcome, RepairLauncher, WindowsRepairLauncher,
+        resolve_verified_repair_setup_path, EacRepairOutcome, RepairLauncher, WindowsRepairLauncher,
     };
 
     let repair_schema_path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -571,7 +573,7 @@ fn windows_repair_launcher_refuses_missing_and_unsigned_setup_without_executing(
             .unwrap()
             .as_nanos()
     ));
-    let launcher = WindowsRepairLauncher;
+    let launcher = WindowsRepairLauncher::new();
 
     // 1. Non-existent VRChat root -> not_found
     let missing_root = launcher.launch_official_repair(&temp_root);
@@ -596,6 +598,13 @@ fn windows_repair_launcher_refuses_missing_and_unsigned_setup_without_executing(
     synthetic_pe[0] = b'M';
     synthetic_pe[1] = b'Z';
     std::fs::write(&setup_exe, synthetic_pe).unwrap();
+    let resolved = resolve_verified_repair_setup_path(&temp_root).unwrap();
+    assert!(
+        !resolved.to_string_lossy().starts_with(r"\\?\"),
+        "repair path must not carry verbatim prefix: {}",
+        resolved.display()
+    );
+
     let unsigned_receipt = launcher.launch_official_repair(&temp_root);
     assert_eq!(
         unsigned_receipt.outcome,
@@ -607,6 +616,231 @@ fn windows_repair_launcher_refuses_missing_and_unsigned_setup_without_executing(
         .is_ok());
 
     std::fs::remove_dir_all(temp_root).unwrap();
+}
+
+#[test]
+fn ignores_foreign_launchers_and_other_games_eac_processes_outside_vrchat_dir() {
+    let clock = FixedClock::new(&["2026-11-14T08:00:00Z"]);
+    let tracker = ServiceObservationTracker::default();
+    let allowlist = empty_allowlist();
+    let verifier = FakeVerifier(true);
+
+    let foreign_processes = vec![
+        ProcessEntryV02 {
+            image_name: "launch.exe".to_owned(),
+            pid: 1111,
+            created: Some(134392000000000001),
+            path: Some(r"C:\Program Files\OtherVendor\launch.exe".to_owned()),
+        },
+        ProcessEntryV02 {
+            image_name: "EasyAntiCheat.exe".to_owned(),
+            pid: 2222,
+            created: Some(134392000000000002),
+            path: Some(r"C:\Program Files (x86)\EasyAntiCheat\EasyAntiCheat.exe".to_owned()),
+        },
+        ProcessEntryV02 {
+            image_name: "start_protected_game.exe".to_owned(),
+            pid: 3333,
+            created: Some(134392000000000003),
+            path: Some(
+                r"D:\SteamLibrary\steamapps\common\ELDEN RING\Game\start_protected_game.exe"
+                    .to_owned(),
+            ),
+        },
+        ProcessEntryV02 {
+            image_name: "launch.exe".to_owned(),
+            pid: 4444,
+            created: None,
+            path: None,
+        },
+    ];
+
+    let snap = probe_eac_v02(
+        &EacSources {
+            processes: &FakeProcesses(Ok(foreign_processes)),
+            windows: &FakeWindows(Ok(HashSet::new())),
+            services: &FakeServices(Ok(clean_services())),
+            steam: &FakeSteam(Ok(Some(0))),
+            install: &FakeInstall(Ok(clean_install())),
+            logs: &FakeLogs(Ok(vec![])),
+            tracker: &tracker,
+            allowlist: &allowlist,
+            signature_verifier: &verifier,
+            experimental_termination_enabled: false,
+        },
+        &clock,
+    );
+    assert_eq!(snap.conclusion, EacConclusionV02::Ready);
+    assert!(snap.processes.is_empty());
+    assert_schema_valid(&snap);
+}
+
+#[test]
+fn unload_timer_resets_while_vrchat_runs_and_starts_at_post_exit_unloading() {
+    let tracker = ServiceObservationTracker::default();
+    let allowlist = empty_allowlist();
+    let verifier = FakeVerifier(true);
+    let active_services = [
+        RawServiceObservation {
+            name: EacServiceName::EasyAntiCheatEos,
+            present: true,
+            state: EacServiceState::Running,
+            binary_path: Some(PathBuf::from(
+                r"C:\Program Files (x86)\EasyAntiCheat_EOS\EasyAntiCheat_EOS.exe",
+            )),
+        },
+        RawServiceObservation {
+            name: EacServiceName::EasyAntiCheatEosSys,
+            present: true,
+            state: EacServiceState::Running,
+            binary_path: None,
+        },
+    ];
+
+    let mut visible = HashSet::new();
+    visible.insert(7000);
+
+    // T = 08:00:00Z — VRChat has been running for 2 hours; inspect happens mid-session.
+    let during_play = probe_eac_v02(
+        &EacSources {
+            processes: &FakeProcesses(Ok(vec![ProcessEntryV02 {
+                image_name: "VRChat.exe".to_owned(),
+                pid: 7000,
+                created: Some(134392000000000000),
+                path: Some(r"D:\SteamLibrary\steamapps\common\VRChat\VRChat.exe".to_owned()),
+            }])),
+            windows: &FakeWindows(Ok(visible)),
+            services: &FakeServices(Ok(active_services.clone())),
+            steam: &FakeSteam(Ok(Some(1))),
+            install: &FakeInstall(Ok(clean_install())),
+            logs: &FakeLogs(Ok(vec![])),
+            tracker: &tracker,
+            allowlist: &allowlist,
+            signature_verifier: &verifier,
+            experimental_termination_enabled: false,
+        },
+        &FixedClock::new(&["2026-11-14T08:00:00Z"]),
+    );
+    assert_eq!(during_play.conclusion, EacConclusionV02::SessionActive);
+    assert_eq!(during_play.services[0].first_observed_at, None);
+    assert_eq!(during_play.services[1].first_observed_at, None);
+
+    // T = 10:00:02Z — Player exits VRChat cleanly; driver is still unloading 2 seconds later.
+    let just_exited = probe_eac_v02(
+        &EacSources {
+            processes: &FakeProcesses(Ok(vec![])),
+            windows: &FakeWindows(Ok(HashSet::new())),
+            services: &FakeServices(Ok(active_services)),
+            steam: &FakeSteam(Ok(Some(1))),
+            install: &FakeInstall(Ok(clean_install())),
+            logs: &FakeLogs(Ok(vec![])),
+            tracker: &tracker,
+            allowlist: &allowlist,
+            signature_verifier: &verifier,
+            experimental_termination_enabled: false,
+        },
+        &FixedClock::new(&["2026-11-14T10:00:02Z"]),
+    );
+    assert_eq!(just_exited.conclusion, EacConclusionV02::Unloading);
+    assert_eq!(
+        just_exited.services[1].first_observed_at.as_deref(),
+        Some("2026-11-14T10:00:02Z"),
+        "unload timer must start at game exit, never during active gameplay"
+    );
+    assert_schema_valid(&just_exited);
+}
+
+#[test]
+fn unreadable_service_binary_path_maps_to_unknown_not_install_damaged() {
+    let clock = FixedClock::new(&["2026-11-14T08:00:00Z"]);
+    let tracker = ServiceObservationTracker::default();
+    let allowlist = empty_allowlist();
+    let verifier = FakeVerifier(true);
+
+    let mut unknown_service_bin = clean_install();
+    unknown_service_bin.install.service_binary = EacBinaryState::Unknown;
+
+    let snap = probe_eac_v02(
+        &EacSources {
+            processes: &FakeProcesses(Ok(vec![])),
+            windows: &FakeWindows(Ok(HashSet::new())),
+            services: &FakeServices(Ok([
+                RawServiceObservation {
+                    name: EacServiceName::EasyAntiCheatEos,
+                    present: true,
+                    state: EacServiceState::Stopped,
+                    binary_path: None,
+                },
+                clean_services()[1].clone(),
+            ])),
+            steam: &FakeSteam(Ok(Some(0))),
+            install: &FakeInstall(Ok(unknown_service_bin)),
+            logs: &FakeLogs(Ok(vec![])),
+            tracker: &tracker,
+            allowlist: &allowlist,
+            signature_verifier: &verifier,
+            experimental_termination_enabled: false,
+        },
+        &clock,
+    );
+    assert_eq!(snap.conclusion, EacConclusionV02::Unknown);
+    assert!(snap.plan.is_empty());
+    assert!(snap
+        .diagnostics
+        .iter()
+        .any(|d| d.code == "vua.eac_probe.install_unreadable"));
+    assert_schema_valid(&snap);
+}
+
+#[test]
+fn eac_probe_service_inspect_queries_install_source_strictly_once() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+    use vua_project_manager::eac_probe::v02::{
+        EacRepairOutcome, EacRepairReceiptV02, EacServiceDeps, RepairLauncher,
+        WindowsProcessTerminator,
+    };
+
+    struct CountingInstall(Arc<AtomicUsize>);
+    impl InstallSource for CountingInstall {
+        fn inspect_install(
+            &self,
+            _eos_service_present: bool,
+            _eos_service_binary: Option<&Path>,
+        ) -> Result<EacInstallObservation, String> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Ok(clean_install())
+        }
+    }
+
+    struct NoopRepair;
+    impl RepairLauncher for NoopRepair {
+        fn launch_official_repair(&self, _vrchat_dir: &Path) -> EacRepairReceiptV02 {
+            EacRepairReceiptV02::new(EacRepairOutcome::Launched, None)
+        }
+    }
+
+    let counter = Arc::new(AtomicUsize::new(0));
+    let service = EacProbeService::with_deps(EacServiceDeps {
+        processes: Arc::new(FakeProcesses(Ok(vec![]))),
+        windows: Arc::new(FakeWindows(Ok(HashSet::new()))),
+        services: Arc::new(FakeServices(Ok(clean_services()))),
+        steam: Arc::new(FakeSteam(Ok(Some(0)))),
+        install: Arc::new(CountingInstall(counter.clone())),
+        logs: Arc::new(FakeLogs(Ok(vec![]))),
+        signature_verifier: Arc::new(FakeVerifier(true)),
+        terminator: Arc::new(WindowsProcessTerminator),
+        repair_launcher: Arc::new(NoopRepair),
+        clock: Arc::new(FixedClock::new(&["2026-11-14T08:00:00Z"])),
+    });
+
+    let snap = service.inspect();
+    assert_eq!(snap.conclusion, EacConclusionV02::Ready);
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        1,
+        "inspect must query InstallSource only once per poll"
+    );
 }
 
 #[test]

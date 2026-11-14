@@ -31,10 +31,15 @@ protection, and never references or invokes anti-cheat bypass tools.
 | `environment.launchEacRepair` | `command` + `commandId` | `{ schemaVersion: "0.2", confirmed: true }` | `{ repair, eacSnapshot }` (`vua.eac-repair/v0.2` + `vua.eac-probe/v0.2`) |
 
 No caller-supplied game directory, repair executable path, or log path is accepted on any method.
-Electron Main persists the experimental termination switch (`eac-experimental.json`, default `false`)
-and rejects `environment.terminateEacResidual` before forwarding when disabled; Main synchronizes
-the persisted boolean to the supervised Provider through the internal host-only command
+Electron Main persists the experimental recovery switch (`eac-experimental.json`, default `false`)
+and rejects both `environment.terminateEacResidual` and `environment.launchEacRepair` before
+forwarding when disabled; Main synchronizes the persisted boolean to the supervised Provider
+(including on Provider reconnect) through the internal host-only command
 `environment.configureEacExperimental`, which is never routed from the renderer or AI tool catalog.
+Official EAC repair performs path-containment, handle-locking, reparse-point refusal, and
+Authenticode verification synchronously, then hands UAC (`runas`) elevation off to a background
+worker thread (`outcome: "launched"`) so the core Provider frame loop never blocks on UAC or GUI
+setup windows.
 
 ## Snapshot (`vua.eac-probe/v0.2`)
 

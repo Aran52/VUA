@@ -3,10 +3,97 @@ import type {
   EacRecoveryStepIdV02,
   GuideTargetV1,
 } from "@vua/contracts";
+import { toast } from "../../components/primitives/toast-store.ts";
 import { format, type Strings } from "../../i18n/index.ts";
 
 export const EAC_UNLOADING_LONG_MS = 5 * 60_000;
 export const EAC_DIALOG_POLL_MS = 5_000;
+const MAX_UNLOAD_REMINDER_TICKS = 180;
+
+export interface EacInspectPort {
+  inspect(): Promise<EacProbeSnapshotV02>;
+}
+
+let reminderTimer: ReturnType<typeof setInterval> | null = null;
+let reminderTicks = 0;
+let reminderInFlight = false;
+const reminderStateListeners = new Set<() => void>();
+const reminderSnapshotListeners = new Set<(snapshot: EacProbeSnapshotV02) => void>();
+
+function emitReminderState(): void {
+  for (const listener of reminderStateListeners) listener();
+}
+
+export function isUnloadReminderArmed(): boolean {
+  return reminderTimer !== null;
+}
+
+export function disarmUnloadReminder(): void {
+  if (reminderTimer === null) return;
+  clearInterval(reminderTimer);
+  reminderTimer = null;
+  reminderTicks = 0;
+  reminderInFlight = false;
+  emitReminderState();
+}
+
+export function completeUnloadReminderWithToast(getReadyMessage: () => string): boolean {
+  if (reminderTimer === null) return false;
+  disarmUnloadReminder();
+  toast(getReadyMessage(), "success");
+  return true;
+}
+
+export function subscribeUnloadReminder(
+  onStateChange: () => void,
+  onSnapshot?: (snapshot: EacProbeSnapshotV02) => void,
+): () => void {
+  reminderStateListeners.add(onStateChange);
+  if (onSnapshot) reminderSnapshotListeners.add(onSnapshot);
+  return () => {
+    reminderStateListeners.delete(onStateChange);
+    if (onSnapshot) reminderSnapshotListeners.delete(onSnapshot);
+  };
+}
+
+/**
+ * Arms a lightweight 5-second background watcher that survives closing EacDialog and fires
+ * a Tier-2 toast as soon as EAC finishes unloading (`conclusion === "ready"`).
+ */
+export function armUnloadReminder(
+  port: EacInspectPort,
+  getReadyMessage: () => string,
+): void {
+  if (reminderTimer !== null) return;
+  reminderTicks = 0;
+  reminderInFlight = false;
+  reminderTimer = setInterval(() => {
+    if (reminderInFlight) return;
+    reminderTicks += 1;
+    if (reminderTicks > MAX_UNLOAD_REMINDER_TICKS) {
+      disarmUnloadReminder();
+      return;
+    }
+    reminderInFlight = true;
+    void port
+      .inspect()
+      .then((snap) => {
+        for (const listener of reminderSnapshotListeners) listener(snap);
+        if (snap.conclusion === "ready") {
+          completeUnloadReminderWithToast(getReadyMessage);
+        } else if (snap.conclusion !== "unloading") {
+          disarmUnloadReminder();
+        }
+      })
+      .catch(() => {
+        /* Keep polling across transient read failures while armed. */
+      })
+      .finally(() => {
+        reminderInFlight = false;
+      });
+  }, EAC_DIALOG_POLL_MS);
+  emitReminderState();
+}
 
 export type EacGuideSectionId =
   | "eac-30005-occupied"

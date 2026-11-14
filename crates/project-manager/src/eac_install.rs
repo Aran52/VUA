@@ -10,7 +10,7 @@ use vua_orchestrator::{
     EnvironmentEngine, EnvironmentPresence, EnvironmentRoots, StdProcessRunner, SystemClock,
 };
 
-use crate::deployment_trust::trusted_eac_binary;
+use crate::deployment_trust::trusted_eac_binary_cached;
 use crate::VccSettingsFileReader;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -78,8 +78,7 @@ impl WindowsInstallSource {
     }
 
     pub fn detect_vrchat_dir(&self) -> Option<PathBuf> {
-        let items = self.engine.inspect_deployment_components();
-        let vrchat = items.iter().find(|item| item.id == "vrchat")?;
+        let vrchat = self.engine.inspect_vrchat();
         if vrchat.presence != EnvironmentPresence::Detected {
             return None;
         }
@@ -98,7 +97,7 @@ impl WindowsInstallSource {
 fn check_signed_file(path: &Path) -> EacBinaryState {
     if !path.is_file() {
         EacBinaryState::Missing
-    } else if trusted_eac_binary(path) {
+    } else if trusted_eac_binary_cached(path) {
         EacBinaryState::Verified
     } else {
         EacBinaryState::Unverified

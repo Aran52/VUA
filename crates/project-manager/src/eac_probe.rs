@@ -315,13 +315,16 @@ pub mod v02 {
     use serde::Serialize;
     use std::collections::{HashMap, HashSet};
     use std::path::Path;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
     use vua_orchestrator::{
         Clock, EnvironmentRoots, FindingSeverity, ManagerDiagnostic, RegistryHive, RegistrySource,
         SystemClock,
     };
 
-    use crate::deployment_trust::{trusted_eac_binary, EAC_TRUSTED_LEAF_SIGNERS};
+    use crate::deployment_trust::{
+        trusted_eac_binary, trusted_eac_binary_cached, EAC_TRUSTED_LEAF_SIGNERS,
+    };
     use crate::eac_allowlist::{
         find_entry, load_allowlist, path_pattern_matches, AllowlistEntryV01, AllowlistV01,
         EAC_ALLOWLIST_SCHEMA_VERSION,
@@ -340,7 +343,7 @@ pub mod v02 {
         terminate_candidate, PreCheck, TerminationGuard, TerminationReceiptV01, TerminationRequest,
     };
     use crate::environment_managers::ManagerRoots;
-    use crate::verified_launch::{ElevatedLaunchOutcome, LockedExecutable};
+    use crate::verified_launch::{strip_windows_verbatim_prefix, LockedExecutable};
     use crate::{ProcessEntry, ProcessSnapshotSource};
 
     pub const EAC_PROBE_SCHEMA_VERSION_V02: &str = "vua.eac-probe/v0.2";
@@ -370,11 +373,72 @@ pub mod v02 {
         pub fn classify(image_name: &str) -> Option<Self> {
             match image_name.to_ascii_lowercase().as_str() {
                 "easyanticheat.exe" => Some(Self::EacLoader),
-                "easyanticheat_eos.exe" | "easyanticheatservice.exe" => Some(Self::EacService),
+                "easyanticheat_eos.exe" => Some(Self::EacService),
                 "vrchat.exe" => Some(Self::VrchatGame),
                 "start_protected_game.exe" | "launch.exe" => Some(Self::VrchatLauncher),
                 _ => None,
             }
+        }
+    }
+
+    fn normalized_path_segments(path: &Path) -> Vec<String> {
+        let stripped = strip_windows_verbatim_prefix(path).unwrap_or_else(|| path.to_path_buf());
+        stripped
+            .to_string_lossy()
+            .split(['\\', '/'])
+            .filter(|seg| !seg.is_empty())
+            .map(|seg| seg.to_ascii_lowercase())
+            .collect()
+    }
+
+    fn is_inside_directory_ci(root_dir: &Path, candidate_file: &Path) -> bool {
+        let root_segs = normalized_path_segments(root_dir);
+        let cand_segs = normalized_path_segments(candidate_file);
+        !root_segs.is_empty()
+            && cand_segs.len() > root_segs.len()
+            && cand_segs[..root_segs.len()] == root_segs[..]
+    }
+
+    /// Scopes process findings to the detected VRChat installation directory (and EOS service
+    /// folder) so unrelated `launch.exe`, `start_protected_game.exe`, or legacy `EasyAntiCheat.exe`
+    /// binaries belonging to other applications/games do not cause false `residual_process` reports.
+    fn process_belongs_to_vrchat_or_eos(
+        kind: ProcessKindV02,
+        proc_path: Option<&str>,
+        vrchat_dir: Option<&Path>,
+        eos_binary_path: Option<&Path>,
+    ) -> bool {
+        match kind {
+            ProcessKindV02::VrchatLauncher
+            | ProcessKindV02::EacLoader
+            | ProcessKindV02::VrchatOverlay => {
+                let (Some(root), Some(raw_path)) = (vrchat_dir, proc_path) else {
+                    return false;
+                };
+                is_inside_directory_ci(root, Path::new(raw_path))
+            }
+            ProcessKindV02::VrchatGame => match (vrchat_dir, proc_path) {
+                (Some(root), Some(raw_path)) => is_inside_directory_ci(root, Path::new(raw_path)),
+                // Preserve R4 active-session safety when VRChat.exe is running with an unreadable
+                // image path or when the Steam VRChat root could not be resolved.
+                _ => true,
+            },
+            ProcessKindV02::EacService => match proc_path {
+                None => true,
+                Some(raw_path) => {
+                    let candidate = Path::new(raw_path);
+                    let in_eos_dir = eos_binary_path
+                        .and_then(Path::parent)
+                        .is_some_and(|dir| is_inside_directory_ci(dir, candidate));
+                    let in_vrchat_dir =
+                        vrchat_dir.is_some_and(|root| is_inside_directory_ci(root, candidate));
+                    let standard_eos_suffix = raw_path
+                        .replace('/', "\\")
+                        .to_ascii_lowercase()
+                        .ends_with(r"\easyanticheat_eos\easyanticheat_eos.exe");
+                    in_eos_dir || in_vrchat_dir || standard_eos_suffix
+                }
+            },
         }
     }
 
@@ -400,6 +464,10 @@ pub mod v02 {
 
     pub trait CandidateSignatureVerifier: Send + Sync {
         fn is_trusted_eac_binary(&self, path: &Path) -> bool;
+
+        fn is_trusted_eac_binary_for_inspect(&self, path: &Path) -> bool {
+            self.is_trusted_eac_binary(path)
+        }
     }
 
     #[derive(Debug, Default, Clone, Copy)]
@@ -408,6 +476,10 @@ pub mod v02 {
     impl CandidateSignatureVerifier for WindowsCandidateSignatureVerifier {
         fn is_trusted_eac_binary(&self, path: &Path) -> bool {
             trusted_eac_binary(path)
+        }
+
+        fn is_trusted_eac_binary_for_inspect(&self, path: &Path) -> bool {
+            trusted_eac_binary_cached(path)
         }
     }
 
@@ -555,17 +627,22 @@ pub mod v02 {
     }
 
     impl ServiceObservationTracker {
+        /// Records or retains `firstObservedAt` strictly while EAC services remain active AFTER
+        /// VRChat and its bootstrapper have exited (`!session_or_residual_active`). Whenever a
+        /// game or residual launcher process is active, any prior timestamp is cleared so gameplay
+        /// duration is never mistaken for post-exit driver unload time.
         pub fn observe(
             &self,
             name: EacServiceName,
             present: bool,
             state: EacServiceState,
+            session_or_residual_active: bool,
             now_rfc3339: &str,
         ) -> Option<String> {
             let Ok(mut map) = self.first_seen.lock() else {
                 return None;
             };
-            if present && state.is_active_or_transitioning() {
+            if !session_or_residual_active && present && state.is_active_or_transitioning() {
                 Some(
                     map.entry(name)
                         .or_insert_with(|| now_rfc3339.to_owned())
@@ -654,9 +731,82 @@ pub mod v02 {
     }
 
     pub fn probe_eac_v02(sources: &EacSources<'_>, clock: &dyn Clock) -> EacProbeSnapshotV02 {
+        probe_eac_v02_internal(sources, Some(sources.allowlist), clock)
+    }
+
+    fn probe_eac_v02_internal(
+        sources: &EacSources<'_>,
+        explicit_allowlist: Option<&AllowlistV01>,
+        clock: &dyn Clock,
+    ) -> EacProbeSnapshotV02 {
         let captured_at = clock.now_rfc3339();
         let mut diagnostics = Vec::new();
         let mut read_failed = false;
+
+        let (raw_services, eos_present, eos_binary_path) = match sources.services.query_services() {
+            Ok([eos, eos_sys]) => {
+                if eos.state == EacServiceState::Unreadable
+                    || eos_sys.state == EacServiceState::Unreadable
+                {
+                    read_failed = true;
+                }
+                let binary_path = eos.binary_path.clone();
+                let present = eos.present;
+                (Some([eos, eos_sys]), present, binary_path)
+            }
+            Err(err) => {
+                read_failed = true;
+                diagnostics.push(ManagerDiagnostic {
+                    code: codes_v02::SERVICE_UNREADABLE,
+                    severity: FindingSeverity::Warning,
+                    detail: err,
+                });
+                (None, false, None)
+            }
+        };
+
+        let (vrchat_dir, install) = match sources
+            .install
+            .inspect_install(eos_present, eos_binary_path.as_deref())
+        {
+            Ok(obs) => {
+                if obs.install.eac_folder == EacFolderState::Unknown {
+                    read_failed = true;
+                    diagnostics.push(ManagerDiagnostic {
+                        code: codes_v02::INSTALL_PATH_UNKNOWN,
+                        severity: FindingSeverity::Warning,
+                        detail: "VRChat installation directory was not detected.".to_owned(),
+                    });
+                } else if (obs.install.eac_folder == EacFolderState::Present
+                    && obs.install.setup_signature == EacBinaryState::Unknown)
+                    || (eos_present && obs.install.service_binary == EacBinaryState::Unknown)
+                {
+                    read_failed = true;
+                    diagnostics.push(ManagerDiagnostic {
+                        code: codes_v02::INSTALL_UNREADABLE,
+                        severity: FindingSeverity::Warning,
+                        detail: "EAC binary path or signature status could not be read.".to_owned(),
+                    });
+                }
+                (obs.vrchat_dir, obs.install)
+            }
+            Err(err) => {
+                read_failed = true;
+                diagnostics.push(ManagerDiagnostic {
+                    code: codes_v02::INSTALL_UNREADABLE,
+                    severity: FindingSeverity::Warning,
+                    detail: err,
+                });
+                (
+                    None,
+                    EacInstallStateV02 {
+                        eac_folder: EacFolderState::Unknown,
+                        setup_signature: EacBinaryState::Unknown,
+                        service_binary: EacBinaryState::Unknown,
+                    },
+                )
+            }
+        };
 
         let raw_processes = match sources.processes.snapshot_v02() {
             Ok(list) => list,
@@ -687,7 +837,16 @@ pub mod v02 {
         let mut processes: Vec<EacProcessFindingV02> = raw_processes
             .into_iter()
             .filter_map(|entry| {
-                ProcessKindV02::classify(&entry.image_name).map(|kind| EacProcessFindingV02 {
+                let kind = ProcessKindV02::classify(&entry.image_name)?;
+                if !process_belongs_to_vrchat_or_eos(
+                    kind,
+                    entry.path.as_deref(),
+                    vrchat_dir.as_deref(),
+                    eos_binary_path.as_deref(),
+                ) {
+                    return None;
+                }
+                Some(EacProcessFindingV02 {
                     name: entry.image_name,
                     pid: entry.pid,
                     created: entry.created.map(|ticks| ticks.to_string()),
@@ -699,70 +858,6 @@ pub mod v02 {
             .collect();
         processes.sort_by_key(|p| (p.kind, p.pid));
 
-        let (services, eos_present, eos_binary_path) = match sources.services.query_services() {
-            Ok([eos, eos_sys]) => {
-                if eos.state == EacServiceState::Unreadable
-                    || eos_sys.state == EacServiceState::Unreadable
-                {
-                    read_failed = true;
-                }
-                let eos_obs =
-                    sources
-                        .tracker
-                        .observe(eos.name, eos.present, eos.state, &captured_at);
-                let eos_sys_obs = sources.tracker.observe(
-                    eos_sys.name,
-                    eos_sys.present,
-                    eos_sys.state,
-                    &captured_at,
-                );
-                (
-                    [
-                        EacServiceFindingV02 {
-                            name: EacServiceName::EasyAntiCheatEos,
-                            present: eos.present,
-                            state: eos.state,
-                            first_observed_at: eos_obs,
-                        },
-                        EacServiceFindingV02 {
-                            name: EacServiceName::EasyAntiCheatEosSys,
-                            present: eos_sys.present,
-                            state: eos_sys.state,
-                            first_observed_at: eos_sys_obs,
-                        },
-                    ],
-                    eos.present,
-                    eos.binary_path,
-                )
-            }
-            Err(err) => {
-                read_failed = true;
-                diagnostics.push(ManagerDiagnostic {
-                    code: codes_v02::SERVICE_UNREADABLE,
-                    severity: FindingSeverity::Warning,
-                    detail: err,
-                });
-                (
-                    [
-                        EacServiceFindingV02 {
-                            name: EacServiceName::EasyAntiCheatEos,
-                            present: false,
-                            state: EacServiceState::Unreadable,
-                            first_observed_at: None,
-                        },
-                        EacServiceFindingV02 {
-                            name: EacServiceName::EasyAntiCheatEosSys,
-                            present: false,
-                            state: EacServiceState::Unreadable,
-                            first_observed_at: None,
-                        },
-                    ],
-                    false,
-                    None,
-                )
-            }
-        };
-
         let running_flag = match sources.steam.running_flag() {
             Ok(flag) => flag,
             Err(err) => {
@@ -773,36 +868,6 @@ pub mod v02 {
                     detail: err,
                 });
                 None
-            }
-        };
-
-        let install = match sources
-            .install
-            .inspect_install(eos_present, eos_binary_path.as_deref())
-        {
-            Ok(obs) => {
-                if obs.install.eac_folder == EacFolderState::Unknown {
-                    read_failed = true;
-                    diagnostics.push(ManagerDiagnostic {
-                        code: codes_v02::INSTALL_PATH_UNKNOWN,
-                        severity: FindingSeverity::Warning,
-                        detail: "VRChat installation directory was not detected.".to_owned(),
-                    });
-                }
-                obs.install
-            }
-            Err(err) => {
-                read_failed = true;
-                diagnostics.push(ManagerDiagnostic {
-                    code: codes_v02::INSTALL_UNREADABLE,
-                    severity: FindingSeverity::Warning,
-                    detail: err,
-                });
-                EacInstallStateV02 {
-                    eac_folder: EacFolderState::Unknown,
-                    setup_signature: EacBinaryState::Unknown,
-                    service_binary: EacBinaryState::Unknown,
-                }
             }
         };
 
@@ -836,10 +901,67 @@ pub mod v02 {
             )
         });
 
+        let session_or_residual_active = any_vrchat_game || any_launcher_or_loader;
+        let services = match raw_services {
+            Some([eos, eos_sys]) => {
+                let eos_obs = sources.tracker.observe(
+                    eos.name,
+                    eos.present,
+                    eos.state,
+                    session_or_residual_active,
+                    &captured_at,
+                );
+                let eos_sys_obs = sources.tracker.observe(
+                    eos_sys.name,
+                    eos_sys.present,
+                    eos_sys.state,
+                    session_or_residual_active,
+                    &captured_at,
+                );
+                [
+                    EacServiceFindingV02 {
+                        name: EacServiceName::EasyAntiCheatEos,
+                        present: eos.present,
+                        state: eos.state,
+                        first_observed_at: eos_obs,
+                    },
+                    EacServiceFindingV02 {
+                        name: EacServiceName::EasyAntiCheatEosSys,
+                        present: eos_sys.present,
+                        state: eos_sys.state,
+                        first_observed_at: eos_sys_obs,
+                    },
+                ]
+            }
+            None => [
+                EacServiceFindingV02 {
+                    name: EacServiceName::EasyAntiCheatEos,
+                    present: false,
+                    state: EacServiceState::Unreadable,
+                    first_observed_at: None,
+                },
+                EacServiceFindingV02 {
+                    name: EacServiceName::EasyAntiCheatEosSys,
+                    present: false,
+                    state: EacServiceState::Unreadable,
+                    first_observed_at: None,
+                },
+            ],
+        };
+
+        let derived_allowlist;
+        let effective_allowlist = match explicit_allowlist {
+            Some(list) => list,
+            None => {
+                derived_allowlist = s0_allowlist_for_vrchat_dir(vrchat_dir.as_deref());
+                &derived_allowlist
+            }
+        };
+
         let termination_capability = evaluate_termination_capability(
             &processes,
             any_vrchat_game,
-            sources.allowlist,
+            effective_allowlist,
             sources.signature_verifier,
             sources.experimental_termination_enabled,
         );
@@ -860,10 +982,18 @@ pub mod v02 {
             EacConclusionV02::Unloading
         } else if !eos_service.present || install.eac_folder == EacFolderState::Missing {
             EacConclusionV02::NotInstalled
-        } else if install.setup_signature != EacBinaryState::Verified
-            || install.service_binary != EacBinaryState::Verified
-        {
+        } else if matches!(
+            install.setup_signature,
+            EacBinaryState::Missing | EacBinaryState::Unverified
+        ) || matches!(
+            install.service_binary,
+            EacBinaryState::Missing | EacBinaryState::Unverified
+        ) {
             EacConclusionV02::InstallDamaged
+        } else if install.setup_signature == EacBinaryState::Unknown
+            || install.service_binary == EacBinaryState::Unknown
+        {
+            EacConclusionV02::Unknown
         } else if running_flag == Some(1) {
             EacConclusionV02::SteamStale
         } else {
@@ -931,7 +1061,7 @@ pub mod v02 {
             if path_pattern_matches(&entry.expected_path_pattern, path).is_none() {
                 continue;
             }
-            if !verifier.is_trusted_eac_binary(Path::new(path)) {
+            if !verifier.is_trusted_eac_binary_for_inspect(Path::new(path)) {
                 continue;
             }
             let candidate = EacTerminationCandidateV02 {
@@ -1076,6 +1206,8 @@ pub mod v02 {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
     #[serde(rename_all = "snake_case")]
     pub enum EacRepairOutcome {
+        Launched,
+        AlreadyRunning,
         Completed,
         ElevationDeclined,
         VerificationFailed,
@@ -1112,6 +1244,7 @@ pub mod v02 {
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum EacRepairError {
+        ExperimentalDisabled,
         ProcessUnreadable(String),
     }
 
@@ -1138,7 +1271,8 @@ pub mod v02 {
     }
 
     /// Resolves `<vrchat_dir>\EasyAntiCheat\EasyAntiCheat_EOS_Setup.exe` after canonicalizing both
-    /// root and target and enforcing strict containment inside `vrchat_dir`.
+    /// root and target, enforcing strict containment inside `vrchat_dir`, and stripping Windows
+    /// `\\?\` verbatim prefixes so Win32 `ShellExecuteExW` receives a standard DOS path.
     pub fn resolve_verified_repair_setup_path(
         vrchat_dir: &Path,
     ) -> Result<std::path::PathBuf, EacRepairOutcome> {
@@ -1163,15 +1297,35 @@ pub mod v02 {
         if !is_strictly_inside_root(&real_root, &real_target) {
             return Err(EacRepairOutcome::VerificationFailed);
         }
-        Ok(real_target)
+        strip_windows_verbatim_prefix(&real_target).ok_or(EacRepairOutcome::VerificationFailed)
     }
 
     pub trait RepairLauncher: Send + Sync {
         fn launch_official_repair(&self, vrchat_dir: &Path) -> EacRepairReceiptV02;
     }
 
-    #[derive(Debug, Default, Clone, Copy)]
-    pub struct WindowsRepairLauncher;
+    struct InFlightRepairGuard(Arc<AtomicBool>);
+    impl Drop for InFlightRepairGuard {
+        fn drop(&mut self) {
+            self.0.store(false, Ordering::Release);
+        }
+    }
+
+    /// Launches `EasyAntiCheat_EOS_Setup.exe` without blocking the single-threaded core provider
+    /// frame loop: path containment, handle lock (`FILE_SHARE_READ`), ancestor reparse-point check,
+    /// PE check, and WinVerifyTrust leaf-CN check run synchronously (<50 ms); the blocking UAC
+    /// prompt (`ShellExecuteExW` `runas`) and child wait run on a dedicated worker thread holding
+    /// the locked file handle open until exit or 300-second timeout.
+    #[derive(Debug, Default, Clone)]
+    pub struct WindowsRepairLauncher {
+        in_flight: Arc<AtomicBool>,
+    }
+
+    impl WindowsRepairLauncher {
+        pub fn new() -> Self {
+            Self::default()
+        }
+    }
 
     impl RepairLauncher for WindowsRepairLauncher {
         fn launch_official_repair(&self, vrchat_dir: &Path) -> EacRepairReceiptV02 {
@@ -1193,19 +1347,23 @@ pub mod v02 {
             {
                 return EacRepairReceiptV02::new(EacRepairOutcome::VerificationFailed, None);
             }
-            match locked.run_elevated_no_args(std::time::Duration::from_secs(300)) {
-                ElevatedLaunchOutcome::Completed { exit_code } => {
-                    EacRepairReceiptV02::new(EacRepairOutcome::Completed, Some(exit_code))
-                }
-                ElevatedLaunchOutcome::ElevationDeclined => {
-                    EacRepairReceiptV02::new(EacRepairOutcome::ElevationDeclined, None)
-                }
-                ElevatedLaunchOutcome::LaunchFailed => {
-                    EacRepairReceiptV02::new(EacRepairOutcome::LaunchFailed, None)
-                }
-                ElevatedLaunchOutcome::TimedOut => {
-                    EacRepairReceiptV02::new(EacRepairOutcome::TimedOut, None)
-                }
+            if self
+                .in_flight
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .is_err()
+            {
+                return EacRepairReceiptV02::new(EacRepairOutcome::AlreadyRunning, None);
+            }
+            let guard = InFlightRepairGuard(self.in_flight.clone());
+            let spawned = std::thread::Builder::new()
+                .name("vua-eac-repair".to_owned())
+                .spawn(move || {
+                    let _guard = guard;
+                    let _ = locked.run_elevated_no_args(std::time::Duration::from_secs(300));
+                });
+            match spawned {
+                Ok(_) => EacRepairReceiptV02::new(EacRepairOutcome::Launched, None),
+                Err(_) => EacRepairReceiptV02::new(EacRepairOutcome::LaunchFailed, None),
             }
         }
     }
@@ -1253,7 +1411,7 @@ pub mod v02 {
                 tracker: ServiceObservationTracker::default(),
                 signature_verifier: Arc::new(WindowsCandidateSignatureVerifier),
                 terminator: Arc::new(WindowsProcessTerminator),
-                repair_launcher: Arc::new(WindowsRepairLauncher),
+                repair_launcher: Arc::new(WindowsRepairLauncher::new()),
                 clock: Arc::new(SystemClock),
                 experimental_enabled: Mutex::new(false),
             }
@@ -1290,8 +1448,10 @@ pub mod v02 {
         }
 
         pub fn inspect(&self) -> EacProbeSnapshotV02 {
-            let allowlist =
-                s0_allowlist_for_vrchat_dir(self.install.detect_vrchat_root().as_deref());
+            let placeholder_allowlist = AllowlistV01 {
+                schema_version: EAC_ALLOWLIST_SCHEMA_VERSION.to_owned(),
+                entries: Vec::new(),
+            };
             let sources = EacSources {
                 processes: self.processes.as_ref(),
                 windows: self.windows.as_ref(),
@@ -1300,11 +1460,11 @@ pub mod v02 {
                 install: self.install.as_ref(),
                 logs: self.logs.as_ref(),
                 tracker: &self.tracker,
-                allowlist: &allowlist,
+                allowlist: &placeholder_allowlist,
                 signature_verifier: self.signature_verifier.as_ref(),
                 experimental_termination_enabled: self.experimental_termination(),
             };
-            probe_eac_v02(&sources, self.clock.as_ref())
+            probe_eac_v02_internal(&sources, None, self.clock.as_ref())
         }
 
         pub fn terminate_residual(
@@ -1328,18 +1488,31 @@ pub mod v02 {
                 .processes
                 .snapshot_v02()
                 .map_err(EacTerminateError::ProcessUnreadable)?;
+            let vrchat_dir = self.install.detect_vrchat_root();
 
             let any_vrchat_game = raw_processes.iter().any(|entry| {
                 ProcessKindV02::classify(&entry.image_name) == Some(ProcessKindV02::VrchatGame)
+                    && process_belongs_to_vrchat_or_eos(
+                        ProcessKindV02::VrchatGame,
+                        entry.path.as_deref(),
+                        vrchat_dir.as_deref(),
+                        None,
+                    )
             });
             let any_eac_present = raw_processes.iter().any(|entry| {
+                let Some(kind) = ProcessKindV02::classify(&entry.image_name) else {
+                    return false;
+                };
                 matches!(
-                    ProcessKindV02::classify(&entry.image_name),
-                    Some(
-                        ProcessKindV02::EacLoader
-                            | ProcessKindV02::EacService
-                            | ProcessKindV02::VrchatLauncher
-                    )
+                    kind,
+                    ProcessKindV02::EacLoader
+                        | ProcessKindV02::EacService
+                        | ProcessKindV02::VrchatLauncher
+                ) && process_belongs_to_vrchat_or_eos(
+                    kind,
+                    entry.path.as_deref(),
+                    vrchat_dir.as_deref(),
+                    None,
                 )
             });
             let pre = PreCheck {
@@ -1368,8 +1541,7 @@ pub mod v02 {
                 });
             }
 
-            let allowlist =
-                s0_allowlist_for_vrchat_dir(self.install.detect_vrchat_root().as_deref());
+            let allowlist = s0_allowlist_for_vrchat_dir(vrchat_dir.as_deref());
             let verified_entry = target.and_then(|proc| {
                 let entry = find_entry(&allowlist, &proc.image_name)?;
                 if proc.created != Some(expected_created) {
@@ -1420,13 +1592,23 @@ pub mod v02 {
         }
 
         pub fn launch_repair(&self) -> Result<EacRepairResultV02, EacRepairError> {
+            if !self.experimental_termination() {
+                return Err(EacRepairError::ExperimentalDisabled);
+            }
             let raw_processes = self
                 .processes
                 .snapshot_v02()
                 .map_err(EacRepairError::ProcessUnreadable)?;
+            let vrchat_dir = self.install.detect_vrchat_root();
 
             let any_vrchat_game = raw_processes.iter().any(|entry| {
                 ProcessKindV02::classify(&entry.image_name) == Some(ProcessKindV02::VrchatGame)
+                    && process_belongs_to_vrchat_or_eos(
+                        ProcessKindV02::VrchatGame,
+                        entry.path.as_deref(),
+                        vrchat_dir.as_deref(),
+                        None,
+                    )
             });
             if any_vrchat_game {
                 return Ok(EacRepairResultV02 {
@@ -1435,7 +1617,7 @@ pub mod v02 {
                 });
             }
 
-            let Some(vrchat_dir) = self.install.detect_vrchat_root() else {
+            let Some(vrchat_dir) = vrchat_dir else {
                 return Ok(EacRepairResultV02 {
                     repair: EacRepairReceiptV02::new(EacRepairOutcome::NotFound, None),
                     eac_snapshot: self.inspect(),

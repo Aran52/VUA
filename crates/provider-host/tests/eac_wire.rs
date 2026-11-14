@@ -397,7 +397,7 @@ fn launch_eac_repair_validates_closed_params_refuses_active_session_and_validate
         assert_eq!(err["error"]["code"], "vua.eac_repair.invalid_params");
     }
 
-    // Active VRChat session refuses official repair without invoking launcher
+    // Active VRChat session or disabled switch: first verify experimental gate rejects when disabled
     let (service, table, calls) = build_synthetic_service(
         vec![ProcessEntryV02 {
             image_name: "VRChat.exe".to_owned(),
@@ -407,6 +407,29 @@ fn launch_eac_repair_validates_closed_params_refuses_active_session_and_validate
         }],
         true,
     );
+    let disabled = invoke_wire(Some(&service), &valid_req);
+    assert_eq!(disabled["ok"], false);
+    assert_eq!(
+        disabled["error"]["code"],
+        "vua.eac_repair.experimental_disabled"
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+
+    // Enable experimental switch, then verify active VRChat session refuses official repair
+    let enable_res = invoke_wire(
+        Some(&service),
+        &json!({
+            "contractVersion": "0.1",
+            "requestId": "req-cfg-r",
+            "correlationId": "corr-cfg-r",
+            "kind": "command",
+            "method": "environment.configureEacExperimental",
+            "commandId": "cmd-cfg-r1",
+            "params": { "enabled": true }
+        }),
+    );
+    assert_eq!(enable_res["ok"], true);
+
     let refused = invoke_wire(Some(&service), &valid_req);
     assert_eq!(refused["ok"], true);
     assert_eq!(

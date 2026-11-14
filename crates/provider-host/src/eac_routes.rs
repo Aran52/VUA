@@ -189,6 +189,9 @@ pub(crate) fn request(
                     id,
                     serde_json::to_value(outcome).unwrap_or_else(|_| json!({})),
                 )),
+                Err(EacRepairError::ExperimentalDisabled) => {
+                    error("vua.eac_repair.experimental_disabled", "permission")
+                }
                 Err(EacRepairError::ProcessUnreadable(_)) => {
                     error("vua.eac_repair.process_unreadable", "external_failure")
                 }

@@ -14,8 +14,8 @@ const en: readonly GuideSectionContent[] = [
     id: "eac-not-installed",
     title: "Easy Anti-Cheat is not installed, missing files, or blocked by antivirus",
     paragraphs: [
-      "Seeing 'Easy Anti-Cheat is not installed' or an immediate exit at launch usually means the EAC service was never registered, files inside VRChat's EasyAntiCheat folder were removed, or security software quarantined EasyAntiCheat_EOS_Setup.exe or the service binary.",
-      "If you use third-party antivirus software, restore any quarantined files from VRChat's EasyAntiCheat folder and add that folder to its exclusion list first. Next, open the EasyAntiCheat folder inside your VRChat directory, right-click EasyAntiCheat_EOS_Setup.exe, and run it as Administrator—or run 'Verify integrity of game files' for VRChat in Steam instead of reinstalling the whole game.",
+      "Seeing 'Easy Anti-Cheat is not installed'—or VUA reporting EAC not installed right after a fresh VRChat download—usually means VRChat has not run its first-time Steam setup yet, the EAC service was unregistered, files inside VRChat's EasyAntiCheat folder were removed, or security software quarantined EasyAntiCheat_EOS_Setup.exe or the service binary.",
+      "If you just installed VRChat for the first time, launch it once directly in Steam so Steam's install script registers EasyAntiCheat_EOS. If you use third-party antivirus software, restore any quarantined files from VRChat's EasyAntiCheat folder and add that folder to its exclusion list, then run EasyAntiCheat_EOS_Setup.exe as Administrator or run 'Verify integrity of game files' in Steam.",
     ],
   },
   {
@@ -68,8 +68,8 @@ export const guideEacCopy: Record<LocaleId, readonly GuideSectionContent[]> = {
       id: "eac-not-installed",
       title: "提示 Easy Anti-Cheat 未安装、缺文件或被杀毒软件拦截",
       paragraphs: [
-        "启动弹出“Easy Anti-Cheat is not installed”或刚点开就闪退，通常是因为 EAC 服务未注册、VRChat 游戏目录里的 EasyAntiCheat 文件夹缺失，或杀毒软件隔离了修复程序与服务文件。",
-        "若装有第三方杀毒或安全卫士，请先在隔离区恢复被拦截的文件，并将 VRChat 游戏目录下的 EasyAntiCheat 文件夹加入信任区/白名单。随后打开该文件夹，右键 EasyAntiCheat_EOS_Setup.exe 选择“以管理员身份运行”，或在 Steam 中对 VRChat 执行“验证游戏文件的完整性”，无需一上来整包重装 VRChat。",
+        "启动弹出“Easy Anti-Cheat is not installed”、刚点开就闪退，或刚下载完 VRChat 首次启动前显示 EAC 未安装，通常是因为尚未通过 Steam 完成首次启动安装脚本、EAC 服务未注册、EasyAntiCheat 文件夹缺失，或杀毒软件隔离了修复程序与服务文件。",
+        "若是刚安装完 VRChat 还未启动过，先在 Steam 库中直接启动一次即可自动完成服务注册。若装有第三方杀毒或安全卫士，请先在隔离区恢复被拦截的文件并将 EasyAntiCheat 文件夹加入信任区，随后右键 EasyAntiCheat_EOS_Setup.exe 选择“以管理员身份运行”，或在 Steam 中执行“验证游戏文件的完整性”。",
       ],
     },
     {
@@ -118,8 +118,8 @@ export const guideEacCopy: Record<LocaleId, readonly GuideSectionContent[]> = {
       id: "eac-not-installed",
       title: "顯示 Easy Anti-Cheat 未安裝、缺少檔案或遭防毒軟體攔截",
       paragraphs: [
-        "啟動時跳出「Easy Anti-Cheat is not installed」或一開啟就閃退，通常是因為 EAC 服務尚未註冊、VRChat 遊戲資料夾內的 EasyAntiCheat 目錄遺失，或防毒軟體隔離了修復程式與服務執行檔。",
-        "若裝有第三方防毒軟體，請先從隔離區還原遭攔截的檔案，並將 VRChat 遊戲目錄下的 EasyAntiCheat 資料夾加入排除清單。接著打開該資料夾，對 EasyAntiCheat_EOS_Setup.exe 按右鍵選擇「以系統管理員身分執行」，或在 Steam 對 VRChat 執行「驗證遊戲檔案的完整性」，不必一開始就重新下載整個遊戲。",
+        "啟動時跳出「Easy Anti-Cheat is not installed」、一開啟就閃退，或剛下載完 VRChat 首次啟動前顯示 EAC 未安裝，通常是因為尚未透過 Steam 執行首次安裝腳本、EAC 服務尚未註冊、EasyAntiCheat 目錄遺失，或防毒軟體隔離了修復程式與服務執行檔。",
+        "若是剛安裝完 VRChat 尚未啟動過，先從 Steam 收藏庫直接啟動一次即可完成服務註冊。若裝有第三方防毒軟體，請先從隔離區還原遭攔截的檔案並將 EasyAntiCheat 資料夾加入排除清單，接著對 EasyAntiCheat_EOS_Setup.exe 按右鍵選擇「以系統管理員身分執行」，或在 Steam 執行「驗證遊戲檔案的完整性」。",
       ],
     },
     {
@@ -168,8 +168,8 @@ export const guideEacCopy: Record<LocaleId, readonly GuideSectionContent[]> = {
       id: "eac-not-installed",
       title: "「Easy Anti-Cheat is not installed」やセキュリティソフトによる隔離",
       paragraphs: [
-        "起動時に「Easy Anti-Cheat is not installed」と表示されたり直後に終了したりする場合、EAC サービスが未登録か、VRChat フォルダ内の EasyAntiCheat フォルダが欠けているか、セキュリティソフトが修復ツールやサービス実行ファイルを隔離している可能性があります。",
-        "サードパーティ製ウイルス対策ソフトをお使いの場合は、隔離されたファイルを復元し、VRChat の EasyAntiCheat フォルダを除外設定に追加してください。その後、フォルダ内の EasyAntiCheat_EOS_Setup.exe を右クリックして「管理者として実行」するか、Steam で VRChat の「ゲームファイルの整合性を確認」を実行します（最初からゲーム全体を再インストールする必要はありません）。",
+        "起動時に「Easy Anti-Cheat is not installed」と表示されたり、VRChat の初回ダウンロード直後に EAC 未導入と判定されたりする場合、Steam の初回起動セットアップがまだ実行されていないか、EAC サービスが未登録か、セキュリティソフトが修復ツールやサービス実行ファイルを隔離している可能性があります。",
+        "VRChat をインストールしたばかりで一度も起動していない場合は、まず Steam から直接 1 回起動するとサービスが自動登録されます。サードパーティ製ウイルス対策ソフトをお使いの場合は隔離ファイルを復元して EasyAntiCheat フォルダを除外設定に追加し、EasyAntiCheat_EOS_Setup.exe を「管理者として実行」するか Steam で「ゲームファイルの整合性を確認」を実行してください。",
       ],
     },
     {
@@ -218,8 +218,8 @@ export const guideEacCopy: Record<LocaleId, readonly GuideSectionContent[]> = {
       id: "eac-not-installed",
       title: "'Easy Anti-Cheat is not installed' 표시 또는 백신 격리 문제",
       paragraphs: [
-        "실행할 때 'Easy Anti-Cheat is not installed'가 뜨거나 켜지자마자 닫힌다면 EAC 서비스가 등록되지 않았거나, VRChat 폴더 안의 EasyAntiCheat 폴더가 손상되었거나, 보안 프로그램이 복구 파일이나 서비스 실행 파일을 격리했을 가능성이 큽니다.",
-        "타사 백신을 사용 중이라면 먼저 격리된 파일을 복원하고 VRChat의 EasyAntiCheat 폴더를 예외 목록에 추가하세요. 그다음 해당 폴더에서 EasyAntiCheat_EOS_Setup.exe를 우클릭해 '관리자 권한으로 실행'하거나 Steam에서 VRChat '게임 파일 무결성 검사'를 실행하면 게임 전체를 다시 설치하지 않고도 복구할 수 있습니다.",
+        "실행할 때 'Easy Anti-Cheat is not installed'가 뜨거나 VRChat을 처음 설치한 직후 EAC 미설치로 표시된다면, 아직 Steam 첫 실행 설치 스크립트가 동작하지 않았거나 EAC 서비스가 등록되지 않았거나 보안 프로그램이 복구·서비스 파일을 격리했을 가능성이 큽니다.",
+        "VRChat을 방금 설치해 아직 한 번도 켜지 않았다면 먼저 Steam 라이브러리에서 직접 한 번 실행해 서비스를 등록하세요. 타사 백신을 사용 중이라면 격리된 파일을 복원하고 EasyAntiCheat 폴더를 예외 목록에 추가한 뒤, EasyAntiCheat_EOS_Setup.exe를 '관리자 권한으로 실행'하거나 Steam에서 '게임 파일 무결성 검사'를 실행하세요.",
       ],
     },
     {

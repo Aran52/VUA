@@ -85,6 +85,18 @@ describe("eac-probe v0.2 contract fixtures and guards", () => {
         eacSnapshot: readySnapshot,
       }),
     ).toBe(true);
+    expect(
+      isEacRepairResult({
+        repair: { schemaVersion: "vua.eac-repair/v0.2", outcome: "launched", exitCode: null },
+        eacSnapshot: readySnapshot,
+      }),
+    ).toBe(true);
+    expect(
+      isEacRepairResult({
+        repair: { schemaVersion: "vua.eac-repair/v0.2", outcome: "already_running", exitCode: null },
+        eacSnapshot: readySnapshot,
+      }),
+    ).toBe(true);
   });
 
   it("rejects terminate_residual in plan when capability is disabled or unavailable", () => {

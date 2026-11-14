@@ -9,7 +9,7 @@ const en = {
   openGuide: "Troubleshooting guide",
   nextStep: "Next step",
   remindWhenReady: "Notify me when ready",
-  remindArmed: "Waiting—VUA will let you know here as soon as EAC finishes unloading.",
+  remindArmed: "Waiting in the background—you can close this window and VUA will notify you as soon as EAC finishes unloading.",
   openExplorer: "Show repair tool in Explorer",
   openExplorerFailed: "EasyAntiCheat_EOS_Setup.exe wasn't found in the VRChat folder. Verify integrity of game files in Steam.",
   conclusions: {
@@ -89,7 +89,7 @@ const en = {
     },
     official_repair: {
       button: "Run official EAC repair",
-      hint: "Verifies the Epic Games / EasyAntiCheat Oy signature and runs EasyAntiCheat_EOS_Setup.exe with UAC.",
+      hint: "Locates EasyAntiCheat_EOS_Setup.exe in Explorer, or verifies its Epic Games / EasyAntiCheat Oy signature and starts it via UAC when experimental recovery is enabled.",
     },
     restart_pc: {
       button: "See restart & driver steps",
@@ -105,10 +105,10 @@ const en = {
     confirm: "Start local test anyway",
   },
   experimental: {
-    title: "EAC residual process termination",
-    description: "Allow ending an allowlisted user-mode EAC launcher process after VRChat has exited. Never touches services, kernel drivers, or active game sessions.",
-    consentTitle: "Enable experimental EAC residual termination?",
-    consentBody: "When enabled, VUA can offer to end a verified user-mode launcher process left behind after VRChat closes. Ending anti-cheat-related processes always carries residual account risk; VUA never terminates active VRChat sessions or Windows services.",
+    title: "EAC process & UAC repair recovery",
+    description: "Allow ending an allowlisted user-mode EAC launcher process after VRChat exits, and launching the verified official EAC repair tool directly via Windows UAC. Never touches services, kernel drivers, or active game sessions.",
+    consentTitle: "Enable experimental EAC recovery actions?",
+    consentBody: "When enabled, VUA can offer to end a verified user-mode launcher left behind after VRChat closes and launch EasyAntiCheat_EOS_Setup.exe via Windows UAC after per-use confirmation. Process termination carries residual account risk; VUA never terminates active VRChat sessions or Windows services.",
     consentConfirm: "Understand & enable",
   },
   terminateConfirm: {
@@ -129,6 +129,8 @@ const en = {
     body: "Windows will show a User Account Control (UAC) prompt for EasyAntiCheat_EOS_Setup.exe with no extra arguments.",
     publisherNote: "Before accepting UAC, confirm the verified publisher shown by Windows is EasyAntiCheat Oy / Epic Games.",
     confirmButton: "Run official repair",
+    launched: "Requested official EAC repair via Windows UAC. Complete the setup window, then click Check again.",
+    alreadyRunning: "Official EAC repair is already open. Finish or close that window first.",
     completed: "Official EAC repair finished (exit code {code}).",
     declined: "Administrator permission was declined; nothing was changed.",
     activeRefused: "Close VRChat before running the official EAC repair tool.",
@@ -195,7 +197,7 @@ const zhCN: EacCopy = {
   openGuide: "查看排障指南",
   nextStep: "下一步",
   remindWhenReady: "好了提醒我",
-  remindArmed: "正在等待卸载完成，就绪后会立即在此提醒你。",
+  remindArmed: "已在后台等待卸载完成，关闭此窗口后也会在就绪时立即弹出提醒。",
   openExplorer: "在资源管理器中定位修复程序",
   openExplorerFailed: "未在 VRChat 目录中找到 EasyAntiCheat_EOS_Setup.exe，请在 Steam 中验证游戏文件完整性。",
   conclusions: {
@@ -275,7 +277,7 @@ const zhCN: EacCopy = {
     },
     official_repair: {
       button: "运行官方 EAC 修复程序",
-      hint: "锁定文件并校验 EasyAntiCheat Oy / Epic Games 签名后，通过系统 UAC 启动官方修复程序。",
+      hint: "在资源管理器中定位 EasyAntiCheat_EOS_Setup.exe；开启实验恢复开关后也可校验签名并经系统 UAC 直接启动。",
     },
     restart_pc: {
       button: "查看重启与驱动说明",
@@ -291,10 +293,10 @@ const zhCN: EacCopy = {
     confirm: "仍然开始本地测试",
   },
   experimental: {
-    title: "EAC 残留进程终止",
-    description: "允许在 VRChat 退出后结束白名单内的用户态 EAC 启动器残留进程；绝不触碰系统服务、内核驱动或正在运行的 VRChat 会话。",
-    consentTitle: "开启「EAC 残留进程终止」实验功能？",
-    consentBody: "开启后，当 VRChat 已退出但用户态启动器仍残留在后台时，VUA 会提供结束该进程的选项。对反作弊相关进程执行终止始终存在残留账号风险；VUA 绝不会结束运行中的游戏或操作系统服务。",
+    title: "EAC 进程与 UAC 修复恢复",
+    description: "允许在 VRChat 退出后结束白名单内的用户态 EAC 启动器残留进程，并在逐次确认后通过系统 UAC 启动已校验签名的官方 EAC 修复程序；绝不触碰系统服务、内核驱动或正在运行的 VRChat 会话。",
+    consentTitle: "开启「EAC 进程与 UAC 修复恢复」实验功能？",
+    consentBody: "开启后，VUA 可在 VRChat 已退出时提供结束已校验用户态残留启动器的选项，并在逐次确认后通过 Windows UAC 启动 EasyAntiCheat_EOS_Setup.exe。结束反作弊相关进程始终存在残留账号风险；VUA 绝不会结束运行中的游戏或操作系统服务。",
     consentConfirm: "了解风险并开启",
   },
   terminateConfirm: {
@@ -315,6 +317,8 @@ const zhCN: EacCopy = {
     body: "Windows 将弹出用户账户控制（UAC）窗口，以管理员身份无参数启动 EasyAntiCheat_EOS_Setup.exe。",
     publisherNote: "同意 UAC 前，请确认系统弹窗显示的已验证发布者为 EasyAntiCheat Oy / Epic Games。",
     confirmButton: "运行官方修复",
+    launched: "已通过 Windows UAC 请求启动官方 EAC 修复程序；完成修复窗口操作后请点击「重新读取」。",
+    alreadyRunning: "官方 EAC 修复程序已在运行，请先完成或关闭该窗口。",
     completed: "官方 EAC 修复程序已执行完毕（退出码 {code}）。",
     declined: "已取消管理员授权，未做任何修改。",
     activeRefused: "请先关闭正在运行的 VRChat，再运行官方修复程序。",
@@ -332,7 +336,7 @@ const zhTW: EacCopy = {
   openGuide: "查看排障指南",
   nextStep: "下一步",
   remindWhenReady: "好了提醒我",
-  remindArmed: "正在等待卸載完成，就緒後會立即在此提醒你。",
+  remindArmed: "已在背景等待卸載完成，關閉此視窗後也會在就緒時立即彈出提醒。",
   openExplorer: "在檔案總管中顯示修復程式",
   openExplorerFailed: "未在 VRChat 目錄中找到 EasyAntiCheat_EOS_Setup.exe，請在 Steam 中驗證遊戲檔案完整性。",
   conclusions: {
@@ -412,7 +416,7 @@ const zhTW: EacCopy = {
     },
     official_repair: {
       button: "執行官方 EAC 修復程式",
-      hint: "鎖定檔案並驗證 EasyAntiCheat Oy / Epic Games 簽章後，透過系統 UAC 啟動官方修復程式。",
+      hint: "在檔案總管中顯示 EasyAntiCheat_EOS_Setup.exe；啟用實驗復原開關後也可驗證簽章並經系統 UAC 直接啟動。",
     },
     restart_pc: {
       button: "查看重新開機與驅動說明",
@@ -428,10 +432,10 @@ const zhTW: EacCopy = {
     confirm: "仍然開始本機測試",
   },
   experimental: {
-    title: "EAC 殘留處理程序終止",
-    description: "允許在 VRChat 關閉後結束白名單內的使用者模式 EAC 啟動器殘留處理程序；絕不觸碰系統服務、核心驅動或執行中的 VRChat 工作階段。",
-    consentTitle: "啟用「EAC 殘留處理程序終止」實驗功能？",
-    consentBody: "啟用後，當 VRChat 已關閉但使用者模式啟動器仍殘留在背景時，VUA 會提供結束該處理程序的選項。結束反作弊相關處理程序始終存在殘留帳號風險；VUA 絕不會結束執行中的遊戲或系統服務。",
+    title: "EAC 處理程序與 UAC 修復復原",
+    description: "允許在 VRChat 關閉後結束白名單內的使用者模式 EAC 啟動器殘留處理程序，並在逐次確認後透過系統 UAC 啟動已驗證簽章的官方 EAC 修復程式；絕不觸碰系統服務、核心驅動或執行中的 VRChat 工作階段。",
+    consentTitle: "啟用「EAC 處理程序與 UAC 修復復原」實驗功能？",
+    consentBody: "啟用後，VUA 可在 VRChat 已關閉時提供結束已驗證使用者模式殘留啟動器的選項，並在逐次確認後透過 Windows UAC 啟動 EasyAntiCheat_EOS_Setup.exe。結束反作弊相關處理程序始終存在殘留帳號風險；VUA 絕不會結束執行中的遊戲或系統服務。",
     consentConfirm: "了解風險並啟用",
   },
   terminateConfirm: {
@@ -452,6 +456,8 @@ const zhTW: EacCopy = {
     body: "Windows 將顯示使用者帳戶控制（UAC）提示，以系統管理員身分無參數啟動 EasyAntiCheat_EOS_Setup.exe。",
     publisherNote: "同意 UAC 前，請確認系統視窗顯示的已驗證發行者為 EasyAntiCheat Oy / Epic Games。",
     confirmButton: "執行官方修復",
+    launched: "已透過 Windows UAC 請求啟動官方 EAC 修復程式；完成修復視窗操作後請點擊「重新讀取」。",
+    alreadyRunning: "官方 EAC 修復程式已在執行，請先完成或關閉該視窗。",
     completed: "官方 EAC 修復程式已執行完畢（結束代碼 {code}）。",
     declined: "已取消系統管理員授權，未進行任何變更。",
     activeRefused: "請先關閉執行中的 VRChat，再執行官方修復程式。",
@@ -469,7 +475,7 @@ const ja: EacCopy = {
   openGuide: "対処ガイドを見る",
   nextStep: "次の手順",
   remindWhenReady: "完了したら知らせる",
-  remindArmed: "終了処理の完了を待っています。完了しだいここでお知らせします。",
+  remindArmed: "バックグラウンドで終了処理を待っています。このウィンドウを閉じても完了しだい通知します。",
   openExplorer: "エクスプローラーで修復ツールを表示",
   openExplorerFailed: "VRChat フォルダーに EasyAntiCheat_EOS_Setup.exe が見つかりません。Steam でゲームファイルの整合性を確認してください。",
   conclusions: {
@@ -549,7 +555,7 @@ const ja: EacCopy = {
     },
     official_repair: {
       button: "公式 EAC 修復ツールを実行",
-      hint: "EasyAntiCheat Oy / Epic Games の署名を検証したうえで、UAC 経由で公式修復ツールを起動します。",
+      hint: "エクスプローラーで EasyAntiCheat_EOS_Setup.exe を表示するか、実験機能を有効にしている場合は署名を検証して UAC 経由で起動します。",
     },
     restart_pc: {
       button: "再起動と対処手順を見る",
@@ -565,10 +571,10 @@ const ja: EacCopy = {
     confirm: "そのままローカルテストを開始",
   },
   experimental: {
-    title: "EAC 残留プロセスの終了",
-    description: "VRChat 終了後に残った許可リスト対象のユーザーモード EAC ランチャーの終了を許可します。サービスやカーネルドライバー、実行中のゲームは操作しません。",
-    consentTitle: "実験機能「EAC 残留プロセスの終了」を有効にしますか？",
-    consentBody: "有効にすると、VRChat 終了後に残った検証済みのユーザーモードランチャーを終了できるようになります。アンチチート関連プロセスの強制終了には常にアカウント上のリスクが伴います。実行中の VRChat や Windows サービスは一切終了しません。",
+    title: "EAC プロセス終了と UAC 修復起動",
+    description: "VRChat 終了後に残った許可リスト対象のユーザーモード EAC ランチャーの終了と、検証済み公式 EAC 修復ツールの UAC 起動を許可します。サービスやカーネルドライバー、実行中のゲームは操作しません。",
+    consentTitle: "実験機能「EAC プロセス終了と UAC 修復起動」を有効にしますか？",
+    consentBody: "有効にすると、VRChat 終了後に残った検証済みユーザーモードランチャーの終了や、都度確認のうえでの EasyAntiCheat_EOS_Setup.exe の UAC 起動を利用できます。アンチチート関連プロセスの終了には常にアカウント上のリスクが伴います。実行中の VRChat や Windows サービスは一切終了しません。",
     consentConfirm: "リスクを理解して有効化",
   },
   terminateConfirm: {
@@ -589,6 +595,8 @@ const ja: EacCopy = {
     body: "Windows のユーザーアカウント制御（UAC）が表示され、引数なしで EasyAntiCheat_EOS_Setup.exe を起動します。",
     publisherNote: "UAC を承認する前に、確認済み発行元が EasyAntiCheat Oy / Epic Games であることを確認してください。",
     confirmButton: "公式修復を実行",
+    launched: "Windows UAC 経由で公式 EAC 修復ツールを起動しました。修復完了後に「再確認」を押してください。",
+    alreadyRunning: "公式 EAC 修復ツールは既に開いています。先にそのウィンドウを完了または閉じてください。",
     completed: "公式 EAC 修復ツールが完了しました（終了コード {code}）。",
     declined: "管理者権限の承認がキャンセルされたため、変更は行われませんでした。",
     activeRefused: "公式修復ツールを実行する前に VRChat を終了してください。",
@@ -606,7 +614,7 @@ const ko: EacCopy = {
   openGuide: "해결 가이드 보기",
   nextStep: "다음 단계",
   remindWhenReady: "준비되면 알려주기",
-  remindArmed: "정리가 끝나기를 기다리고 있어요. 끝나면 바로 여기서 알려드릴게요.",
+  remindArmed: "백그라운드에서 정리가 끝나기를 기다리고 있어요. 이 창을 닫아도 준비되면 바로 알려드릴게요.",
   openExplorer: "탐색기에서 복구 프로그램 보기",
   openExplorerFailed: "VRChat 폴더에서 EasyAntiCheat_EOS_Setup.exe를 찾지 못했어요. Steam에서 게임 파일 무결성을 확인해 주세요.",
   conclusions: {
@@ -686,7 +694,7 @@ const ko: EacCopy = {
     },
     official_repair: {
       button: "공식 EAC 복구 프로그램 실행",
-      hint: "EasyAntiCheat Oy / Epic Games 서명을 확인한 뒤 UAC를 통해 공식 복구 프로그램을 실행해요.",
+      hint: "탐색기에서 EasyAntiCheat_EOS_Setup.exe 위치를 열거나, 실험 복구 기능을 켠 경우 서명을 확인한 뒤 UAC로 바로 실행해요.",
     },
     restart_pc: {
       button: "다시 시작 및 드라이버 안내 보기",
@@ -702,10 +710,10 @@ const ko: EacCopy = {
     confirm: "그대로 로컬 테스트 시작",
   },
   experimental: {
-    title: "EAC 잔여 프로세스 종료",
-    description: "VRChat 종료 후 남은 허용 목록 사용자 모드 EAC 런처 프로세스 종료를 허용해요. 서비스, 커널 드라이버, 실행 중인 게임 세션은 건드리지 않아요.",
-    consentTitle: "실험 기능 'EAC 잔여 프로세스 종료'를 켤까요?",
-    consentBody: "켜 두면 VRChat 종료 후 백그라운드에 남은 검증된 사용자 모드 런처를 종료할 수 있어요. 안티치트 관련 프로세스 강제 종료에는 항상 계정 위험이 따르며, 실행 중인 VRChat이나 Windows 서비스는 절대 종료하지 않아요.",
+    title: "EAC 프로세스 종료 및 UAC 복구 실행",
+    description: "VRChat 종료 후 남은 허용 목록 사용자 모드 EAC 런처 프로세스 종료와 검증된 공식 EAC 복구 도구의 Windows UAC 실행을 허용해요. 서비스, 커널 드라이버, 실행 중인 게임 세션은 건드리지 않아요.",
+    consentTitle: "실험 기능 'EAC 프로세스 종료 및 UAC 복구 실행'을 켤까요?",
+    consentBody: "켜 두면 VRChat 종료 후 백그라운드에 남은 검증된 사용자 모드 런처를 종료하거나, 매번 확인을 거쳐 EasyAntiCheat_EOS_Setup.exe를 UAC로 실행할 수 있어요. 안티치트 관련 프로세스 종료에는 항상 계정 위험이 따르며, 실행 중인 VRChat이나 Windows 서비스는 절대 종료하지 않아요.",
     consentConfirm: "위험을 이해하고 켜기",
   },
   terminateConfirm: {
@@ -726,6 +734,8 @@ const ko: EacCopy = {
     body: "Windows 사용자 계정 컨트롤(UAC) 창이 표시되며 추가 인자 없이 EasyAntiCheat_EOS_Setup.exe를 실행해요.",
     publisherNote: "UAC를 허용하기 전에 확인된 게시자가 EasyAntiCheat Oy / Epic Games인지 확인해 주세요.",
     confirmButton: "공식 복구 실행",
+    launched: "Windows UAC를 통해 공식 EAC 복구 프로그램 실행을 요청했어요. 복구를 마친 뒤 '다시 확인'을 눌러 주세요.",
+    alreadyRunning: "공식 EAC 복구 프로그램이 이미 열려 있어요. 먼저 해당 창을 마치거나 닫아 주세요.",
     completed: "공식 EAC 복구 프로그램이 완료되었어요(종료 코드 {code}).",
     declined: "관리자 권한 요청이 취소되어 변경된 내용이 없어요.",
     activeRefused: "공식 복구 프로그램을 실행하기 전에 실행 중인 VRChat을 먼저 닫아 주세요.",

@@ -214,5 +214,127 @@ describe("EAC Main controller and Gateway routing", () => {
         },
       }),
     );
+
+    invoke.mockClear();
+    const repairBlocked = await routeDesktopGatewayInvoke(
+      {
+        provider,
+        productVersion: "1.1.0",
+        platform: "win32",
+        rendererUrl,
+        resolveMaterialSource,
+        eac: { isExperimentalEnabled: () => false },
+      },
+      `${rendererUrl}/`,
+      {
+        schemaVersion: 1,
+        requestId: "eac-repair-blocked",
+        method: "environment.launchEacRepair",
+        params: {
+          schemaVersion: "0.2",
+          confirmed: true,
+          commandId: "cmd-repair-blocked",
+        },
+      },
+    );
+    expect(repairBlocked).toMatchObject({
+      ok: false,
+      error: {
+        code: "application",
+        application: { code: "vua.eac.experimental_disabled" },
+      },
+    });
+    expect(invoke).not.toHaveBeenCalled();
+
+    const ensureSynced = vi.fn(async () => {});
+    await routeDesktopGatewayInvoke(
+      {
+        provider,
+        productVersion: "1.1.0",
+        platform: "win32",
+        rendererUrl,
+        resolveMaterialSource,
+        eac: { isExperimentalEnabled: () => true, ensureSynced },
+      },
+      `${rendererUrl}/`,
+      {
+        schemaVersion: 1,
+        requestId: "eac-repair-allowed",
+        method: "environment.launchEacRepair",
+        params: {
+          schemaVersion: "0.2",
+          confirmed: true,
+          commandId: "cmd-repair-allowed",
+        },
+      },
+    );
+    expect(ensureSynced).toHaveBeenCalledTimes(1);
+    expect(invoke).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        kind: "command",
+        method: "environment.launchEacRepair",
+        commandId: "cmd-repair-allowed",
+        params: {
+          schemaVersion: "0.2",
+          confirmed: true,
+        },
+      }),
+    );
+  });
+
+  it("keeps Main memory false when disk write fails and re-syncs experimental state on provider restart", async () => {
+    const userDataDir = makeTempDir("vua-eac-sync-");
+    // Block eac-experimental.json with a directory so rename fails deterministically.
+    const blockedSettingsDir = path.join(userDataDir, "eac-experimental.json");
+    fs.mkdirSync(blockedSettingsDir, { recursive: true });
+
+    const syncCalls: boolean[] = [];
+    let statusListener:
+      | ((status: { readonly state: string; readonly acceptingCalls?: boolean }) => void)
+      | null = null;
+    const provider = {
+      subscribeStatus(
+        listener: (status: { readonly state: string; readonly acceptingCalls?: boolean }) => void,
+      ) {
+        statusListener = listener;
+        return () => {
+          statusListener = null;
+        };
+      },
+      async invoke(request: ApplicationRequestV01): Promise<ApplicationResponseV01> {
+        if (request.method === "environment.configureEacExperimental") {
+          syncCalls.push(request.params.enabled);
+        }
+        return {
+          contractVersion: APPLICATION_CONTRACT_VERSION,
+          requestId: request.requestId,
+          ok: true,
+          value: { enabled: request.method === "environment.configureEacExperimental" ? request.params.enabled : false },
+        };
+      },
+    };
+
+    const controller = createEacMainController({
+      userDataDir,
+      provider,
+      showItemInFolder: () => {},
+    });
+
+    await expect(controller.setExperimentalTermination(true)).rejects.toThrow();
+    expect(controller.isExperimentalEnabled()).toBe(false);
+    expect(syncCalls).toEqual([]);
+
+    // Remove the blocking directory so persistence succeeds, then verify provider restart re-syncs.
+    fs.rmSync(blockedSettingsDir, { recursive: true, force: true });
+    expect(await controller.setExperimentalTermination(true)).toEqual({ enabled: true });
+    expect(controller.isExperimentalEnabled()).toBe(true);
+    expect(syncCalls).toEqual([true]);
+
+    // Simulate supervised provider restart: failed -> ready triggers automatic re-sync.
+    expect(statusListener).not.toBeNull();
+    statusListener?.({ state: "failed", acceptingCalls: false });
+    statusListener?.({ state: "ready", acceptingCalls: true });
+    await controller.ensureSynced();
+    expect(syncCalls).toEqual([true, true]);
   });
 });

@@ -50,6 +50,7 @@ export interface DesktopGatewayRouteContext {
   } | undefined;
   readonly eac?: {
     isExperimentalEnabled(): boolean;
+    ensureSynced?: () => Promise<void>;
   } | undefined;
 }
 
@@ -740,7 +741,10 @@ export async function routeDesktopGatewayInvoke(
         value,
       };
     }
-    if (request.method === "environment.terminateEacResidual" && context.eac?.isExperimentalEnabled() !== true) {
+    if (
+      (request.method === "environment.terminateEacResidual" || request.method === "environment.launchEacRepair")
+      && context.eac?.isExperimentalEnabled() !== true
+    ) {
       return {
         schemaVersion: DESKTOP_GATEWAY_VERSION,
         requestId: request.requestId,
@@ -758,6 +762,13 @@ export async function routeDesktopGatewayInvoke(
           },
         },
       };
+    }
+    if (
+      request.method === "environment.inspectEac"
+      || request.method === "environment.terminateEacResidual"
+      || request.method === "environment.launchEacRepair"
+    ) {
+      await context.eac?.ensureSynced?.();
     }
     // 托管上传开始前:玩家已在 VUA 登录时,把会话一次性交到工作工程的 Editor
     if ((request.method === "amf.production.upload" || request.method === "amf.production.localTest") && context.vrchat !== undefined) {

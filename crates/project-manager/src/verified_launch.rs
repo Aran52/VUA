@@ -1,8 +1,9 @@
 //! Handle-locked executable verification and zero-argument UAC launch helper.
 //!
-//! Holding an open file handle with `FILE_SHARE_READ` only (`0x0000_0001`) prevents any
-//! concurrent writer, deleter, or renamer from modifying or swapping the target file
-//! between SHA-256 / Authenticode verification and process creation (eliminating TOCTOU).
+//! Holding an open file handle with `FILE_SHARE_READ` only (`0x0000_0001`), rejecting any
+//! reparse point (junction or symlink) along the path, and launching via the handle's
+//! `GetFinalPathNameByHandleW` DOS path prevents concurrent writers, deleters, renamers,
+//! and ancestor-junction retargeting between verification and process creation.
 
 use sha2::{Digest, Sha256};
 use std::fs::{File, OpenOptions};
@@ -12,6 +13,93 @@ use std::time::{Duration, Instant};
 
 const INTEGRITY_ERROR: &str = "vua.deployment.installer_integrity_failed";
 const FILE_SHARE_READ_ONLY: u32 = 0x0000_0001;
+
+/// Strips Windows `\\?\` / `\\?\UNC\` extended-length prefixes into ordinary Win32 DOS or UNC
+/// paths accepted by `ShellExecuteExW` and `CreateProcessW`. Rejects raw `\\.\` or `\\?\Volume`
+/// device namespaces (`None`).
+pub(crate) fn strip_windows_verbatim_prefix(path: &Path) -> Option<PathBuf> {
+    let raw = path.to_string_lossy();
+    if let Some(unc_tail) = raw.strip_prefix(r"\\?\UNC\") {
+        if unc_tail.is_empty() {
+            return None;
+        }
+        return Some(PathBuf::from(format!(r"\\{unc_tail}")));
+    }
+    if let Some(dos_tail) = raw.strip_prefix(r"\\?\") {
+        let bytes = dos_tail.as_bytes();
+        if bytes.first().is_some_and(u8::is_ascii_alphabetic)
+            && bytes.get(1) == Some(&b':')
+            && matches!(bytes.get(2), Some(b'\\' | b'/'))
+        {
+            return Some(PathBuf::from(dos_tail));
+        }
+        return None;
+    }
+    if raw.starts_with(r"\\.\") {
+        return None;
+    }
+    Some(path.to_path_buf())
+}
+
+#[cfg(windows)]
+fn path_has_reparse_point_component(path: &Path) -> io::Result<bool> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::{
+        GetFileAttributesW, FILE_ATTRIBUTE_REPARSE_POINT, INVALID_FILE_ATTRIBUTES,
+    };
+
+    for ancestor in path.ancestors() {
+        // Stop before the volume root (`C:\` or `\\server\share\`) because mounted volumes / VHDX
+        // drive roots may legitimately carry volume mount attributes while subdirectories must not
+        // be junctions or symlinks.
+        if ancestor.parent().is_none() {
+            break;
+        }
+        let wide: Vec<u16> = ancestor.as_os_str().encode_wide().chain(Some(0)).collect();
+        // SAFETY: `wide` is a valid null-terminated UTF-16 buffer for the duration of the call.
+        let attrs = unsafe { GetFileAttributesW(wide.as_ptr()) };
+        if attrs == INVALID_FILE_ATTRIBUTES {
+            return Err(io::Error::last_os_error());
+        }
+        if (attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0 {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+#[cfg(windows)]
+fn final_dos_path_from_handle(file: &File) -> io::Result<PathBuf> {
+    use std::ffi::OsString;
+    use std::os::windows::{ffi::OsStringExt, io::AsRawHandle};
+    use windows_sys::Win32::Storage::FileSystem::{GetFinalPathNameByHandleW, VOLUME_NAME_DOS};
+
+    let handle = file.as_raw_handle().cast();
+    let mut buf = vec![0u16; 512];
+    // SAFETY: `handle` is open and owned by `file`; `buf` is writable for `buf.len()` `u16`s.
+    let mut len = unsafe {
+        GetFinalPathNameByHandleW(handle, buf.as_mut_ptr(), buf.len() as u32, VOLUME_NAME_DOS)
+    };
+    if len == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if (len as usize) >= buf.len() {
+        buf.resize((len as usize) + 1, 0);
+        len = unsafe {
+            GetFinalPathNameByHandleW(handle, buf.as_mut_ptr(), buf.len() as u32, VOLUME_NAME_DOS)
+        };
+        if len == 0 || (len as usize) >= buf.len() {
+            return Err(io::Error::last_os_error());
+        }
+    }
+    let raw_final = PathBuf::from(OsString::from_wide(&buf[..len as usize]));
+    strip_windows_verbatim_prefix(&raw_final).ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "executable handle resolved to a non-DOS device path",
+        )
+    })
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ElevatedLaunchOutcome {
@@ -28,8 +116,10 @@ pub struct LockedExecutable {
 }
 
 impl LockedExecutable {
-    /// Opens `path` read-only with `FILE_SHARE_READ` only on Windows so concurrent writes,
-    /// deletes, and renames fail with `ERROR_SHARING_VIOLATION` until this guard is dropped.
+    /// Opens `path` read-only with `FILE_SHARE_READ` only on Windows, rejects any reparse point
+    /// along the path or resolved handle lineage, and pins `self.path` to the handle's clean DOS
+    /// path (`GetFinalPathNameByHandleW` without `\\?\`) so concurrent writes, deletes, renames,
+    /// and parent-junction swaps fail until this guard is dropped.
     pub fn open_read_locked(path: &Path) -> io::Result<Self> {
         let lossy = path.to_string_lossy();
         if !path.is_absolute() || lossy.contains('"') || lossy.chars().any(char::is_control) {
@@ -39,29 +129,59 @@ impl LockedExecutable {
             ));
         }
 
+        let normalized_input = strip_windows_verbatim_prefix(path).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "executable path uses an unsupported device prefix",
+            )
+        })?;
+
         #[cfg(windows)]
-        let file = {
+        let (file, resolved_path) = {
             use std::os::windows::fs::OpenOptionsExt;
-            OpenOptions::new()
+            if path_has_reparse_point_component(&normalized_input)? {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "reparse point (junction or symlink) along executable path is refused",
+                ));
+            }
+            let file = OpenOptions::new()
                 .read(true)
                 .share_mode(FILE_SHARE_READ_ONLY)
-                .open(path)?
+                .open(&normalized_input)?;
+            let metadata = file.metadata()?;
+            if !metadata.is_file() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "locked executable target is not a regular file",
+                ));
+            }
+            let final_path = final_dos_path_from_handle(&file)?;
+            if path_has_reparse_point_component(&final_path)? {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "resolved executable path contains a reparse point",
+                ));
+            }
+            (file, final_path)
         };
 
         #[cfg(not(windows))]
-        let file = OpenOptions::new().read(true).open(path)?;
-
-        let metadata = file.metadata()?;
-        if !metadata.is_file() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "locked executable target is not a regular file",
-            ));
-        }
+        let (file, resolved_path) = {
+            let file = OpenOptions::new().read(true).open(&normalized_input)?;
+            let metadata = file.metadata()?;
+            if !metadata.is_file() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "locked executable target is not a regular file",
+                ));
+            }
+            (file, normalized_input)
+        };
 
         Ok(Self {
             file,
-            path: path.to_path_buf(),
+            path: resolved_path,
         })
     }
 
@@ -193,7 +313,13 @@ fn run_elevated_no_args_os(path: &Path, timeout: Duration) -> ElevatedLaunchOutc
         },
     };
 
-    if timeout.is_zero() || timeout > Duration::from_secs(3600) || !path.is_absolute() {
+    let path_lossy = path.to_string_lossy();
+    if timeout.is_zero()
+        || timeout > Duration::from_secs(3600)
+        || !path.is_absolute()
+        || path_lossy.starts_with(r"\\?\")
+        || path_lossy.starts_with(r"\\.\")
+    {
         return ElevatedLaunchOutcome::LaunchFailed;
     }
 
@@ -359,6 +485,72 @@ mod tests {
         drop(locked);
         std::fs::rename(&target, &renamed).unwrap();
         std::fs::remove_file(&renamed).unwrap();
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn strip_verbatim_prefix_converts_dos_and_unc_and_rejects_device_paths() {
+        assert_eq!(
+            strip_windows_verbatim_prefix(Path::new(r"\\?\D:\Games\VRChat\Setup.exe")),
+            Some(PathBuf::from(r"D:\Games\VRChat\Setup.exe"))
+        );
+        assert_eq!(
+            strip_windows_verbatim_prefix(Path::new(r"\\?\UNC\server\share\Setup.exe")),
+            Some(PathBuf::from(r"\\server\share\Setup.exe"))
+        );
+        assert_eq!(
+            strip_windows_verbatim_prefix(Path::new(r"\\?\Volume{00000000}\Setup.exe")),
+            None
+        );
+        assert_eq!(
+            strip_windows_verbatim_prefix(Path::new(r"\\.\PhysicalDrive0")),
+            None
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_open_read_locked_strips_verbatim_prefix_and_refuses_ancestor_junctions() {
+        let dir = unique_temp_dir("reparse-guard");
+        let real_sub = dir.join("real_bin");
+        std::fs::create_dir_all(&real_sub).unwrap();
+        let target = real_sub.join("setup.exe");
+        let mut pe = vec![0u8; 128];
+        pe[0] = b'M';
+        pe[1] = b'Z';
+        std::fs::write(&target, pe).unwrap();
+
+        // 1. Canonicalized `\\?\C:\...` input resolves to a clean Win32 DOS path without `\\?\`.
+        let verbatim = std::fs::canonicalize(&target).unwrap();
+        assert!(verbatim.to_string_lossy().starts_with(r"\\?\"));
+        let locked = LockedExecutable::open_read_locked(&verbatim).unwrap();
+        assert!(
+            !locked.path().to_string_lossy().starts_with(r"\\?\"),
+            "locked path must not carry verbatim prefix: {}",
+            locked.path().display()
+        );
+        drop(locked);
+
+        // 2. An ancestor NTFS junction (`mklink /J`, unprivileged on Windows) is refused.
+        let junction_sub = dir.join("junction_bin");
+        let mklink = std::process::Command::new("cmd")
+            .args([
+                "/C",
+                "mklink",
+                "/J",
+                &junction_sub.to_string_lossy(),
+                &real_sub.to_string_lossy(),
+            ])
+            .output()
+            .unwrap();
+        assert!(mklink.status.success(), "mklink /J failed: {mklink:?}");
+
+        let via_junction = junction_sub.join("setup.exe");
+        assert!(via_junction.is_file());
+        let err = LockedExecutable::open_read_locked(&via_junction).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
+
+        let _ = std::fs::remove_dir(&junction_sub);
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

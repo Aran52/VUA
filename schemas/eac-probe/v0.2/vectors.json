@@ -80,6 +80,26 @@
     }
   },
   {
+    "name": "valid repair receipt launched non-blocking",
+    "kind": "repairReceipt",
+    "valid": true,
+    "value": {
+      "schemaVersion": "vua.eac-repair/v0.2",
+      "outcome": "launched",
+      "exitCode": null
+    }
+  },
+  {
+    "name": "valid repair receipt already running",
+    "kind": "repairReceipt",
+    "valid": true,
+    "value": {
+      "schemaVersion": "vua.eac-repair/v0.2",
+      "outcome": "already_running",
+      "exitCode": null
+    }
+  },
+  {
     "name": "valid repair receipt completed",
     "kind": "repairReceipt",
     "valid": true,

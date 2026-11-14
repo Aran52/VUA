@@ -1,13 +1,26 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EacProbeSnapshotV02 } from "@vua/contracts";
+import { dismissToast, toastSnapshot } from "../../components/primitives/toast-store.ts";
 import { eacCopy } from "../../i18n/eac-copy.ts";
 import {
+  EAC_DIALOG_POLL_MS,
+  armUnloadReminder,
+  disarmUnloadReminder,
   eacConclusionHeadline,
   eacEncyclopediaSection,
+  isUnloadReminderArmed,
   isUnloadingLong,
   selectLadderStep,
   shouldShowInlineEacRow,
 } from "./eac-model.ts";
+
+afterEach(() => {
+  disarmUnloadReminder();
+  for (const item of toastSnapshot()) {
+    dismissToast(item.id);
+  }
+  vi.useRealTimers();
+});
 
 const baseSnapshot: EacProbeSnapshotV02 = {
   schemaVersion: "vua.eac-probe/v0.2",
@@ -92,5 +105,43 @@ describe("eac-model view rules", () => {
         logFindings: [{ code: "connection_lost", observedAt: null }],
       }),
     ).toBe("eac-connection-lost");
+  });
+
+  it("keeps unload reminder polling without dialog open and fires ready toast on completion", async () => {
+    vi.useFakeTimers();
+    let pollCount = 0;
+    const inspect = vi.fn(async (): Promise<EacProbeSnapshotV02> => {
+      pollCount += 1;
+      if (pollCount === 1) {
+        return baseSnapshot;
+      }
+      return {
+        ...baseSnapshot,
+        conclusion: "ready",
+        guidanceCode: "vua.eac_probe.ready",
+        plan: [],
+      };
+    });
+
+    expect(isUnloadReminderArmed()).toBe(false);
+    armUnloadReminder({ inspect }, () => eacCopy.en.conclusions.ready_after_wait);
+    expect(isUnloadReminderArmed()).toBe(true);
+
+    // First 5s tick: still unloading -> stays armed, no toast yet.
+    await vi.advanceTimersByTimeAsync(EAC_DIALOG_POLL_MS);
+    expect(inspect).toHaveBeenCalledTimes(1);
+    expect(isUnloadReminderArmed()).toBe(true);
+    expect(toastSnapshot()).toEqual([]);
+
+    // Second 5s tick: transitions to ready -> disarms and emits Tier-2 success toast.
+    await vi.advanceTimersByTimeAsync(EAC_DIALOG_POLL_MS);
+    expect(inspect).toHaveBeenCalledTimes(2);
+    expect(isUnloadReminderArmed()).toBe(false);
+    expect(toastSnapshot()).toEqual([
+      expect.objectContaining({
+        text: eacCopy.en.conclusions.ready_after_wait,
+        tone: "success",
+      }),
+    ]);
   });
 });

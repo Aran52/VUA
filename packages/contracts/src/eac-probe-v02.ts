@@ -76,6 +76,8 @@ export const EAC_TERMINATION_REASONS_V02 = [
 export type EacTerminationReasonV02 = typeof EAC_TERMINATION_REASONS_V02[number];
 
 export const EAC_REPAIR_OUTCOMES_V02 = [
+  "launched",
+  "already_running",
   "completed",
   "elevation_declined",
   "verification_failed",

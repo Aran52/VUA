@@ -9,11 +9,15 @@ import { format, strings } from "../../i18n/index.ts";
 import { openEncyclopedia } from "../help/encyclopedia-navigation.ts";
 import {
   EAC_DIALOG_POLL_MS,
+  armUnloadReminder,
+  completeUnloadReminderWithToast,
   eacConclusionHeadline,
   eacGuideTarget,
   formatEvidenceTime,
+  isUnloadReminderArmed,
   isUnloadingLong,
   selectLadderStep,
+  subscribeUnloadReminder,
 } from "./eac-model.ts";
 import "./eac-dialog.css";
 
@@ -39,7 +43,7 @@ export function EacDialog({
   const [snapshot, setSnapshot] = useState<EacProbeSnapshotV02 | null>(initialSnapshot);
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [stepOffset, setStepOffset] = useState(0);
-  const [remindArmed, setRemindArmed] = useState(false);
+  const [remindArmed, setRemindArmed] = useState<boolean>(() => isUnloadReminderArmed());
   const [readyAfterWait, setReadyAfterWait] = useState(false);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -55,9 +59,9 @@ export function EacDialog({
     setRepairCapable(canLaunchRepair);
     if (!open || canLaunchRepair || !eacPort) return;
     let alive = true;
-    void eacPort.repairCapability().then(
-      (cap) => {
-        if (alive && cap.state === "ready") setRepairCapable(true);
+    void Promise.all([eacPort.repairCapability(), eacPort.getExperimentalTermination()]).then(
+      ([cap, exp]) => {
+        if (alive) setRepairCapable(cap.state === "ready" && exp.enabled);
       },
       () => {},
     );
@@ -77,7 +81,7 @@ export function EacDialog({
     (next: EacProbeSnapshotV02) => {
       if (wasUnloadingRef.current && next.conclusion === "ready") {
         setReadyAfterWait(true);
-        setRemindArmed(false);
+        completeUnloadReminderWithToast(() => strings.eac.conclusions.ready_after_wait);
       }
       wasUnloadingRef.current = next.conclusion === "unloading";
       setSnapshot((prev) => {
@@ -91,6 +95,15 @@ export function EacDialog({
     },
     [onSnapshotChange],
   );
+
+  useEffect(() => {
+    setRemindArmed(isUnloadReminderArmed());
+    if (!open) return subscribeUnloadReminder(() => setRemindArmed(isUnloadReminderArmed()));
+    return subscribeUnloadReminder(
+      () => setRemindArmed(isUnloadReminderArmed()),
+      applySnapshot,
+    );
+  }, [open, applySnapshot]);
 
   const refresh = useCallback(async () => {
     if (!eacPort) return;
@@ -111,11 +124,13 @@ export function EacDialog({
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const tick = async () => {
-      try {
-        const next = await eacPort.inspect();
-        if (active) applySnapshot(next);
-      } catch {
-        /* Keep last snapshot while open. */
+      if (!isUnloadReminderArmed()) {
+        try {
+          const next = await eacPort.inspect();
+          if (active) applySnapshot(next);
+        } catch {
+          /* Keep last snapshot while open. */
+        }
       }
       if (active) {
         timer = setTimeout(() => {
@@ -140,7 +155,6 @@ export function EacDialog({
 
   useEffect(() => {
     if (!open) {
-      setRemindArmed(false);
       setReadyAfterWait(false);
       setFeedback(null);
       setConfirmTerminate(false);
@@ -231,6 +245,12 @@ export function EacDialog({
       const outcome = await eacPort.launchRepair(crypto.randomUUID());
       applySnapshot(outcome.eacSnapshot);
       switch (outcome.repair.outcome) {
+        case "launched":
+          setFeedback(copy.repairConfirm.launched);
+          break;
+        case "already_running":
+          setFeedback(copy.repairConfirm.alreadyRunning);
+          break;
         case "completed":
           setFeedback(
             format(copy.repairConfirm.completed, {
@@ -411,8 +431,12 @@ export function EacDialog({
                       {snapshot.conclusion === "unloading" && !isUnloadingLong(snapshot, nowMs) ? (
                         <Button
                           variant="subtle"
-                          disabled={remindArmed}
-                          onClick={() => setRemindArmed(true)}
+                          disabled={remindArmed || !eacPort}
+                          onClick={() => {
+                            if (eacPort) {
+                              armUnloadReminder(eacPort, () => strings.eac.conclusions.ready_after_wait);
+                            }
+                          }}
                         >
                           {copy.remindWhenReady}
                         </Button>

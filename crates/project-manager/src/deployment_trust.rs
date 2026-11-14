@@ -51,10 +51,54 @@ fn trusted_pico_installer(path: &Path) -> bool {
 /// confirmed leaf subject CN `EasyAntiCheat Oy` (Epic Games subsidiary); both exact CNs are accepted.
 pub(crate) const EAC_TRUSTED_LEAF_SIGNERS: &[&str] = &["EasyAntiCheat Oy", "Epic Games, Inc."];
 
+/// Live uncached Authenticode check. Used at mutation boundaries (e.g. R3 pre-termination
+/// re-verification) where cached verdicts must never substitute for fresh WinVerifyTrust state.
 pub(crate) fn trusted_eac_binary(path: &Path) -> bool {
     path.is_absolute()
         && path.is_file()
         && signature_leaf_cn_matches(path, EAC_TRUSTED_LEAF_SIGNERS)
+}
+
+type EacSigCacheKey = (String, u64, Option<std::time::SystemTime>);
+
+/// Metadata-keyed (`(lowercase_path, byte_len, mtime)`) Authenticode cache strictly for read-only
+/// `inspectEac` polling so 5-second UI refreshes do not re-run `WinVerifyTrust` on unchanged files.
+pub(crate) fn trusted_eac_binary_cached(path: &Path) -> bool {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+
+    static CACHE: OnceLock<Mutex<HashMap<EacSigCacheKey, bool>>> = OnceLock::new();
+
+    if !path.is_absolute() {
+        return false;
+    }
+    let Ok(meta) = std::fs::metadata(path) else {
+        return false;
+    };
+    if !meta.is_file() {
+        return false;
+    }
+    let key: EacSigCacheKey = (
+        path.to_string_lossy()
+            .replace('/', "\\")
+            .to_ascii_lowercase(),
+        meta.len(),
+        meta.modified().ok(),
+    );
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(guard) = cache.lock() {
+        if let Some(&verdict) = guard.get(&key) {
+            return verdict;
+        }
+    }
+    let verdict = signature_leaf_cn_matches(path, EAC_TRUSTED_LEAF_SIGNERS);
+    if let Ok(mut guard) = cache.lock() {
+        if guard.len() >= 32 {
+            guard.clear();
+        }
+        guard.insert(key, verdict);
+    }
+    verdict
 }
 
 fn unity_signature(path: &Path, china: bool) -> bool {

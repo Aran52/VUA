@@ -8,6 +8,9 @@ const SETUP_RELATIVE_SEGMENTS = ["EasyAntiCheat", "EasyAntiCheat_EOS_Setup.exe"]
 
 export interface ProviderInvoker {
   invoke(request: ApplicationRequestV01): Promise<ApplicationResponseV01>;
+  subscribeStatus?: (
+    listener: (status: { readonly state: string; readonly acceptingCalls?: boolean }) => void,
+  ) => () => void;
 }
 
 export interface EacMainOptions {
@@ -21,6 +24,7 @@ export interface EacMainController {
   getExperimentalTermination(): Promise<{ readonly enabled: boolean }>;
   setExperimentalTermination(enabled: boolean): Promise<{ readonly enabled: boolean }>;
   syncProvider(): Promise<void>;
+  ensureSynced(): Promise<void>;
   openRepairFolder(): Promise<{ readonly opened: boolean }>;
 }
 
@@ -86,7 +90,12 @@ async function writePersistedExperimental(filePath: string, enabled: boolean): P
   const tempPath = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
   const payload = `${JSON.stringify({ schemaVersion: 1, enabled }, null, 2)}\n`;
   await fs.promises.writeFile(tempPath, payload, "utf8");
-  await fs.promises.rename(tempPath, filePath);
+  try {
+    await fs.promises.rename(tempPath, filePath);
+  } catch (error) {
+    await fs.promises.unlink(tempPath).catch(() => {});
+    throw error;
+  }
 }
 
 function extractVrchatDirFromSnapshot(value: unknown): string | null {
@@ -109,23 +118,58 @@ function extractVrchatDirFromSnapshot(value: unknown): string | null {
 export function createEacMainController(options: EacMainOptions): EacMainController {
   const settingsFile = path.join(options.userDataDir, EXPERIMENTAL_FILENAME);
   let experimentalEnabled = readPersistedExperimental(settingsFile);
+  let syncedValue: boolean | null = null;
+  let inFlightSync: Promise<void> | null = null;
 
   const syncProvider = async (): Promise<void> => {
+    const target = experimentalEnabled;
     const id = `eac-exp-${crypto.randomUUID()}`;
+    const run = (async () => {
+      try {
+        const response = await options.provider.invoke({
+          contractVersion: APPLICATION_CONTRACT_VERSION,
+          requestId: id,
+          correlationId: id,
+          kind: "command",
+          commandId: id,
+          method: "environment.configureEacExperimental",
+          params: { enabled: target },
+        });
+        if (response.ok && experimentalEnabled === target) {
+          syncedValue = target;
+        }
+      } catch {
+        /* Provider may still be starting or restarting; ensureSynced / subscribeStatus will retry. */
+      }
+    })();
+    inFlightSync = run;
     try {
-      await options.provider.invoke({
-        contractVersion: APPLICATION_CONTRACT_VERSION,
-        requestId: id,
-        correlationId: id,
-        kind: "command",
-        commandId: id,
-        method: "environment.configureEacExperimental",
-        params: { enabled: experimentalEnabled },
-      });
-    } catch {
-      /* Provider may still be starting or running without S5 command support yet. */
+      await run;
+    } finally {
+      if (inFlightSync === run) {
+        inFlightSync = null;
+      }
     }
   };
+
+  const ensureSynced = async (): Promise<void> => {
+    if (syncedValue === experimentalEnabled) return;
+    if (inFlightSync !== null) {
+      await inFlightSync;
+      if (syncedValue === experimentalEnabled) return;
+    }
+    await syncProvider();
+  };
+
+  options.provider.subscribeStatus?.((status) => {
+    if (status.state !== "ready" || status.acceptingCalls === false) {
+      syncedValue = null;
+      return;
+    }
+    if (syncedValue !== experimentalEnabled) {
+      void syncProvider();
+    }
+  });
 
   return {
     isExperimentalEnabled: () => experimentalEnabled,
@@ -136,12 +180,15 @@ export function createEacMainController(options: EacMainOptions): EacMainControl
       if (typeof enabled !== "boolean") {
         throw new Error("invalid EAC experimental toggle");
       }
-      experimentalEnabled = enabled;
+      // Persist to disk FIRST so a failed write never leaves Main, disk, and Provider out of sync.
       await writePersistedExperimental(settingsFile, enabled);
+      experimentalEnabled = enabled;
+      syncedValue = null;
       await syncProvider();
       return { enabled: experimentalEnabled };
     },
     syncProvider,
+    ensureSynced,
     async openRepairFolder() {
       try {
         const id = `eac-open-${crypto.randomUUID()}`;

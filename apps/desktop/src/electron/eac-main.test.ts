@@ -35,8 +35,10 @@ describe("EAC Main controller and Gateway routing", () => {
     fs.writeFileSync(setupPath, "synthetic-setup");
     fs.writeFileSync(outsidePath, "outside-setup");
 
+    const expectedRealSetup = await fs.promises.realpath(setupPath);
     const valid = await resolveVerifiedRepairTarget(vrchatDir);
-    expect(valid).toBe(fs.realpathSync(setupPath));
+    expect(valid).toBe(expectedRealSetup);
+    expect(await resolveVerifiedRepairTarget(vrchatDir, setupPath)).toBe(expectedRealSetup);
 
     const escaped = await resolveVerifiedRepairTarget(vrchatDir, outsidePath);
     expect(escaped).toBeNull();
@@ -101,7 +103,7 @@ describe("EAC Main controller and Gateway routing", () => {
 
     const opened = await controller.openRepairFolder();
     expect(opened).toEqual({ opened: true });
-    expect(shown).toEqual([fs.realpathSync(setupPath)]);
+    expect(shown).toEqual([await fs.promises.realpath(setupPath)]);
 
     expect(await controller.setExperimentalTermination(true)).toEqual({ enabled: true });
     expect(controller.isExperimentalEnabled()).toBe(true);

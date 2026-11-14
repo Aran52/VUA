@@ -50,7 +50,6 @@ export async function resolveVerifiedRepairTarget(
 
     const target = candidateTargetPath ?? path.join(realRoot, ...SETUP_RELATIVE_SEGMENTS);
     if (!path.isAbsolute(target) || target.includes("\0")) return null;
-    if (!isInsideDirectory(realRoot, target)) return null;
 
     const realTarget = await fs.promises.realpath(target);
     if (!isInsideDirectory(realRoot, realTarget)) return null;

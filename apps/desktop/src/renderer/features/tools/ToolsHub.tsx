@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { IconName } from "@vua/design-system";
 import type { ExternalToolId } from "@vua/contracts";
 import { currentLocale, strings } from "../../i18n/index.ts";
@@ -17,23 +17,34 @@ import "./tools.css";
 /** Connected Steam entries share the Candidate connection (VRCFT adds device guidance); planned tools describe themselves and link out. */
 const hints = structureCopy[currentLocale].toolHints;
 const platforms = structureCopy[currentLocale].platforms;
-const groups = [
+export const TOOL_HUB_GROUPS = [
   { key: "toolTracking", icon: "avatar", tools: [{ id: "vrcft", title: "VRCFaceTracking" }, { id: "space", title: "OpenVR Space Calibrator" }, { id: "slimevr", title: "SlimeVR Server" }] },
   { key: "toolTranslation", icon: "question", tools: [{ id: "vrcs", title: "VRCS" }, { id: "translator", title: "OVR Overlay Translator" }, { id: "vrct", title: "VRCT" }] },
   { key: "toolUtilities", icon: "flask", tools: [{ id: "advanced", title: "OVR Advanced Settings" }, { id: "toolkit", title: "OVR Toolkit" }, { id: "oyasumi", title: "OyasumiVR" }, { id: "xsoverlay", title: "XSOverlay" }, { id: "desktopplus", title: "Desktop+" }, { id: "fpsvr", title: "fpsVR" }] },
   { key: "toolSocial", icon: "avatar", tools: [{ id: "vrcx", title: "VRCX" }] },
   { key: "toolCapture", icon: "anim", tools: [{ id: "liv", title: "LIV" }] },
 ] as const;
+const ALL_TOOL_IDS = new Set<string>(TOOL_HUB_GROUPS.flatMap(group => group.tools.map(tool => tool.id)));
+
+function readRequestedTool(hash = window.location.hash): string | null {
+  const [page, query] = hash.replace(/^#\/?/, "").split("?");
+  if ((page !== "tools" && page !== "tools-discover") || !query) return null;
+  const id = new URLSearchParams(query).get("tool");
+  return id !== null && ALL_TOOL_IDS.has(id) ? id : null;
+}
 
 interface ToolGroupItem { readonly id: string; readonly title: string }
 /** A titled row of tool cards with one shared details drawer. */
 export function ToolGroup({ title, group, selected, onSelect, onPrepareSteam }: {
   title: string; group: { readonly icon: IconName; readonly tools: readonly ToolGroupItem[] }; selected: string | null; onSelect(id: string | null): void; onPrepareSteam(): void;
 }) {
-  const [shown, setShown] = useState<string>(group.tools[0]!.id);
+  const [shown, setShown] = useState<string>(() => group.tools.find(tool => tool.id === selected)?.id ?? group.tools[0]!.id);
   const [host, setHost] = useState<HTMLDivElement | null>(null);
   const grid = useRef<HTMLDivElement>(null);
   const columns = useGridColumns(grid);
+  useEffect(() => {
+    if (selected !== null && group.tools.some(tool => tool.id === selected)) setShown(selected);
+  }, [selected, group.tools]);
   const reveal = (id: string) => { setShown(id); onSelect(id); };
   const toggle = (id: string) => { setShown(id); onSelect(selected === id ? null : id); };
   const shownIndex = Math.max(0, group.tools.findIndex(tool => tool.id === shown));
@@ -59,11 +70,27 @@ export function ToolGroup({ title, group, selected, onSelect, onPrepareSteam }: 
 }
 
 export function ToolsHub({ onPrepareSteam }: { onPrepareSteam(): void }) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(() => readRequestedTool());
+  useEffect(() => {
+    const applyHash = () => {
+      const target = readRequestedTool();
+      if (target !== null) {
+        setSelected(target);
+        const escaped =
+          typeof CSS !== "undefined" && typeof CSS.escape === "function"
+            ? CSS.escape(target)
+            : target.replace(/["\\]/g, "\\$&");
+        requestAnimationFrame(() => document.querySelector(`[data-card-entry="tool-${escaped}"]`)?.scrollIntoView?.({ block: "nearest" }));
+      }
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+  }, []);
   const close = useCallback(() => setSelected(null), []);
   useEscapeClose(selected !== null, close);
   return <div className="vua-page vua-route-page vua-tools-hub vua-compact-environments" data-focus-scope>
     <header className="vua-page__hero"><h1 className="vua-title">{strings.journey.tools}</h1></header>
-    {groups.map(group => <ToolGroup key={group.key} title={strings.journey[group.key]} group={group} selected={selected} onSelect={setSelected} onPrepareSteam={onPrepareSteam} />)}
+    {TOOL_HUB_GROUPS.map(group => <ToolGroup key={group.key} title={strings.journey[group.key]} group={group} selected={selected} onSelect={setSelected} onPrepareSteam={onPrepareSteam} />)}
   </div>;
 }

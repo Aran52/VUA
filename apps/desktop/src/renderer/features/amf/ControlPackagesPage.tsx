@@ -27,6 +27,7 @@ import { SkinSlot } from "./control-slots.tsx";
 import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { Alert } from "../../components/primitives/Alert.tsx";
+import { CopyableText } from "../../components/primitives/CopyableText.tsx";
 import { toast } from "../../components/primitives/toast-store.ts";
 import { PRODUCTION_LIST_FRESH_MS, readProductionList, useTaskKey } from "./production-list-read.ts";
 import "./control-center.css";
@@ -322,7 +323,7 @@ function ProjectScreen({ project, level, blocks, repos, catalog, onBack, onNavig
       <div className="vua-control__project-title">
         <span className="vua-control__kind" data-kind={project.kind === "work" ? "avatar" : "material"}><Icon name={project.kind === "work" ? "avatar" : "folder"} size={16}/>{copy.kinds[project.kind]}</span>
         <h2>{project.name}</h2>
-        <p className="vua-caption vua-text-secondary"><span className="vua-control__mono">{project.path}</span> · {project.unityVersion ? format(copy.unity, { version: project.unityVersion }) : copy.unityUnknown}
+        <p className="vua-caption vua-text-secondary"><CopyableText value={project.path} copyLabel={copy.copyPath} copiedLabel={copy.copiedPath}/> · {project.unityVersion ? format(copy.unity, { version: project.unityVersion }) : copy.unityUnknown}
           {project.phase !== null && <> · <span className="vua-line__status" data-status={phaseStatus(project.phase)}>{factory.status[phaseStatus(project.phase)]}</span></>}</p>
       </div>
       {project.runId !== null && <div className="vua-n3__actions">
@@ -334,7 +335,7 @@ function ProjectScreen({ project, level, blocks, repos, catalog, onBack, onNavig
 
     {!project.listed ? <div className="vua-control__panel vua-control__unlisted"><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
         <h3>{copy.unlistedTitle}</h3><p className="vua-text-secondary">{copy.unlistedHint}</p>
-        <p className="vua-control__mono vua-control__path">{project.path}</p>
+        <div className="vua-control__path"><CopyableText value={project.path} copyLabel={copy.copyPath} copiedLabel={copy.copiedPath}/></div>
       </div>
     : <>
       <PackageGuideAlert needs={guide}/>

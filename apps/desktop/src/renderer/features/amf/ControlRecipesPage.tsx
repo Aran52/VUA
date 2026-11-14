@@ -12,7 +12,18 @@ import { toast } from "../../components/primitives/toast-store.ts";
 import { useEscapeClose } from "../../components/use-escape-close.ts";
 import { useMaterialImages } from "./PlanImages.tsx";
 import { latestProductionList, PRODUCTION_LIST_FRESH_MS, readProductionList, useTaskKey } from "./production-list-read.ts";
-import { fastDocumentReadiness, newestFirst, recipeMaterialRows, recipeProductIds, recipeReadiness, type RecipeMaterialRow, type RecipeMaterialSource, type RecipeReadiness } from "./recipe-cards-model.ts";
+import {
+  fastDocumentReadiness,
+  filterRecipeSummaries,
+  newestFirst,
+  recipeMaterialRows,
+  recipeProductIds,
+  recipeReadiness,
+  type RecipeMaterialRow,
+  type RecipeMaterialSource,
+  type RecipeReadiness,
+  type RecipeReadinessFilter,
+} from "./recipe-cards-model.ts";
 import { AmfProductionError, useGateway, type AmfProductionPort, type AmfRecipeSummary, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
@@ -137,6 +148,8 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [renaming, setRenaming] = useState<RecipeTarget | null>(null);
   const [deleting, setDeleting] = useState<RecipeTarget | null>(null);
+  const [recipeQuery, setRecipeQuery] = useState("");
+  const [readinessFilter, setReadinessFilter] = useState<RecipeReadinessFilter>("all");
 
   // Summary-first load: list view renders immediately after `listRecipes()` without waiting for N `getRecipe()` calls.
   useEffect(() => {
@@ -293,8 +306,32 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
   );
   const pictures = useProductPictures(productIds);
   const recipeImages = useRecipeImages(port, summaries);
+  const docMap = useMemo(() => new Map(documents.map(doc => [doc.recipeId, doc] as const)), [documents]);
+  const filteredSummaries = useMemo(
+    () =>
+      summaries === null
+        ? null
+        : filterRecipeSummaries(summaries, {
+            query: recipeQuery,
+            readiness: shownView === "list" ? readinessFilter : "all",
+            recipes: docMap,
+            rows: rowsByRecipe,
+            plans,
+            sources,
+            pictures,
+          }),
+    [summaries, recipeQuery, shownView, readinessFilter, docMap, rowsByRecipe, plans, sources, pictures],
+  );
+  const visibleDocuments = useMemo(() => {
+    if (!filteredSummaries || (recipeQuery.trim() === "" && (shownView !== "list" || readinessFilter === "all"))) {
+      return documents;
+    }
+    const allow = new Set(filteredSummaries.map(item => item.recipeId));
+    return documents.filter(doc => allow.has(doc.recipeId));
+  }, [filteredSummaries, recipeQuery, shownView, readinessFilter, documents]);
   const graph = useMemo(() => buildRecipeGraph(documents, packageNames), [documents, packageNames]);
-  const shared = useMemo(() => sharedParts(graph), [graph]);
+  const visibleGraph = useMemo(() => buildRecipeGraph(visibleDocuments, packageNames), [visibleDocuments, packageNames]);
+  const shared = useMemo(() => sharedParts(visibleGraph), [visibleGraph]);
   const node = graph.nodes.find(item => item.id === selected) ?? null;
   const chooseView = (next: View) => { setView(next); rememberView(next); };
   const reproduce = (recipeId: string) => { requestProductionRecipe(recipeId); onNavigate("workshop"); };
@@ -339,12 +376,22 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
           {shownView === "graph" ? <>
             <SkinSlot name="control-stage-backdrop" className="vua-control__backdrop"/><SkinSlot name="control-stage-edge" className="vua-control__edge"/>
             <div className="vua-control__stage-bar">
-              <span className="vua-caption">{format(copy.count, { recipes: summaries.length, shared: shared.length })}</span>
+              <span className="vua-caption">{format(copy.count, { recipes: (filteredSummaries ?? summaries).length, shared: shared.length })}</span>
+              {(summaries.length > 6 || recipeQuery !== "") && (
+                <input
+                  type="search"
+                  className="vua-control__search"
+                  value={recipeQuery}
+                  placeholder={copy.searchPlaceholder}
+                  aria-label={copy.searchPlaceholder}
+                  onChange={event => setRecipeQuery(event.target.value)}
+                />
+              )}
               <Button variant="subtle" onClick={() => setResetKey(value => value + 1)}><Icon name="refresh" size={16}/>{copy.reset}</Button>
             </div>
-            <RecipeGraphCanvas graph={graph} selectedId={selected} onSelect={setSelected} resetKey={resetKey} label={copy.graphLabel} hint={copy.graphHint} describe={describeNode}/>
+            <RecipeGraphCanvas graph={visibleGraph} selectedId={selected} onSelect={setSelected} resetKey={resetKey} label={copy.graphLabel} hint={copy.graphHint} describe={describeNode}/>
             <Legend/>
-          </> : <RecipeList summaries={summaries} savedMap={savedMap} rows={rowsByRecipe} plans={plans} sources={sources} pictures={pictures} recipeImages={recipeImages} shared={shared} documents={documents} selectedId={selected} onSelect={setSelected} onReproduce={reproduce} onMenu={openRecipeMenu}/>}
+          </> : <RecipeList totalCount={summaries.length} summaries={filteredSummaries ?? summaries} query={recipeQuery} onQueryChange={setRecipeQuery} readinessFilter={readinessFilter} onReadinessFilterChange={setReadinessFilter} savedMap={savedMap} rows={rowsByRecipe} plans={plans} sources={sources} pictures={pictures} recipeImages={recipeImages} shared={shared} documents={documents} selectedId={selected} onSelect={setSelected} onReproduce={reproduce} onMenu={openRecipeMenu}/>}
         </section>
         {showAside ? <aside className="vua-control__details" aria-live="polite">
           {node?.kind === "recipe" && selectedSaved !== null ? <RecipeDetails key={node.id} graph={graph} saved={selectedSaved} rows={rowsByRecipe.get(node.recipeIds[0]!) ?? []} plan={plans.get(node.recipeIds[0]!)} sources={sources} pictures={pictures} onSelect={setSelected} onClose={closeDetails}
@@ -541,8 +588,11 @@ function PartDetails({ node, documents, onSelect, onClose, onNavigate }: {
 }
 
 /** The cards carry everything the graph shows, for keyboard and screen-reader use and for effects-off. */
-function RecipeList({ summaries, savedMap, rows, plans, sources, pictures, recipeImages, shared, documents, selectedId, onSelect, onReproduce, onMenu }: {
-  summaries: readonly AmfRecipeSummary[]; savedMap: ReadonlyMap<string, AmfSavedRecipe>; rows: ReadonlyMap<string, readonly RecipeMaterialRow[]>;
+function RecipeList({ totalCount, summaries, query, onQueryChange, readinessFilter, onReadinessFilterChange, savedMap, rows, plans, sources, pictures, recipeImages, shared, documents, selectedId, onSelect, onReproduce, onMenu }: {
+  totalCount: number; summaries: readonly AmfRecipeSummary[];
+  query: string; onQueryChange: (value: string) => void;
+  readinessFilter: RecipeReadinessFilter; onReadinessFilterChange: (value: RecipeReadinessFilter) => void;
+  savedMap: ReadonlyMap<string, AmfSavedRecipe>; rows: ReadonlyMap<string, readonly RecipeMaterialRow[]>;
   plans: ReadonlyMap<string, AmfRecipeMaterialPlan>; sources: readonly RecipeMaterialSource[]; pictures: Pictures; recipeImages: ReadonlyMap<string, string>;
   shared: readonly GraphNode[]; documents: readonly AmfRecipeDocument[];
   selectedId: string | null; onSelect: (id: string | null) => void; onReproduce: (recipeId: string) => void; onMenu: (event: ReactMouseEvent<HTMLElement>, target: RecipeTarget) => void;
@@ -552,7 +602,38 @@ function RecipeList({ summaries, savedMap, rows, plans, sources, pictures, recip
     ...documents.map(recipe => [recipe.recipeId, recipe.title] as const),
   ]);
   const sharedMaterials = shared.filter(node => node.kind !== "package");
+  const filterLabels: Readonly<Record<RecipeReadinessFilter, string>> = {
+    all: copy.filterAll,
+    ready: copy.filterReady,
+    attention: copy.filterAttention,
+  };
   return <div className="vua-control__list">
+    {(totalCount >= 2 || query !== "" || readinessFilter !== "all") && (
+      <div className="vua-control__list-bar">
+        <input
+          type="search"
+          className="vua-control__search"
+          value={query}
+          placeholder={copy.searchPlaceholder}
+          aria-label={copy.searchPlaceholder}
+          onChange={event => onQueryChange(event.target.value)}
+        />
+        <span className="vua-control__switch vua-segments" role="group" aria-label={copy.listLabel}>
+          <SegmentBar selected={readinessFilter} />
+          {(["all", "ready", "attention"] as const).map(option => (
+            <button
+              type="button"
+              key={option}
+              aria-pressed={readinessFilter === option}
+              onClick={() => onReadinessFilterChange(option)}
+            >
+              {filterLabels[option]}
+            </button>
+          ))}
+        </span>
+      </div>
+    )}
+    {summaries.length === 0 ? <p role="status" className="vua-caption vua-text-secondary">{copy.noMatches}</p> : null}
     <ul className="vua-recipe-cards">{newestFirst(summaries).map(summary => {
       const full = savedMap.get(summary.recipeId);
       const recipe = full?.recipe;

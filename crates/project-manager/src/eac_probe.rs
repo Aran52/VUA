@@ -323,7 +323,8 @@ pub mod v02 {
 
     use crate::deployment_trust::trusted_eac_binary;
     use crate::eac_allowlist::{
-        find_entry, path_pattern_matches, AllowlistV01, EAC_ALLOWLIST_SCHEMA_VERSION,
+        find_entry, load_allowlist, path_pattern_matches, AllowlistEntryV01, AllowlistV01,
+        EAC_ALLOWLIST_SCHEMA_VERSION,
     };
     use crate::eac_install::{
         EacBinaryState, EacFolderState, EacInstallStateV02, InstallSource, WindowsInstallSource,
@@ -335,6 +336,11 @@ pub mod v02 {
     use crate::eac_service::{
         EacServiceName, EacServiceState, ServiceStatusSource, WindowsServiceStatusSource,
     };
+    use crate::eac_terminate::{
+        terminate_candidate, PreCheck, TerminationGuard, TerminationReceiptV01, TerminationRequest,
+    };
+    use crate::environment_managers::ManagerRoots;
+    use crate::{ProcessEntry, ProcessSnapshotSource};
 
     pub const EAC_PROBE_SCHEMA_VERSION_V02: &str = "vua.eac-probe/v0.2";
 
@@ -955,6 +961,128 @@ pub mod v02 {
         }
     }
 
+    /// Builds the S0 real-machine verified user-mode launcher allowlist for a detected VRChat
+    /// installation directory. When no VRChat directory is detected, returns an empty allowlist.
+    pub fn s0_allowlist_for_vrchat_dir(vrchat_dir: Option<&Path>) -> AllowlistV01 {
+        let Some(dir) = vrchat_dir else {
+            return AllowlistV01 {
+                schema_version: EAC_ALLOWLIST_SCHEMA_VERSION.to_owned(),
+                entries: Vec::new(),
+            };
+        };
+        let normalized = dir
+            .to_string_lossy()
+            .trim_end_matches(['\\', '/'])
+            .replace('/', "\\");
+        if normalized.is_empty() {
+            return AllowlistV01 {
+                schema_version: EAC_ALLOWLIST_SCHEMA_VERSION.to_owned(),
+                entries: Vec::new(),
+            };
+        }
+        let doc = serde_json::json!({
+            "schemaVersion": EAC_ALLOWLIST_SCHEMA_VERSION,
+            "entries": [
+                {
+                    "processName": "start_protected_game.exe",
+                    "expectedPathPattern": format!("{normalized}\\start_protected_game.exe"),
+                    "publisherEvidence": "CN=EasyAntiCheat Oy (Authenticode WinVerifyTrust)",
+                    "reason": "User-mode VRChat EAC bootstrapper lingering after game exit",
+                    "evidenceRef": "S0 real-machine verification 2026-11-14",
+                    "addedAt": "2026-11-14T00:00:00Z",
+                    "releaseNotes": "v1.2.0 EAC occupation recovery (experimental)"
+                }
+            ]
+        });
+        load_allowlist(&doc.to_string()).unwrap_or(AllowlistV01 {
+            schema_version: EAC_ALLOWLIST_SCHEMA_VERSION.to_owned(),
+            entries: Vec::new(),
+        })
+    }
+
+    pub trait ProcessTerminator: Send + Sync {
+        fn terminate(
+            &self,
+            pid: u32,
+            entry: &AllowlistEntryV01,
+            source: &dyn ProcessSnapshotSource,
+            task_correlation: &str,
+            clock: &dyn Clock,
+        ) -> TerminationReceiptV01;
+    }
+
+    #[derive(Debug, Default, Clone, Copy)]
+    pub struct WindowsProcessTerminator;
+
+    impl ProcessTerminator for WindowsProcessTerminator {
+        fn terminate(
+            &self,
+            pid: u32,
+            entry: &AllowlistEntryV01,
+            source: &dyn ProcessSnapshotSource,
+            task_correlation: &str,
+            clock: &dyn Clock,
+        ) -> TerminationReceiptV01 {
+            let roots = ManagerRoots {
+                alcom_settings_candidates: Vec::new(),
+            };
+            let request = TerminationRequest {
+                pid,
+                entry,
+                vcc_settings_candidates: &[],
+                roots: &roots,
+                source,
+            };
+            terminate_candidate(&request, task_correlation, clock)
+        }
+    }
+
+    struct V02AsV01ProcessSource<'a>(&'a dyn ProcessSnapshotSourceV02);
+
+    impl ProcessSnapshotSource for V02AsV01ProcessSource<'_> {
+        fn snapshot(&self) -> std::io::Result<Vec<ProcessEntry>> {
+            self.0
+                .snapshot_v02()
+                .map(|entries| {
+                    entries
+                        .into_iter()
+                        .map(|e| ProcessEntry {
+                            image_name: e.image_name,
+                            pid: e.pid,
+                            path: e.path,
+                        })
+                        .collect()
+                })
+                .map_err(std::io::Error::other)
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct EacTerminateOutcomeV02 {
+        pub termination: TerminationReceiptV01,
+        pub eac_snapshot: EacProbeSnapshotV02,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub enum EacTerminateError {
+        ExperimentalDisabled,
+        InvalidParams(&'static str),
+        ProcessUnreadable(String),
+    }
+
+    pub struct EacServiceDeps {
+        pub processes: Arc<dyn ProcessSnapshotSourceV02>,
+        pub windows: Arc<dyn WindowVisibilitySource>,
+        pub services: Arc<dyn ServiceStatusSource>,
+        pub steam: Arc<dyn SteamRunningSource>,
+        pub install: Arc<dyn InstallSource>,
+        pub logs: Arc<dyn LogSource>,
+        pub signature_verifier: Arc<dyn CandidateSignatureVerifier>,
+        pub terminator: Arc<dyn ProcessTerminator>,
+        pub clock: Arc<dyn Clock>,
+    }
+
     /// Stateful host service owning the in-memory `firstObservedAt` service streak tracker and
     /// experimental switch state synchronized from Electron Main.
     pub struct EacProbeService {
@@ -966,6 +1094,7 @@ pub mod v02 {
         logs: Arc<dyn LogSource>,
         tracker: ServiceObservationTracker,
         signature_verifier: Arc<dyn CandidateSignatureVerifier>,
+        terminator: Arc<dyn ProcessTerminator>,
         clock: Arc<dyn Clock>,
         experimental_enabled: Mutex<bool>,
     }
@@ -982,7 +1111,24 @@ pub mod v02 {
                 logs: Arc::new(WindowsVrchatLogSource::default()),
                 tracker: ServiceObservationTracker::default(),
                 signature_verifier: Arc::new(WindowsCandidateSignatureVerifier),
+                terminator: Arc::new(WindowsProcessTerminator),
                 clock: Arc::new(SystemClock),
+                experimental_enabled: Mutex::new(false),
+            }
+        }
+
+        pub fn with_deps(deps: EacServiceDeps) -> Self {
+            Self {
+                processes: deps.processes,
+                windows: deps.windows,
+                services: deps.services,
+                steam: deps.steam,
+                install: deps.install,
+                logs: deps.logs,
+                tracker: ServiceObservationTracker::default(),
+                signature_verifier: deps.signature_verifier,
+                terminator: deps.terminator,
+                clock: deps.clock,
                 experimental_enabled: Mutex::new(false),
             }
         }
@@ -1001,10 +1147,8 @@ pub mod v02 {
         }
 
         pub fn inspect(&self) -> EacProbeSnapshotV02 {
-            let empty_allowlist = AllowlistV01 {
-                schema_version: EAC_ALLOWLIST_SCHEMA_VERSION.to_owned(),
-                entries: Vec::new(),
-            };
+            let allowlist =
+                s0_allowlist_for_vrchat_dir(self.install.detect_vrchat_root().as_deref());
             let sources = EacSources {
                 processes: self.processes.as_ref(),
                 windows: self.windows.as_ref(),
@@ -1013,11 +1157,123 @@ pub mod v02 {
                 install: self.install.as_ref(),
                 logs: self.logs.as_ref(),
                 tracker: &self.tracker,
-                allowlist: &empty_allowlist,
+                allowlist: &allowlist,
                 signature_verifier: self.signature_verifier.as_ref(),
                 experimental_termination_enabled: self.experimental_termination(),
             };
             probe_eac_v02(&sources, self.clock.as_ref())
+        }
+
+        pub fn terminate_residual(
+            &self,
+            pid: u32,
+            created: &str,
+            expected_path: &str,
+            correlation_id: &str,
+        ) -> Result<EacTerminateOutcomeV02, EacTerminateError> {
+            if !self.experimental_termination() {
+                return Err(EacTerminateError::ExperimentalDisabled);
+            }
+            let expected_created: u64 = created
+                .parse()
+                .map_err(|_| EacTerminateError::InvalidParams("created must be u64 ticks"))?;
+            if expected_path.trim().is_empty() {
+                return Err(EacTerminateError::InvalidParams("path must not be empty"));
+            }
+
+            let raw_processes = self
+                .processes
+                .snapshot_v02()
+                .map_err(EacTerminateError::ProcessUnreadable)?;
+
+            let any_vrchat_game = raw_processes.iter().any(|entry| {
+                ProcessKindV02::classify(&entry.image_name) == Some(ProcessKindV02::VrchatGame)
+            });
+            let any_eac_present = raw_processes.iter().any(|entry| {
+                matches!(
+                    ProcessKindV02::classify(&entry.image_name),
+                    Some(
+                        ProcessKindV02::EacLoader
+                            | ProcessKindV02::EacService
+                            | ProcessKindV02::VrchatLauncher
+                    )
+                )
+            });
+            let pre = PreCheck {
+                vrchat_session_active: any_vrchat_game,
+                eac_present: any_eac_present,
+            };
+
+            let target = raw_processes.iter().find(|entry| entry.pid == pid);
+            let fallback_name = target
+                .map(|entry| entry.image_name.as_str())
+                .unwrap_or("start_protected_game.exe");
+
+            // R4: ANY running VRChat.exe process refuses termination unconditionally.
+            if any_vrchat_game {
+                let termination = TerminationReceiptV01::refused_step(
+                    pid,
+                    fallback_name,
+                    correlation_id,
+                    pre,
+                    TerminationGuard::ActiveVrchatSession,
+                    "a running VRChat process is an active session — termination is refused (R4)",
+                );
+                return Ok(EacTerminateOutcomeV02 {
+                    termination,
+                    eac_snapshot: self.inspect(),
+                });
+            }
+
+            let allowlist =
+                s0_allowlist_for_vrchat_dir(self.install.detect_vrchat_root().as_deref());
+            let verified_entry = target.and_then(|proc| {
+                let entry = find_entry(&allowlist, &proc.image_name)?;
+                if proc.created != Some(expected_created) {
+                    return None;
+                }
+                let actual_path = proc.path.as_deref()?;
+                if !actual_path.eq_ignore_ascii_case(expected_path) {
+                    return None;
+                }
+                path_pattern_matches(&entry.expected_path_pattern, actual_path)?;
+                if !self
+                    .signature_verifier
+                    .is_trusted_eac_binary(Path::new(actual_path))
+                {
+                    return None;
+                }
+                Some(entry)
+            });
+
+            let Some(entry) = verified_entry else {
+                let termination = TerminationReceiptV01::refused_step(
+                    pid,
+                    fallback_name,
+                    correlation_id,
+                    pre,
+                    TerminationGuard::VerificationNotVerified,
+                    "candidate process failed PID/creation-time/allowlist-path/publisher re-verification (R3)",
+                );
+                return Ok(EacTerminateOutcomeV02 {
+                    termination,
+                    eac_snapshot: self.inspect(),
+                });
+            };
+
+            let bridged_source = V02AsV01ProcessSource(self.processes.as_ref());
+            let termination = self.terminator.terminate(
+                pid,
+                entry,
+                &bridged_source,
+                correlation_id,
+                self.clock.as_ref(),
+            );
+            let eac_snapshot = self.inspect();
+            Ok(EacTerminateOutcomeV02 {
+                termination,
+                eac_snapshot,
+            })
         }
     }
 }

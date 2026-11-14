@@ -51,6 +51,14 @@ pub trait InstallSource: Send + Sync {
         eos_service_present: bool,
         eos_service_binary: Option<&Path>,
     ) -> Result<EacInstallObservation, String>;
+
+    /// Resolves the detected VRChat installation directory without running signature checks when
+    /// supported by the implementation.
+    fn detect_vrchat_root(&self) -> Option<PathBuf> {
+        self.inspect_install(false, None)
+            .ok()
+            .and_then(|obs| obs.vrchat_dir)
+    }
 }
 
 pub struct WindowsInstallSource {
@@ -98,6 +106,10 @@ fn check_signed_file(path: &Path) -> EacBinaryState {
 }
 
 impl InstallSource for WindowsInstallSource {
+    fn detect_vrchat_root(&self) -> Option<PathBuf> {
+        self.detect_vrchat_dir()
+    }
+
     fn inspect_install(
         &self,
         eos_service_present: bool,

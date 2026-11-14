@@ -236,6 +236,7 @@ pub struct EnvironmentConfig {
 
 struct EnvironmentServices {
     roots: EnvironmentRoots,
+    manager_launcher: vua_project_manager::manager_apps::ManagerAppLauncher,
     play: vua_project_manager::play_session::PlayService,
     tools: HashMap<&'static str, vua_orchestrator::external_tools::ToolService>,
     installer_tools: HashMap<&'static str, vua_orchestrator::external_tools::InstallerToolService>,
@@ -1003,6 +1004,9 @@ pub fn run_provider_host_with_legacy(
     let environment = environment.map(|config| -> Result<_, SqliteStoreError> {
         Ok(Arc::new(EnvironmentServices {
             roots: config.roots.clone(),
+            manager_launcher: vua_project_manager::manager_apps::ManagerAppLauncher::windows(
+                config.roots.clone(),
+            ),
             play: vua_project_manager::play_session::PlayService::windows(config.roots.clone()),
             tools: vua_orchestrator::external_tools::STEAM_TOOLS.iter().map(|spec| (spec.tool_id, vua_orchestrator::external_tools::ToolService::new(Arc::new(vua_project_manager::steam_tools::SteamToolPlatform::new(config.roots.clone(), spec)), Arc::new(SystemClock), spec.tool_id))).collect(),
             installer_tools: vua_orchestrator::external_tools::INSTALLER_TOOLS.iter().map(|spec| (spec.tool_id, vua_orchestrator::external_tools::InstallerToolService::new(Arc::new(vua_project_manager::tool_install::WindowsInstallerToolPlatform::new(config.roots.registry.clone(), spec)), Arc::new(SystemClock), spec.tool_id))).collect(),
@@ -1658,6 +1662,14 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
             correlation_id,
         );
     }
+    if method == "environment.openManagerApp" {
+        return crate::play_session_routes::open_manager_app(
+            state.environment.as_ref().map(|s| &s.manager_launcher),
+            request,
+            request_id,
+            correlation_id,
+        );
+    }
     if matches!(
         method,
         "environment.observePlay" | "environment.startPlay" | "environment.stopPlay"
@@ -2026,6 +2038,7 @@ fn served_capabilities(state: &HostState) -> Value {
         {"operationId": "environment.testWebsites", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "environment.observeGameWindow", "availability": "available"},
         {"operationId": "environment.inspectManagerApps", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "environment.openManagerApp", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "environment.observePlay", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "tools.observeConnection", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "tools.actConnection", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},

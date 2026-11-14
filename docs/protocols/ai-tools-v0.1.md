@@ -1,6 +1,6 @@
 # External Agent tools v0.1
 
-> Document version: 0.16.0
+> Document version: 0.16.1
 > Status: Candidate
 > Updated: 2026-11-14
 > Owner: Integration
@@ -52,6 +52,7 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_play_status`, `vua_request_play` | Existing route observations and card-owned launch/stop; preexisting applications retained |
 | `vua_tool_status`, `vua_request_tool` | Candidate Steam connections for VRCFaceTracking, OpenVR Space Calibrator, OVR Advanced Settings, OVR Toolkit, OyasumiVR, OVR Overlay Translator, ChilloutVR, Reborn, Desktop+ and fpsVR |
 | `vua_installer_tool_status`, `vua_request_installer_tool` | Official-installer companion tools (`installer-tool v0.1`: SlimeVR Server, VRCT, VRCX, VRCS) |
+| `vua_manager_apps`, `vua_request_open_manager` | Sanitized local presence and approval-gated zero-argument breakaway launch of external creator managers ([manager-apps v0.2](manager-apps-v0.2.md): `unity_hub`, `vcc`, `alcom`); local filesystem paths are omitted |
 | `vua_library`, `vua_material_files` | Bounded existing local AMF/BDL library queries (including `v0.3` `sort` and `vn3` filters); no login/download/upload |
 | `vua_terms`, `vua_terms_check` | Recorded [VN3 terms](terms-v0.1.md) of BOOTH products and one use checked across several; local evidence only |
 | `vua_recipes`, `vua_recipe` | Saved local Avatar Recipe summaries and full Recipe documents |

@@ -11,6 +11,7 @@ export function requestPage(request: AiActionRequestV01, taskOrigin: (taskId: st
   if (request.tool === "vua_request_amf_upload") return "release";
   if (request.tool.startsWith("vua_request_amf_")) return "workshop";
   if (request.tool === "vua_request_play") return "env-play";
+  if (request.tool === "vua_request_open_manager") return "env-create";
   if (request.tool === "vua_request_tool" || request.tool === "vua_request_installer_tool") return "tools-discover";
   if (request.tool === "vua_request_installation") {
     const intent = record(params.intent) ? params.intent : {};

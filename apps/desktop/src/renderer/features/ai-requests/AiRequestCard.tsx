@@ -1,4 +1,4 @@
-import { EXTERNAL_TOOL_IDS, EXTERNAL_TOOL_NAMES, INSTALLER_TOOL_IDS, INSTALLER_TOOL_NAMES, type AiActionRequestV01, type ExternalToolId, type InstallerToolId } from "@vua/contracts";
+import { EXTERNAL_TOOL_IDS, EXTERNAL_TOOL_NAMES, INSTALLER_TOOL_IDS, INSTALLER_TOOL_NAMES, MANAGER_APP_IDS, MANAGER_APP_NAMES, type AiActionRequestV01, type ExternalToolId, type InstallerToolId, type ManagerAppId } from "@vua/contracts";
 import { currentLocale, format, strings } from "../../i18n/index.ts";
 import { Card } from "../../components/primitives/Card.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
@@ -13,6 +13,7 @@ function outcome(request: AiActionRequestV01): string {
     vua_request_play: "play",
     vua_request_tool: "tool",
     vua_request_installer_tool: "installerTool",
+    vua_request_open_manager: "openManager",
     vua_request_clear_osc_cache: "clearOscCache",
     vua_request_amf_prepare: "prepare",
     vua_request_amf_assemble: "assemble",
@@ -58,6 +59,7 @@ function Review({ request }: { request: AiActionRequestV01 }) {
     {params.route ? <p>{strings.deployment.purposes[params.route as keyof typeof strings.deployment.purposes] ?? String(params.route)}</p> : null}
     {(EXTERNAL_TOOL_IDS as readonly unknown[]).includes(params.toolId) ? <p><strong>{EXTERNAL_TOOL_NAMES[params.toolId as ExternalToolId]}</strong></p> : null}
     {(INSTALLER_TOOL_IDS as readonly unknown[]).includes(params.toolId) ? <p><strong>{INSTALLER_TOOL_NAMES[params.toolId as InstallerToolId]}</strong></p> : null}
+    {(MANAGER_APP_IDS as readonly unknown[]).includes(params.managerId) ? <p><strong>{MANAGER_APP_NAMES[params.managerId as ManagerAppId]}</strong></p> : null}
     {params.action ? <p>{copy.actions[params.action as keyof typeof copy.actions] ?? String(params.action)}</p> : null}
     {materials.length > 0 ? <><h4>{copy.materials}</h4><ul>{materials.map(({ source, fact }, i) => fact
       ? <Material key={i} role={fact.role ?? source.role} name={fact.name} item={fact.itemName} />

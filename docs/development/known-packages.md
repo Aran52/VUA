@@ -1,6 +1,6 @@
 # Known packages
 
-> Updated: 2026-11-11
+> Updated: 2026-11-14
 
 AMF production resolves the shaders its selected materials need through one known-package
 table. The table lives in `crates/provider-host/src/known_packages.rs`; this document records
@@ -20,6 +20,10 @@ owned by the [AMF production protocol](../protocols/amf-production-v0.1.md).
 | Modular Avatar | `nadena.dev.modular-avatar` | https://vpm.nadena.dev/vpm.json | [MIT](https://github.com/bdunderscore/modular-avatar/blob/main/COPYING.md) | 2026-10-18 | `auto` | Installed during project creation, before any material signal is needed |
 | Non-Destructive Modular Framework | `nadena.dev.ndmf` | https://vpm.nadena.dev/vpm.json | [MIT](https://github.com/bdunderscore/ndmf/blob/main/COPYING.md) | 2026-10-18 | `auto` | Arrives as Modular Avatar's dependency, before any material signal is needed |
 | AAO: Avatar Optimizer | `com.anatawa12.avatar-optimizer` | https://vpm.anatawa12.com/vpm.json | [MIT](https://github.com/anatawa12/AvatarOptimizer/blob/v1.9.21/LICENSE) | 2026-11-11 | `auto` | Explicit player opt-in (`amf.production.setOptimizer`) or Recipe `0.6` reproduction; pinned to `1.9.21`, never installed from material signals |
+| LilyCalInventory | `jp.lilxyzw.lilycalinventory` | https://lilxyzw.github.io/vpm-repos/vpm.json | [MIT](https://github.com/lilxyzw/LilyCalInventory/blob/main/LICENSE) | 2026-11-14 | `auto` | Explicit VPM package addition or Recipe package pin; never installed heuristically from material names |
+| TexTransTool | `net.rs64.tex-trans-tool` | https://vpm.rs64.net/vpm.json | [MIT](https://github.com/ReinaS-64892/TexTransTool/blob/main/LICENSE) | 2026-11-14 | `auto` | Explicit VPM package addition or Recipe package pin; runs non-destructively on NDMF at build time |
+| FaceEmo | `jp.suzuryg.face-emo` | https://suzuryg.github.io/vpm-repos/vpm.json | [MIT](https://github.com/suzuryg/face-emo/blob/main/LICENSE) | 2026-11-14 | `auto` | Explicit VPM package addition or Recipe package pin; non-destructive facial expression editor |
+| VRM Converter for VRChat | `jp.pokemori.vrm-converter-for-vrchat` | https://esperecyan.github.io/VRMConverterForVRChat/registry.json | [MIT](https://github.com/esperecyan/VRMConverterForVRChat/blob/master/LICENSE.txt) | 2026-11-14 | `guide` | Exact VPM package ID; guides players importing `.vrm` avatars toward the official converter workflow |
 | Jerry's VRCFT Templates | `adjerry91.vrcft.templates` | https://adjerry91.github.io/VRCFaceTracking-Templates/index.json | [MIT](https://github.com/Adjerry91/VRCFaceTracking-Templates/blob/main/LICENSE.md) | 2026-10-20 | `guide` | Exact VPM package ID; creator-bundled copies are preserved, with no shader or name heuristic installing anything |
 | Pawlygon Face Tracking | `net.pawlygon.vrc-facetracking` | https://vcc.pawlygon.net/index.json | [MIT](https://github.com/PawlygonStudio/VRC-Facetracking/blob/main/LICENSE.md) | 2026-10-20 | `guide` | Exact VPM package ID; select a release compatible with the intended OSC/native-SDK route |
 | VRCFury | `com.vrcfury.vrcfury` | https://vcc.vrcfury.com | [Source-available terms](https://github.com/VRCFury/VRCFury/blob/main/LICENSE.md), including direct end-user download restrictions | 2026-10-20 | `guide` | Exact VPM package ID; intake reports `hasVrcFury` per prefab from observed `VF.*`/VRCFury component names — an integration hint shown with the official-page guide, never proof of FT or of a working setup |

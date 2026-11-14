@@ -20,7 +20,12 @@ import {
   type SymptomDiagnosisResultV01,
   type SymptomIdV01,
 } from "./local-diagnostics-v01.js";
-import type { ManagerAppsResult } from "./manager-apps.js";
+import {
+  isOpenManagerAppParamsV02,
+  type ManagerAppLaunchResultV02,
+  type ManagerAppsResult,
+  type OpenManagerAppParamsV02,
+} from "./manager-apps.js";
 import { isDownloadEventV01 } from "./download-events.js";
 import { isCatalogSyncPageRequestV01, type CatalogSyncPageRequestV01 } from "./catalog-sync.js";
 import { isCatalogOrdersPageV01, type CatalogOrdersPageV01 } from "./catalog-orders.js";
@@ -2890,6 +2895,7 @@ export type ApplicationRequestV01 =
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.recipeImage" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeMaterialPlan" | "amf.production.recipeApplyPlan" | "amf.production.previewRecipeShare" | "amf.production.previewImage" | "amf.production.releaseState" | "amf.production.turntableFrame" | "amf.production.faceTrackingPlan" | "amf.production.planOutfitRemoval" | "amf.production.planLighting" | "amf.production.planTextureMemory" | "amf.production.listFits"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "amf.production.prepare" | "amf.production.assemble" | "amf.production.reinspect" | "amf.production.open" | "amf.production.closeEditor" | "amf.production.rollback" | "amf.production.restoreRevision" | "amf.production.renameRecipe" | "amf.production.deleteRecipe" | "amf.production.saveRecipe" | "amf.production.prepareRecipe" | "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.applyRecipe" | "amf.production.localTest" | "amf.production.bakeTurntable" | "amf.production.upload" | "amf.production.faceTrackingPatch" | "amf.production.sdkFix" | "amf.production.changeSources" | "amf.production.delete" | "amf.production.setCapacity" | "amf.production.removeOutfit" | "amf.production.applyLighting" | "amf.production.setOptimizer" | "amf.production.applyTextureMemory" | "amf.production.saveFit" | "amf.production.renameFit" | "amf.production.deleteFit"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.inspectManagerApps"; readonly params: Readonly<Record<string, never>> })
+  | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly method: "environment.openManagerApp"; readonly commandId: string; readonly params: OpenManagerAppParamsV02 })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.observePlay"; readonly params: { readonly route: PlayRoute } })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "tools.observeConnection"; readonly params: { readonly toolId: ExternalToolId } })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly method: "tools.actConnection"; readonly commandId: string; readonly params: { readonly toolId: ExternalToolId; readonly action: ExternalToolAction } })
@@ -3072,6 +3078,7 @@ export interface DemoTaskStartedV01 {
 export type ApplicationSuccessValueV01 =
   | ProductTermsV01 | TermsUseCheckV01 | TermsAcceptedV01
   | ManagerAppsResult
+  | ManagerAppLaunchResultV02
   | PlaySessionResult
   | ExternalToolResult
   | InstallerToolResult
@@ -3341,6 +3348,10 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
   }
   if (value.method === "environment.inspectManagerApps") return value.kind === "query"
     && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"]) && hasExactKeys(value.params, []);
+  if (value.method === "environment.openManagerApp") return value.kind === "command"
+    && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"])
+    && isPlayCommandId(value.commandId)
+    && isOpenManagerAppParamsV02(value.params);
   if (value.method === "tools.observeConnection" || value.method === "tools.actConnection") {
     const command = value.method === "tools.actConnection";
     return value.kind === (command ? "command" : "query") && hasExactKeys(value, command ? ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"] : ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])

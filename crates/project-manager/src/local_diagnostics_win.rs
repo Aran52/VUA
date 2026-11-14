@@ -101,15 +101,11 @@ mod win {
         }
 
         let num_entries = words[0] as usize;
-        let max_rows = (actual_bytes as usize)
-            .saturating_sub(4)
-            / std::mem::size_of::<MibUdpRowOwnerPid>();
+        let max_rows =
+            (actual_bytes as usize).saturating_sub(4) / std::mem::size_of::<MibUdpRowOwnerPid>();
         let count = num_entries.min(max_rows);
         let rows = unsafe {
-            std::slice::from_raw_parts(
-                words.as_ptr().add(1) as *const MibUdpRowOwnerPid,
-                count,
-            )
+            std::slice::from_raw_parts(words.as_ptr().add(1) as *const MibUdpRowOwnerPid, count)
         };
 
         // Prefer wildcard (0.0.0.0) or loopback (127.0.0.0/8) binds first, then any local IPv4 bind.

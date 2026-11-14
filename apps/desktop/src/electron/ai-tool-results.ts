@@ -118,6 +118,16 @@ export function librarySummary(value: unknown, includeImages: boolean): unknown 
   return { ...value, items: rows(value.items).map(item => ({ ...item, ...(item.kind === "product" ? { product: product(item.product) } : {}),
     ...(isRecord(item.sourceMatch) ? { sourceMatch: { ...item.sourceMatch, product: product(item.sourceMatch.product) } } : {}) })) };
 }
+export function managerAppsSummary(value: unknown): unknown {
+  if (!isRecord(value) || !isRecord(value.managerApps)) return value;
+  const managerApps = value.managerApps;
+  return {
+    managerApps: {
+      ...pick(managerApps, ["schemaVersion", "capturedAt"]),
+      apps: rows(managerApps.apps).map(app => pick(app, ["component", "presence"])),
+    },
+  };
+}
 export function taskPage(value: unknown, limit = 20, states?: readonly unknown[]): Record<string, unknown> {
   const snapshot = isRecord(value) ? value : {};
   const time = (task: Record<string, unknown>) => Date.parse(String(task.updatedAt)) || 0;

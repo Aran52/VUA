@@ -328,6 +328,74 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         legacy_folders: &[],
         legacy_files: &[],
     },
+    KnownPackage {
+        id: "jp.lilxyzw.lilycalinventory",
+        display_name: "LilyCalInventory",
+        feed_url: LILTOON_FEED,
+        official_url: "https://lilxyzw.github.io/LilyCalInventory/",
+        license: "MIT",
+        license_url: "https://github.com/lilxyzw/LilyCalInventory/blob/main/LICENSE",
+        license_checked: "2026-11-14",
+        delivery: Delivery::Auto,
+        material_markers: &[],
+        shader_guids: &[],
+        version_lines: &[],
+        releases: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
+        legacy_folders: &[],
+        legacy_files: &[],
+    },
+    KnownPackage {
+        id: "net.rs64.tex-trans-tool",
+        display_name: "TexTransTool",
+        feed_url: "https://vpm.rs64.net/vpm.json",
+        official_url: "https://ttt.rs64.net/",
+        license: "MIT",
+        license_url: "https://github.com/ReinaS-64892/TexTransTool/blob/main/LICENSE",
+        license_checked: "2026-11-14",
+        delivery: Delivery::Auto,
+        material_markers: &[],
+        shader_guids: &[],
+        version_lines: &[],
+        releases: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
+        legacy_folders: &[],
+        legacy_files: &[],
+    },
+    KnownPackage {
+        id: "jp.suzuryg.face-emo",
+        display_name: "FaceEmo",
+        feed_url: "https://suzuryg.github.io/vpm-repos/vpm.json",
+        official_url: "https://suzuryg.github.io/face-emo/",
+        license: "MIT",
+        license_url: "https://github.com/suzuryg/face-emo/blob/main/LICENSE",
+        license_checked: "2026-11-14",
+        delivery: Delivery::Auto,
+        material_markers: &[],
+        shader_guids: &[],
+        version_lines: &[],
+        releases: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
+        legacy_folders: &[],
+        legacy_files: &[],
+    },
+    KnownPackage {
+        id: "jp.pokemori.vrm-converter-for-vrchat",
+        display_name: "VRM Converter for VRChat",
+        feed_url: "https://esperecyan.github.io/VRMConverterForVRChat/registry.json",
+        official_url: "https://docs.esperecyan.net/vrm-converter-for-vrchat/",
+        license: "MIT",
+        license_url: "https://github.com/esperecyan/VRMConverterForVRChat/blob/master/LICENSE.txt",
+        license_checked: "2026-11-14",
+        delivery: Delivery::Guide,
+        material_markers: &[],
+        shader_guids: &[],
+        version_lines: &[],
+        releases: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
+        legacy_folders: &[],
+        legacy_files: &[],
+    },
 ];
 
 pub(crate) fn find_known_package(id: &str) -> Option<&'static KnownPackage> {
@@ -572,15 +640,18 @@ pub(crate) fn package_action(
 
 /// The Recipe-pinned packages whose feeds project creation registers. Packages project
 /// creation already installs through its own path (the VRChat SDK, Modular Avatar and
-/// NDMF) keep that path; material-driven `auto` packages and opt-in Avatar Optimizer
-/// register their feed when a Recipe pins them.
+/// NDMF) keep that path; material-driven `auto` packages and opt-in NDMF companion
+/// packages register their feed when a Recipe pins them.
 pub(crate) fn pinned_auto_packages<'a>(
     table: &'a [KnownPackage],
     package_pins: &'a BTreeMap<String, String>,
 ) -> impl Iterator<Item = &'a KnownPackage> {
     table.iter().filter(move |package| {
         matches!(package.delivery, Delivery::Auto)
-            && (package.detects_materials() || package.id == AVATAR_OPTIMIZER_ID)
+            && !matches!(
+                package.id,
+                "com.vrchat.avatars" | "nadena.dev.modular-avatar" | "nadena.dev.ndmf"
+            )
             && package_pins.contains_key(package.id)
     })
 }
@@ -1730,6 +1801,13 @@ mod tests {
                 AVATAR_OPTIMIZER_ID.to_owned(),
                 AVATAR_OPTIMIZER_PINNED_VERSION.to_owned(),
             ),
+            ("jp.lilxyzw.lilycalinventory".to_owned(), "1.1.0".to_owned()),
+            ("net.rs64.tex-trans-tool".to_owned(), "0.9.5".to_owned()),
+            ("jp.suzuryg.face-emo".to_owned(), "1.5.5".to_owned()),
+            (
+                "jp.pokemori.vrm-converter-for-vrchat".to_owned(),
+                "44.0.0".to_owned(),
+            ),
         ]);
         let ids: Vec<_> = pinned_auto_packages(KNOWN_PACKAGES, &pins)
             .map(|package| package.id)
@@ -1739,7 +1817,10 @@ mod tests {
             [
                 "jp.lilxyzw.liltoon",
                 "com.poiyomi.toon",
-                AVATAR_OPTIMIZER_ID
+                AVATAR_OPTIMIZER_ID,
+                "jp.lilxyzw.lilycalinventory",
+                "net.rs64.tex-trans-tool",
+                "jp.suzuryg.face-emo",
             ]
         );
         assert!(avatar_optimizer_compatible(Some("3.10.5"), Some("1.14.8")));

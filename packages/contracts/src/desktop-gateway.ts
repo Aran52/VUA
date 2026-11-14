@@ -6,6 +6,7 @@ import { isTermsParams, type TermsRequestV1 } from "./terms-v01.js";
 import { isAmfProductionParams, type AmfProductionRequestV1 } from "./amf-production-v01.js";
 import { isScenarioEnvironmentParams, type ScenarioEnvironmentRequestV1 } from "./scenario-environment.js";
 import { isPlayCommandId, isPlayParams, type PlayRoute } from "./play-session.js";
+import { isOpenManagerAppParamsV02, type ManagerAppId } from "./manager-apps.js";
 import { isExternalToolParams, type ExternalToolAction, type ExternalToolId } from "./external-tool.js";
 import { isInstallerToolParams, type InstallerToolAction, type InstallerToolId } from "./installer-tool.js";
 import { isLocalDiagnosticsParams, type LocalDiagnosticsGatewayRequestV1 } from "./local-diagnostics-v01.js";
@@ -1113,6 +1114,7 @@ export type DesktopGatewayRequestV1 =
   | AmfProductionRequestV1
   | ScenarioEnvironmentRequestV1
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.inspectManagerApps"; readonly params: Readonly<Record<string, never>> }
+  | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.openManagerApp"; readonly params: { readonly managerId: ManagerAppId; readonly commandId: string } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.observePlay"; readonly params: { readonly route: PlayRoute } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "tools.observeConnection"; readonly params: { readonly toolId: ExternalToolId } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "tools.actConnection"; readonly params: { readonly toolId: ExternalToolId; readonly action: ExternalToolAction; readonly commandId: string } }
@@ -1231,6 +1233,7 @@ export const DESKTOP_GATEWAY_METHOD_KINDS = {
   "diagnostics.clearOscAvatarCache": "command",
   "diagnostics.updateClientConfig": "command",
   "environment.inspectManagerApps": "query",
+  "environment.openManagerApp": "command",
   "environment.startPlay": "command",
   "environment.stopPlay": "command",
   "environment.executeDeployment": "command",
@@ -2103,6 +2106,9 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
       return hasExactKeys(value, REQUEST_KEYS) && isLocalDiagnosticsParams(value.method, value.params, true);
     case "environment.inspectManagerApps":
       return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, []);
+    case "environment.openManagerApp":
+      return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["managerId", "commandId"])
+        && isPlayCommandId(value.params.commandId) && isOpenManagerAppParamsV02({ managerId: value.params.managerId });
     case "environment.startPlay": case "environment.stopPlay":
       return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["route", "commandId"])
         && isPlayCommandId(value.params.commandId) && isPlayParams({ route: value.params.route });

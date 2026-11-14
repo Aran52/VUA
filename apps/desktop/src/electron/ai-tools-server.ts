@@ -7,7 +7,7 @@ import { recommendAssembly, type AmfCandidateFacts, type AmfSourceFacts } from "
 import { isAiUploadConfirmationV01, isDesktopGatewayRequestV1, type AiActionRequestV01, type AiConnectionLocale, type AiToolsSnapshotV01, type AiUploadConfirmationV01, type DesktopGatewayRequestV1, type DesktopGatewayResponseV1 } from "@vua/contracts";
 import { AI_TOOLS, aiGatewayRequest, withUploadConfirmation, type AiToolSpec } from "./ai-tool-catalog.js";
 import { aiConnectionPrompt } from "./ai-connection-prompt.js";
-import { AiToolFailure, errorFields, isRunId, librarySummary, releaseSummary, runSummary, taskChange, taskPage, taskSummary, type AiBuildIdentity } from "./ai-tool-results.js";
+import { AiToolFailure, errorFields, isRunId, librarySummary, managerAppsSummary, releaseSummary, runSummary, taskChange, taskPage, taskSummary, type AiBuildIdentity } from "./ai-tool-results.js";
 
 /** A queued request and the exact typed call it dispatches once the player confirms. */
 export interface StoredAiApproval {
@@ -407,6 +407,7 @@ export class AiToolsServer {
       let data = recommendation && record(read) ? { ...read, recommendation } : read;
       if (name === "vua_status" && record(read)) data = { ...read, build: this.options.build };
       if (name === "vua_library") data = librarySummary(read, args.includeImages === true);
+      if (name === "vua_manager_apps") data = managerAppsSummary(read);
       if (name === "vua_amf_run") data = runSummary(read);
       if (name === "vua_amf_release") data = releaseSummary(read);
       if (name === "vua_task" && record(read)) data = (await this.taskFacts([read], false))[0];
@@ -458,6 +459,8 @@ export class AiToolsServer {
       reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "tools.observeConnection", params: { toolId: request.params.toolId } });
     } else if (request.method === "tools.actInstaller") {
       reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "tools.observeInstaller", params: { toolId: request.params.toolId } });
+    } else if (request.method === "environment.openManagerApp") {
+      reviewed = managerAppsSummary(await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "environment.inspectManagerApps", params: {} }));
     } else if (request.method === "diagnostics.clearOscAvatarCache") {
       reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "diagnostics.observeLocal", params: { schemaVersion: "0.1" } });
     }

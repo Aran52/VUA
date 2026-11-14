@@ -47,10 +47,9 @@ pub(crate) fn request(
         ))
     };
 
-    let envelope_ok = request
-        .as_object()
-        .is_some_and(|o| o.len() == expected_keys.len() && expected_keys.iter().all(|k| o.contains_key(*k)))
-        && request["contractVersion"] == "0.1"
+    let envelope_ok = request.as_object().is_some_and(|o| {
+        o.len() == expected_keys.len() && expected_keys.iter().all(|k| o.contains_key(*k))
+    }) && request["contractVersion"] == "0.1"
         && request["kind"] == if command { "command" } else { "query" }
         && ["requestId", "correlationId"]
             .iter()
@@ -217,7 +216,11 @@ mod tests {
         roots.steam_install_candidates = Vec::new();
         roots.openvrpaths = Vec::new();
         roots.registry = Arc::new(FakeRegistrySource::new());
-        LocalDiagnosticsService::new(roots, Arc::new(StubProbe { running }), Arc::new(SystemClock))
+        LocalDiagnosticsService::new(
+            roots,
+            Arc::new(StubProbe { running }),
+            Arc::new(SystemClock),
+        )
     }
 
     #[test]

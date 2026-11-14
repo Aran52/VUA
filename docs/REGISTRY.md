@@ -1,6 +1,6 @@
 # Contract and decision registry
 
-> Updated: 2026-11-13
+> Updated: 2026-11-14
 
 Contracts, schema directories and decisions with their version, status, owner and last review date. [Documentation governance](meta/documentation-governance.md) defines the statuses and when a row changes. Earlier registry contents, including other document versions, remain in Git history and [the archive](archive/2026-09-29/registry-before-simplification.md).
 
@@ -12,8 +12,8 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/path-configuration.md | ADR | Accepted | Integration | 2026-09-12 |
 | docs/decisions/vua-instance-identity.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
-| docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-11-11 |
-| docs/protocols/ai-tools-v0.1.md | 0.16.0 | Candidate | Integration | 2026-11-14 |
+| docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-11-14 |
+| docs/protocols/ai-tools-v0.1.md | 0.16.1 | Candidate | Integration | 2026-11-14 |
 | docs/protocols/amf-production-v0.1.md | 0.43.0 | Candidate | AMF | 2026-11-12 |
 | docs/protocols/amf-recipe-v0.4.md | 0.6.0 | Candidate | AMF | 2026-10-24 |
 | docs/protocols/amf-recipe-v0.5.md | 0.2.1 | Candidate | AMF | 2026-11-11 |
@@ -61,6 +61,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/library-view-v0.1.md | 0.8 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/library-view-v0.2.md | 0.2.1 | Candidate | AMF | 2026-11-06 |
 | docs/protocols/library-view-v0.3.md | 0.3.0 | Candidate | AMF | 2026-11-07 |
+| docs/protocols/manager-apps-v0.2.md | 0.1.0 | Candidate | Environment | 2026-11-14 |
 | docs/protocols/material-intake-v0.1.md | 0.1 | Implementation baseline | Production | 2026-09-06 |
 | docs/protocols/material-intake-v0.2.md | 0.2.1 | Frozen | Core | 2026-09-21 |
 | docs/protocols/packages-catalog-v0.2.md | 0.2 | Frozen | Core | 2026-09-17 |
@@ -165,6 +166,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/library-view/v0.2 | 0.2 | Candidate | AMF | 2026-10-29 |
 | schemas/library-view/v0.3 | 0.3 | Candidate | AMF | 2026-11-06 |
 | schemas/manager-apps/v0.1/ | 0.1 | Candidate | Environment | 2026-10-09 |
+| schemas/manager-apps/v0.2/ | 0.2 | Candidate | Environment | 2026-11-14 |
 | schemas/packages-catalog/v0.1 | 0.1 | Frozen | Core | 2026-09-17 |
 | schemas/packages-catalog/v0.2 | 0.2 | Frozen | Core | 2026-09-17 |
 | schemas/packages-ops/v0.1 | 0.1 | Frozen | Core | 2026-09-19 |

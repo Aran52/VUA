@@ -620,11 +620,64 @@ describe("run summary", () => {
       vn3: { state: "readable", items: ["C", "I"] },
     });
 
-    // Approval-gated installer tool launch and OSC cache clear review current facts first.
+    // Approval-gated installer tool launch, manager launch and OSC cache clear review current facts first.
     const instReq = await client.callTool({ name: "vua_request_installer_tool", arguments: { toolId: "vrcx", action: "start" } });
     expect(instReq.isError).toBeFalsy();
     const oscReq = await client.callTool({ name: "vua_request_clear_osc_cache", arguments: {} });
     expect(oscReq.isError).toBeFalsy();
     expect(service.snapshot().requests.map(r => r.tool)).toEqual(["vua_request_installer_tool", "vua_request_clear_osc_cache"]);
+  });
+
+  it("exposes sanitized manager-app presence and approval-gated breakaway launch without leaking local paths", async () => {
+    const rawManagers = {
+      managerApps: {
+        schemaVersion: "vua.manager-apps/v0.1",
+        capturedAt: "2026-11-14T00:00:00Z",
+        apps: [
+          { component: "unity_hub", presence: "found", path: "C:\\Program Files\\Unity Hub\\Unity Hub.exe" },
+          { component: "vcc", presence: "not_found", path: null },
+          { component: "alcom", presence: "found", path: "C:\\Users\\Alice\\AppData\\Local\\ALCOM\\ALCOM.exe" },
+        ],
+      },
+    };
+    const { client, calls, service } = await setup(async request => {
+      if (request.method === "environment.inspectManagerApps") return envelope(request, rawManagers);
+      if (request.method === "environment.openManagerApp") {
+        return envelope(request, {
+          managerAppLaunch: {
+            schemaVersion: "vua.manager-apps/v0.2",
+            managerId: request.params.managerId,
+            launchedAt: "2026-11-14T00:00:01Z",
+          },
+        });
+      }
+      return envelope(request, { ok: true });
+    });
+
+    const observed = await client.callTool({ name: "vua_manager_apps", arguments: {} });
+    expect(observed.isError).toBeFalsy();
+    expect(JSON.stringify(observed)).not.toContain("Alice");
+    expect(data(observed).data).toEqual({
+      managerApps: {
+        schemaVersion: "vua.manager-apps/v0.1",
+        capturedAt: "2026-11-14T00:00:00Z",
+        apps: [
+          { component: "unity_hub", presence: "found" },
+          { component: "vcc", presence: "not_found" },
+          { component: "alcom", presence: "found" },
+        ],
+      },
+    });
+
+    const queued = await client.callTool({ name: "vua_request_open_manager", arguments: { managerId: "alcom" } });
+    expect(queued.isError).toBeFalsy();
+    expect(JSON.stringify(queued)).not.toContain("Alice");
+    const pending = service.snapshot().requests[0]!;
+    expect(pending.tool).toBe("vua_request_open_manager");
+    await service.resolve(pending.id, "approve");
+    expect(calls.find(c => c.method === "environment.openManagerApp")?.params).toMatchObject({
+      managerId: "alcom",
+      commandId: expect.stringMatching(/^ai-/),
+    });
   });
 });

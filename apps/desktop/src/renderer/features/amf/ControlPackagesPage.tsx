@@ -397,6 +397,9 @@ function PackageLine({ row, versions, prerelease, busy, canInstall, canRemove, p
 /** Repositories players commonly add. A click only fills the form; the review step still applies. */
 const KNOWN_REPOS = [
   { name: "Avatar Optimizer", url: "https://vpm.anatawa12.com/vpm.json" },
+  { name: "lilToon / LilyCalInventory", url: "https://lilxyzw.github.io/vpm-repos/vpm.json" },
+  { name: "TexTransTool", url: "https://vpm.rs64.net/vpm.json" },
+  { name: "FaceEmo", url: "https://suzuryg.github.io/vpm-repos/vpm.json" },
   { name: "VRCFury", url: "https://vcc.vrcfury.com" },
   { name: "Poiyomi", url: "https://poiyomi.github.io/vpm/index.json" },
 ] as const;

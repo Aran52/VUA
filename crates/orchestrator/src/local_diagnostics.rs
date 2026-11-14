@@ -289,8 +289,12 @@ impl LocalDiagnosticsError {
         match self {
             Self::InvalidParams => "Invalid diagnostics parameters.",
             Self::InvalidCommand => "Command ID was already used with different parameters.",
-            Self::ClientRunning => "Close VRChat completely before modifying local OSC cache or client configuration.",
-            Self::ConfigMalformed => "Existing config.json is not a valid JSON object; VUA left the file untouched.",
+            Self::ClientRunning => {
+                "Close VRChat completely before modifying local OSC cache or client configuration."
+            }
+            Self::ConfigMalformed => {
+                "Existing config.json is not a valid JSON object; VUA left the file untouched."
+            }
             Self::IoFailed => "Local filesystem operation could not be completed.",
         }
     }
@@ -331,7 +335,8 @@ impl LocalDiagnosticsService {
         let captured_at = self.clock.now_rfc3339();
         let client_running = self.probe.is_client_running().ok();
         let vrchat_root = self.vrchat_root();
-        let (client_config, custom_cache_base) = inspect_client_config(&vrchat_root.join("config.json"));
+        let (client_config, custom_cache_base) =
+            inspect_client_config(&vrchat_root.join("config.json"));
         let cache_dir = resolve_cache_dir(&vrchat_root, custom_cache_base.as_deref());
         let client_cache = inspect_client_cache(&cache_dir, &self.roots.local_low);
         let osc = inspect_osc_local(&vrchat_root.join("OSC"), self.probe.as_ref());
@@ -404,7 +409,11 @@ impl LocalDiagnosticsService {
             removed_file_count,
             freed_bytes,
         };
-        remember_command(&mut ledger, command_id, RecordedOutcome::ClearOsc(receipt.clone()));
+        remember_command(
+            &mut ledger,
+            command_id,
+            RecordedOutcome::ClearOsc(receipt.clone()),
+        );
         Ok(receipt)
     }
 
@@ -808,7 +817,8 @@ fn clear_osc_json_files(osc_dir: &Path) -> Result<(u64, u64), LocalDiagnosticsEr
         if is_reparse_or_symlink(&avatars_meta) || !avatars_meta.is_dir() {
             continue;
         }
-        let avatar_files = fs::read_dir(&avatars_dir).map_err(|_| LocalDiagnosticsError::IoFailed)?;
+        let avatar_files =
+            fs::read_dir(&avatars_dir).map_err(|_| LocalDiagnosticsError::IoFailed)?;
         for file_entry in avatar_files.flatten() {
             let file_path = file_entry.path();
             if file_path
@@ -850,18 +860,28 @@ fn steamvr_settings_candidates(roots: &EnvironmentRoots) -> Vec<PathBuf> {
         }
     }
     for (hive, subkey, value_name) in [
-        (RegistryHive::CurrentUser, "Software\\Valve\\Steam", "SteamPath"),
+        (
+            RegistryHive::CurrentUser,
+            "Software\\Valve\\Steam",
+            "SteamPath",
+        ),
         (
             RegistryHive::LocalMachine,
             "SOFTWARE\\WOW6432Node\\Valve\\Steam",
             "InstallPath",
         ),
-        (RegistryHive::LocalMachine, "SOFTWARE\\Valve\\Steam", "InstallPath"),
+        (
+            RegistryHive::LocalMachine,
+            "SOFTWARE\\Valve\\Steam",
+            "InstallPath",
+        ),
     ] {
         if let Some(steam_dir) = roots.registry.get_string(hive, subkey, value_name) {
             let trimmed = steam_dir.trim();
             if !trimmed.is_empty() {
-                let candidate = PathBuf::from(trimmed).join("config").join("steamvr.vrsettings");
+                let candidate = PathBuf::from(trimmed)
+                    .join("config")
+                    .join("steamvr.vrsettings");
                 if !out.contains(&candidate) {
                     out.push(candidate);
                 }
@@ -940,7 +960,11 @@ fn inspect_steamvr_settings(roots: &EnvironmentRoots) -> SteamVrSettingsObservat
             Err(_) => saw_read_error = true,
         }
     }
-    SteamVrSettingsObservation::empty(if saw_read_error { "read_failed" } else { "missing" })
+    SteamVrSettingsObservation::empty(if saw_read_error {
+        "read_failed"
+    } else {
+        "missing"
+    })
 }
 
 fn inspect_recent_client_log(vrchat_root: &Path) -> RecentClientLogObservation {
@@ -1009,11 +1033,7 @@ fn inspect_recent_client_log(vrchat_root: &Path) -> RecentClientLogObservation {
         };
     }
     let mut buf = Vec::with_capacity(LOG_TAIL_MAX_BYTES as usize);
-    if file
-        .take(LOG_TAIL_MAX_BYTES)
-        .read_to_end(&mut buf)
-        .is_err()
-    {
+    if file.take(LOG_TAIL_MAX_BYTES).read_to_end(&mut buf).is_err() {
         return RecentClientLogObservation {
             classification: "read_failed",
             newest_modified_at,
@@ -1124,12 +1144,7 @@ fn collect_findings_for_symptom(
             );
         }
         if snapshot.osc.udp9001.state == "unbound" {
-            push(
-                &mut out,
-                "osc_port_9001_unbound",
-                "info",
-                "companion_osc",
-            );
+            push(&mut out, "osc_port_9001_unbound", "info", "companion_osc");
         }
         if snapshot.osc.avatar_config_count > 0 {
             push(
@@ -1191,7 +1206,11 @@ fn collect_findings_for_symptom(
             push(
                 &mut out,
                 "drive_free_space_low",
-                if disk_relevant { "attention" } else { "warning" },
+                if disk_relevant {
+                    "attention"
+                } else {
+                    "warning"
+                },
                 "hardware_os",
             );
         }
@@ -1524,14 +1543,21 @@ mod tests {
         let temp = TestTempDir::new();
         let roots = test_roots(temp.path());
         let vrc = roots.local_low.join("VRChat").join("VRChat");
-        let osc_avatars = vrc
-            .join("OSC")
-            .join("usr_secret_12345")
-            .join("Avatars");
+        let osc_avatars = vrc.join("OSC").join("usr_secret_12345").join("Avatars");
         fs::create_dir_all(&osc_avatars).unwrap();
-        fs::write(osc_avatars.join("avtr_secret_999.json"), b"{\"id\":\"avtr_secret_999\"}").unwrap();
+        fs::write(
+            osc_avatars.join("avtr_secret_999.json"),
+            b"{\"id\":\"avtr_secret_999\"}",
+        )
+        .unwrap();
         fs::create_dir_all(vrc.join("Cache-WindowsPlayer").join("sub")).unwrap();
-        fs::write(vrc.join("Cache-WindowsPlayer").join("sub").join("bundle.dat"), vec![0u8; 4096]).unwrap();
+        fs::write(
+            vrc.join("Cache-WindowsPlayer")
+                .join("sub")
+                .join("bundle.dat"),
+            vec![0u8; 4096],
+        )
+        .unwrap();
         fs::write(
             vrc.join("config.json"),
             r#"{"cache_size": 40, "cache_expiry_delay": 45, "fpv_steadycam_fov": 65.0}"#,
@@ -1558,7 +1584,10 @@ mod tests {
 
         let probe = Arc::new(FakeProbe {
             running: Ok(true),
-            udp9000: UdpPortObservation::bound(4242, Some("C:\\Apps\\CustomOscRouter.exe".to_owned())),
+            udp9000: UdpPortObservation::bound(
+                4242,
+                Some("C:\\Apps\\CustomOscRouter.exe".to_owned()),
+            ),
             udp9001: UdpPortObservation::unbound(),
         });
         let svc = LocalDiagnosticsService::new(
@@ -1576,16 +1605,31 @@ mod tests {
         assert!(!serialized.contains("C:\\Apps\\"));
 
         assert_eq!(snap.osc.avatar_config_count, 1);
-        assert_eq!(snap.osc.udp9000.owner_process.as_deref(), Some("customoscrouter.exe"));
+        assert_eq!(
+            snap.osc.udp9000.owner_process.as_deref(),
+            Some("customoscrouter.exe")
+        );
         assert_eq!(snap.client_config.cache_size_gb, Some(40));
         assert_eq!(snap.client_cache.total_bytes, Some(4096));
-        assert_eq!(snap.steamvr_settings.blocked_drivers, vec!["01spacecalibrator".to_owned()]);
-        assert_eq!(snap.recent_client_log.classification, "eac_launch_violation");
+        assert_eq!(
+            snap.steamvr_settings.blocked_drivers,
+            vec!["01spacecalibrator".to_owned()]
+        );
+        assert_eq!(
+            snap.recent_client_log.classification,
+            "eac_launch_violation"
+        );
 
         let osc_diag = svc.diagnose_symptom(SymptomId::OscOrFaceTrackingNotResponding);
         assert_eq!(osc_diag.suggested_helper, "clear_osc_avatar_cache");
-        assert!(osc_diag.findings.iter().any(|f| f.code == "osc_port_9000_conflict"));
-        assert!(osc_diag.findings.iter().any(|f| f.code == "steamvr_driver_blocked_by_safe_mode"));
+        assert!(osc_diag
+            .findings
+            .iter()
+            .any(|f| f.code == "osc_port_9000_conflict"));
+        assert!(osc_diag
+            .findings
+            .iter()
+            .any(|f| f.code == "steamvr_driver_blocked_by_safe_mode"));
 
         for sym in [
             SymptomId::AudioSilentOrWrongMic,
@@ -1656,7 +1700,10 @@ mod tests {
         assert!(!osc_avatars.join("avtr_1.json").exists());
         assert!(osc_avatars.join("keep.txt").exists());
         // Idempotent replay with same command_id returns identical receipt.
-        assert_eq!(stopped_svc.clear_osc_avatar_cache("clear-1").unwrap(), clear_receipt);
+        assert_eq!(
+            stopped_svc.clear_osc_avatar_cache("clear-1").unwrap(),
+            clear_receipt
+        );
 
         let cfg_receipt = stopped_svc
             .update_client_config(

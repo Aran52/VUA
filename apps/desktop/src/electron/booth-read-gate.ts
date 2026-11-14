@@ -1,14 +1,16 @@
 import {
   boothFreeAssetsBrowseUrl,
   FREE_ASSET_MAX_ENABLED_KEYWORDS_V01,
+  normalizeFreeAssetsQueryTargetV01,
   type FreeAssetsDesktopErrorV01,
   type FreeAssetsDesktopStatusV01,
   type FreeAssetsIngestSearchPageParamsV01,
+  type FreeAssetsQueryTargetV01,
   type FreeAssetsStateV01,
 } from "@vua/contracts";
 
 export const BOOTH_READ_INTERVAL_MS = 5_000;
-export const FREE_ASSETS_COOLDOWN_MS = 300_000;
+export const FREE_ASSETS_SEARCH_INTERVAL_MS = 1_500;
 
 export interface BoothReadGateOptions {
   readonly minIntervalMs?: number;
@@ -17,10 +19,13 @@ export interface BoothReadGateOptions {
 }
 
 export interface BoothReadGate {
-  /** Waits until the five-second spacing window is open without consuming a slot. */
-  waitUntilReady(signal?: AbortSignal): Promise<void>;
+  /** Waits until the spacing window is open without consuming a slot. */
+  waitUntilReady(signal?: AbortSignal, intervalOverrideMs?: number): Promise<void>;
   /** Acquires the next FIFO BOOTH read slot and stamps the read timestamp. */
-  acquire(signal?: AbortSignal, options?: { readonly foreground?: boolean }): Promise<void>;
+  acquire(
+    signal?: AbortSignal,
+    options?: { readonly foreground?: boolean; readonly minIntervalMs?: number },
+  ): Promise<void>;
   /** Records an external BOOTH session read (such as a library sync page). */
   noteRead(): void;
   /** Marks an active foreground BOOTH operation so background enrichment yields. */
@@ -73,11 +78,18 @@ export function createBoothReadGate(options: BoothReadGateOptions = {}): BoothRe
   let foregroundWaiters = 0;
   let tail: Promise<void> = Promise.resolve();
 
-  const waitUntilReady = async (signal?: AbortSignal): Promise<void> => {
+  const waitUntilReady = async (
+    signal?: AbortSignal,
+    intervalOverrideMs?: number,
+  ): Promise<void> => {
+    const effectiveInterval = intervalOverrideMs ?? minIntervalMs;
     const effectiveSignal = signal ?? new AbortController().signal;
     effectiveSignal.throwIfAborted();
     while (lastReadAt !== null) {
-      const delay = Math.min(minIntervalMs, Math.max(0, minIntervalMs - (now() - lastReadAt)));
+      const delay = Math.min(
+        effectiveInterval,
+        Math.max(0, effectiveInterval - (now() - lastReadAt)),
+      );
       if (delay <= 0) break;
       await wait(delay, effectiveSignal);
       effectiveSignal.throwIfAborted();
@@ -86,7 +98,10 @@ export function createBoothReadGate(options: BoothReadGateOptions = {}): BoothRe
 
   return {
     waitUntilReady,
-    async acquire(signal?: AbortSignal, acquireOptions?: { readonly foreground?: boolean }): Promise<void> {
+    async acquire(
+      signal?: AbortSignal,
+      acquireOptions?: { readonly foreground?: boolean; readonly minIntervalMs?: number },
+    ): Promise<void> {
       signal?.throwIfAborted();
       const isForeground = acquireOptions?.foreground === true;
       if (isForeground) foregroundWaiters += 1;
@@ -112,7 +127,7 @@ export function createBoothReadGate(options: BoothReadGateOptions = {}): BoothRe
           void previous.finally(finishTurn);
           throw error;
         }
-        await waitUntilReady(signal);
+        await waitUntilReady(signal, acquireOptions?.minIntervalMs);
         lastReadAt = now();
         finishTurn();
       } catch (error) {
@@ -167,7 +182,7 @@ export interface FreeAssetsRunnerOptions {
 export interface FreeAssetsRunner {
   status(): FreeAssetsDesktopStatusV01;
   isRunning(): boolean;
-  query(): Promise<FreeAssetsDesktopStatusV01>;
+  query(target?: FreeAssetsQueryTargetV01): Promise<FreeAssetsDesktopStatusV01>;
   cancel(): void;
   subscribe(listener: (status: FreeAssetsDesktopStatusV01) => void): () => void;
   dispose(): void;
@@ -213,29 +228,20 @@ export function createFreeAssetsRunner(options: FreeAssetsRunnerOptions): FreeAs
   let currentKeyword: string | null = null;
   let completedKeywords = 0;
   let totalKeywords = 0;
-  let cooldownUntilMs: number | null = null;
   let lastError: FreeAssetsDesktopErrorV01 | null = null;
   let controller: AbortController | null = null;
   let activePromise: Promise<FreeAssetsDesktopStatusV01> | null = null;
   let disposed = false;
 
-  const currentStatus = (): FreeAssetsDesktopStatusV01 => {
-    const now = nowMs();
-    const activeCooldown = cooldownUntilMs !== null && cooldownUntilMs > now ? cooldownUntilMs : null;
-    if (activeCooldown === null && cooldownUntilMs !== null) {
-      cooldownUntilMs = null;
-      if (lastError === "cooldown") lastError = null;
-    }
-    return {
-      schemaVersion: "0.1",
-      running,
-      currentKeyword,
-      completedKeywords,
-      totalKeywords,
-      cooldownUntilMs: activeCooldown,
-      lastError,
-    };
-  };
+  const currentStatus = (): FreeAssetsDesktopStatusV01 => ({
+    schemaVersion: "0.1",
+    running,
+    currentKeyword,
+    completedKeywords,
+    totalKeywords,
+    cooldownUntilMs: null,
+    lastError,
+  });
 
   const publish = (): FreeAssetsDesktopStatusV01 => {
     const snapshot = currentStatus();
@@ -254,33 +260,42 @@ export function createFreeAssetsRunner(options: FreeAssetsRunnerOptions): FreeAs
   return {
     status: currentStatus,
     isRunning: () => running,
-    async query(): Promise<FreeAssetsDesktopStatusV01> {
+    async query(target?: FreeAssetsQueryTargetV01): Promise<FreeAssetsDesktopStatusV01> {
       if (disposed) return currentStatus();
-      if (activePromise !== null) return currentStatus();
+      const normalized = normalizeFreeAssetsQueryTargetV01(target);
+      if (normalized === "invalid") {
+        lastError = "no_keywords";
+        return publish();
+      }
+      if (activePromise !== null) {
+        controller?.abort();
+        await activePromise.catch(() => undefined);
+        if (disposed) return currentStatus();
+      }
       if (!options.canRun()) {
         lastError = "busy";
         return publish();
       }
-      const initialStatus = currentStatus();
-      if (initialStatus.cooldownUntilMs !== null) {
-        lastError = "cooldown";
-        return publish();
-      }
 
-      const state = await options.readState();
-      if (disposed) return currentStatus();
-      if (activePromise !== null) return currentStatus();
-      if (state === null || !options.canRun()) {
-        lastError = "busy";
-        return publish();
-      }
-      const keywords = state.watchedKeywords
-        .filter((row) => row.enabled)
-        .map((row) => row.keyword)
-        .slice(0, FREE_ASSET_MAX_ENABLED_KEYWORDS_V01);
-      if (keywords.length === 0) {
-        lastError = "no_keywords";
-        return publish();
+      let keywords: readonly string[];
+      if (normalized !== null) {
+        keywords = normalized;
+      } else {
+        const state = await options.readState();
+        if (disposed) return currentStatus();
+        if (activePromise !== null) return currentStatus();
+        if (state === null || !options.canRun()) {
+          lastError = "busy";
+          return publish();
+        }
+        keywords = state.watchedKeywords
+          .filter((row) => row.enabled)
+          .map((row) => row.keyword)
+          .slice(0, FREE_ASSET_MAX_ENABLED_KEYWORDS_V01);
+        if (keywords.length === 0) {
+          lastError = "no_keywords";
+          return publish();
+        }
       }
 
       const abort = new AbortController();
@@ -294,14 +309,18 @@ export function createFreeAssetsRunner(options: FreeAssetsRunnerOptions): FreeAs
       options.onPauseBackground?.();
       publish();
 
-      const runPromise = (async (): Promise<FreeAssetsDesktopStatusV01> => {
+      let runPromise: Promise<FreeAssetsDesktopStatusV01> | null = null;
+      runPromise = (async (): Promise<FreeAssetsDesktopStatusV01> => {
         try {
           for (let index = 0; index < keywords.length; index += 1) {
             const keyword = keywords[index]!;
             currentKeyword = keyword;
             publish();
 
-            await options.gate.acquire(abort.signal, { foreground: true });
+            await options.gate.acquire(abort.signal, {
+              foreground: true,
+              minIntervalMs: FREE_ASSETS_SEARCH_INTERVAL_MS,
+            });
             abort.signal.throwIfAborted();
             if (!options.canRun()) {
               lastError = "busy";
@@ -357,10 +376,6 @@ export function createFreeAssetsRunner(options: FreeAssetsRunnerOptions): FreeAs
             currentKeyword = keywords[index + 1] ?? null;
             publish();
           }
-
-          if (!abort.signal.aborted && lastError === null && completedKeywords === keywords.length) {
-            cooldownUntilMs = nowMs() + FREE_ASSETS_COOLDOWN_MS;
-          }
         } catch {
           if (!abort.signal.aborted && lastError === null) {
             lastError = "network_failed";
@@ -368,8 +383,8 @@ export function createFreeAssetsRunner(options: FreeAssetsRunnerOptions): FreeAs
         } finally {
           running = false;
           currentKeyword = null;
-          controller = null;
-          activePromise = null;
+          if (controller === abort) controller = null;
+          if (activePromise === runPromise) activePromise = null;
           endForeground();
           if (!disposed) options.onResumeBackground?.();
         }

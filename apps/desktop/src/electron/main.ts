@@ -1,7 +1,7 @@
 import { recipeTransferText } from "./amf-recipe-transfer.js";
 import { createCatalogEnricher, readCatalogProduct, type CatalogEnricher, type CatalogProductReader } from "./catalog-enrich.js";
 import { createBoothReadGate, createFreeAssetsRunner, type FreeAssetsRunner } from "./booth-read-gate.js";
-import { isCatalogProductIdV01, isCatalogEnrichmentQueueResultV01, isCatalogEnrichmentBeginResultV01, desktopBrowserBoothItemUrl, isFreeAssetsStateV01 } from "@vua/contracts";
+import { isCatalogProductIdV01, isCatalogEnrichmentQueueResultV01, isCatalogEnrichmentBeginResultV01, desktopBrowserBoothItemUrl, isFreeAssetsStateV01, normalizeFreeAssetsQueryTargetV01 } from "@vua/contracts";
 import { registerRecipeSharing, queueShareLink } from "./recipe-share-ipc.js";
 import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
 import { quitStrings, runningTaskCount } from "./quit-guard.js";
@@ -1506,7 +1506,7 @@ function registerIpc(provider: ModuleProvider): void {
     catalogEnricher?.pause();
     try {
       const searchSignal = AbortSignal.timeout(30_000);
-      await boothReadGate.acquire(searchSignal, { foreground: true });
+      await boothReadGate.acquire(searchSignal, { foreground: true, minIntervalMs: 1_500 });
       assertAmfReady();
       return await searchPublicBoothProducts(query, {
         fetch: async url => {
@@ -1526,12 +1526,14 @@ function registerIpc(provider: ModuleProvider): void {
     assertAmfReady();
     return ensureFreeAssetsRunner().status();
   });
-  ipcMain.handle("vua:free-assets:query", async (event) => {
+  ipcMain.handle("vua:free-assets:query", async (event, target?: unknown) => {
     assertLocalSender(senderFrameUrl(event));
     assertAmfReady();
     await ensureAmfShell();
     assertAmfReady();
-    return ensureFreeAssetsRunner().query();
+    const normalized = normalizeFreeAssetsQueryTargetV01(target);
+    if (normalized === "invalid") throw new Error("invalid free-assets query target");
+    return ensureFreeAssetsRunner().query(normalized);
   });
   ipcMain.handle("vua:free-assets:cancel", (event) => {
     assertLocalSender(senderFrameUrl(event));

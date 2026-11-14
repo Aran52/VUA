@@ -98,11 +98,41 @@ export interface FreeAssetsDesktopStatusV01 {
   readonly lastError: FreeAssetsDesktopErrorV01 | null;
 }
 
+export type FreeAssetsQueryTargetV01 = string | readonly string[] | null | undefined;
+
 export interface FreeAssetsDesktopApiV01 {
   status(): Promise<FreeAssetsDesktopStatusV01>;
-  query(): Promise<FreeAssetsDesktopStatusV01>;
+  query(target?: FreeAssetsQueryTargetV01): Promise<FreeAssetsDesktopStatusV01>;
   cancel(): Promise<void>;
   subscribe(listener: (status: FreeAssetsDesktopStatusV01) => void): () => void;
+}
+
+/** Normalizes an optional desktop query target into `null` (use watched keywords),
+ * a deduplicated 1..5 keyword array, or `"invalid"`. */
+export function normalizeFreeAssetsQueryTargetV01(
+  target: unknown,
+): readonly string[] | null | "invalid" {
+  if (target === undefined || target === null) return null;
+  if (typeof target === "string") {
+    const trimmed = target.trim();
+    return isFreeAssetKeywordV01(trimmed) ? [trimmed] : "invalid";
+  }
+  if (Array.isArray(target)) {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const item of target) {
+      if (typeof item !== "string") return "invalid";
+      const trimmed = item.trim();
+      if (!isFreeAssetKeywordV01(trimmed)) return "invalid";
+      if (!seen.has(trimmed)) {
+        seen.add(trimmed);
+        out.push(trimmed);
+      }
+    }
+    if (out.length < 1 || out.length > FREE_ASSET_MAX_ENABLED_KEYWORDS_V01) return "invalid";
+    return out;
+  }
+  return "invalid";
 }
 
 const record = (v: unknown): v is Record<string, unknown> =>

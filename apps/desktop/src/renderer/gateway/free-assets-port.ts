@@ -5,6 +5,7 @@ import {
   type FreeAssetWatchedKeywordV01,
   type FreeAssetsDesktopApiV01,
   type FreeAssetsDesktopStatusV01,
+  type FreeAssetsQueryTargetV01,
   type FreeAssetsStateV01,
   type FreeAssetsUpdatePreferencesParamsV01,
 } from "@vua/contracts";
@@ -24,7 +25,7 @@ export interface FreeAssetsPort {
   state(): Promise<FreeAssetsStateV01 | null>;
   updatePreferences(patch: FreeAssetsPreferencePatch): Promise<FreeAssetsStateV01 | null>;
   status(): Promise<FreeAssetsDesktopStatusV01>;
-  query(): Promise<FreeAssetsDesktopStatusV01>;
+  query(target?: FreeAssetsQueryTargetV01): Promise<FreeAssetsDesktopStatusV01>;
   cancel(): Promise<void>;
   subscribeStatus(listener: (status: FreeAssetsDesktopStatusV01) => void): Unsubscribe;
 }
@@ -83,10 +84,10 @@ export function createFreeAssetsPort(
         return IDLE_FREE_ASSETS_STATUS;
       }
     },
-    async query() {
+    async query(target) {
       if (!desktopApi) return IDLE_FREE_ASSETS_STATUS;
       try {
-        const value = await desktopApi.query();
+        const value = await desktopApi.query(target);
         return isFreeAssetsDesktopStatusV01(value) ? value : IDLE_FREE_ASSETS_STATUS;
       } catch {
         return IDLE_FREE_ASSETS_STATUS;

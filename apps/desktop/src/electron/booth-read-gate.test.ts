@@ -8,7 +8,7 @@ import {
 import {
   createBoothReadGate,
   createFreeAssetsRunner,
-  FREE_ASSETS_COOLDOWN_MS,
+  FREE_ASSETS_SEARCH_INTERVAL_MS,
 } from "./booth-read-gate.js";
 import { createCatalogEnricher } from "./catalog-enrich.js";
 
@@ -96,7 +96,7 @@ describe("BoothReadGate", () => {
 });
 
 describe("FreeAssetsRunner", () => {
-  it("streams per-keyword results at 5s intervals and enforces the 5-minute manual cooldown", async () => {
+  it("streams per-keyword results at 1.5s search spacing without imposing a manual lockout and supports ad-hoc keyword queries", async () => {
     let perfMs = 0;
     let wallMs = Date.parse("2026-11-14T08:00:00.000Z");
     const gate = createBoothReadGate({
@@ -107,6 +107,7 @@ describe("FreeAssetsRunner", () => {
       },
     });
     const fetchTimes: number[] = [];
+    const fetchedUrls: string[] = [];
     const resetFlags: boolean[] = [];
     const events: FreeAssetsDesktopStatusV01[] = [];
 
@@ -122,6 +123,7 @@ describe("FreeAssetsRunner", () => {
         ]),
       fetch: async (url) => {
         fetchTimes.push(perfMs);
+        fetchedUrls.push(url);
         return {
           status: 200,
           body: "<ul class='market-items'></ul>",
@@ -140,25 +142,22 @@ describe("FreeAssetsRunner", () => {
 
     expect(fetchTimes).toHaveLength(0);
     const completed = await runner.query();
-    expect(fetchTimes).toEqual([0, 5_000]);
+    expect(fetchTimes).toEqual([0, FREE_ASSETS_SEARCH_INTERVAL_MS]);
     expect(resetFlags).toEqual([true, false]);
     expect(completed.running).toBe(false);
     expect(completed.completedKeywords).toBe(2);
     expect(completed.totalKeywords).toBe(2);
     expect(completed.lastError).toBeNull();
-    expect(completed.cooldownUntilMs).toBe(wallMs + FREE_ASSETS_COOLDOWN_MS);
+    expect(completed.cooldownUntilMs).toBeNull();
     expect(events.some((e) => e.running && e.completedKeywords === 1)).toBe(true);
 
-    // Immediate re-query hits the 5-minute cooldown without touching the network.
-    const cooled = await runner.query();
-    expect(cooled.lastError).toBe("cooldown");
-    expect(fetchTimes).toHaveLength(2);
-
-    // After 5 minutes pass, querying is allowed again.
-    wallMs += FREE_ASSETS_COOLDOWN_MS;
-    const afterCooldown = await runner.query();
-    expect(afterCooldown.lastError).toBeNull();
-    expect(fetchTimes).toHaveLength(4);
+    // Immediate ad-hoc single-keyword search works freely without lockout.
+    const adHoc = await runner.query("SyntheticFreeQuery");
+    expect(adHoc.lastError).toBeNull();
+    expect(adHoc.completedKeywords).toBe(1);
+    expect(adHoc.totalKeywords).toBe(1);
+    expect(fetchedUrls.at(-1)).toBe(boothFreeAssetsBrowseUrl("SyntheticFreeQuery"));
+    expect(fetchTimes).toEqual([0, FREE_ASSETS_SEARCH_INTERVAL_MS, FREE_ASSETS_SEARCH_INTERVAL_MS * 2]);
     runner.dispose();
   });
 

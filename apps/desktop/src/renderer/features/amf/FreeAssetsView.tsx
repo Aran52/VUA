@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Icon } from "@vua/design-system";
 import {
   FREE_ASSET_CATEGORY_IDS_V01,
   FREE_ASSET_MAX_ENABLED_KEYWORDS_V01,
   FREE_ASSET_MAX_STORED_KEYWORDS_V01,
+  isFreeAssetKeywordV01,
   type FreeAssetCategoryIdV01,
   type FreeAssetsDesktopStatusV01,
   type FreeAssetsStateV01,
@@ -17,24 +18,32 @@ import { IDLE_FREE_ASSETS_STATUS, type FreeAssetsPort } from "../../gateway/inde
 import { boothCategoryLabel, format, formatDateMinute, strings } from "../../i18n/index.ts";
 import {
   addWatchedKeyword,
-  formatCooldownRemaining,
   projectFreeAssetsView,
   removeWatchedKeyword,
+  selectBatchKeywords,
   toggleEnabledCategory,
-  toggleWatchedKeyword,
 } from "./free-assets-model.ts";
 import "./free-assets.css";
+
+export interface RequestedFreeAssetSearch {
+  readonly id: number;
+  readonly keyword: string;
+}
 
 export function FreeAssetsView({
   port,
   refreshToken,
-  banner,
+  hidden = false,
+  requestedSearch,
+  onStateLoaded,
   onBrowseSites,
   onOpenBoothItem,
 }: {
   port: FreeAssetsPort | undefined;
   refreshToken: number;
-  banner?: ReactNode;
+  hidden?: boolean | undefined;
+  requestedSearch?: RequestedFreeAssetSearch | null | undefined;
+  onStateLoaded?: ((state: FreeAssetsStateV01) => void) | undefined;
   onBrowseSites: () => void;
   onOpenBoothItem: (productId: string) => void;
 }) {
@@ -44,8 +53,8 @@ export function FreeAssetsView({
   const [status, setStatus] = useState<FreeAssetsDesktopStatusV01>(IDLE_FREE_ASSETS_STATUS);
   const [keywordInput, setKeywordInput] = useState("");
   const [localNotice, setLocalNotice] = useState<string | null>(null);
-  const [nowMs, setNowMs] = useState(() => Date.now());
   const prevStatusRef = useRef<FreeAssetsDesktopStatusV01>(IDLE_FREE_ASSETS_STATUS);
+  const handledRequestIdRef = useRef<number>(0);
 
   const reloadState = useCallback(async () => {
     if (!port) {
@@ -56,7 +65,8 @@ export function FreeAssetsView({
     const next = await port.state();
     setState(next);
     setLoaded(true);
-  }, [port]);
+    if (next !== null) onStateLoaded?.(next);
+  }, [port, onStateLoaded]);
 
   useEffect(() => {
     void reloadState();
@@ -65,11 +75,6 @@ export function FreeAssetsView({
   useEffect(() => {
     if (!port) return undefined;
     let mounted = true;
-    void port.status().then(initial => {
-      if (!mounted) return;
-      prevStatusRef.current = initial;
-      setStatus(initial);
-    });
     const unsubscribe = port.subscribeStatus(next => {
       if (!mounted) return;
       const previous = prevStatusRef.current;
@@ -77,43 +82,64 @@ export function FreeAssetsView({
       setStatus(next);
       if (next.completedKeywords !== previous.completedKeywords || (previous.running && !next.running)) {
         void port.state().then(updated => {
-          if (mounted && updated !== null) setState(updated);
+          if (mounted && updated !== null) {
+            setState(updated);
+            onStateLoaded?.(updated);
+          }
         });
       }
+    });
+    void port.status().then(initial => {
+      if (!mounted) return;
+      prevStatusRef.current = initial;
+      setStatus(initial);
     });
     return () => {
       mounted = false;
       unsubscribe();
     };
-  }, [port]);
+  }, [port, onStateLoaded]);
 
-  useEffect(() => {
-    if (status.cooldownUntilMs === null || status.cooldownUntilMs <= Date.now()) return undefined;
-    setNowMs(Date.now());
-    const timer = window.setInterval(() => {
-      const current = Date.now();
-      setNowMs(current);
-      if (status.cooldownUntilMs !== null && current >= status.cooldownUntilMs) {
-        window.clearInterval(timer);
+  const runSearch = useCallback(
+    async (target?: string | readonly string[]) => {
+      if (!port) return;
+      setLocalNotice(null);
+      const next = await port.query(target);
+      prevStatusRef.current = next;
+      setStatus(next);
+      if (!next.running) {
+        const updated = await port.state();
+        if (updated !== null) {
+          setState(updated);
+          onStateLoaded?.(updated);
+        }
       }
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [status.cooldownUntilMs]);
-
-  const projection = useMemo(
-    () => (state ? projectFreeAssetsView(state) : null),
-    [state],
+    },
+    [port, onStateLoaded],
   );
 
-  const cooldownText = formatCooldownRemaining(status.cooldownUntilMs, nowMs);
+  useEffect(() => {
+    if (!requestedSearch || requestedSearch.id === handledRequestIdRef.current) return;
+    handledRequestIdRef.current = requestedSearch.id;
+    const trimmed = requestedSearch.keyword.trim();
+    if (!isFreeAssetKeywordV01(trimmed)) return;
+    setKeywordInput(trimmed);
+    void runSearch(trimmed);
+  }, [requestedSearch, runSearch]);
+
+  const projection = useMemo(() => (state ? projectFreeAssetsView(state) : null), [state]);
+  const batchKeywords = useMemo(() => (state ? selectBatchKeywords(state) : []), [state]);
 
   const applyPreferenceUpdate = async (patch: Parameters<FreeAssetsPort["updatePreferences"]>[0]) => {
     if (!port) return;
     const updated = await port.updatePreferences(patch);
-    if (updated !== null) setState(updated);
+    if (updated !== null) {
+      setState(updated);
+      onStateLoaded?.(updated);
+    }
   };
 
-  const handleAddKeywordValue = async (rawValue: string) => {
+  const handlePinKeyword = async (rawValue: string) => {
     if (!state) return;
     const outcome = addWatchedKeyword(state.watchedKeywords, rawValue);
     if (outcome.kind === "invalid" || outcome.kind === "noop") return;
@@ -127,27 +153,6 @@ export function FreeAssetsView({
         : null,
     );
     await applyPreferenceUpdate({ watchedKeywords: outcome.watchedKeywords });
-  };
-
-  const handleSubmitKeyword = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const submitted = keywordInput;
-    if (submitted.trim() === "") return;
-    setKeywordInput("");
-    void handleAddKeywordValue(submitted);
-  };
-
-  const handleToggleKeyword = async (keyword: string) => {
-    if (!state) return;
-    const outcome = toggleWatchedKeyword(state.watchedKeywords, keyword);
-    if (outcome.kind === "enabled_limit") {
-      setLocalNotice(format(copy.enabledLimitHint, { max: FREE_ASSET_MAX_ENABLED_KEYWORDS_V01 }));
-      return;
-    }
-    if (outcome.kind === "updated") {
-      setLocalNotice(null);
-      await applyPreferenceUpdate({ watchedKeywords: outcome.watchedKeywords });
-    }
   };
 
   const handleRemoveKeyword = async (keyword: string) => {
@@ -165,81 +170,45 @@ export function FreeAssetsView({
     });
   };
 
-  const handleQuery = async () => {
-    if (!port) return;
-    setLocalNotice(null);
-    const next = await port.query();
-    prevStatusRef.current = next;
-    setStatus(next);
+  const trimmedInput = keywordInput.trim();
+  const canSearchInput = isFreeAssetKeywordV01(trimmedInput);
+  const isPinnedInput =
+    canSearchInput && state !== null && state.watchedKeywords.some(entry => entry.keyword === trimmedInput);
+
+  const handleSubmitSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (canSearchInput) {
+      void runSearch(trimmedInput);
+      return;
+    }
+    if (batchKeywords.length > 0) {
+      void runSearch(batchKeywords);
+    }
+  };
+
+  const handleQuickChipSearch = (keyword: string) => {
+    setKeywordInput(keyword);
+    void runSearch(keyword);
   };
 
   return (
-    <div className="vua-free-assets" data-free-assets-view>
-      <header className="vua-page__hero">
-        <h1 className="vua-title">{copy.title}</h1>
-        <p className="vua-caption vua-text-secondary">{copy.subtitle}</p>
+    <div className="vua-free-assets" data-free-assets-view hidden={hidden}>
+      <header className="vua-free-assets__header">
+        <div>
+          <h1 className="vua-title">{copy.title}</h1>
+          <p className="vua-caption vua-text-secondary">
+            {format(copy.subtitle, { max: FREE_ASSET_MAX_ENABLED_KEYWORDS_V01 })}
+          </p>
+        </div>
       </header>
-
-      {banner}
-
-      <div className="vua-free-assets__toolbar">
-        <div className="vua-free-assets__toolbar-start">
-          <Button variant="subtle" data-free-assets-back onClick={onBrowseSites}>
-            <Icon name="arrow-left" size={16} />
-            <span>{copy.browseSites}</span>
-          </Button>
-          {state !== null ? (
-            <span className="vua-free-assets__meta">
-              {state.lastQueriedAt
-                ? format(copy.lastQueried, { time: formatDateMinute(state.lastQueriedAt) })
-                : copy.neverQueried}
-              {projection ? ` · ${format(copy.resultSummary, { visible: projection.visibleItems.length })}` : ""}
-            </span>
-          ) : null}
-        </div>
-        <div className="vua-free-assets__toolbar-end">
-          {status.running ? (
-            <>
-              <span className="vua-free-assets__progress" role="status">
-                {status.currentKeyword
-                  ? format(copy.runningProgress, {
-                      done: Math.min(status.completedKeywords + 1, Math.max(1, status.totalKeywords)),
-                      total: Math.max(1, status.totalKeywords),
-                      keyword: status.currentKeyword,
-                    })
-                  : format(copy.runningPreparing, {
-                      done: status.completedKeywords,
-                      total: Math.max(1, status.totalKeywords),
-                    })}
-              </span>
-              <Button variant="subtle" data-free-assets-cancel onClick={() => void port?.cancel()}>
-                {copy.cancelAction}
-              </Button>
-            </>
-          ) : cooldownText !== null ? (
-            <Button variant="primary" disabled data-free-assets-query>
-              <Icon name="clock" size={16} />
-              <span>{format(copy.cooldownAction, { time: cooldownText })}</span>
-            </Button>
-          ) : (
-            <Button
-              variant="primary"
-              data-free-assets-query
-              disabled={!port || !projection || projection.enabledKeywordCount === 0}
-              onClick={() => void handleQuery()}
-            >
-              <Icon name="refresh" size={16} />
-              <span>{copy.queryAction}</span>
-            </Button>
-          )}
-        </div>
-      </div>
 
       {status.lastError !== null ? (
         <div className="vua-free-assets__notice" data-tone="error" role="status">
           <span>{copy.errors[status.lastError]}</span>
           {status.lastError === "sign_in_required" ? (
-            <Button variant="subtle" onClick={onBrowseSites}>{copy.browseSites}</Button>
+            <Button variant="subtle" onClick={onBrowseSites}>
+              {copy.browseSites}
+            </Button>
           ) : null}
         </div>
       ) : null}
@@ -254,35 +223,101 @@ export function FreeAssetsView({
         <EmptyState
           title={copy.unavailableTitle}
           description={copy.unavailableBody}
-          action={<Button variant="subtle" onClick={() => void reloadState()}>{strings.browser.retry}</Button>}
+          action={
+            <Button variant="subtle" onClick={() => void reloadState()}>
+              {strings.browser.retry}
+            </Button>
+          }
         />
       ) : (
         <>
           <Card className="vua-free-assets__panel">
-            <div className="vua-free-assets__panel-head">
-              <h2 className="vua-free-assets__panel-title">{copy.keywordsLabel}</h2>
-              <span className="vua-free-assets__meta">
-                {format(copy.keywordsHint, {
-                  enabled: projection.enabledKeywordCount,
-                  max: FREE_ASSET_MAX_ENABLED_KEYWORDS_V01,
-                })}
-              </span>
-            </div>
+            <form className="vua-free-assets__form" onSubmit={handleSubmitSearch}>
+              <div className="vua-free-assets__search-box">
+                <Icon name="search" size={16} />
+                <input
+                  type="search"
+                  className="vua-free-assets__input"
+                  maxLength={80}
+                  value={keywordInput}
+                  placeholder={copy.searchPlaceholder}
+                  aria-label={copy.searchPlaceholder}
+                  onChange={event => setKeywordInput(event.target.value)}
+                />
+              </div>
+              <Button
+                type="submit"
+                variant="primary"
+                data-free-assets-query
+                disabled={!port || (!canSearchInput && batchKeywords.length === 0)}
+              >
+                <Icon name="search" size={16} />
+                <span>{copy.searchAction}</span>
+              </Button>
+              {canSearchInput && !isPinnedInput ? (
+                <Button
+                  type="button"
+                  variant="subtle"
+                  data-free-assets-pin
+                  onClick={() => void handlePinKeyword(trimmedInput)}
+                >
+                  <Icon name="pin" size={16} />
+                  <span>{copy.pinAction}</span>
+                </Button>
+              ) : null}
+              {batchKeywords.length >= 2 ? (
+                <Button
+                  type="button"
+                  variant="subtle"
+                  data-free-assets-batch
+                  onClick={() => void runSearch(batchKeywords)}
+                >
+                  <Icon name="refresh" size={16} />
+                  <span>{format(copy.batchQueryAction, { count: batchKeywords.length })}</span>
+                </Button>
+              ) : null}
+              {status.running ? (
+                <div className="vua-free-assets__running">
+                  <span className="vua-free-assets__progress" role="status">
+                    {status.currentKeyword
+                      ? format(copy.runningProgress, {
+                          done: Math.min(status.completedKeywords + 1, Math.max(1, status.totalKeywords)),
+                          total: Math.max(1, status.totalKeywords),
+                          keyword: status.currentKeyword,
+                        })
+                      : format(copy.runningPreparing, {
+                          done: status.completedKeywords,
+                          total: Math.max(1, status.totalKeywords),
+                        })}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="subtle"
+                    data-free-assets-cancel
+                    onClick={() => void port?.cancel()}
+                  >
+                    {copy.cancelAction}
+                  </Button>
+                </div>
+              ) : null}
+            </form>
+
             {state.watchedKeywords.length > 0 ? (
               <div className="vua-free-assets__chips">
+                <span className="vua-free-assets__meta">{copy.pinnedLabel}</span>
                 {state.watchedKeywords.map(entry => (
                   <span
                     key={entry.keyword}
                     className="vua-free-assets__keyword-chip"
-                    data-enabled={entry.enabled ? "true" : "false"}
+                    data-enabled="true"
                   >
                     <button
                       type="button"
                       className="vua-free-assets__keyword-toggle"
-                      aria-pressed={entry.enabled}
-                      onClick={() => void handleToggleKeyword(entry.keyword)}
+                      data-free-assets-chip={entry.keyword}
+                      onClick={() => handleQuickChipSearch(entry.keyword)}
                     >
-                      {entry.enabled ? <Icon name="check" size={16} /> : null}
+                      <Icon name="pin" size={16} />
                       <span>{entry.keyword}</span>
                     </button>
                     <button
@@ -298,37 +333,34 @@ export function FreeAssetsView({
                 ))}
               </div>
             ) : null}
+
             {projection.availableSuggestions.length > 0 ? (
               <div className="vua-free-assets__chips">
                 <span className="vua-free-assets__meta">{copy.suggestedLabel}</span>
                 {projection.availableSuggestions.map(keyword => (
-                  <button
-                    key={keyword}
-                    type="button"
-                    className="vua-free-assets__pill"
-                    onClick={() => void handleAddKeywordValue(keyword)}
-                  >
-                    <Icon name="add" size={16} />
-                    <span>{keyword}</span>
-                  </button>
+                  <span key={keyword} className="vua-free-assets__keyword-chip" data-enabled="false">
+                    <button
+                      type="button"
+                      className="vua-free-assets__keyword-toggle"
+                      data-free-assets-chip={keyword}
+                      onClick={() => handleQuickChipSearch(keyword)}
+                    >
+                      <Icon name="avatar" size={16} />
+                      <span>{keyword}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="vua-free-assets__keyword-remove"
+                      aria-label={`${copy.pinAction}: ${keyword}`}
+                      title={copy.pinAction}
+                      onClick={() => void handlePinKeyword(keyword)}
+                    >
+                      <Icon name="add" size={16} />
+                    </button>
+                  </span>
                 ))}
               </div>
             ) : null}
-            <form className="vua-free-assets__form" onSubmit={handleSubmitKeyword}>
-              <input
-                type="text"
-                className="vua-free-assets__input"
-                maxLength={80}
-                value={keywordInput}
-                placeholder={copy.keywordPlaceholder}
-                aria-label={copy.keywordPlaceholder}
-                onChange={event => setKeywordInput(event.target.value)}
-              />
-              <Button type="submit" variant="subtle" disabled={keywordInput.trim() === ""}>
-                <Icon name="add" size={16} />
-                <span>{copy.addKeyword}</span>
-              </Button>
-            </form>
           </Card>
 
           <Card className="vua-free-assets__panel">
@@ -374,6 +406,12 @@ export function FreeAssetsView({
                     {format(copy.restoreDismissed, { count: projection.dismissedCount })}
                   </Button>
                 ) : null}
+                <span className="vua-free-assets__meta">
+                  {state.lastQueriedAt
+                    ? format(copy.lastQueried, { time: formatDateMinute(state.lastQueriedAt) })
+                    : copy.neverQueried}
+                  {` · ${format(copy.resultSummary, { visible: projection.visibleItems.length })}`}
+                </span>
               </div>
             </div>
           </Card>
@@ -441,7 +479,9 @@ export function FreeAssetsView({
                         ) : null}
                         <div className="vua-free-assets__chips">
                           {item.matchedKeywords.map(keyword => (
-                            <Badge key={keyword} tone="neutral">{keyword}</Badge>
+                            <Badge key={keyword} tone="neutral">
+                              {keyword}
+                            </Badge>
                           ))}
                         </div>
                         <div className="vua-free-assets__card-foot">
@@ -454,21 +494,10 @@ export function FreeAssetsView({
                 );
               })}
             </div>
-          ) : state.watchedKeywords.length === 0 ? (
-            <EmptyState
-              title={copy.emptyNoKeywordsTitle}
-              description={copy.emptyNoKeywordsBody}
-            />
           ) : state.lastQueriedAt === null ? (
-            <EmptyState
-              title={copy.emptyNotQueriedTitle}
-              description={copy.emptyNotQueriedBody}
-            />
+            <EmptyState title={copy.emptyNotQueriedTitle} description={copy.emptyNotQueriedBody} />
           ) : (
-            <EmptyState
-              title={copy.emptyFilteredTitle}
-              description={copy.emptyFilteredBody}
-            />
+            <EmptyState title={copy.emptyFilteredTitle} description={copy.emptyFilteredBody} />
           )}
         </>
       )}

@@ -44,6 +44,37 @@ export function projectFreeAssetsView(state: FreeAssetsStateV01): FreeAssetsView
   };
 }
 
+/** Up to 5 Avatar keywords for one-click multi-Avatar batch search: enabled pinned
+ * keywords first, falling back to owned Avatar suggestions from the library. */
+export function selectBatchKeywords(state: FreeAssetsStateV01): readonly string[] {
+  const enabledPinned = state.watchedKeywords
+    .filter(entry => entry.enabled)
+    .map(entry => entry.keyword)
+    .slice(0, FREE_ASSET_MAX_ENABLED_KEYWORDS_V01);
+  if (enabledPinned.length > 0) return enabledPinned;
+  return state.suggestedKeywords.slice(0, FREE_ASSET_MAX_ENABLED_KEYWORDS_V01);
+}
+
+/** Deduplicated quick-chip Avatar keywords for the Browser Homepage hero card. */
+export function selectHeroQuickKeywords(state: FreeAssetsStateV01 | null, limit = 8): readonly string[] {
+  if (!state) return [];
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of state.watchedKeywords) {
+    if (seen.has(entry.keyword)) continue;
+    seen.add(entry.keyword);
+    result.push(entry.keyword);
+    if (result.length >= limit) return result;
+  }
+  for (const keyword of state.suggestedKeywords) {
+    if (seen.has(keyword)) continue;
+    seen.add(keyword);
+    result.push(keyword);
+    if (result.length >= limit) return result;
+  }
+  return result;
+}
+
 export type AddKeywordOutcome =
   | {
       readonly kind: "updated";

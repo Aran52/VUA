@@ -11,6 +11,8 @@ import {
   INITIAL_BROWSER_DOWNLOAD_BANNER,
   projectFreeAssetsView,
   removeWatchedKeyword,
+  selectBatchKeywords,
+  selectHeroQuickKeywords,
   toggleEnabledCategory,
   toggleWatchedKeyword,
 } from "./free-assets-model.ts";
@@ -121,5 +123,15 @@ describe("free-assets-model", () => {
     banner = browserDownloadBannerReducer(banner, { type: "adopt-succeeded" });
     expect(banner).toEqual({ pending: [], adoptingTaskId: null, completedNotice: true });
     expect(browserDownloadBannerReducer(banner, { type: "dismiss" })).toEqual(INITIAL_BROWSER_DOWNLOAD_BANNER);
+  });
+
+  it("selects batch and hero quick keywords from pinned and owned Avatar suggestions", () => {
+    expect(selectBatchKeywords(baseState)).toEqual(["SyntheticBaseA"]);
+    expect(selectBatchKeywords({ ...baseState, watchedKeywords: [] })).toEqual([
+      "SyntheticBaseA",
+      "SyntheticBaseB",
+    ]);
+    expect(selectHeroQuickKeywords(baseState)).toEqual(["SyntheticBaseA", "SyntheticBaseB"]);
+    expect(selectHeroQuickKeywords(null)).toEqual([]);
   });
 });

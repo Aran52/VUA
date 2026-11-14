@@ -4,9 +4,9 @@
 > Status: Implementation baseline (2026-11-14)
 > Owner: AMF acquisition
 
-This face backs the opt-in **Free assets** (`免费素材` / `無料配布`) view inside AMF's
-`Browse BOOTH` page ([product boundary](../product-boundary.md#booth-free-asset-discovery-and-browser-download-adoption-user-ruling-2026-11-14)).
-Electron Main owns the BOOTH session, polite read spacing, manual refresh cooldown, and
+This face backs the opt-in **BOOTH Free** tab inside AMF's
+top-level `Browse` page ([product boundary](../product-boundary.md#booth-free-asset-discovery-and-browser-download-adoption-user-ruling-2026-11-14)).
+Electron Main owns the BOOTH session, polite read spacing, and
 cancellation; AMF parses supplied public browse pages, computes live Warehouse ownership
 status against BDL, and persists preferences and the last result cache in its own local
 state file (`<VUA_PROVIDER_DATA>/free-assets-state.json`). No BDL tables or migrations
@@ -79,17 +79,19 @@ without blocking AMF startup.
 
 ## Desktop transport and browser adoption
 
-Main exposes `window.vua.freeAssets` (`status()`, `query()`, `cancel()`, `subscribe()`) to
+Main exposes `window.vua.freeAssets` (`status()`, `query(target?)`, `cancel()`, `subscribe()`) to
 trusted local senders when AMF is ready:
 
-- Zero startup or background requests. `query()` runs only on explicit player invocation,
-  requires at least one enabled watched keyword (at most 5), enforces a 300-second manual
-  refresh cooldown after a completed run, and rejects concurrent runs or runs while
-  `catalogSync` or active `DownloadPort` transfers are busy.
+- Zero startup or background requests. `query(target?)` runs only on explicit player invocation
+  for an ad-hoc keyword (`string`), an explicit list of 1–5 keywords (`readonly string[]`), or
+  the enabled watched keywords (`undefined` / `null`, at most 5). A new player query supersedes
+  any in-flight free-assets query; runs yield with `"busy"` only while `catalogSync` or active
+  `DownloadPort` transfers are running.
 - Every BOOTH session HTTP read (`freeAssets`, `catalogEnricher`, `catalogSync.fetchProduct`,
-  and `catalogSync.searchProducts`) acquires a slot from the shared Main BOOTH read gate
-  (`booth-read-gate.ts`) enforcing at least **5,000 ms** between consecutive BOOTH reads.
-  Foreground reads pause `catalogEnricher` while queued or active.
+  and `catalogSync.searchProducts`) acquires a slot from the shared Main FIFO BOOTH read gate
+  (`booth-read-gate.ts`), enforcing `5,000 ms` minimum spacing for item-page enrichment and
+  silent downloads and `1,500 ms` minimum spacing for public keyword and `max_price=0` browse
+  searches. Foreground reads pause `catalogEnricher` while queued or active.
 - `query()` streams per-keyword updates over `vua:free-assets:changed`, supports immediate
   `AbortSignal` cancellation via `cancel()`, and halts immediately on HTTP `403`, `429`,
   `5xx`, network error, or sign-in redirection without clearing prior cached results if the

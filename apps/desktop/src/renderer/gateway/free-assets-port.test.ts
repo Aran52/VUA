@@ -54,6 +54,9 @@ describe("FreeAssetsPort", () => {
       }),
     );
     expect(await port.query()).toEqual(runningStatus);
+    expect(desktopApi.query).toHaveBeenNthCalledWith(1, undefined);
+    expect(await port.query("SyntheticBaseA")).toEqual(runningStatus);
+    expect(desktopApi.query).toHaveBeenNthCalledWith(2, "SyntheticBaseA");
     const received: FreeAssetsDesktopStatusV01[] = [];
     const off = port.subscribeStatus(next => received.push(next));
     statusListener!(runningStatus);

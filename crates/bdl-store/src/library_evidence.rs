@@ -300,14 +300,20 @@ impl BdlStore {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
-    /// Complete `3Dキャラクター` titles observed in BDL, ordered deterministically by
-    /// `product_id`, for extracting literal Avatar Base keyword suggestions.
+    /// Base-avatar product titles observed in BDL (including partially synced library
+    /// cards whose title names an original 3D model before enrichment completes), ordered
+    /// deterministically for extracting literal Avatar Base keyword suggestions.
     pub fn character_product_titles(&self) -> Result<Vec<String>, BdlStoreError> {
         let connection = self.connection.lock().expect("SQLite connection poisoned");
         let mut statement = connection.prepare(
             "SELECT title FROM products
-             WHERE status = 'complete' AND source_category = '3Dキャラクター' AND title IS NOT NULL
-             ORDER BY product_id",
+             WHERE title IS NOT NULL
+               AND (
+                 source_category = '3Dキャラクター'
+                 OR title LIKE '%オリジナル3Dモデル%'
+                 OR title LIKE '%Original 3D Model%'
+               )
+             ORDER BY CASE WHEN source_category = '3Dキャラクター' THEN 0 ELSE 1 END, product_id",
         )?;
         let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
         Ok(rows.collect::<Result<_, _>>()?)

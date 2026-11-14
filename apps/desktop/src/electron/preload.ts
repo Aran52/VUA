@@ -422,7 +422,8 @@ const api: VuaDesktopApiV7 = Object.freeze({
   }),
   freeAssets: Object.freeze({
     status: () => ipcRenderer.invoke("vua:free-assets:status"),
-    query: () => ipcRenderer.invoke("vua:free-assets:query"),
+    query: (target?: string | readonly string[] | null) =>
+      ipcRenderer.invoke("vua:free-assets:query", target ?? null),
     cancel: () => ipcRenderer.invoke("vua:free-assets:cancel"),
     subscribe: (listener: (status: FreeAssetsDesktopStatusV01) => void) => {
       const wrapped = (_event: IpcRendererEvent, payload: FreeAssetsDesktopStatusV01) => listener(payload);

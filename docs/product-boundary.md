@@ -586,11 +586,13 @@ materials, infer ownership, or follow description links. Disabling AMF or quitti
 
 ## BOOTH free-asset discovery and browser download adoption (user ruling, 2026-11-14)
 
-Under AMF's `Browse BOOTH` (`浏览 BOOTH 素材`) surface, VUA offers an opt-in, manually triggered
-**Free assets** (`免费素材` / `無料配布`) view. It queries public BOOTH `3Dモデル` `max_price=0`
-browse pages (`sort=new&in_stock=true`, page 1 only, at most 60 cards per keyword) for at most
-five player-enabled Avatar Base keywords. It never runs on startup or on a background timer,
-displays no unread badges, and offers no batch selection or automated claim action.
+AMF exposes `Browse` as a top-level sidebar page beside `Materials`, opening on a local
+Browser Homepage with zero automatic external requests, community site shortcuts, and an opt-in
+**BOOTH Free** tab. When triggered by the player, `BOOTH Free` queries public BOOTH `3Dモデル`
+`max_price=0` browse pages (`sort=new&in_stock=true`, page 1 only, at most 60 cards per keyword)
+either for a single player-entered keyword / clicked Avatar Base chip or for at most five pinned
+Avatar Base keywords. It never runs on startup or on a background timer, displays no unread
+badges, and offers no batch selection or automated claim action.
 
 Across account-library sync, silent downloads of already-owned files, background enrichment,
 public keyword lookup, and free-asset discovery, VUA applies one consistent rule with respect
@@ -598,9 +600,10 @@ to BOOTH's usage guidelines and pixiv Common Terms of Service Article 14 (revise
 items 23 and 24): VUA executes BOOTH reads and file transfers **only after explicit player
 initiation and at human-achievable polite pacing**, and **never automatically claims or acquires
 unowned items on the player's behalf**. Electron Main coordinates foreground and background
-BOOTH session reads through a shared minimum five-second spacing gate, enforces a five-minute
-cooldown on manual free-asset refreshes, and stops immediately on HTTP 403, 429, 5xx or sign-in
-redirection.
+BOOTH session reads through one shared FIFO read gate (`5,000 ms` minimum spacing for item-page
+enrichment and silent downloads; `1,500 ms` minimum spacing for public keyword and `max_price=0`
+browse searches, with no artificial multi-minute lockout on manual searches), and stops immediately
+on HTTP 403, 429, 5xx or sign-in redirection.
 
 Clicking a free-asset card opens the creator's item page (`https://booth.pm/ja/items/<digits>`)
 in the built-in `SiteBrowser` (`purpose="assets"`), where the player views the author's

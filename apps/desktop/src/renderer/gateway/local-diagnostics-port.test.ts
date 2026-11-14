@@ -32,6 +32,7 @@ const sampleSnapshot: LocalDiagnosticsSnapshotV01 = {
     newestModifiedAt: "2026-11-14T01:55:00.000Z",
     udp9000: { state: "unbound", ownerPid: null, ownerProcess: null },
     udp9001: { state: "unbound", ownerPid: null, ownerProcess: null },
+    oscQuery: { state: "not_detected", httpPort: null, advertisedOscPort: null, ownerProcess: null },
   },
   steamvrSettings: {
     presence: "missing",
@@ -40,6 +41,26 @@ const sampleSnapshot: LocalDiagnosticsSnapshotV01 = {
     vrchatResolutionScale: null,
     safeModeEnabled: null,
     blockedDrivers: [],
+  },
+  audioEndpoints: {
+    state: "observed",
+    defaultCaptureRole: "physical_or_usb",
+    virtualMicHijack: "none",
+    communicationsMismatch: false,
+  },
+  streamingSettings: {
+    questLink: {
+      presence: "missing",
+      encodeResolutionWidth: null,
+      encodeBitrateMbps: null,
+      dynamicBitrate: null,
+      linkSharpening: null,
+    },
+    picoConnect: {
+      presence: "missing",
+      preset: null,
+      bitrateMbps: null,
+    },
   },
   recentClientLog: {
     classification: "clean_or_inconclusive",

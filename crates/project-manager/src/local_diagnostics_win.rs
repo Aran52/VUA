@@ -1,9 +1,10 @@
-//! Windows adapter for `local-diagnostics v0.1`: read-only IPv4 UDP owner-table
-//! inspection (`GetExtendedUdpTable` `AF_INET`, `UDP_TABLE_OWNER_PID`) and Toolhelp32
-//! process liveness/basename resolution without binding UDP sockets or touching game memory.
+//! Windows adapter for `local-diagnostics v0.1`: read-only IPv4 UDP/TCP owner-table
+//! inspection (`GetExtendedUdpTable` / `GetExtendedTcpTable`), bounded loopback OSCQuery
+//! `HOST_INFO` inspection, and Toolhelp32 process liveness/basename resolution without
+//! binding game UDP sockets or touching game memory.
 
 use vua_orchestrator::local_diagnostics::{
-    LocalDiagnosticsProbe, ProcessProbeUnavailable, UdpPortObservation,
+    LocalDiagnosticsProbe, OscQueryLoopbackObservation, ProcessProbeUnavailable, UdpPortObservation,
 };
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -33,11 +34,28 @@ impl LocalDiagnosticsProbe for WindowsLocalDiagnosticsProbe {
             UdpPortObservation::probe_unavailable()
         }
     }
+
+    fn probe_oscquery_loopback(&self) -> OscQueryLoopbackObservation {
+        #[cfg(windows)]
+        {
+            win::probe_oscquery_loopback()
+        }
+        #[cfg(not(windows))]
+        {
+            OscQueryLoopbackObservation::probe_unavailable()
+        }
+    }
 }
 
 #[cfg(windows)]
 mod win {
-    use vua_orchestrator::local_diagnostics::UdpPortObservation;
+    use std::collections::HashMap;
+    use std::io::{Read, Write};
+    use std::net::{SocketAddr, TcpStream};
+    use std::time::Duration;
+    use vua_orchestrator::local_diagnostics::{
+        parse_oscquery_host_info, OscQueryLoopbackObservation, UdpPortObservation,
+    };
     use windows_sys::Win32::{
         Foundation::{CloseHandle, INVALID_HANDLE_VALUE},
         System::Diagnostics::ToolHelp::{
@@ -48,8 +66,17 @@ mod win {
 
     const AF_INET: u32 = 2;
     const UDP_TABLE_OWNER_PID: i32 = 1;
+    const TCP_TABLE_OWNER_PID_LISTENER: i32 = 3;
     const ERROR_INSUFFICIENT_BUFFER: u32 = 122;
     const NO_ERROR: u32 = 0;
+    const OSCQUERY_TIMEOUT: Duration = Duration::from_millis(120);
+    const OSCQUERY_MAX_BYTES: u64 = 64 * 1024;
+    const OSCQUERY_CANDIDATE_PROCESSES: &[&str] = &[
+        "vrchat.exe",
+        "vrcfacetracking.exe",
+        "slimevr.exe",
+        "pharos-hub.exe",
+    ];
 
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -59,10 +86,30 @@ mod win {
         dw_owning_pid: u32,
     }
 
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct MibTcpRowOwnerPid {
+        dw_state: u32,
+        dw_local_addr: u32,
+        dw_local_port: u32,
+        dw_remote_addr: u32,
+        dw_remote_port: u32,
+        dw_owning_pid: u32,
+    }
+
     #[link(name = "iphlpapi")]
     extern "system" {
         fn GetExtendedUdpTable(
             p_udp_table: *mut u8,
+            pdw_size: *mut u32,
+            b_order: i32,
+            ul_af: u32,
+            table_class: i32,
+            reserved: u32,
+        ) -> u32;
+
+        fn GetExtendedTcpTable(
+            p_tcp_table: *mut u8,
             pdw_size: *mut u32,
             b_order: i32,
             ul_af: u32,
@@ -165,6 +212,128 @@ mod win {
         }
         found
     }
+
+    fn snapshot_process_basenames() -> HashMap<u32, String> {
+        let mut map = HashMap::new();
+        let handle = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
+        if handle == INVALID_HANDLE_VALUE {
+            return map;
+        }
+        let mut entry: PROCESSENTRY32W = unsafe { std::mem::zeroed() };
+        entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+        let mut more = unsafe { Process32FirstW(handle, &mut entry) };
+        while more != 0 {
+            let end = entry
+                .szExeFile
+                .iter()
+                .position(|c| *c == 0)
+                .unwrap_or(entry.szExeFile.len());
+            let name = String::from_utf16_lossy(&entry.szExeFile[..end]);
+            let trimmed = name.trim();
+            if !trimmed.is_empty() {
+                map.insert(entry.th32ProcessID, trimmed.to_ascii_lowercase());
+            }
+            more = unsafe { Process32NextW(handle, &mut entry) };
+        }
+        unsafe {
+            CloseHandle(handle);
+        }
+        map
+    }
+
+    pub(super) fn list_loopback_tcp_listeners() -> Option<Vec<(u16, u32)>> {
+        let mut size: u32 = 0;
+        let first = unsafe {
+            GetExtendedTcpTable(
+                std::ptr::null_mut(),
+                &mut size,
+                0,
+                AF_INET,
+                TCP_TABLE_OWNER_PID_LISTENER,
+                0,
+            )
+        };
+        if first != ERROR_INSUFFICIENT_BUFFER && first != NO_ERROR {
+            return None;
+        }
+        let mut words = vec![0u32; (size as usize / 4).saturating_add(128).max(64)];
+        let mut actual_bytes = (words.len() * 4) as u32;
+        let status = unsafe {
+            GetExtendedTcpTable(
+                words.as_mut_ptr() as *mut u8,
+                &mut actual_bytes,
+                0,
+                AF_INET,
+                TCP_TABLE_OWNER_PID_LISTENER,
+                0,
+            )
+        };
+        if status != NO_ERROR || actual_bytes < 4 {
+            return None;
+        }
+        let num_entries = words[0] as usize;
+        let max_rows =
+            (actual_bytes as usize).saturating_sub(4) / std::mem::size_of::<MibTcpRowOwnerPid>();
+        let count = num_entries.min(max_rows);
+        let rows = unsafe {
+            std::slice::from_raw_parts(words.as_ptr().add(1) as *const MibTcpRowOwnerPid, count)
+        };
+        let mut out = Vec::new();
+        for row in rows {
+            let addr_host_order = u32::from_be(row.dw_local_addr);
+            if addr_host_order != 0 && (addr_host_order >> 24) != 127 {
+                continue;
+            }
+            let port = u16::from_be((row.dw_local_port & 0xFFFF) as u16);
+            if port >= 1024 {
+                out.push((port, row.dw_owning_pid));
+            }
+        }
+        Some(out)
+    }
+
+    pub(super) fn query_loopback_oscquery_port(port: u16) -> Option<Option<u16>> {
+        let addr = SocketAddr::from(([127, 0, 0, 1], port));
+        let mut stream = TcpStream::connect_timeout(&addr, OSCQUERY_TIMEOUT).ok()?;
+        let _ = stream.set_read_timeout(Some(OSCQUERY_TIMEOUT));
+        let _ = stream.set_write_timeout(Some(OSCQUERY_TIMEOUT));
+        stream
+            .write_all(b"GET /?HOST_INFO HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+            .ok()?;
+        let mut buf = Vec::with_capacity(4096);
+        stream.take(OSCQUERY_MAX_BYTES).read_to_end(&mut buf).ok()?;
+        parse_oscquery_host_info(&buf)
+    }
+
+    pub(super) fn probe_oscquery_loopback() -> OscQueryLoopbackObservation {
+        let Some(listeners) = list_loopback_tcp_listeners() else {
+            return OscQueryLoopbackObservation::probe_unavailable();
+        };
+        if listeners.is_empty() {
+            return OscQueryLoopbackObservation::not_detected();
+        }
+        let pid_names = snapshot_process_basenames();
+        let mut candidates: Vec<(usize, u16, String)> = listeners
+            .into_iter()
+            .filter_map(|(port, pid)| {
+                let exe = pid_names.get(&pid)?;
+                let priority = OSCQUERY_CANDIDATE_PROCESSES
+                    .iter()
+                    .position(|candidate| *candidate == exe.as_str())?;
+                Some((priority, port, exe.clone()))
+            })
+            .collect();
+        candidates.sort_by_key(|(priority, port, _)| (*priority, *port));
+        candidates.dedup_by_key(|(_, port, _)| *port);
+        candidates.truncate(3);
+
+        for (_, port, exe) in candidates {
+            if let Some(osc_port) = query_loopback_oscquery_port(port) {
+                return OscQueryLoopbackObservation::found(port, osc_port, Some(exe));
+            }
+        }
+        OscQueryLoopbackObservation::not_detected()
+    }
 }
 
 #[cfg(all(test, windows))]
@@ -190,5 +359,29 @@ mod tests {
         // Either unbound or (in the astronomically rare case another OS test grabbed it) another socket,
         // never probe_unavailable.
         assert_ne!(after_drop.state, "probe_unavailable");
+    }
+
+    #[test]
+    fn enumerates_loopback_tcp_listener_and_queries_synthetic_oscquery_host_info() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("ephemeral tcp bind");
+        let port = listener.local_addr().expect("local_addr").port();
+
+        let listeners = win::list_loopback_tcp_listeners().expect("tcp table");
+        assert!(listeners
+            .iter()
+            .any(|(p, pid)| *p == port && *pid == std::process::id()));
+
+        let server = std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                let mut req = [0u8; 256];
+                let _ = std::io::Read::read(&mut stream, &mut req);
+                let _ = std::io::Write::write_all(
+                    &mut stream,
+                    b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"NAME\":\"VRChat-Client\",\"OSC_PORT\":9000,\"EXTENSIONS\":{\"ACCESS\":true}}",
+                );
+            }
+        });
+        assert_eq!(win::query_loopback_oscquery_port(port), Some(Some(9000)));
+        let _ = server.join();
     }
 }

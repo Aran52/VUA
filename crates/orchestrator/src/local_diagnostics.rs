@@ -63,6 +63,15 @@ pub struct UdpPortObservation {
     pub owner_process: Option<String>,
 }
 
+fn sanitize_process_basename(name: String) -> Option<String> {
+    let base = name.rsplit(['\\', '/']).next().unwrap_or("").trim();
+    if base.is_empty() || base.contains(':') || base.len() > 128 {
+        None
+    } else {
+        Some(base.to_ascii_lowercase())
+    }
+}
+
 impl UdpPortObservation {
     pub fn unbound() -> Self {
         Self {
@@ -81,20 +90,85 @@ impl UdpPortObservation {
     }
 
     pub fn bound(owner_pid: u32, owner_process: Option<String>) -> Self {
-        let sanitized = owner_process.and_then(|name| {
-            let base = name.rsplit(['\\', '/']).next().unwrap_or("").trim();
-            if base.is_empty() || base.contains(':') || base.len() > 128 {
-                None
-            } else {
-                Some(base.to_ascii_lowercase())
-            }
-        });
         Self {
             state: "bound",
             owner_pid: Some(owner_pid),
-            owner_process: sanitized,
+            owner_process: owner_process.and_then(sanitize_process_basename),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OscQueryLoopbackObservation {
+    pub state: &'static str,
+    pub http_port: Option<u16>,
+    pub advertised_osc_port: Option<u16>,
+    pub owner_process: Option<String>,
+}
+
+impl OscQueryLoopbackObservation {
+    pub fn not_detected() -> Self {
+        Self {
+            state: "not_detected",
+            http_port: None,
+            advertised_osc_port: None,
+            owner_process: None,
+        }
+    }
+
+    pub fn probe_unavailable() -> Self {
+        Self {
+            state: "probe_unavailable",
+            http_port: None,
+            advertised_osc_port: None,
+            owner_process: None,
+        }
+    }
+
+    pub fn found(
+        http_port: u16,
+        advertised_osc_port: Option<u16>,
+        owner_process: Option<String>,
+    ) -> Self {
+        Self {
+            state: "found",
+            http_port: Some(http_port),
+            advertised_osc_port,
+            owner_process: owner_process.and_then(sanitize_process_basename),
+        }
+    }
+}
+
+/// Parses an HTTP `GET /?HOST_INFO` response from a loopback OSCQuery server.
+/// Returns `Some(advertised_osc_port)` when valid OSCQuery `HOST_INFO` JSON is returned.
+pub fn parse_oscquery_host_info(raw_http: &[u8]) -> Option<Option<u16>> {
+    if raw_http.len() > 64 * 1024 {
+        return None;
+    }
+    let text = std::str::from_utf8(raw_http).ok()?;
+    let (head, body) = text
+        .split_once("\r\n\r\n")
+        .or_else(|| text.split_once("\n\n"))?;
+    let status_line = head.lines().next()?.trim();
+    if !status_line.starts_with("HTTP/1.1 200") && !status_line.starts_with("HTTP/1.0 200") {
+        return None;
+    }
+    let Value::Object(obj) = serde_json::from_str::<Value>(body.trim()).ok()? else {
+        return None;
+    };
+    let has_marker = obj.get("EXTENSIONS").is_some_and(Value::is_object)
+        || obj.contains_key("OSC_PORT")
+        || obj.contains_key("OSC_IP");
+    if !has_marker {
+        return None;
+    }
+    let osc_port = obj
+        .get("OSC_PORT")
+        .and_then(Value::as_u64)
+        .and_then(|p| u16::try_from(p).ok())
+        .filter(|p| *p > 0);
+    Some(osc_port)
 }
 
 /// Returned when OS process liveness enumeration is unavailable.
@@ -109,8 +183,8 @@ impl std::fmt::Display for ProcessProbeUnavailable {
 
 impl std::error::Error for ProcessProbeUnavailable {}
 
-/// OS process & UDP owner table probe port so tests run deterministically without
-/// touching live machine processes or UDP sockets.
+/// OS process & UDP/TCP owner table probe port so tests run deterministically without
+/// touching live machine processes or binding game ports.
 pub trait LocalDiagnosticsProbe: Send + Sync {
     /// Returns `Ok(true)` if `VRChat.exe` is running, `Ok(false)` if confirmed absent,
     /// or `Err(ProcessProbeUnavailable)` if process enumeration is unavailable.
@@ -118,6 +192,11 @@ pub trait LocalDiagnosticsProbe: Send + Sync {
 
     /// Inspects the OS IPv4 UDP owner table for `port` without binding a socket.
     fn probe_udp_port(&self, port: u16) -> UdpPortObservation;
+
+    /// Passively probes loopback TCP listeners owned by VRChat / OSC companions for `/?HOST_INFO`.
+    fn probe_oscquery_loopback(&self) -> OscQueryLoopbackObservation {
+        OscQueryLoopbackObservation::probe_unavailable()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -169,6 +248,63 @@ pub struct OscLocalObservation {
     pub newest_modified_at: Option<String>,
     pub udp9000: UdpPortObservation,
     pub udp9001: UdpPortObservation,
+    pub osc_query: OscQueryLoopbackObservation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioEndpointObservation {
+    pub state: &'static str,
+    pub default_capture_role: &'static str,
+    pub virtual_mic_hijack: &'static str,
+    pub communications_mismatch: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuestLinkSettingsObservation {
+    pub presence: &'static str,
+    pub encode_resolution_width: Option<u32>,
+    pub encode_bitrate_mbps: Option<u32>,
+    pub dynamic_bitrate: Option<bool>,
+    pub link_sharpening: Option<u32>,
+}
+
+impl QuestLinkSettingsObservation {
+    fn missing() -> Self {
+        Self {
+            presence: "missing",
+            encode_resolution_width: None,
+            encode_bitrate_mbps: None,
+            dynamic_bitrate: None,
+            link_sharpening: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PicoConnectSettingsObservation {
+    pub presence: &'static str,
+    pub preset: Option<String>,
+    pub bitrate_mbps: Option<u32>,
+}
+
+impl PicoConnectSettingsObservation {
+    fn empty(presence: &'static str) -> Self {
+        Self {
+            presence,
+            preset: None,
+            bitrate_mbps: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", bound(deserialize = "'de: 'static"))]
+pub struct StreamingSettingsObservation {
+    pub quest_link: QuestLinkSettingsObservation,
+    pub pico_connect: PicoConnectSettingsObservation,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -212,6 +348,8 @@ pub struct LocalDiagnosticsSnapshot {
     pub client_cache: ClientCacheObservation,
     pub osc: OscLocalObservation,
     pub steamvr_settings: SteamVrSettingsObservation,
+    pub audio_endpoints: AudioEndpointObservation,
+    pub streaming_settings: StreamingSettingsObservation,
     pub recent_client_log: RecentClientLogObservation,
 }
 
@@ -353,6 +491,8 @@ impl LocalDiagnosticsService {
         let client_cache = inspect_client_cache(&cache_dir, &self.roots.local_low);
         let osc = inspect_osc_local(&vrchat_root.join("OSC"), self.probe.as_ref());
         let steamvr_settings = inspect_steamvr_settings(&self.roots);
+        let audio_endpoints = inspect_audio_endpoints(&self.roots);
+        let streaming_settings = inspect_streaming_settings(&self.roots);
         let recent_client_log = inspect_recent_client_log(&vrchat_root);
 
         LocalDiagnosticsSnapshot {
@@ -363,6 +503,8 @@ impl LocalDiagnosticsService {
             client_cache,
             osc,
             steamvr_settings,
+            audio_endpoints,
+            streaming_settings,
             recent_client_log,
         }
     }
@@ -715,6 +857,7 @@ fn inspect_client_cache(cache_dir: &Path, fallback_root: &Path) -> ClientCacheOb
 fn inspect_osc_local(osc_dir: &Path, probe: &dyn LocalDiagnosticsProbe) -> OscLocalObservation {
     let udp9000 = probe.probe_udp_port(9000);
     let udp9001 = probe.probe_udp_port(9001);
+    let osc_query = probe.probe_oscquery_loopback();
 
     let entries = match fs::read_dir(osc_dir) {
         Ok(entries) => entries,
@@ -726,6 +869,7 @@ fn inspect_osc_local(osc_dir: &Path, probe: &dyn LocalDiagnosticsProbe) -> OscLo
                 newest_modified_at: None,
                 udp9000,
                 udp9001,
+                osc_query,
             };
         }
         Err(_) => {
@@ -736,6 +880,7 @@ fn inspect_osc_local(osc_dir: &Path, probe: &dyn LocalDiagnosticsProbe) -> OscLo
                 newest_modified_at: None,
                 udp9000,
                 udp9001,
+                osc_query,
             };
         }
     };
@@ -799,7 +944,173 @@ fn inspect_osc_local(osc_dir: &Path, probe: &dyn LocalDiagnosticsProbe) -> OscLo
         newest_modified_at: newest.map(rfc3339),
         udp9000,
         udp9001,
+        osc_query,
     }
+}
+
+const SOUND_MAPPER_SUBKEY: &str = "Software\\Microsoft\\Multimedia\\Sound Mapper";
+const QUEST_LINK_SUBKEY: &str = "Software\\Oculus\\RemoteHeadset";
+const PICO_SETTINGS_MAX_BYTES: u64 = 512 * 1024;
+
+fn inspect_audio_endpoints(roots: &EnvironmentRoots) -> AudioEndpointObservation {
+    let record =
+        roots
+            .registry
+            .get_string(RegistryHive::CurrentUser, SOUND_MAPPER_SUBKEY, "Record");
+    let comm_record = roots.registry.get_string(
+        RegistryHive::CurrentUser,
+        SOUND_MAPPER_SUBKEY,
+        "ConsoleVoiceComRecord",
+    );
+
+    let (default_capture_role, virtual_mic_hijack) = match record.as_deref() {
+        None => ("unknown", "none"),
+        Some(raw) => {
+            let lower = raw.trim().to_ascii_lowercase();
+            if lower.is_empty() {
+                ("none", "none")
+            } else if lower.contains("oculus virtual audio")
+                || lower.contains("headset microphone (oculus")
+            {
+                ("vr_virtual", "oculus_virtual")
+            } else if lower.contains("steam streaming microphone") {
+                ("vr_virtual", "steam_streaming")
+            } else if lower.contains("pico streaming")
+                || lower.contains("pico virtual")
+                || lower.contains("pico connect")
+            {
+                ("vr_virtual", "pico_streaming")
+            } else if lower.contains("virtual desktop audio") {
+                ("vr_virtual", "virtual_desktop")
+            } else if lower.contains("vb-audio")
+                || lower.contains("voicemeeter")
+                || lower.contains("cable output")
+                || lower.contains("virtual audio cable")
+            {
+                ("virtual_cable", "none")
+            } else {
+                ("physical_or_usb", "none")
+            }
+        }
+    };
+
+    let communications_mismatch = match (record.as_deref(), comm_record.as_deref()) {
+        (Some(def), Some(comm)) => {
+            let def_t = def.trim();
+            let comm_t = comm.trim();
+            !def_t.is_empty() && !comm_t.is_empty() && !def_t.eq_ignore_ascii_case(comm_t)
+        }
+        _ => false,
+    };
+
+    AudioEndpointObservation {
+        state: "observed",
+        default_capture_role,
+        virtual_mic_hijack,
+        communications_mismatch,
+    }
+}
+
+fn inspect_streaming_settings(roots: &EnvironmentRoots) -> StreamingSettingsObservation {
+    let encode_resolution_width = roots
+        .registry
+        .get_u32(RegistryHive::CurrentUser, QUEST_LINK_SUBKEY, "EncodeWidth")
+        .filter(|w| (1..=16_384).contains(w));
+    let encode_bitrate_mbps = roots
+        .registry
+        .get_u32(RegistryHive::CurrentUser, QUEST_LINK_SUBKEY, "BitrateMbps")
+        .filter(|b| (1..=2_000).contains(b));
+    let dynamic_bitrate = roots
+        .registry
+        .get_u32(RegistryHive::CurrentUser, QUEST_LINK_SUBKEY, "DBR")
+        .map(|v| v != 0);
+    let link_sharpening = roots
+        .registry
+        .get_u32(
+            RegistryHive::CurrentUser,
+            QUEST_LINK_SUBKEY,
+            "LinkSharpening",
+        )
+        .filter(|v| *v <= 10);
+
+    let quest_link = if encode_resolution_width.is_some()
+        || encode_bitrate_mbps.is_some()
+        || dynamic_bitrate.is_some()
+        || link_sharpening.is_some()
+    {
+        QuestLinkSettingsObservation {
+            presence: "found",
+            encode_resolution_width,
+            encode_bitrate_mbps,
+            dynamic_bitrate,
+            link_sharpening,
+        }
+    } else {
+        QuestLinkSettingsObservation::missing()
+    };
+
+    let pico_connect = inspect_pico_connect_settings(&roots.pico_connect_settings_candidates);
+
+    StreamingSettingsObservation {
+        quest_link,
+        pico_connect,
+    }
+}
+
+fn inspect_pico_connect_settings(candidates: &[PathBuf]) -> PicoConnectSettingsObservation {
+    let mut saw_read_error = false;
+    for path in candidates {
+        let meta = match fs::symlink_metadata(path) {
+            Ok(meta) => meta,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(_) => {
+                saw_read_error = true;
+                continue;
+            }
+        };
+        if is_reparse_or_symlink(&meta) || !meta.is_file() || meta.len() > PICO_SETTINGS_MAX_BYTES {
+            return PicoConnectSettingsObservation::empty("read_failed");
+        }
+        let Ok(raw) = fs::read_to_string(path) else {
+            return PicoConnectSettingsObservation::empty("read_failed");
+        };
+        let Ok(Value::Object(obj)) = serde_json::from_str::<Value>(&raw) else {
+            return PicoConnectSettingsObservation::empty("malformed");
+        };
+        let preset = ["preset", "quality", "videoQuality"]
+            .iter()
+            .find_map(|k| obj.get(*k).and_then(Value::as_str))
+            .map(str::trim)
+            .filter(|s| {
+                !s.is_empty()
+                    && s.len() <= 32
+                    && s.bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b"_- .".contains(&b))
+            })
+            .map(str::to_owned);
+        let bitrate_mbps = ["bitrateMbps", "bitrate", "videoBitrate"]
+            .iter()
+            .find_map(|k| obj.get(*k).and_then(Value::as_u64))
+            .and_then(|v| {
+                if (1..=2_000).contains(&v) {
+                    u32::try_from(v).ok()
+                } else if (2_001..=2_000_000).contains(&v) {
+                    u32::try_from(v / 1000).ok().filter(|m| *m >= 1)
+                } else {
+                    None
+                }
+            });
+        return PicoConnectSettingsObservation {
+            presence: "found",
+            preset,
+            bitrate_mbps,
+        };
+    }
+    PicoConnectSettingsObservation::empty(if saw_read_error {
+        "read_failed"
+    } else {
+        "missing"
+    })
 }
 
 fn clear_osc_json_files(osc_dir: &Path) -> Result<(u64, u64), LocalDiagnosticsError> {
@@ -1118,6 +1429,7 @@ fn collect_findings_for_symptom(
         }
     };
 
+    let audio_relevant = matches!(symptom, SymptomId::AudioSilentOrWrongMic);
     let osc_relevant = matches!(symptom, SymptomId::OscOrFaceTrackingNotResponding);
     let perf_relevant = matches!(
         symptom,
@@ -1130,6 +1442,25 @@ fn collect_findings_for_symptom(
             | SymptomId::CannotUploadAvatar
             | SymptomId::CrashOrEacBlock
     );
+
+    if audio_relevant {
+        if snapshot.audio_endpoints.virtual_mic_hijack != "none" {
+            push(
+                &mut out,
+                "audio_virtual_mic_hijack_detected",
+                "attention",
+                "hardware_os",
+            );
+        }
+        if snapshot.audio_endpoints.communications_mismatch {
+            push(
+                &mut out,
+                "audio_communications_default_mismatch",
+                "warning",
+                "hardware_os",
+            );
+        }
+    }
 
     if osc_relevant {
         if snapshot.client_running == Some(true) && snapshot.osc.udp9000.state == "unbound" {
@@ -1151,6 +1482,20 @@ fn collect_findings_for_symptom(
             push(
                 &mut out,
                 "osc_port_9000_conflict",
+                "attention",
+                "companion_osc",
+            );
+        }
+        if snapshot.osc.osc_query.state == "found"
+            && snapshot
+                .osc
+                .osc_query
+                .advertised_osc_port
+                .is_some_and(|p| p != 9000)
+        {
+            push(
+                &mut out,
+                "oscquery_port_mismatch",
                 "attention",
                 "companion_osc",
             );
@@ -1198,6 +1543,29 @@ fn collect_findings_for_symptom(
             push(
                 &mut out,
                 "steamvr_app_overscaled",
+                "warning",
+                "steamvr_openxr",
+            );
+        }
+        let high_streaming = snapshot
+            .streaming_settings
+            .quest_link
+            .encode_bitrate_mbps
+            .is_some_and(|b| b > 500)
+            || snapshot
+                .streaming_settings
+                .quest_link
+                .encode_resolution_width
+                .is_some_and(|w| w > 4128)
+            || snapshot
+                .streaming_settings
+                .pico_connect
+                .bitrate_mbps
+                .is_some_and(|b| b > 150);
+        if high_streaming {
+            push(
+                &mut out,
+                "streaming_high_bitrate_or_encode_width",
                 "warning",
                 "steamvr_openxr",
             );
@@ -1296,6 +1664,14 @@ fn build_sop_steps(
 
     match symptom {
         SymptomId::AudioSilentOrWrongMic => {
+            if has("audio_virtual_mic_hijack_detected") {
+                steps.push(DiagnosticSopStep {
+                    step_id: "audio_restore_hijacked_default_mic",
+                    layer: "hardware_os",
+                    title: "Switch Windows Default Input off inactive VR virtual microphone",
+                    instruction: "Windows Default Recording device is set to a VR streaming virtual microphone (Oculus / Steam Streaming / PICO / Virtual Desktop). When that streamer is inactive or unrouted, VRChat receives silence — select your active physical or headset microphone in Windows Sound and VRChat.",
+                });
+            }
             steps.push(DiagnosticSopStep {
                 step_id: "audio_windows_input_output",
                 layer: "hardware_os",
@@ -1322,6 +1698,14 @@ fn build_sop_steps(
                     layer: "companion_osc",
                     title: "Release conflicting app bound to UDP port 9000",
                     instruction: "Another local process is holding UDP port 9000 before VRChat can bind its OSC receiver. Close the conflicting app, start VRChat first so it binds UDP 9000, and then launch VRCFaceTracking / SlimeVR / VRCT.",
+                });
+            }
+            if has("oscquery_port_mismatch") {
+                steps.push(DiagnosticSopStep {
+                    step_id: "osc_align_oscquery_port",
+                    layer: "companion_osc",
+                    title: "Align static OSC sender port with OSCQuery negotiated port",
+                    instruction: "Loopback OSCQuery advertised a non-9000 UDP OSC receiver port. Enable OSCQuery auto-discovery in your companion app, or restart VRChat before launching static port-9000 tools.",
                 });
             }
             if has("osc_port_9000_unbound_while_client_running") {
@@ -1369,6 +1753,14 @@ fn build_sop_steps(
                     layer: "steamvr_openxr",
                     title: "Lower compounded SteamVR render resolution scaling",
                     instruction: "SteamVR global or per-app VRChat resolution scale is above 130%-150%, which multiplies pixel load on top of your streaming Codec resolution. Reset SteamVR VRChat per-app resolution toward 100%.",
+                });
+            }
+            if has("streaming_high_bitrate_or_encode_width") {
+                steps.push(DiagnosticSopStep {
+                    step_id: "perf_tune_streaming_bitrate_and_resolution",
+                    layer: "steamvr_openxr",
+                    title: "Lower Quest Link / PICO Connect encode width or bitrate",
+                    instruction: "High streaming encode resolution (>4128 px) or bitrate (>500 Mbps Quest Link / >150 Mbps PICO Connect) saturates GPU video encoders and VRAM buffers. Step down to Balanced/HD preset or enable dynamic bitrate.",
                 });
             }
             if has("log_d3d11_crash_detected") {
@@ -1526,6 +1918,7 @@ mod tests {
         running: Result<bool, ProcessProbeUnavailable>,
         udp9000: UdpPortObservation,
         udp9001: UdpPortObservation,
+        osc_query: OscQueryLoopbackObservation,
     }
 
     impl LocalDiagnosticsProbe for FakeProbe {
@@ -1539,6 +1932,9 @@ mod tests {
                 _ => UdpPortObservation::unbound(),
             }
         }
+        fn probe_oscquery_loopback(&self) -> OscQueryLoopbackObservation {
+            self.osc_query.clone()
+        }
     }
 
     fn test_roots(base: &Path) -> EnvironmentRoots {
@@ -1546,6 +1942,7 @@ mod tests {
             local_low: base.join("LocalLow"),
             steam_install_candidates: vec![base.join("Steam")],
             openvrpaths: vec![base.join("openvrpaths.vrpath")],
+            pico_connect_settings_candidates: vec![base.join("PICO Connect").join("settings.json")],
             registry: Arc::new(FakeRegistrySource::new()),
             ..EnvironmentRoots::default()
         }
@@ -1602,6 +1999,11 @@ mod tests {
                 Some("C:\\Apps\\CustomOscRouter.exe".to_owned()),
             ),
             udp9001: UdpPortObservation::unbound(),
+            osc_query: OscQueryLoopbackObservation::found(
+                54321,
+                Some(9005),
+                Some("C:\\Games\\VRChat\\VRChat.exe".to_owned()),
+            ),
         });
         let svc = LocalDiagnosticsService::new(
             roots,
@@ -1679,6 +2081,7 @@ mod tests {
                 running: Ok(true),
                 udp9000: UdpPortObservation::unbound(),
                 udp9001: UdpPortObservation::unbound(),
+                osc_query: OscQueryLoopbackObservation::not_detected(),
             }),
             Arc::new(FixedClock::new(&["2026-11-14T02:00:00.000Z"])),
         );
@@ -1704,6 +2107,7 @@ mod tests {
                 running: Ok(false),
                 udp9000: UdpPortObservation::unbound(),
                 udp9001: UdpPortObservation::unbound(),
+                osc_query: OscQueryLoopbackObservation::not_detected(),
             }),
             Arc::new(FixedClock::new(&["2026-11-14T02:05:00.000Z"])),
         );
@@ -1734,5 +2138,136 @@ mod tests {
         assert_eq!(updated["custom_beta_flag"], "preserve_me");
         assert_eq!(updated["cache_size"], 60);
         assert_eq!(updated["cache_expiry_delay"], 90);
+    }
+
+    #[test]
+    fn diagnoses_virtual_mic_hijack_streaming_bitrate_and_oscquery_mismatch_without_leaking_device_names(
+    ) {
+        let temp = TestTempDir::new();
+        let mut roots = test_roots(temp.path());
+        roots.registry = Arc::new(
+            FakeRegistrySource::new()
+                .with(
+                    RegistryHive::CurrentUser,
+                    SOUND_MAPPER_SUBKEY,
+                    "Record",
+                    "Headset Microphone (Oculus Virtual Audio Device - AlicePrivate)",
+                )
+                .with(
+                    RegistryHive::CurrentUser,
+                    SOUND_MAPPER_SUBKEY,
+                    "ConsoleVoiceComRecord",
+                    "Microphone (HyperX QuadCast - AlicePrivate)",
+                )
+                .with_u32(
+                    RegistryHive::CurrentUser,
+                    QUEST_LINK_SUBKEY,
+                    "EncodeWidth",
+                    4608,
+                )
+                .with_u32(
+                    RegistryHive::CurrentUser,
+                    QUEST_LINK_SUBKEY,
+                    "BitrateMbps",
+                    650,
+                )
+                .with_u32(RegistryHive::CurrentUser, QUEST_LINK_SUBKEY, "DBR", 0)
+                .with_u32(
+                    RegistryHive::CurrentUser,
+                    QUEST_LINK_SUBKEY,
+                    "LinkSharpening",
+                    2,
+                ),
+        );
+        let pico_dir = temp.path().join("PICO Connect");
+        fs::create_dir_all(&pico_dir).unwrap();
+        fs::write(
+            pico_dir.join("settings.json"),
+            r#"{"preset": "Ultra", "bitrateMbps": 180}"#,
+        )
+        .unwrap();
+
+        let svc = LocalDiagnosticsService::new(
+            roots,
+            Arc::new(FakeProbe {
+                running: Ok(true),
+                udp9000: UdpPortObservation::bound(99, Some("VRChat.exe".to_owned())),
+                udp9001: UdpPortObservation::unbound(),
+                osc_query: OscQueryLoopbackObservation::found(
+                    51234,
+                    Some(9002),
+                    Some("C:\\Games\\VRChat.exe".to_owned()),
+                ),
+            }),
+            Arc::new(FixedClock::new(&["2026-11-14T03:00:00.000Z"])),
+        );
+
+        let snap = svc.observe_local();
+        let raw_json = serde_json::to_string(&snap).unwrap();
+        assert!(!raw_json.contains("AlicePrivate"));
+        assert!(!raw_json.contains("HyperX"));
+        assert_eq!(snap.audio_endpoints.default_capture_role, "vr_virtual");
+        assert_eq!(snap.audio_endpoints.virtual_mic_hijack, "oculus_virtual");
+        assert!(snap.audio_endpoints.communications_mismatch);
+        assert_eq!(snap.streaming_settings.quest_link.presence, "found");
+        assert_eq!(
+            snap.streaming_settings.quest_link.encode_resolution_width,
+            Some(4608)
+        );
+        assert_eq!(
+            snap.streaming_settings.quest_link.encode_bitrate_mbps,
+            Some(650)
+        );
+        assert_eq!(snap.streaming_settings.pico_connect.presence, "found");
+        assert_eq!(
+            snap.streaming_settings.pico_connect.preset.as_deref(),
+            Some("Ultra")
+        );
+        assert_eq!(snap.streaming_settings.pico_connect.bitrate_mbps, Some(180));
+
+        let audio_diag = svc.diagnose_symptom(SymptomId::AudioSilentOrWrongMic);
+        assert!(audio_diag
+            .findings
+            .iter()
+            .any(|f| f.code == "audio_virtual_mic_hijack_detected"));
+        assert!(audio_diag
+            .findings
+            .iter()
+            .any(|f| f.code == "audio_communications_default_mismatch"));
+        assert_eq!(
+            audio_diag.sop_steps[0].step_id,
+            "audio_restore_hijacked_default_mic"
+        );
+
+        let osc_diag = svc.diagnose_symptom(SymptomId::OscOrFaceTrackingNotResponding);
+        assert!(osc_diag
+            .findings
+            .iter()
+            .any(|f| f.code == "oscquery_port_mismatch"));
+        assert!(osc_diag
+            .sop_steps
+            .iter()
+            .any(|s| s.step_id == "osc_align_oscquery_port"));
+
+        let perf_diag = svc.diagnose_symptom(SymptomId::LowFpsOrVramPressure);
+        assert!(perf_diag
+            .findings
+            .iter()
+            .any(|f| f.code == "streaming_high_bitrate_or_encode_width"));
+        assert!(perf_diag
+            .sop_steps
+            .iter()
+            .any(|s| s.step_id == "perf_tune_streaming_bitrate_and_resolution"));
+
+        assert_eq!(
+            parse_oscquery_host_info(
+                b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"NAME\":\"VRChat-Client\",\"OSC_PORT\":9000,\"EXTENSIONS\":{\"ACCESS\":true}}"
+            ),
+            Some(Some(9000))
+        );
+        assert_eq!(
+            parse_oscquery_host_info(b"HTTP/1.1 200 OK\r\n\r\n{\"unrelated\":1}"),
+            None
+        );
     }
 }

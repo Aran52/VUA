@@ -146,11 +146,14 @@ impl RecipeDocumentStore {
         fs::create_dir_all(&self.root).map_err(|error| RecipeSaveError::StoreIo {
             detail: error.to_string(),
         })?;
-        static RECIPE_TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let seq = RECIPE_TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let temporary = self
-            .root
-            .join(format!(".{recipe_id}.{}.{seq:x}.tmp", std::process::id()));
+        let temporary = self.root.join(format!(".{recipe_id}.tmp"));
+        if let Ok(meta) = fs::symlink_metadata(&temporary) {
+            if meta.file_type().is_symlink() {
+                return Err(RecipeSaveError::StoreIo {
+                    detail: "temporary recipe path is a symlink".to_owned(),
+                });
+            }
+        }
         let bytes =
             serde_json::to_vec_pretty(&stored).map_err(|error| RecipeSaveError::StoreIo {
                 detail: error.to_string(),
@@ -169,7 +172,9 @@ impl RecipeDocumentStore {
             fs::rename(&temporary, &path)
         })();
         if let Err(error) = write_result {
-            let _ = fs::remove_file(&temporary);
+            if fs::symlink_metadata(&temporary).is_ok_and(|m| m.file_type().is_file()) {
+                let _ = fs::remove_file(&temporary);
+            }
             return Err(RecipeSaveError::StoreIo {
                 detail: error.to_string(),
             });

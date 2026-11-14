@@ -252,6 +252,12 @@ export function LocalDiagnosticsPanel({ onBack }: { onBack: () => void }) {
                       size: formatBytes(snapshot.osc.avatarCacheBytes),
                     })
                   : copy.cards.oscEmpty}
+                {snapshot.osc.oscQuery.state === "found" && snapshot.osc.oscQuery.httpPort !== null
+                  ? ` · ${format(copy.cards.oscQueryActive, {
+                      http: snapshot.osc.oscQuery.httpPort,
+                      osc: snapshot.osc.oscQuery.advertisedOscPort ?? copy.cards.streamingDefaultVal,
+                    })}`
+                  : ""}
               </p>
             </article>
 
@@ -275,6 +281,52 @@ export function LocalDiagnosticsPanel({ onBack }: { onBack: () => void }) {
                 {snapshot.steamvrSettings.blockedDrivers.length > 0
                   ? format(copy.cards.steamvrSafeModeBlocked, {
                       drivers: snapshot.steamvrSettings.blockedDrivers.join(", "),
+                    })
+                  : copy.cards.steamvrClean}
+              </p>
+            </article>
+
+            <article className="vua-local-diag__card" data-diag-card="audio">
+              <div className="vua-local-diag__card-head">
+                <h3>{copy.cards.audioTitle}</h3>
+                <Icon name="mic" size={20} />
+              </div>
+              <p className="vua-local-diag__primary-fact">
+                {copy.audioRoles[snapshot.audioEndpoints.defaultCaptureRole]}
+              </p>
+              <p className="vua-local-diag__secondary-fact">
+                {snapshot.audioEndpoints.virtualMicHijack !== "none"
+                  ? copy.audioHijack[snapshot.audioEndpoints.virtualMicHijack]
+                  : snapshot.audioEndpoints.communicationsMismatch
+                    ? copy.cards.audioCommMismatch
+                    : copy.cards.audioClean}
+              </p>
+            </article>
+
+            <article className="vua-local-diag__card" data-diag-card="streaming">
+              <div className="vua-local-diag__card-head">
+                <h3>{copy.cards.streamingTitle}</h3>
+                <Icon name="signal" size={20} />
+              </div>
+              <p className="vua-local-diag__primary-fact">
+                {snapshot.streamingSettings.questLink.presence === "found"
+                  ? format(copy.cards.questLinkSummary, {
+                      width: snapshot.streamingSettings.questLink.encodeResolutionWidth ?? copy.cards.streamingDefaultVal,
+                      mbps: snapshot.streamingSettings.questLink.encodeBitrateMbps ?? copy.cards.streamingDefaultVal,
+                    })
+                  : snapshot.streamingSettings.picoConnect.presence === "found"
+                    ? format(copy.cards.picoSummary, {
+                        preset: snapshot.streamingSettings.picoConnect.preset ?? copy.cards.streamingDefaultVal,
+                        mbps: snapshot.streamingSettings.picoConnect.bitrateMbps ?? copy.cards.streamingDefaultVal,
+                      })
+                    : copy.cards.streamingNone}
+              </p>
+              <p className="vua-local-diag__secondary-fact">
+                {snapshot.streamingSettings.questLink.presence === "found"
+                  && snapshot.streamingSettings.picoConnect.presence === "found"
+                  ? format(copy.cards.picoSummary, {
+                      preset: snapshot.streamingSettings.picoConnect.preset ?? copy.cards.streamingDefaultVal,
+                      mbps: snapshot.streamingSettings.picoConnect.bitrateMbps ?? copy.cards.streamingDefaultVal,
                     })
                   : copy.cards.steamvrClean}
               </p>

@@ -4,10 +4,10 @@ import { Card } from "../../components/primitives/Card.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import "./ai-requests.css";
 
-const copy = strings.aiTools;
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
-export const requestTitle = (request: AiActionRequestV01) => copy.tools[request.tool as keyof typeof copy.tools] ?? request.title;
+export const requestTitle = (request: AiActionRequestV01) => strings.aiTools.tools[request.tool as keyof typeof strings.aiTools.tools] ?? request.title;
 function outcome(request: AiActionRequestV01): string {
+  const copy = strings.aiTools;
   const keys: Record<string, keyof typeof copy.outcomes> = {
     vua_request_installation: "installation",
     vua_request_play: "play",
@@ -15,8 +15,13 @@ function outcome(request: AiActionRequestV01): string {
     vua_request_installer_tool: "installerTool",
     vua_request_open_manager: "openManager",
     vua_request_clear_osc_cache: "clearOscCache",
+    vua_request_update_client_config: "updateClientConfig",
+    vua_request_library_import_groups: "importGroups",
     vua_request_amf_prepare: "prepare",
     vua_request_amf_assemble: "assemble",
+    vua_request_amf_texture_apply: "textureApply",
+    vua_request_amf_lighting_apply: "lightingApply",
+    vua_request_amf_outfit_remove: "outfitRemove",
     vua_request_amf_reinspect: "reinspect",
     vua_request_amf_close_editor: "closeEditor",
     vua_request_amf_open: "open",
@@ -28,16 +33,17 @@ function outcome(request: AiActionRequestV01): string {
 }
 /** File or folder name without directories or extension: "Meiyun_v2.1.0/Meiyun.unitypackage" → "Meiyun". */
 const baseName = (value: unknown) => String(value ?? "").split(/[\\/]/).pop()!.replace(/\.(unitypackage|zip|prefab)$/i, "");
-const roleLabel = (role: unknown) => copy.roles[role as keyof typeof copy.roles] ?? copy.roles.material;
+const roleLabel = (role: unknown) => strings.aiTools.roles[role as keyof typeof strings.aiTools.roles] ?? strings.aiTools.roles.material;
 /** One material line: its role, the package name, and the download it came from when that name differs. */
 function Material({ role, name, item }: { role: unknown; name: unknown; item: unknown }) {
   const own = baseName(name), from = baseName(item);
   return <li><strong>{roleLabel(role)}</strong>{" · "}{own}
-    {from && from !== own ? <span className="vua-caption vua-text-secondary"> · {format(copy.fromItem, { item: from })}</span> : null}</li>;
+    {from && from !== own ? <span className="vua-caption vua-text-secondary"> · {format(strings.aiTools.fromItem, { item: from })}</span> : null}</li>;
 }
 /** Facts displayed for consent, not executable text supplied by the Agent. The player sees what the
  * action touches in everyday words; paths and raw parameters stay under the technical details. */
 function Review({ request }: { request: AiActionRequestV01 }) {
+  const copy = strings.aiTools;
   const params = record(request.details.parameters) ? request.details.parameters : {};
   const reviewed = record(request.details.reviewed) ? request.details.reviewed : {};
   const plan = record(reviewed.deploymentPlan) ? reviewed.deploymentPlan : null;
@@ -77,6 +83,7 @@ function Review({ request }: { request: AiActionRequestV01 }) {
 }
 /** Paths, download routing and raw parameters, for the AI or for troubleshooting. */
 function TechnicalDetails({ request }: { request: AiActionRequestV01 }) {
+  const copy = strings.aiTools;
   const params = record(request.details.parameters) ? request.details.parameters : {};
   const reviewed = record(request.details.reviewed) ? request.details.reviewed : {};
   const plan = record(reviewed.deploymentPlan) ? reviewed.deploymentPlan : null;
@@ -106,6 +113,7 @@ export function AiRequestCard({ request, busy, revealed = false, onResolve, onOp
   onClear?: (() => void) | undefined;
 }) {
   // Why a request was withdrawn or could not start, e.g. the project changed after the AI asked.
+  const copy = strings.aiTools;
   const reason = request.error ? (copy.reasons as Record<string, string>)[request.error] : undefined;
   return <Card data-ai-request={request.id} data-revealed={revealed ? "" : undefined}>
     <header className="vua-ai-request__header"><h3>{requestTitle(request)}</h3><span role="status">{copy.states[request.state]}</span>

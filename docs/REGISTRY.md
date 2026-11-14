@@ -13,8 +13,8 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/vua-instance-identity.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-11-14 |
-| docs/protocols/ai-tools-v0.1.md | 0.17.0 | Candidate | Integration | 2026-11-14 |
-| docs/protocols/amf-production-v0.1.md | 0.43.0 | Candidate | AMF | 2026-11-12 |
+| docs/protocols/ai-tools-v0.1.md | 0.18.0 | Candidate | Integration | 2026-11-14 |
+| docs/protocols/amf-production-v0.1.md | 0.44.0 | Candidate | AMF | 2026-11-14 |
 | docs/protocols/amf-recipe-v0.4.md | 0.6.0 | Candidate | AMF | 2026-10-24 |
 | docs/protocols/amf-recipe-v0.5.md | 0.2.1 | Candidate | AMF | 2026-11-11 |
 | docs/protocols/amf-recipe-v0.6.md | 0.1.0 | Candidate | AMF | 2026-11-11 |
@@ -45,13 +45,13 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/external-tool-v0.1.md | 0.1 | Superseded (→ docs/protocols/external-tool-v0.2.md) | Environment | 2026-10-10 |
 | docs/protocols/external-tool-v0.2.md | 0.1.2 | Superseded (→ docs/protocols/external-tool-v0.3.md) | Environment | 2026-10-14 |
 | docs/protocols/external-tool-v0.3.md | 0.1.0 | Superseded (→ docs/protocols/external-tool-v0.4.md) | Environment | 2026-11-11 |
-| docs/protocols/external-tool-v0.4.md | 0.1.0 | Candidate | Environment | 2026-11-11 |
+| docs/protocols/external-tool-v0.4.md | 0.1.1 | Candidate | Environment | 2026-11-14 |
 | docs/protocols/glb-inspection-v0.1.md | 0.1.0 | Candidate | AMF | 2026-11-14 |
 | docs/protocols/guide-content-v0.1.md | 0.1.0 | Candidate | Desktop | 2026-11-11 |
 | docs/protocols/inspection-evidence-v0.1.md | 0.1 | Frozen | Production | 2026-09-13 |
 | docs/protocols/inspection-queries-v0.1.md | 0.1 | Frozen | Data | 2026-09-13 |
 | docs/protocols/installer-tool-v0.1.md | 0.1.0 | Candidate | Environment | 2026-11-11 |
-| docs/protocols/local-diagnostics-v0.1.md | 0.1.0 | Candidate | Environment | 2026-11-14 |
+| docs/protocols/local-diagnostics-v0.1.md | 0.2.0 | Candidate | Environment | 2026-11-14 |
 | docs/protocols/library-download-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-08 |
 | docs/protocols/library-entry-metadata-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-intake-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |

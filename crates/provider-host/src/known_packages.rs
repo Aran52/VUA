@@ -396,6 +396,57 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         legacy_folders: &[],
         legacy_files: &[],
     },
+    KnownPackage {
+        id: "jp.lilxyzw.avatar-utils",
+        display_name: "lilAvatarUtils",
+        feed_url: LILTOON_FEED,
+        official_url: "https://lilxyzw.github.io/lilAvatarUtils/",
+        license: "MIT",
+        license_url: "https://github.com/lilxyzw/lilAvatarUtils/blob/master/LICENSE",
+        license_checked: "2026-11-14",
+        delivery: Delivery::Auto,
+        material_markers: &[],
+        shader_guids: &[],
+        version_lines: &[],
+        releases: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
+        legacy_folders: &[],
+        legacy_files: &[],
+    },
+    KnownPackage {
+        id: "net.narazaka.vrchat.floor-adjuster",
+        display_name: "FloorAdjuster",
+        feed_url: "https://vpm.narazaka.net/index.json",
+        official_url: "https://github.com/Narazaka/FloorAdjuster",
+        license: "Zlib",
+        license_url: "https://github.com/Narazaka/FloorAdjuster/blob/master/LICENSE.txt",
+        license_checked: "2026-11-14",
+        delivery: Delivery::Auto,
+        material_markers: &[],
+        shader_guids: &[],
+        version_lines: &[],
+        releases: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
+        legacy_folders: &[],
+        legacy_files: &[],
+    },
+    KnownPackage {
+        id: "com.github.kurotu.vrc-quest-tools",
+        display_name: "VRCQuestTools",
+        feed_url: "https://kurotu.github.io/vpm-repos/vpm.json",
+        official_url: "https://kurotu.github.io/VRCQuestTools/",
+        license: "MIT",
+        license_url: "https://github.com/kurotu/VRCQuestTools/blob/master/LICENSE",
+        license_checked: "2026-11-14",
+        delivery: Delivery::Auto,
+        material_markers: &[],
+        shader_guids: &[],
+        version_lines: &[],
+        releases: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
+        legacy_folders: &[],
+        legacy_files: &[],
+    },
 ];
 
 pub(crate) fn find_known_package(id: &str) -> Option<&'static KnownPackage> {
@@ -1808,6 +1859,15 @@ mod tests {
                 "jp.pokemori.vrm-converter-for-vrchat".to_owned(),
                 "44.0.0".to_owned(),
             ),
+            ("jp.lilxyzw.avatar-utils".to_owned(), "0.8.4".to_owned()),
+            (
+                "net.narazaka.vrchat.floor-adjuster".to_owned(),
+                "1.3.0".to_owned(),
+            ),
+            (
+                "com.github.kurotu.vrc-quest-tools".to_owned(),
+                "2.10.2".to_owned(),
+            ),
         ]);
         let ids: Vec<_> = pinned_auto_packages(KNOWN_PACKAGES, &pins)
             .map(|package| package.id)
@@ -1821,6 +1881,9 @@ mod tests {
                 "jp.lilxyzw.lilycalinventory",
                 "net.rs64.tex-trans-tool",
                 "jp.suzuryg.face-emo",
+                "jp.lilxyzw.avatar-utils",
+                "net.narazaka.vrchat.floor-adjuster",
+                "com.github.kurotu.vrc-quest-tools",
             ]
         );
         assert!(avatar_optimizer_compatible(Some("3.10.5"), Some("1.14.8")));

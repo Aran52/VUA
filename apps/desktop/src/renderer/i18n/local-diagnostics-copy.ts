@@ -34,6 +34,29 @@ export const localDiagnosticsCopy = {
       steamvrScaleDefault: "Default resolution scaling",
       steamvrSafeModeBlocked: "Safe Mode blocked: {drivers}",
       steamvrClean: "No Safe Mode driver blocks",
+      oscQueryActive: "OSCQuery :{http} → UDP :{osc}",
+      audioTitle: "Default microphone & routing",
+      audioClean: "No inactive VR virtual mic hijack",
+      audioCommMismatch: "Default & Communications mics differ",
+      streamingTitle: "Quest Link & PICO Connect",
+      streamingNone: "No Quest Link or PICO Connect overrides",
+      questLinkSummary: "Quest Link: {width} px · {mbps} Mbps",
+      picoSummary: "PICO Connect: {preset} · {mbps} Mbps",
+      streamingDefaultVal: "auto",
+    },
+    audioRoles: {
+      vr_virtual: "VR streaming virtual microphone",
+      physical_or_usb: "Physical / USB / headset microphone",
+      virtual_cable: "Virtual audio cable / mixer",
+      none: "No default microphone selected",
+      unknown: "System default microphone",
+    },
+    audioHijack: {
+      none: "No virtual mic hijack",
+      oculus_virtual: "Windows Default Input is Oculus Virtual Audio",
+      steam_streaming: "Windows Default Input is Steam Streaming Mic",
+      pico_streaming: "Windows Default Input is PICO Streaming Audio",
+      virtual_desktop: "Windows Default Input is Virtual Desktop Audio",
     },
     logs: {
       no_logs: "No client log files found",
@@ -68,13 +91,17 @@ export const localDiagnosticsCopy = {
     findingsClean: "No local warning signals detected for this symptom — follow the checklist below in order.",
     stepsTitle: "Step-by-step SOP",
     findings: {
+      audio_virtual_mic_hijack_detected: "Windows Default Input is set to a VR streaming virtual microphone that outputs silence when unrouted.",
+      audio_communications_default_mismatch: "Windows Default Input and Default Communications Input point to different microphones.",
       osc_port_9000_unbound_while_client_running: "VRChat is running, but UDP port 9000 is unbound (OSC may be disabled in the Radial Menu).",
       osc_port_9000_conflict: "Another process is occupying UDP port 9000, preventing VRChat from receiving OSC.",
+      oscquery_port_mismatch: "Loopback OSCQuery negotiated a non-9000 UDP OSC receiver port while static tools target 9000.",
       osc_port_9001_unbound: "No companion app is currently listening on UDP port 9001.",
       osc_avatar_cache_present: "Cached OSC avatar JSON mappings exist and may hold stale parameter types after re-upload.",
       steamvr_driver_blocked_by_safe_mode: "SteamVR Safe Mode has blocked one or more external tracking/add-on drivers.",
       steamvr_high_supersampling: "SteamVR global render resolution multiplier exceeds 150%.",
       steamvr_app_overscaled: "SteamVR per-app VRChat resolution scale exceeds 130%.",
+      streaming_high_bitrate_or_encode_width: "Quest Link or PICO Connect encode resolution/bitrate is set above recommended stability thresholds.",
       client_cache_near_limit: "Cache-WindowsPlayer is above 90% of the configured cache_size limit.",
       drive_free_space_low: "Less than 10 GiB of free space remains on the cache drive.",
       client_config_malformed: "LocalLow/VRChat/VRChat/config.json contains invalid JSON syntax.",
@@ -85,6 +112,10 @@ export const localDiagnosticsCopy = {
       log_openvr_init_failed: "Latest VRChat log recorded an OpenVR / HMD initialization failure.",
     },
     sopSteps: {
+      audio_restore_hijacked_default_mic: {
+        title: "Switch Windows Default Input off inactive VR virtual microphone",
+        instruction: "Windows Default Recording device is set to a VR streaming virtual microphone (Oculus / Steam Streaming / PICO / Virtual Desktop). Select your active physical or headset microphone in Windows Sound and VRChat.",
+      },
       audio_windows_input_output: {
         title: "Verify Windows default input/output and per-app volume",
         instruction: "Open Windows Sound → Volume Mixer, confirm your headset microphone is not muted, and check Windows Privacy → Microphone permissions for desktop apps.",
@@ -100,6 +131,10 @@ export const localDiagnosticsCopy = {
       osc_resolve_port_9000_conflict: {
         title: "Release conflicting app bound to UDP port 9000",
         instruction: "Close the local app occupying UDP 9000, launch VRChat first so it binds UDP 9000, and then start VRCFaceTracking, SlimeVR, or VRCT.",
+      },
+      osc_align_oscquery_port: {
+        title: "Align static OSC sender port with OSCQuery negotiated port",
+        instruction: "Loopback OSCQuery advertised a non-9000 UDP OSC receiver port. Enable OSCQuery auto-discovery in your companion app, or restart VRChat before launching static port-9000 tools.",
       },
       osc_enable_radial_menu: {
         title: "Enable OSC in VRChat's Radial Action Menu",
@@ -124,6 +159,10 @@ export const localDiagnosticsCopy = {
       perf_reduce_steamvr_supersampling: {
         title: "Lower compounded SteamVR render resolution scaling",
         instruction: "SteamVR global or per-app VRChat resolution scale is above 130%–150%, multiplying pixel load on top of your streaming codec. Reset per-app scale toward 100%.",
+      },
+      perf_tune_streaming_bitrate_and_resolution: {
+        title: "Lower Quest Link / PICO Connect encode width or bitrate",
+        instruction: "High streaming encode resolution (>4128 px) or bitrate (>500 Mbps Quest Link / >150 Mbps PICO Connect) saturates GPU video encoders and VRAM buffers. Step down to Balanced/HD preset or enable dynamic bitrate.",
       },
       perf_d3d11_vram_exhaustion: {
         title: "Recover from GPU / VRAM exhaustion signature in recent log",
@@ -243,6 +282,29 @@ export const localDiagnosticsCopy = {
       steamvrScaleDefault: "默认分辨率倍率",
       steamvrSafeModeBlocked: "安全模式已拦截：{drivers}",
       steamvrClean: "无安全模式插件拦截",
+      oscQueryActive: "OSCQuery :{http} → UDP :{osc}",
+      audioTitle: "默认麦克风与音频路由",
+      audioClean: "未被闲置 VR 虚拟麦克风劫持",
+      audioCommMismatch: "系统默认麦与通信默认麦不一致",
+      streamingTitle: "Quest Link 与 PICO 串流参数",
+      streamingNone: "未检测到自定义串流码率或分辨率覆盖",
+      questLinkSummary: "Quest Link：{width} px · {mbps} Mbps",
+      picoSummary: "PICO 互联：{preset} · {mbps} Mbps",
+      streamingDefaultVal: "自动",
+    },
+    audioRoles: {
+      vr_virtual: "VR 串流虚拟麦克风",
+      physical_or_usb: "物理／USB／头显麦克风",
+      virtual_cable: "虚拟声卡／混音线缆",
+      none: "未选择默认麦克风",
+      unknown: "系统默认麦克风",
+    },
+    audioHijack: {
+      none: "无虚拟麦克风劫持",
+      oculus_virtual: "Windows 默认录音当前指向 Oculus 虚拟声卡",
+      steam_streaming: "Windows 默认录音当前指向 Steam Streaming 麦克风",
+      pico_streaming: "Windows 默认录音当前指向 PICO 串流虚拟声卡",
+      virtual_desktop: "Windows 默认录音当前指向 Virtual Desktop 虚拟声卡",
     },
     logs: {
       no_logs: "未发现客户端日志文件",
@@ -277,13 +339,17 @@ export const localDiagnosticsCopy = {
     findingsClean: "暂未发现明显的本机异常信号——请按下方分层清单依次核对。",
     stepsTitle: "分层排障 SOP",
     findings: {
+      audio_virtual_mic_hijack_detected: "Windows 默认录音设备正指向 VR 串流虚拟麦克风，未串流时会导致游戏内无声。",
+      audio_communications_default_mismatch: "Windows 默认录音设备与默认通信录音设备指向了不同的麦克风。",
       osc_port_9000_unbound_while_client_running: "VRChat 正在运行，但 UDP 9000 端口未监听（圆盘菜单中的 OSC 可能未开启）。",
       osc_port_9000_conflict: "其他本地进程占用了 UDP 9000 端口，导致 VRChat 无法接收 OSC 数据。",
+      oscquery_port_mismatch: "本机 OSCQuery 协商了非 9000 的接收端口，固定发往 9000 的工具将无法生效。",
       osc_port_9001_unbound: "当前没有伴侣工具监听 UDP 9001 端口。",
       osc_avatar_cache_present: "本地存在已缓存的 OSC 模型 JSON 映射，改模重传后可能残留旧参数类型。",
       steamvr_driver_blocked_by_safe_mode: "SteamVR 安全模式已拦截一个或多个外部追踪驱动插件。",
       steamvr_high_supersampling: "SteamVR 全局渲染分辨率倍率超过 150%。",
       steamvr_app_overscaled: "SteamVR 中 VRChat 单应用分辨率倍率超过 130%。",
+      streaming_high_bitrate_or_encode_width: "Quest Link 或 PICO 互联的编码分辨率／码率超过推荐稳定阈值。",
       client_cache_near_limit: "Cache-WindowsPlayer 体积已超过设定上限的 90%。",
       drive_free_space_low: "缓存所在磁盘剩余空间不足 10 GiB。",
       client_config_malformed: "LocalLow/VRChat/VRChat/config.json 存在无效的 JSON 语法。",
@@ -294,6 +360,10 @@ export const localDiagnosticsCopy = {
       log_openvr_init_failed: "最新客户端日志记录到 OpenVR / 头显运行时初始化失败。",
     },
     sopSteps: {
+      audio_restore_hijacked_default_mic: {
+        title: "将 Windows 默认录音切回当前实际使用的麦克风",
+        instruction: "Windows 默认录音设备仍停留在 VR 串流虚拟声卡（Oculus / Steam Streaming / PICO / Virtual Desktop）。请在系统声音与 VRChat 内手动选回当前工作的麦克风。",
+      },
       audio_windows_input_output: {
         title: "核对 Windows 默认输入／输出设备与应用音量",
         instruction: "打开 Windows 声音 → 音量合成器，确认头显麦克风未被静音，并检查系统隐私设置中的桌面应用麦克风权限。",
@@ -309,6 +379,10 @@ export const localDiagnosticsCopy = {
       osc_resolve_port_9000_conflict: {
         title: "释放占用 UDP 9000 端口的冲突程序",
         instruction: "先关闭占用 UDP 9000 的本地程序，优先启动 VRChat 让其绑定 9000 端口，再启动 VRCFaceTracking、SlimeVR 或 VRCT。",
+      },
+      osc_align_oscquery_port: {
+        title: "对齐固定 OSC 发送端口与 OSCQuery 协商端口",
+        instruction: "本机 OSCQuery 广播了非 9000 的 UDP 接收端口。请在伴侣软件开启 OSCQuery 自动发现，或先重启 VRChat 让其重新绑定默认 9000 端口。",
       },
       osc_enable_radial_menu: {
         title: "在 VRChat 圆盘菜单中开启 OSC",
@@ -333,6 +407,10 @@ export const localDiagnosticsCopy = {
       perf_reduce_steamvr_supersampling: {
         title: "调低叠加放大的 SteamVR 渲染分辨率倍率",
         instruction: "SteamVR 全局或 VRChat 单应用分辨率超过 130%–150% 会与串流分辨率成倍叠加。建议将 VRChat 单应用倍率恢复至 100% 左右。",
+      },
+      perf_tune_streaming_bitrate_and_resolution: {
+        title: "调低 Quest Link／PICO 互联的编码宽度或串流码率",
+        instruction: "过高的串流编码宽度（>4128 px）或固定码率（Quest Link >500 Mbps／PICO >150 Mbps）会占满显卡编码器与显存缓冲。建议改用均衡／高清档或开启动态码率。",
       },
       perf_d3d11_vram_exhaustion: {
         title: "处理最新日志中的显卡重置／爆显存记录",
@@ -452,6 +530,29 @@ export const localDiagnosticsCopy = {
       steamvrScaleDefault: "預設解析度倍率",
       steamvrSafeModeBlocked: "安全模式已封鎖：{drivers}",
       steamvrClean: "無安全模式外掛封鎖",
+      oscQueryActive: "OSCQuery :{http} → UDP :{osc}",
+      audioTitle: "預設麥克風與音訊路由",
+      audioClean: "未被閒置 VR 虛擬麥克風劫持",
+      audioCommMismatch: "系統預設麥克風與通訊預設不一致",
+      streamingTitle: "Quest Link 與 PICO 串流參數",
+      streamingNone: "未偵測到自訂串流位元率或解析度覆寫",
+      questLinkSummary: "Quest Link：{width} px · {mbps} Mbps",
+      picoSummary: "PICO 互聯：{preset} · {mbps} Mbps",
+      streamingDefaultVal: "自動",
+    },
+    audioRoles: {
+      vr_virtual: "VR 串流虛擬麥克風",
+      physical_or_usb: "實體／USB／頭顯麥克風",
+      virtual_cable: "虛擬音效卡／混音線纜",
+      none: "未選取預設麥克風",
+      unknown: "系統預設麥克風",
+    },
+    audioHijack: {
+      none: "無虛擬麥克風劫持",
+      oculus_virtual: "Windows 預設錄音目前指向 Oculus 虛擬音效卡",
+      steam_streaming: "Windows 預設錄音目前指向 Steam Streaming 麥克風",
+      pico_streaming: "Windows 預設錄音目前指向 PICO 串流虛擬音效卡",
+      virtual_desktop: "Windows 預設錄音目前指向 Virtual Desktop 虛擬音效卡",
     },
     logs: {
       no_logs: "找不到客戶端日誌檔案",
@@ -486,13 +587,17 @@ export const localDiagnosticsCopy = {
     findingsClean: "目前未發現明顯的本機異常訊號——請依下方分層清單逐一核對。",
     stepsTitle: "分層排障 SOP",
     findings: {
+      audio_virtual_mic_hijack_detected: "Windows 預設錄音裝置正指向 VR 串流虛擬麥克風，未串流時會導致遊戲內無聲。",
+      audio_communications_default_mismatch: "Windows 預設錄音裝置與預設通訊錄音裝置指向了不同的麥克風。",
       osc_port_9000_unbound_while_client_running: "VRChat 執行中，但 UDP 9000 連接埠未監聽（圓盤選單中的 OSC 可能尚未開啟）。",
       osc_port_9000_conflict: "其他本機程式佔用了 UDP 9000 連接埠，導致 VRChat 無法接收 OSC 資料。",
+      oscquery_port_mismatch: "本機 OSCQuery 協商了非 9000 的接收連接埠，固定發往 9000 的工具將無法生效。",
       osc_port_9001_unbound: "目前沒有輔助工具監聽 UDP 9001 連接埠。",
       osc_avatar_cache_present: "本機存在已快取的 OSC 模型 JSON 對應，改模重傳後可能殘留舊參數型別。",
       steamvr_driver_blocked_by_safe_mode: "SteamVR 安全模式已封鎖一個或多個外部追蹤驅動外掛。",
       steamvr_high_supersampling: "SteamVR 全域渲染解析度倍率超過 150%。",
       steamvr_app_overscaled: "SteamVR 中 VRChat 單一應用解析度倍率超過 130%。",
+      streaming_high_bitrate_or_encode_width: "Quest Link 或 PICO 互聯的編碼解析度／位元率超過建議穩定門檻。",
       client_cache_near_limit: "Cache-WindowsPlayer 容量已超過設定上限的 90%。",
       drive_free_space_low: "快取所在磁碟剩餘空間不足 10 GiB。",
       client_config_malformed: "LocalLow/VRChat/VRChat/config.json 含有無效的 JSON 語法。",
@@ -503,6 +608,10 @@ export const localDiagnosticsCopy = {
       log_openvr_init_failed: "最新客戶端日誌記錄到 OpenVR / 頭顯執行階段初始化失敗。",
     },
     sopSteps: {
+      audio_restore_hijacked_default_mic: {
+        title: "將 Windows 預設錄音切回目前實際使用的麥克風",
+        instruction: "Windows 預設錄音裝置仍停留在 VR 串流虛擬音效卡（Oculus / Steam Streaming / PICO / Virtual Desktop）。請在系統音效與 VRChat 內手動選回目前運作中的麥克風。",
+      },
       audio_windows_input_output: {
         title: "確認 Windows 預設輸入／輸出裝置與個別應用程式音量",
         instruction: "開啟 Windows 音效 → 音量混音程式，確認頭顯麥克風未靜音，並檢查系統隱私權中的桌面應用程式麥克風權限。",
@@ -518,6 +627,10 @@ export const localDiagnosticsCopy = {
       osc_resolve_port_9000_conflict: {
         title: "釋放佔用 UDP 9000 連接埠的衝突程式",
         instruction: "先關閉佔用 UDP 9000 的本機程式，優先啟動 VRChat 讓其綁定 9000 連接埠，再啟動 VRCFaceTracking、SlimeVR 或 VRCT。",
+      },
+      osc_align_oscquery_port: {
+        title: "對齊固定 OSC 傳送連接埠與 OSCQuery 協商連接埠",
+        instruction: "本機 OSCQuery 廣播了非 9000 的 UDP 接收連接埠。請在輔助工具開啟 OSCQuery 自動探索，或先重新啟動 VRChat 讓其重新綁定預設 9000 連接埠。",
       },
       osc_enable_radial_menu: {
         title: "在 VRChat 圓盤選單中開啟 OSC",
@@ -542,6 +655,10 @@ export const localDiagnosticsCopy = {
       perf_reduce_steamvr_supersampling: {
         title: "調低疊加放大的 SteamVR 渲染解析度倍率",
         instruction: "SteamVR 全域或 VRChat 單一應用解析度超過 130%–150% 會與串流解析度成倍疊加。建議將單一應用倍率調回 100% 左右。",
+      },
+      perf_tune_streaming_bitrate_and_resolution: {
+        title: "調低 Quest Link／PICO 互聯的編碼寬度或串流位元率",
+        instruction: "過高的串流編碼寬度（>4128 px）或固定位元率（Quest Link >500 Mbps／PICO >150 Mbps）會佔滿顯示卡編碼器與顯示記憶體。建議改用平衡／高畫質檔或啟用動態位元率。",
       },
       perf_d3d11_vram_exhaustion: {
         title: "處理最新日誌中的顯示卡重設／顯示記憶體耗盡紀錄",
@@ -661,6 +778,29 @@ export const localDiagnosticsCopy = {
       steamvrScaleDefault: "既定の解像度スケール",
       steamvrSafeModeBlocked: "セーフモードでブロック中: {drivers}",
       steamvrClean: "セーフモードによるブロックなし",
+      oscQueryActive: "OSCQuery :{http} → UDP :{osc}",
+      audioTitle: "既定マイク・音声ルーティング",
+      audioClean: "未使用 VR 仮想マイクの乗っ取りなし",
+      audioCommMismatch: "既定マイクと既定の通信マイクが異なります",
+      streamingTitle: "Quest Link・PICO Connect",
+      streamingNone: "ストリーミング帯域・解像度の上書きなし",
+      questLinkSummary: "Quest Link: {width} px · {mbps} Mbps",
+      picoSummary: "PICO Connect: {preset} · {mbps} Mbps",
+      streamingDefaultVal: "自動",
+    },
+    audioRoles: {
+      vr_virtual: "VR ストリーミング仮想マイク",
+      physical_or_usb: "物理／USB／HMD マイク",
+      virtual_cable: "仮想オーディオケーブル／ミキサー",
+      none: "既定マイク未選択",
+      unknown: "システム既定マイク",
+    },
+    audioHijack: {
+      none: "仮想マイクの競合なし",
+      oculus_virtual: "Windows 既定の入力が Oculus Virtual Audio のままです",
+      steam_streaming: "Windows 既定の入力が Steam Streaming Mic のままです",
+      pico_streaming: "Windows 既定の入力が PICO 仮想オーディオのままです",
+      virtual_desktop: "Windows 既定の入力が Virtual Desktop Audio のままです",
     },
     logs: {
       no_logs: "クライアントログが見つかりません",
@@ -695,13 +835,17 @@ export const localDiagnosticsCopy = {
     findingsClean: "この症状に関するローカル警告は検出されませんでした。以下の手順を上から順に確認してください。",
     stepsTitle: "確認手順（SOP）",
     findings: {
+      audio_virtual_mic_hijack_detected: "Windows の既定の録音デバイスが VR ストリーミング仮想マイクのままになっており、未接続時は無音になります。",
+      audio_communications_default_mismatch: "Windows の既定の入力デバイスと既定の通信デバイスが異なるマイクを指しています。",
       osc_port_9000_unbound_while_client_running: "VRChat は起動中ですが、UDP 9000 が待受状態ではありません（リングメニューで OSC がオフの可能性があります）。",
       osc_port_9000_conflict: "別のプロセスが UDP 9000 を占有しており、VRChat が OSC を受信できません。",
+      oscquery_port_mismatch: "OSCQuery が 9000 以外の UDP 受信ポートを通知しており、固定 9000 送信ツールと不一致です。",
       osc_port_9001_unbound: "UDP 9001 で待ち受けている連携ツールが見つかりません。",
       osc_avatar_cache_present: "OSC アバター JSON キャッシュが存在します（再アップロード後に古い型情報が残る場合があります）。",
       steamvr_driver_blocked_by_safe_mode: "SteamVR セーフモードにより外部トラッキング／アドオンドライバが無効化されています。",
       steamvr_high_supersampling: "SteamVR 全体のレンダー解像度倍率が 150% を超えています。",
       steamvr_app_overscaled: "SteamVR の VRChat 個別解像度倍率が 130% を超えています。",
+      streaming_high_bitrate_or_encode_width: "Quest Link または PICO Connect のエンコード解像度／ビットレートが推奨安定上限を超えています。",
       client_cache_near_limit: "Cache-WindowsPlayer の使用量が上限設定の 90% を超えています。",
       drive_free_space_low: "キャッシュ保存先ドライブの空き容量が 10 GiB 未満です。",
       client_config_malformed: "LocalLow/VRChat/VRChat/config.json の JSON 構文が破損しています。",
@@ -712,6 +856,10 @@ export const localDiagnosticsCopy = {
       log_openvr_init_failed: "最新ログに OpenVR / HMD 初期化エラーが記録されています。",
     },
     sopSteps: {
+      audio_restore_hijacked_default_mic: {
+        title: "Windows 既定の入力を実際に使うマイクへ切り替える",
+        instruction: "Windows の既定の録音デバイスが VR ストリーミング仮想マイク（Oculus / Steam Streaming / PICO / Virtual Desktop）のままです。サウンド設定と VRChat 内で使用中のマイクを選択してください。",
+      },
       audio_windows_input_output: {
         title: "Windows の既定の入出力デバイスと音量ミキサーを確認する",
         instruction: "Windows のサウンド → 音量ミキサーを開き、HMD マイクがミュートになっていないかとデスクトップアプリのマイク権限を確認します。",
@@ -727,6 +875,10 @@ export const localDiagnosticsCopy = {
       osc_resolve_port_9000_conflict: {
         title: "UDP 9000 ポートを占有している競合アプリを終了する",
         instruction: "UDP 9000 を使用中のアプリを一度閉じ、先に VRChat を起動してから VRCFaceTracking・SlimeVR・VRCT を起動してください。",
+      },
+      osc_align_oscquery_port: {
+        title: "固定 OSC 送信ポートと OSCQuery 通知ポートを揃える",
+        instruction: "ローカル OSCQuery が 9000 以外の受信ポートを通知しています。連携ツール側で OSCQuery 自動検出を有効にするか、VRChat を先に再起動して 9000 ポートを掴ませてください。",
       },
       osc_enable_radial_menu: {
         title: "VRChat のリングメニューで OSC を有効にする",
@@ -751,6 +903,10 @@ export const localDiagnosticsCopy = {
       perf_reduce_steamvr_supersampling: {
         title: "重複して掛かっている SteamVR 解像度倍率を下げる",
         instruction: "SteamVR 全体または VRChat 個別の解像度倍率が 130%〜150% を超えると負荷が急増します。VRChat 個別倍率を 100% 前後に戻してください。",
+      },
+      perf_tune_streaming_bitrate_and_resolution: {
+        title: "Quest Link／PICO Connect のエンコード幅・ビットレートを下げる",
+        instruction: "高すぎるエンコード幅（>4128 px）やビットレート（Quest Link >500 Mbps／PICO >150 Mbps）は GPU エンコーダと VRAM を圧迫します。バランス／HD プリセットまたは動的ビットレートを使用してください。",
       },
       perf_d3d11_vram_exhaustion: {
         title: "最新ログの GPU リセット／VRAM 不足に対処する",
@@ -870,6 +1026,29 @@ export const localDiagnosticsCopy = {
       steamvrScaleDefault: "기본 해상도 배율",
       steamvrSafeModeBlocked: "안전 모드 차단됨: {drivers}",
       steamvrClean: "안전 모드 드라이버 차단 없음",
+      oscQueryActive: "OSCQuery :{http} → UDP :{osc}",
+      audioTitle: "기본 마이크 및 오디오 라우팅",
+      audioClean: "비활성 VR 가상 마이크 가로채기 없음",
+      audioCommMismatch: "기본 마이크와 통신 기본 마이크가 다름",
+      streamingTitle: "Quest Link 및 PICO Connect",
+      streamingNone: "사용자 지정 스트리밍 비트레이트/해상도 없음",
+      questLinkSummary: "Quest Link: {width} px · {mbps} Mbps",
+      picoSummary: "PICO Connect: {preset} · {mbps} Mbps",
+      streamingDefaultVal: "자동",
+    },
+    audioRoles: {
+      vr_virtual: "VR 스트리밍 가상 마이크",
+      physical_or_usb: "물리 / USB / 헤드셋 마이크",
+      virtual_cable: "가상 오디오 케이블 / 믹서",
+      none: "기본 마이크 선택 안 됨",
+      unknown: "시스템 기본 마이크",
+    },
+    audioHijack: {
+      none: "가상 마이크 가로채기 없음",
+      oculus_virtual: "Windows 기본 입력이 Oculus 가상 오디오로 고정됨",
+      steam_streaming: "Windows 기본 입력이 Steam Streaming 마이크로 고정됨",
+      pico_streaming: "Windows 기본 입력이 PICO 스트리밍 오디오로 고정됨",
+      virtual_desktop: "Windows 기본 입력이 Virtual Desktop 오디오로 고정됨",
     },
     logs: {
       no_logs: "클라이언트 로그 파일 없음",
@@ -904,13 +1083,17 @@ export const localDiagnosticsCopy = {
     findingsClean: "이 증상과 관련된 로컬 경고 신호가 없어요 — 아래 점검표를 순서대로 확인해 보세요.",
     stepsTitle: "단계별 점검 SOP",
     findings: {
+      audio_virtual_mic_hijack_detected: "Windows 기본 녹음 장치가 비활성 시 무음이 되는 VR 스트리밍 가상 마이크로 설정되어 있어요.",
+      audio_communications_default_mismatch: "Windows 기본 녹음 장치와 기본 통신 장치가 서로 다른 마이크를 가리키고 있어요.",
       osc_port_9000_unbound_while_client_running: "VRChat이 실행 중이지만 UDP 9000 포트가 열려 있지 않아요(원형 메뉴에서 OSC가 꺼져 있을 수 있음).",
       osc_port_9000_conflict: "다른 로컬 프로세스가 UDP 9000 포트를 선점해 VRChat이 OSC를 받지 못하고 있어요.",
+      oscquery_port_mismatch: "로컬 OSCQuery가 9000이 아닌 UDP 수신 포트를 알려 고정 9000 전송 앱과 어긋나 있어요.",
       osc_port_9001_unbound: "현재 UDP 9001 포트에서 대기 중인 연동 앱이 없어요.",
       osc_avatar_cache_present: "캐시된 OSC 아바타 JSON 매핑이 있어 재업로드 후 이전 파라미터 타입이 남아 있을 수 있어요.",
       steamvr_driver_blocked_by_safe_mode: "SteamVR 안전 모드가 외부 트래킹/애드온 드라이버를 차단했어요.",
       steamvr_high_supersampling: "SteamVR 전역 렌더링 해상도 배율이 150%를 초과했어요.",
       steamvr_app_overscaled: "SteamVR의 VRChat 앱별 해상도 배율이 130%를 초과했어요.",
+      streaming_high_bitrate_or_encode_width: "Quest Link 또는 PICO Connect 인코딩 해상도/비트레이트가 권장 안정 범위를 초과했어요.",
       client_cache_near_limit: "Cache-WindowsPlayer 용량이 설정된 상한의 90%를 넘었어요.",
       drive_free_space_low: "캐시 드라이브의 여유 공간이 10 GiB 미만이에요.",
       client_config_malformed: "LocalLow/VRChat/VRChat/config.json의 JSON 구문이 올바르지 않아요.",
@@ -921,6 +1104,10 @@ export const localDiagnosticsCopy = {
       log_openvr_init_failed: "최근 로그에 OpenVR / HMD 초기화 실패가 기록되었어요.",
     },
     sopSteps: {
+      audio_restore_hijacked_default_mic: {
+        title: "Windows 기본 입력을 실제 사용 중인 마이크로 변경",
+        instruction: "Windows 기본 녹음 장치가 VR 스트리밍 가상 마이크(Oculus / Steam Streaming / PICO / Virtual Desktop)에 머물러 있습니다. Windows 소리 및 VRChat 설정에서 활성 마이크를 직접 선택하세요.",
+      },
       audio_windows_input_output: {
         title: "Windows 기본 입출력 장치 및 볼륨 믹서 확인",
         instruction: "Windows 소리 → 볼륨 믹서를 열어 헤드셋 마이크 음소거 여부와 데스크톱 앱 마이크 권한을 확인하세요.",
@@ -936,6 +1123,10 @@ export const localDiagnosticsCopy = {
       osc_resolve_port_9000_conflict: {
         title: "UDP 9000 포트를 점유한 충돌 프로그램 종료",
         instruction: "UDP 9000을 사용 중인 앱을 닫고 VRChat을 먼저 실행해 9000 포트를 잡게 한 뒤 VRCFaceTracking, SlimeVR, VRCT를 실행하세요.",
+      },
+      osc_align_oscquery_port: {
+        title: "고정 OSC 전송 포트와 OSCQuery 협상 포트 맞추기",
+        instruction: "로컬 OSCQuery가 9000이 아닌 UDP 수신 포트를 알리고 있습니다. 연동 앱에서 OSCQuery 자동 검색을 켜거나 VRChat을 먼저 재시작해 기본 9000 포트를 바인딩하게 하세요.",
       },
       osc_enable_radial_menu: {
         title: "VRChat 원형 액션 메뉴에서 OSC 켜기",
@@ -960,6 +1151,10 @@ export const localDiagnosticsCopy = {
       perf_reduce_steamvr_supersampling: {
         title: "중첩 적용된 SteamVR 렌더링 해상도 배율 낮추기",
         instruction: "SteamVR 전역 또는 VRChat 앱별 해상도 배율이 130%–150%를 넘으면 스트리밍 해상도와 곱해져 부하가 급증합니다. 앱별 배율을 100% 근처로 맞추세요.",
+      },
+      perf_tune_streaming_bitrate_and_resolution: {
+        title: "Quest Link / PICO Connect 인코딩 너비 및 비트레이트 낮추기",
+        instruction: "과도한 인코딩 해상도(>4128 px)나 비트레이트(Quest Link >500 Mbps / PICO >150 Mbps)는 GPU 인코더와 VRAM을 포화시킵니다. 균형/HD 프리셋 또는 동적 비트레이트를 사용하세요.",
       },
       perf_d3d11_vram_exhaustion: {
         title: "최근 로그의 GPU 리셋 / VRAM 부족 징후 대응",

@@ -1,28 +1,40 @@
 # Local multi-layer diagnostics and guarded client helpers v0.1
 
-> Document version: 0.1.0
+> Document version: 0.2.0
 > Status: Candidate
 > Owner: Environment
 > Updated: 2026-11-14
 > Schemas: [request](../../schemas/local-diagnostics/v0.1/request.schema.json), [snapshot](../../schemas/local-diagnostics/v0.1/snapshot.schema.json), [symptom-diagnosis](../../schemas/local-diagnostics/v0.1/symptom-diagnosis.schema.json), [osc-cache-clear-receipt](../../schemas/local-diagnostics/v0.1/osc-cache-clear-receipt.schema.json), [client-config-update-receipt](../../schemas/local-diagnostics/v0.1/client-config-update-receipt.schema.json), [vectors](../../schemas/local-diagnostics/v0.1/vectors.json)
 
-This Candidate face observes local desktop VR runtime, OSC, cache, SteamVR configuration and
-privacy-safe log failure signatures, joins those live facts into deterministic multi-layer
-symptom-to-SOP diagnoses, and offers two guarded offline helpers (`diagnostics.clearOscAvatarCache`
-and `diagnostics.updateClientConfig`). It belongs to the Host (`Environment`) provider and remains
+This Candidate face observes local desktop VR runtime, OSC + OSCQuery loopback, Windows default
+audio endpoint hygiene, PCVR streaming settings, cache, SteamVR configuration and privacy-safe log
+failure signatures, joins those live facts into deterministic multi-layer symptom-to-SOP diagnoses,
+and offers two guarded offline helpers (`diagnostics.clearOscAvatarCache` and
+`diagnostics.updateClientConfig`). It belongs to the Host (`Environment`) provider and remains
 available whether or not the AMF module is enabled.
 
 ## Safety and privacy invariants
 
 1. **Zero game-process attachment or EAC contact**: process checks use read-only OS process table
    snapshots (`Toolhelp32` on Windows) without opening game memory or handles for injection.
-2. **Zero UDP port seizure**: UDP `9000` (client OSC input) and `9001` (client OSC output) are
+2. **Zero UDP/TCP port seizure**: UDP `9000` (client OSC input) and `9001` (client OSC output) are
    inspected strictly through the OS UDP owner table (`GetExtendedUdpTable` `AF_INET`,
-   `UDP_TABLE_OWNER_PID`). VUA never binds a listener on `9000` or `9001`.
+   `UDP_TABLE_OWNER_PID`). OSCQuery loopback discovery inspects read-only TCP `127.0.0.1` listeners
+   (`GetExtendedTcpTable` `AF_INET`, `TCP_TABLE_OWNER_PID_LISTENER`) owned by known local VR/OSC
+   processes (`vrchat.exe`, `vrcfacetracking.exe`, `slimevr.exe`, `pharos-hub.exe`) with a bounded
+   `120 ms`, `<= 64 KiB` `GET /?HOST_INFO` read. VUA never binds a listener on `9000`, `9001` or
+   any OSCQuery port.
 3. **Privacy-safe projections**:
    - OSC cache inspection emits file count, total byte size and newest modification timestamp only;
      `usr_*` and `avtr_*` identifiers are never exported.
    - UDP port owners emit PID and lowercased executable basename only, never full user paths.
+   - Windows audio endpoint inspection (`HKCU\Software\Microsoft\Multimedia\Sound Mapper`) projects
+     only boolean flags and a closed `virtualMicFamily` enum (`voicemeeter`, `vb_cable`,
+     `virtual_audio_cable`, `steam_streaming_mic`, `oculus_virtual`, `sonobus`) — raw microphone or
+     speaker friendly names never cross the contract boundary.
+   - PCVR streaming inspection reads numeric `HKCU\Software\Oculus\RemoteHeadset` Quest Link limits
+     (`EncodeWidth`, `BitrateMbps`, `DBR`, `LinkSharpening`) and non-symlink PICO Connect settings
+     presence only, without exporting account tokens or file paths.
    - Client log inspection reads at most the trailing `128 KiB` of the newest `output_log_*.txt`
      and emits only a closed classification enum plus modification timestamp — raw log lines, world
      IDs (`wrld_*`), user IDs (`usr_*`) and local paths never cross the contract boundary.
@@ -63,6 +75,10 @@ repeating filesystem writes; replaying the same command ID with different parame
   - `osc_port_9000_conflict`
   - `osc_port_9001_unbound`
   - `osc_avatar_cache_present`
+  - `oscquery_port_mismatch`
+  - `audio_virtual_mic_hijack_detected`
+  - `audio_communications_default_mismatch`
+  - `streaming_high_bitrate_or_encode_width`
   - `steamvr_driver_blocked_by_safe_mode`
   - `steamvr_high_supersampling`
   - `steamvr_app_overscaled`
@@ -90,4 +106,5 @@ repeating filesystem writes; replaying the same command ID with different parame
 
 ## Document changelog
 
+- 0.2.0 (2026-11-14): add read-only OSCQuery loopback discovery (`osc.oscQuery`), privacy-safe Windows default audio endpoint projections (`audioEndpoints`), PCVR Quest Link / PICO Connect streaming observations (`streamingSettings`), and deterministic findings for virtual-microphone hijacks, communications-endpoint drift, OSCQuery UDP port drift and high streaming bitrate/encode width.
 - 0.1.0 (2026-11-14): introduce Host-owned local multi-layer observation, deterministic symptom-to-SOP diagnosis and offline OSC/config helpers.

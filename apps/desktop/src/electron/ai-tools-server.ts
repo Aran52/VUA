@@ -4,7 +4,7 @@ import { Server, ProtocolError, type Tool, type CallToolResult } from "@modelcon
 import { AjvJsonSchemaValidator } from "@modelcontextprotocol/server/validators/ajv";
 import { NodeStreamableHTTPServerTransport } from "@modelcontextprotocol/node";
 import { recommendAssembly, type AmfCandidateFacts, type AmfSourceFacts } from "@vua/contracts";
-import { isAiUploadConfirmationV01, isDesktopGatewayRequestV1, type AiActionRequestV01, type AiConnectionLocale, type AiToolsSnapshotV01, type AiUploadConfirmationV01, type DesktopGatewayRequestV1, type DesktopGatewayResponseV1 } from "@vua/contracts";
+import { filterToolCatalogV01, isAiUploadConfirmationV01, isDesktopGatewayRequestV1, TOOL_CATALOG_SCHEMA_V01, type AiActionRequestV01, type AiConnectionLocale, type AiToolsSnapshotV01, type AiUploadConfirmationV01, type DesktopGatewayRequestV1, type DesktopGatewayResponseV1, type ToolGoalIdV01 } from "@vua/contracts";
 import { AI_TOOLS, aiGatewayRequest, withUploadConfirmation, type AiToolSpec } from "./ai-tool-catalog.js";
 import { aiConnectionPrompt } from "./ai-connection-prompt.js";
 import { AiToolFailure, errorFields, isRunId, librarySummary, managerAppsSummary, releaseSummary, runSummary, taskChange, taskPage, taskSummary, type AiBuildIdentity } from "./ai-tool-results.js";
@@ -375,6 +375,16 @@ export class AiToolsServer {
       if (this.disposed || !this.enabled) throw new Error("connection_disabled");
       const spec = AI_TOOLS.find(tool => tool.name === name), validate = this.validate.get(name);
       if (!spec || !validate || !record(args) || !validate(args).valid) throw new Error("unsupported_tool_or_parameters");
+      if (name === "vua_tool_catalog") {
+        const goal = typeof args.goal === "string" ? (args.goal as ToolGoalIdV01 | "all") : "all";
+        const freeOnly = args.freeOnly === true;
+        return this.result({
+          whatHappened: "Read the static companion-tool catalog; no process or network check was run.",
+          nextAction: spec.next,
+          expectedResult: spec.expected,
+          data: { schemaVersion: TOOL_CATALOG_SCHEMA_V01, tools: filterToolCatalogV01({ goal, freeOnly }) },
+        });
+      }
       if (name === "vua_action_status") {
         const approval = this.approvals.get(String(args.approvalId)); if (!approval) throw new Error("approval_not_found");
         return this.result({ whatHappened: "Read the local approval state; no new action was taken.", nextAction: spec.next, expectedResult: spec.expected, data: approval.view });
@@ -445,6 +455,15 @@ export class AiToolsServer {
     } else if (request.method === "amf.production.assemble") {
       reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "amf.production.plan", params: { schemaVersion: "0.1", runId: request.params.runId, selection: request.params.selection } });
       if (!record(reviewed) || reviewed.planDigest !== request.params.planDigest) throw new Error("assembly_plan_changed");
+    } else if (request.method === "amf.production.applyTextureMemory") {
+      reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "amf.production.planTextureMemory", params: { schemaVersion: "0.1", runId: request.params.runId, platform: request.params.platform, targetRank: request.params.targetRank } });
+      if (!record(reviewed) || reviewed.planDigest !== request.params.planDigest) throw new Error("texture_plan_changed");
+    } else if (request.method === "amf.production.applyLighting") {
+      reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "amf.production.planLighting", params: { schemaVersion: "0.1", runId: request.params.runId } });
+      if (!record(reviewed) || reviewed.planDigest !== request.params.planDigest) throw new Error("lighting_plan_changed");
+    } else if (request.method === "amf.production.removeOutfit") {
+      reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "amf.production.planOutfitRemoval", params: { schemaVersion: "0.1", runId: request.params.runId, sourceId: request.params.sourceId } });
+      if (!record(reviewed) || reviewed.planDigest !== request.params.planDigest) throw new Error("outfit_removal_plan_changed");
     } else if (request.method === "amf.production.prepare") {
       reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "amf.production.list", params: { schemaVersion: "0.1" } });
       if (!record(reviewed) || !Array.isArray(reviewed.sources) || !Array.isArray(reviewed.editors)) throw new Error("material_or_editor_no_longer_available");
@@ -467,8 +486,14 @@ export class AiToolsServer {
       reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "tools.observeInstaller", params: { toolId: request.params.toolId } });
     } else if (request.method === "environment.openManagerApp") {
       reviewed = managerAppsSummary(await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "environment.inspectManagerApps", params: {} }));
-    } else if (request.method === "diagnostics.clearOscAvatarCache") {
+    } else if (request.method === "diagnostics.clearOscAvatarCache" || request.method === "diagnostics.updateClientConfig") {
       reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "diagnostics.observeLocal", params: { schemaVersion: "0.1" } });
+    } else if (request.method === "library.importGroups") {
+      reviewed = {
+        groupCount: request.params.groups.length,
+        fileCount: request.params.groups.reduce((sum, group) => sum + group.files.length, 0),
+        groupNames: request.params.groups.slice(0, 20).map(group => group.name),
+      };
     }
     if (!this.enabled) throw new Error("connection_disabled");
     if ([...this.approvals.values()].filter(a => a.view.state === "pending" || a.view.state === "running").length >= 4) throw new Error("review_pending_requests_first");

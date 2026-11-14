@@ -471,6 +471,8 @@ pub struct EnvironmentRoots {
     /// VCC settings candidates, same resolution order the package backend
     /// uses (LOCALAPPDATA first, legacy Roaming fallback).
     pub vcc_settings_candidates: Vec<PathBuf>,
+    /// PICO Connect streaming settings candidates (Roaming first, LOCALAPPDATA fallback).
+    pub pico_connect_settings_candidates: Vec<PathBuf>,
 }
 
 impl Default for EnvironmentRoots {
@@ -523,6 +525,14 @@ impl Default for EnvironmentRoots {
                     .join("settings.json"),
                 PathBuf::from(&roaming_app_data)
                     .join("VRChatCreatorCompanion")
+                    .join("settings.json"),
+            ],
+            pico_connect_settings_candidates: vec![
+                PathBuf::from(&roaming_app_data)
+                    .join("PICO Connect")
+                    .join("settings.json"),
+                PathBuf::from(&local_app_data)
+                    .join("PICO Connect")
                     .join("settings.json"),
             ],
         }

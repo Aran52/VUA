@@ -19,6 +19,17 @@
         "ownerProcess": { "type": ["string", "null"], "minLength": 1, "maxLength": 128 }
       }
     },
+    "oscQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "httpPort", "advertisedOscPort", "ownerProcess"],
+      "properties": {
+        "state": { "enum": ["found", "not_detected", "probe_unavailable"] },
+        "httpPort": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 },
+        "advertisedOscPort": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 },
+        "ownerProcess": { "type": ["string", "null"], "minLength": 1, "maxLength": 128 }
+      }
+    },
     "snapshot": {
       "type": "object",
       "additionalProperties": false,
@@ -30,6 +41,8 @@
         "clientCache",
         "osc",
         "steamvrSettings",
+        "audioEndpoints",
+        "streamingSettings",
         "recentClientLog"
       ],
       "properties": {
@@ -83,7 +96,8 @@
             "avatarCacheBytes",
             "newestModifiedAt",
             "udp9000",
-            "udp9001"
+            "udp9001",
+            "oscQuery"
           ],
           "properties": {
             "avatarCachePresence": { "enum": ["found", "missing", "read_failed"] },
@@ -91,7 +105,8 @@
             "avatarCacheBytes": { "type": "integer", "minimum": 0 },
             "newestModifiedAt": { "type": ["string", "null"], "minLength": 1 },
             "udp9000": { "$ref": "#/$defs/udpPort" },
-            "udp9001": { "$ref": "#/$defs/udpPort" }
+            "udp9001": { "$ref": "#/$defs/udpPort" },
+            "oscQuery": { "$ref": "#/$defs/oscQuery" }
           }
         },
         "steamvrSettings": {
@@ -116,6 +131,56 @@
               "maxItems": 32,
               "uniqueItems": true,
               "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+            }
+          }
+        },
+        "audioEndpoints": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "defaultCaptureRole", "virtualMicHijack", "communicationsMismatch"],
+          "properties": {
+            "state": { "enum": ["observed", "probe_unavailable"] },
+            "defaultCaptureRole": {
+              "enum": ["vr_virtual", "physical_or_usb", "virtual_cable", "none", "unknown"]
+            },
+            "virtualMicHijack": {
+              "enum": ["none", "oculus_virtual", "steam_streaming", "pico_streaming", "virtual_desktop"]
+            },
+            "communicationsMismatch": { "type": "boolean" }
+          }
+        },
+        "streamingSettings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["questLink", "picoConnect"],
+          "properties": {
+            "questLink": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "presence",
+                "encodeResolutionWidth",
+                "encodeBitrateMbps",
+                "dynamicBitrate",
+                "linkSharpening"
+              ],
+              "properties": {
+                "presence": { "enum": ["found", "missing"] },
+                "encodeResolutionWidth": { "type": ["integer", "null"], "minimum": 1, "maximum": 16384 },
+                "encodeBitrateMbps": { "type": ["integer", "null"], "minimum": 1, "maximum": 2000 },
+                "dynamicBitrate": { "type": ["boolean", "null"] },
+                "linkSharpening": { "type": ["integer", "null"], "minimum": 0, "maximum": 10 }
+              }
+            },
+            "picoConnect": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["presence", "preset", "bitrateMbps"],
+              "properties": {
+                "presence": { "enum": ["found", "missing", "malformed", "read_failed"] },
+                "preset": { "type": ["string", "null"], "minLength": 1, "maxLength": 32 },
+                "bitrateMbps": { "type": ["integer", "null"], "minimum": 1, "maximum": 2000 }
+              }
             }
           }
         },

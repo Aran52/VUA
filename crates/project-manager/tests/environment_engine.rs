@@ -49,6 +49,7 @@ fn synthetic_roots(base: &Path) -> EnvironmentRoots {
         },
         openvrpaths: vec![],
         vcc_settings_candidates: vec![base.join("vcc/settings.json")],
+        pico_connect_settings_candidates: vec![],
     }
 }
 

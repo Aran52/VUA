@@ -57,3 +57,4 @@ export * from "./local-diagnostics-v01.js";
 export * from "./pose-graph-v01.js";
 export * from "./glb-inspection-v01.js";
 export * from "./terms-v02.js";
+export * from "./tool-catalog-v01.js";

@@ -679,8 +679,15 @@ function PredictionNote({ prediction }: { prediction: AmfPlanPrediction }) {
     String(row.physBones), row.parameterBits === null ? "—" : `${row.parameterBits} / 256`,
   ];
   const columns = ["size", "triangles", "materialSlots", "textureMemory", "physBones", "parameterBits"] as const;
+  const ranks = prediction.total?.performanceRanks;
   return <div className="vua-line__prediction">
     <p>{predictionCopy.title}</p>
+    {ranks && <p className="vua-caption" data-testid="prediction-performance-ranks">
+      {format(predictionCopy.rankSummary, {
+        pc: predictionCopy.ranks[ranks.pc.rank],
+        android: predictionCopy.ranks[ranks.android.rank],
+      })}
+    </p>}
     <table className="vua-line__prediction-table">
       <thead><tr><th scope="col"/>{columns.map(column => <th key={column} scope="col">{predictionCopy.columns[column]}</th>)}</tr></thead>
       <tbody>
@@ -692,6 +699,18 @@ function PredictionNote({ prediction }: { prediction: AmfPlanPrediction }) {
           {cells(prediction.total).map((cell, index) => <td key={columns[index]}>{cell}</td>)}</tr>}
       </tbody>
     </table>
+    {ranks && ranks.pc.limitingMetrics.length > 0 && <p className="vua-caption vua-text-secondary">
+      {format(predictionCopy.limiting, {
+        platform: predictionCopy.platforms.pc,
+        metrics: ranks.pc.limitingMetrics.map(m => predictionCopy.metricNames[m]).join(", "),
+      })}
+    </p>}
+    {ranks && ranks.android.limitingMetrics.length > 0 && <p className="vua-caption vua-text-secondary">
+      {format(predictionCopy.limiting, {
+        platform: predictionCopy.platforms.android,
+        metrics: ranks.android.limitingMetrics.map(m => predictionCopy.metricNames[m]).join(", "),
+      })}
+    </p>}
     <p className="vua-caption vua-text-secondary">{predictionCopy.note}</p>
     {prediction.rows.some(row => !row.complete) && <p className="vua-caption vua-text-secondary">{predictionCopy.incomplete}</p>}
   </div>;

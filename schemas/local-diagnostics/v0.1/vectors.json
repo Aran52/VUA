@@ -122,7 +122,13 @@
             "avatarCacheBytes": 57344,
             "newestModifiedAt": "2026-11-13T23:50:00Z",
             "udp9000": { "state": "bound", "ownerPid": 4242, "ownerProcess": "vrchat.exe" },
-            "udp9001": { "state": "bound", "ownerPid": 4343, "ownerProcess": "vrcfacetracking.exe" }
+            "udp9001": { "state": "bound", "ownerPid": 4343, "ownerProcess": "vrcfacetracking.exe" },
+            "oscQuery": {
+              "state": "found",
+              "httpPort": 54321,
+              "advertisedOscPort": 9000,
+              "ownerProcess": "vrchat.exe"
+            }
           },
           "steamvrSettings": {
             "presence": "found",
@@ -131,6 +137,26 @@
             "vrchatResolutionScale": 1.0,
             "safeModeEnabled": false,
             "blockedDrivers": ["01spacecalibrator"]
+          },
+          "audioEndpoints": {
+            "state": "observed",
+            "defaultCaptureRole": "physical_or_usb",
+            "virtualMicHijack": "none",
+            "communicationsMismatch": false
+          },
+          "streamingSettings": {
+            "questLink": {
+              "presence": "found",
+              "encodeResolutionWidth": 3664,
+              "encodeBitrateMbps": 350,
+              "dynamicBitrate": true,
+              "linkSharpening": 1
+            },
+            "picoConnect": {
+              "presence": "missing",
+              "preset": null,
+              "bitrateMbps": null
+            }
           },
           "recentClientLog": {
             "classification": "clean_or_inconclusive",
@@ -171,7 +197,13 @@
             "avatarCacheBytes": 0,
             "newestModifiedAt": null,
             "udp9000": { "state": "bound", "ownerPid": 100, "ownerProcess": "C:\\Users\\Alice\\app.exe" },
-            "udp9001": { "state": "unbound", "ownerPid": null, "ownerProcess": null }
+            "udp9001": { "state": "unbound", "ownerPid": null, "ownerProcess": null },
+            "oscQuery": {
+              "state": "not_detected",
+              "httpPort": null,
+              "advertisedOscPort": null,
+              "ownerProcess": null
+            }
           },
           "steamvrSettings": {
             "presence": "missing",
@@ -180,6 +212,26 @@
             "vrchatResolutionScale": null,
             "safeModeEnabled": null,
             "blockedDrivers": []
+          },
+          "audioEndpoints": {
+            "state": "observed",
+            "defaultCaptureRole": "unknown",
+            "virtualMicHijack": "none",
+            "communicationsMismatch": false
+          },
+          "streamingSettings": {
+            "questLink": {
+              "presence": "missing",
+              "encodeResolutionWidth": null,
+              "encodeBitrateMbps": null,
+              "dynamicBitrate": null,
+              "linkSharpening": null
+            },
+            "picoConnect": {
+              "presence": "missing",
+              "preset": null,
+              "bitrateMbps": null
+            }
           },
           "recentClientLog": {
             "classification": "no_logs",

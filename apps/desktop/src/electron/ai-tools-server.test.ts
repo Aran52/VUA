@@ -349,7 +349,7 @@ describe("built-in MCP, using the official HTTP client", () => {
       { name: "vua_glb_inspect", arguments: { productId: "booth:123", entryId: "entry-1" } },
     ]) expect((await client.callTool(request)).isError).toBe(true);
     expect(calls).toEqual([]);
-    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_glb_inspect", "vua_terms", "vua_terms_check", "vua_amf_run", "vua_recipe_materials", "vua_recipe_apply_plan", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_installer_tool_status", "vua_diagnose_symptom", "vua_recipe", "vua_amf_face_tracking_plan", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
+    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_glb_inspect", "vua_terms", "vua_terms_check", "vua_amf_run", "vua_recipe_materials", "vua_recipe_apply_plan", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_installer_tool_status", "vua_diagnose_symptom", "vua_recipe", "vua_amf_face_tracking_plan", "vua_amf_texture_plan", "vua_amf_lighting_plan", "vua_amf_outfit_removal_plan", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
       expect(() => aiGatewayRequest(spec, {}, "test")).not.toThrow();
     }
     const { client: compatClient, calls: compatCalls } = await setup();
@@ -688,6 +688,114 @@ describe("run summary", () => {
     await service.resolve(pending.id, "approve");
     expect(calls.find(c => c.method === "environment.openManagerApp")?.params).toMatchObject({
       managerId: "alcom",
+      commandId: expect.stringMatching(/^ai-/),
+    });
+  });
+
+  it("exposes tool catalog filtering, enriched library filters, grouped migration intake, client config update, and AMF texture/lighting/outfit-removal plans and guarded approvals", async () => {
+    let currentDigest = digest;
+    const { client, calls, service } = await setup(async request => {
+      if (request.method === "diagnostics.observeLocal") return envelope(request, { localDiagnostics: { clientRunning: false } });
+      if (request.method === "diagnostics.updateClientConfig") return envelope(request, { clientConfigReceipt: { backupWritten: true, cacheSizeGb: 30, cacheExpiryDelayDays: 60 } });
+      if (request.method === "library.importGroups") return envelope(request, { schemaVersion: "0.1", operation: "library.importGroups", taskId: "migration-1", correlationId: "corr-1" });
+      if (request.method === "amf.production.planTextureMemory") return envelope(request, { schemaVersion: "0.1", runId: request.params.runId, planDigest: currentDigest, plan: { platform: request.params.platform, targetRank: request.params.targetRank } });
+      if (request.method === "amf.production.applyTextureMemory") return envelope(request, { operation: "amf.production", runId: request.params.runId, taskId: "tex-task" });
+      if (request.method === "amf.production.planLighting") return envelope(request, { schemaVersion: "0.1", runId: request.params.runId, planDigest: currentDigest });
+      if (request.method === "amf.production.applyLighting") return envelope(request, { operation: "amf.production", runId: request.params.runId, taskId: "light-task" });
+      if (request.method === "amf.production.planOutfitRemoval") return envelope(request, { schemaVersion: "0.1", runId: request.params.runId, planDigest: currentDigest });
+      if (request.method === "amf.production.removeOutfit") return envelope(request, { operation: "amf.production", runId: request.params.runId, taskId: "remove-task" });
+      return envelope(request, { items: [], total: 0 });
+    });
+
+    // 1. Static companion-tool catalog filter (no Gateway IPC call).
+    const freeTracking = data(await client.callTool({ name: "vua_tool_catalog", arguments: { goal: "tracking", freeOnly: true } }));
+    expect((freeTracking.data as { tools: { id: string }[] }).tools.map(t => t.id)).toEqual(["vrcft", "space", "slimevr"]);
+    expect(calls).toHaveLength(0);
+
+    // 2. Enriched library filters (source: "local", availabilityStatus, sourceCategory: null, descriptionLinksTo).
+    expect((await client.callTool({
+      name: "vua_library",
+      arguments: {
+        source: "local",
+        availabilityStatus: "available",
+        sourceCategory: null,
+        descriptionLinksTo: "booth:6082686",
+      },
+    })).isError).toBeFalsy();
+    expect(calls.at(-1)?.params).toEqual({
+      schemaVersion: "0.1",
+      limit: 25,
+      source: "local",
+      availabilityStatus: "available",
+      sourceCategory: null,
+      descriptionLinksTo: "booth:6082686",
+    });
+
+    // 3. Plan reads and digest-guarded approvals for texture memory, lighting, and outfit removal.
+    expect((await client.callTool({ name: "vua_amf_texture_plan", arguments: { runId: "n3-test", platform: "android", targetRank: "good" } })).isError).toBeFalsy();
+    expect((await client.callTool({ name: "vua_amf_lighting_plan", arguments: { runId: "n3-test" } })).isError).toBeFalsy();
+    expect((await client.callTool({ name: "vua_amf_outfit_removal_plan", arguments: { runId: "n3-test", sourceId: "coat-1" } })).isError).toBeFalsy();
+
+    // Digest drift fails closed before queueing approval.
+    currentDigest = "e".repeat(64);
+    const staleTex = await client.callTool({
+      name: "vua_request_amf_texture_apply",
+      arguments: { runId: "n3-test", platform: "android", targetRank: "good", planDigest: digest, textures: ["Assets/Outfit/MainTex.png"] },
+    });
+    expect(staleTex.isError).toBe(true);
+    expect(data(staleTex)).toMatchObject({ error: "texture_plan_changed", retryable: false });
+
+    currentDigest = digest;
+    expect((await client.callTool({
+      name: "vua_request_amf_texture_apply",
+      arguments: { runId: "n3-test", platform: "android", targetRank: "good", planDigest: digest, textures: ["Assets/Outfit/MainTex.png"] },
+    })).isError).toBeFalsy();
+    expect((await client.callTool({
+      name: "vua_request_amf_lighting_apply",
+      arguments: { runId: "n3-test", planDigest: digest, materials: ["Assets/Outfit/Coat.mat"] },
+    })).isError).toBeFalsy();
+    expect((await client.callTool({
+      name: "vua_request_amf_outfit_remove",
+      arguments: { runId: "n3-test", sourceId: "coat-1", planDigest: digest },
+    })).isError).toBeFalsy();
+
+    // Resolve the three AMF approvals so the four-pending bound has room for the remaining two.
+    for (const req of service.snapshot().requests) {
+      await service.resolve(req.id, "approve");
+    }
+    expect(calls.filter(c => ["amf.production.applyTextureMemory", "amf.production.applyLighting", "amf.production.removeOutfit"].includes(c.method)).map(c => c.method)).toEqual([
+      "amf.production.applyTextureMemory",
+      "amf.production.applyLighting",
+      "amf.production.removeOutfit",
+    ]);
+
+    // 4. Client config update + grouped library migration intake require local player approval.
+    expect((await client.callTool({ name: "vua_request_update_client_config", arguments: {} })).isError).toBe(true);
+    expect((await client.callTool({ name: "vua_request_update_client_config", arguments: { cacheSizeGb: 30, cacheExpiryDelayDays: 60 } })).isError).toBeFalsy();
+    expect((await client.callTool({
+      name: "vua_request_library_import_groups",
+      arguments: {
+        groups: [{
+          name: "Meiyun_Winter_Coat",
+          root: "D:/Downloads/Materials",
+          files: [{ path: "Meiyun_Coat.unitypackage", bytes: 4096, modifiedMs: 1700000000000 }],
+        }],
+        autoGenerate: false,
+      },
+    })).isError).toBeFalsy();
+
+    for (const req of service.snapshot().requests.filter(r => r.state === "pending")) {
+      await service.resolve(req.id, "approve");
+    }
+    expect(calls.find(c => c.method === "diagnostics.updateClientConfig")?.params).toMatchObject({
+      schemaVersion: "0.1",
+      cacheSizeGb: 30,
+      cacheExpiryDelayDays: 60,
+      commandId: expect.stringMatching(/^ai-/),
+    });
+    expect(calls.find(c => c.method === "library.importGroups")?.params).toMatchObject({
+      schemaVersion: "0.1",
+      autoGenerate: false,
       commandId: expect.stringMatching(/^ai-/),
     });
   });

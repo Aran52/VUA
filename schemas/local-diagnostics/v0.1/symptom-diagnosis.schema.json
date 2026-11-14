@@ -43,13 +43,17 @@
             "properties": {
               "code": {
                 "enum": [
+                  "audio_virtual_mic_hijack_detected",
+                  "audio_communications_default_mismatch",
                   "osc_port_9000_unbound_while_client_running",
                   "osc_port_9000_conflict",
+                  "oscquery_port_mismatch",
                   "osc_port_9001_unbound",
                   "osc_avatar_cache_present",
                   "steamvr_driver_blocked_by_safe_mode",
                   "steamvr_high_supersampling",
                   "steamvr_app_overscaled",
+                  "streaming_high_bitrate_or_encode_width",
                   "client_cache_near_limit",
                   "drive_free_space_low",
                   "client_config_malformed",

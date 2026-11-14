@@ -37,13 +37,17 @@ export const CLIENT_LOG_CLASSIFICATIONS_V01 = [
 export type ClientLogClassificationV01 = typeof CLIENT_LOG_CLASSIFICATIONS_V01[number];
 
 export const DIAGNOSTIC_FINDING_CODES_V01 = [
+  "audio_virtual_mic_hijack_detected",
+  "audio_communications_default_mismatch",
   "osc_port_9000_unbound_while_client_running",
   "osc_port_9000_conflict",
+  "oscquery_port_mismatch",
   "osc_port_9001_unbound",
   "osc_avatar_cache_present",
   "steamvr_driver_blocked_by_safe_mode",
   "steamvr_high_supersampling",
   "steamvr_app_overscaled",
+  "streaming_high_bitrate_or_encode_width",
   "client_cache_near_limit",
   "drive_free_space_low",
   "client_config_malformed",
@@ -88,6 +92,13 @@ export interface ClientCacheObservationV01 {
   readonly driveTotalBytes: number | null;
 }
 
+export interface OscQueryLoopbackObservationV01 {
+  readonly state: "found" | "not_detected" | "probe_unavailable";
+  readonly httpPort: number | null;
+  readonly advertisedOscPort: number | null;
+  readonly ownerProcess: string | null;
+}
+
 export interface OscLocalObservationV01 {
   readonly avatarCachePresence: "found" | "missing" | "read_failed";
   readonly avatarConfigCount: number;
@@ -95,6 +106,7 @@ export interface OscLocalObservationV01 {
   readonly newestModifiedAt: string | null;
   readonly udp9000: UdpPortObservationV01;
   readonly udp9001: UdpPortObservationV01;
+  readonly oscQuery: OscQueryLoopbackObservationV01;
 }
 
 export interface SteamVrSettingsObservationV01 {
@@ -104,6 +116,32 @@ export interface SteamVrSettingsObservationV01 {
   readonly vrchatResolutionScale: number | null;
   readonly safeModeEnabled: boolean | null;
   readonly blockedDrivers: readonly string[];
+}
+
+export interface AudioEndpointObservationV01 {
+  readonly state: "observed" | "probe_unavailable";
+  readonly defaultCaptureRole: "vr_virtual" | "physical_or_usb" | "virtual_cable" | "none" | "unknown";
+  readonly virtualMicHijack: "none" | "oculus_virtual" | "steam_streaming" | "pico_streaming" | "virtual_desktop";
+  readonly communicationsMismatch: boolean;
+}
+
+export interface QuestLinkSettingsObservationV01 {
+  readonly presence: "found" | "missing";
+  readonly encodeResolutionWidth: number | null;
+  readonly encodeBitrateMbps: number | null;
+  readonly dynamicBitrate: boolean | null;
+  readonly linkSharpening: number | null;
+}
+
+export interface PicoConnectSettingsObservationV01 {
+  readonly presence: "found" | "missing" | "malformed" | "read_failed";
+  readonly preset: string | null;
+  readonly bitrateMbps: number | null;
+}
+
+export interface StreamingSettingsObservationV01 {
+  readonly questLink: QuestLinkSettingsObservationV01;
+  readonly picoConnect: PicoConnectSettingsObservationV01;
 }
 
 export interface RecentClientLogObservationV01 {
@@ -119,6 +157,8 @@ export interface LocalDiagnosticsSnapshotV01 {
   readonly clientCache: ClientCacheObservationV01;
   readonly osc: OscLocalObservationV01;
   readonly steamvrSettings: SteamVrSettingsObservationV01;
+  readonly audioEndpoints: AudioEndpointObservationV01;
+  readonly streamingSettings: StreamingSettingsObservationV01;
   readonly recentClientLog: RecentClientLogObservationV01;
 }
 
@@ -254,10 +294,26 @@ function isUdpPortObservation(v: unknown): v is UdpPortObservationV01 {
   return v.ownerPid === null && v.ownerProcess === null;
 }
 
+function isPortNumber(v: unknown): v is number {
+  return nonNegInt(v) && v >= 1 && v <= 65535;
+}
+
+function isOscQueryObservation(v: unknown): v is OscQueryLoopbackObservationV01 {
+  if (!exactKeys(v, ["state", "httpPort", "advertisedOscPort", "ownerProcess"])) return false;
+  if (!["found", "not_detected", "probe_unavailable"].includes(String(v.state))) return false;
+  if (v.state === "found") {
+    if (!isPortNumber(v.httpPort)) return false;
+    if (v.advertisedOscPort !== null && !isPortNumber(v.advertisedOscPort)) return false;
+    if (v.ownerProcess !== null && (!nonEmptyString(v.ownerProcess, 128) || /[\\/:]/u.test(v.ownerProcess))) return false;
+    return true;
+  }
+  return v.httpPort === null && v.advertisedOscPort === null && v.ownerProcess === null;
+}
+
 export function isLocalDiagnosticsSnapshotV01(v: unknown): v is LocalDiagnosticsSnapshotV01 {
   if (!exactKeys(v, [
     "schemaVersion", "capturedAt", "clientRunning", "clientConfig",
-    "clientCache", "osc", "steamvrSettings", "recentClientLog",
+    "clientCache", "osc", "steamvrSettings", "audioEndpoints", "streamingSettings", "recentClientLog",
   ])) return false;
   if (v.schemaVersion !== LOCAL_DIAGNOSTICS_SCHEMA || !nonEmptyString(v.capturedAt, 64)) return false;
   if (v.clientRunning !== null && typeof v.clientRunning !== "boolean") return false;
@@ -279,12 +335,13 @@ export function isLocalDiagnosticsSnapshotV01(v: unknown): v is LocalDiagnostics
     || !nullableNonNegInt(cache.totalBytes) || typeof cache.truncated !== "boolean"
     || !nullableNonNegInt(cache.driveFreeBytes) || !nullableNonNegInt(cache.driveTotalBytes)) return false;
 
-  if (!exactKeys(v.osc, ["avatarCachePresence", "avatarConfigCount", "avatarCacheBytes", "newestModifiedAt", "udp9000", "udp9001"])) return false;
+  if (!exactKeys(v.osc, ["avatarCachePresence", "avatarConfigCount", "avatarCacheBytes", "newestModifiedAt", "udp9000", "udp9001", "oscQuery"])) return false;
   const osc = v.osc;
   if (!["found", "missing", "read_failed"].includes(String(osc.avatarCachePresence))
     || !nonNegInt(osc.avatarConfigCount) || !nonNegInt(osc.avatarCacheBytes)
     || (osc.newestModifiedAt !== null && !nonEmptyString(osc.newestModifiedAt, 64))
-    || !isUdpPortObservation(osc.udp9000) || !isUdpPortObservation(osc.udp9001)) return false;
+    || !isUdpPortObservation(osc.udp9000) || !isUdpPortObservation(osc.udp9001)
+    || !isOscQueryObservation(osc.oscQuery)) return false;
 
   if (!exactKeys(v.steamvrSettings, ["presence", "renderTargetMultiplier", "motionSmoothing", "vrchatResolutionScale", "safeModeEnabled", "blockedDrivers"])) return false;
   const svr = v.steamvrSettings;
@@ -296,6 +353,27 @@ export function isLocalDiagnosticsSnapshotV01(v: unknown): v is LocalDiagnostics
     || !Array.isArray(svr.blockedDrivers) || svr.blockedDrivers.length > 32
     || new Set(svr.blockedDrivers).size !== svr.blockedDrivers.length
     || !svr.blockedDrivers.every(d => nonEmptyString(d, 80) && !/[\\/:]/u.test(d))) return false;
+
+  if (!exactKeys(v.audioEndpoints, ["state", "defaultCaptureRole", "virtualMicHijack", "communicationsMismatch"])) return false;
+  const audio = v.audioEndpoints;
+  if (!["observed", "probe_unavailable"].includes(String(audio.state))
+    || !["vr_virtual", "physical_or_usb", "virtual_cable", "none", "unknown"].includes(String(audio.defaultCaptureRole))
+    || !["none", "oculus_virtual", "steam_streaming", "pico_streaming", "virtual_desktop"].includes(String(audio.virtualMicHijack))
+    || typeof audio.communicationsMismatch !== "boolean") return false;
+
+  if (!exactKeys(v.streamingSettings, ["questLink", "picoConnect"])) return false;
+  const ql = v.streamingSettings.questLink;
+  const pico = v.streamingSettings.picoConnect;
+  if (!exactKeys(ql, ["presence", "encodeResolutionWidth", "encodeBitrateMbps", "dynamicBitrate", "linkSharpening"])
+    || !["found", "missing"].includes(String(ql.presence))
+    || (ql.encodeResolutionWidth !== null && (!nonNegInt(ql.encodeResolutionWidth) || ql.encodeResolutionWidth < 1 || ql.encodeResolutionWidth > 16384))
+    || (ql.encodeBitrateMbps !== null && (!nonNegInt(ql.encodeBitrateMbps) || ql.encodeBitrateMbps < 1 || ql.encodeBitrateMbps > 2000))
+    || (ql.dynamicBitrate !== null && typeof ql.dynamicBitrate !== "boolean")
+    || (ql.linkSharpening !== null && (!nonNegInt(ql.linkSharpening) || ql.linkSharpening > 10))) return false;
+  if (!exactKeys(pico, ["presence", "preset", "bitrateMbps"])
+    || !["found", "missing", "malformed", "read_failed"].includes(String(pico.presence))
+    || (pico.preset !== null && !nonEmptyString(pico.preset, 32))
+    || (pico.bitrateMbps !== null && (!nonNegInt(pico.bitrateMbps) || pico.bitrateMbps < 1 || pico.bitrateMbps > 2000))) return false;
 
   if (!exactKeys(v.recentClientLog, ["classification", "newestModifiedAt"])) return false;
   const log = v.recentClientLog;

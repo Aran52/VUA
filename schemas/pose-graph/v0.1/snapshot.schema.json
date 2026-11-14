@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vua.local/schemas/pose-graph/v0.1/snapshot.schema.json",
+  "title": "PoseGraphSnapshotV0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "capturedAt",
+    "openxr",
+    "steamvrDrivers",
+    "lastHeadsetHint",
+    "poseSources",
+    "pharosHub"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "vua.pose-graph/v0.1"
+    },
+    "capturedAt": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "openxr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["presence", "runtimeName"],
+      "properties": {
+        "presence": {
+          "enum": ["found", "missing", "unreadable"]
+        },
+        "runtimeName": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 80
+        }
+      }
+    },
+    "steamvrDrivers": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "space_calibrator",
+          "slimevr",
+          "alvr",
+          "virtual_desktop",
+          "lighthouse",
+          "pharos"
+        ]
+      }
+    },
+    "lastHeadsetHint": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "poseSources": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sourceId", "state", "detailCode"],
+        "properties": {
+          "sourceId": {
+            "enum": [
+              "headset_6dof",
+              "pharos",
+              "slimevr",
+              "pico_motion",
+              "lighthouse",
+              "eye_face_osc"
+            ]
+          },
+          "state": {
+            "enum": ["active", "ready", "installed", "not_detected"]
+          },
+          "detailCode": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      }
+    },
+    "pharosHub": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "activeModes",
+        "wearableNodes",
+        "stereoBaseStationCount",
+        "panoramicAnchorCount"
+      ],
+      "properties": {
+        "state": {
+          "enum": ["not_detected", "driver_registered", "running"]
+        },
+        "activeModes": {
+          "type": "array",
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "optical_stereo_2x2x2",
+              "imu_fusion",
+              "passive_retroreflective",
+              "panoramic_spatial_anchor"
+            ]
+          }
+        },
+        "wearableNodes": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["slot", "state", "footHeadingAvailable"],
+            "properties": {
+              "slot": {
+                "enum": ["left_foot", "right_foot", "waist", "chest"]
+              },
+              "state": {
+                "enum": ["not_connected", "connected"]
+              },
+              "footHeadingAvailable": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "stereoBaseStationCount": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 16
+        },
+        "panoramicAnchorCount": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 8
+        }
+      }
+    }
+  }
+}

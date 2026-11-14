@@ -12,6 +12,7 @@ import { SlideDrawer } from "../../components/SlideDrawer.tsx";
 import { useEscapeClose } from "../../components/use-escape-close.ts";
 import { useGridColumns } from "../../components/use-grid-columns.ts";
 import { ToolDetailsContext } from "./ToolDetails.tsx";
+import { PoseGraphSection } from "./PoseGraphSection.tsx";
 import "./tools.css";
 
 /** Connected Steam entries share the Candidate connection (VRCFT adds device guidance); planned tools describe themselves and link out. */
@@ -92,5 +93,6 @@ export function ToolsHub({ onPrepareSteam }: { onPrepareSteam(): void }) {
   return <div className="vua-page vua-route-page vua-tools-hub vua-compact-environments" data-focus-scope>
     <header className="vua-page__hero"><h1 className="vua-title">{strings.journey.tools}</h1></header>
     {TOOL_HUB_GROUPS.map(group => <ToolGroup key={group.key} title={strings.journey[group.key]} group={group} selected={selected} onSelect={setSelected} onPrepareSteam={onPrepareSteam} />)}
+    <PoseGraphSection />
   </div>;
 }

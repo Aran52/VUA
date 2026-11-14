@@ -345,11 +345,22 @@ describe("built-in MCP, using the official HTTP client", () => {
       { name: "vua_sop", arguments: { selection: { platform: "chilloutvr", device: "quest", connection: "standalone" } } },
       { name: "vua_check_environment", arguments: { intent: { purposes: ["desktop_play"], method: "anything" } } },
       { name: "vua_request_play", arguments: { route: "desktop", action: "start" } },
+      { name: "vua_glb_inspect", arguments: {} },
+      { name: "vua_glb_inspect", arguments: { productId: "booth:123", entryId: "entry-1" } },
     ]) expect((await client.callTool(request)).isError).toBe(true);
     expect(calls).toEqual([]);
-    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_terms", "vua_terms_check", "vua_amf_run", "vua_recipe_materials", "vua_recipe_apply_plan", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_installer_tool_status", "vua_diagnose_symptom", "vua_recipe", "vua_amf_face_tracking_plan", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
+    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_glb_inspect", "vua_terms", "vua_terms_check", "vua_amf_run", "vua_recipe_materials", "vua_recipe_apply_plan", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_installer_tool_status", "vua_diagnose_symptom", "vua_recipe", "vua_amf_face_tracking_plan", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
       expect(() => aiGatewayRequest(spec, {}, "test")).not.toThrow();
     }
+    const { client: compatClient, calls: compatCalls } = await setup();
+    expect((await compatClient.callTool({ name: "vua_pose_graph", arguments: {} })).isError).toBeFalsy();
+    expect((await compatClient.callTool({ name: "vua_glb_inspect", arguments: { productId: "booth:12345" } })).isError).toBeFalsy();
+    expect((await compatClient.callTool({ name: "vua_terms_check", arguments: { presetId: "phr_personal_avatar", productIds: ["booth:12345"] } })).isError).toBeFalsy();
+    expect(compatCalls.map(c => [c.method, c.params])).toEqual([
+      ["environment.observePoseGraph", { schemaVersion: "0.1" }],
+      ["library.inspectGlb", { schemaVersion: "0.1", productId: "booth:12345" }],
+      ["terms.checkUse", { schemaVersion: "0.2", presetId: "phr_personal_avatar", productIds: ["booth:12345"] }],
+    ]);
   });
 });
 

@@ -1,0 +1,105 @@
+{
+  "validRequests": [
+    {
+      "schemaVersion": "0.1",
+      "productId": "booth:6106863"
+    },
+    {
+      "schemaVersion": "0.1",
+      "entryId": "wh-item-001"
+    }
+  ],
+  "invalidRequests": [
+    {
+      "schemaVersion": "0.1"
+    },
+    {
+      "schemaVersion": "0.1",
+      "productId": "booth:6106863",
+      "entryId": "wh-item-001"
+    },
+    {
+      "schemaVersion": "0.1",
+      "productId": "C:\\Users\\Alice\\Avatar.vrm"
+    }
+  ],
+  "validResults": [
+    {
+      "schemaVersion": "vua.glb-inspection/v0.1",
+      "truncated": false,
+      "items": [
+        {
+          "copyId": "copy-vrm1",
+          "fileName": "Avatar_v1.vrm",
+          "sizeBytes": 14820352,
+          "format": "vrm_1_0",
+          "extensionsUsed": ["VRMC_vrm", "VRMC_springBone"],
+          "vrm": {
+            "specVersion": "1.0",
+            "hasHumanoidHeadBone": true,
+            "boneCount": 52,
+            "modelName": "Kipfel",
+            "authors": ["Studio Example"],
+            "avatarPermission": "onlyAuthor",
+            "commercialUsage": "personalNonProfit",
+            "modification": "allowModification",
+            "licenseUrl": "https://vrm.dev/licenses/1.0/"
+          },
+          "boundsMeters": {
+            "size": [0.46, 1.48, 0.31],
+            "min": [-0.23, 0.0, -0.15],
+            "max": [0.23, 1.48, 0.16]
+          },
+          "objectHeadClearance": {
+            "status": "passes",
+            "referenceHeadHmdMeters": [0.22, 0.26, 0.28],
+            "marginsMeters": [0.12, 0.61, 0.015]
+          },
+          "phrReadiness": "ready_vrm1_humanoid"
+        },
+        {
+          "copyId": "copy-tvhead",
+          "fileName": "RetroMonitorHead.glb",
+          "sizeBytes": 2097152,
+          "format": "glb_2_0",
+          "extensionsUsed": ["KHR_materials_unlit"],
+          "vrm": null,
+          "boundsMeters": {
+            "size": [0.38, 0.4, 0.42],
+            "min": [-0.19, -0.2, -0.21],
+            "max": [0.19, 0.2, 0.21]
+          },
+          "objectHeadClearance": {
+            "status": "passes",
+            "referenceHeadHmdMeters": [0.22, 0.26, 0.28],
+            "marginsMeters": [0.08, 0.07, 0.07]
+          },
+          "phrReadiness": "ready_object_head"
+        }
+      ]
+    }
+  ],
+  "invalidResults": [
+    {
+      "schemaVersion": "vua.glb-inspection/v0.1",
+      "truncated": false,
+      "items": [
+        {
+          "copyId": "copy-leak",
+          "fileName": "C:\\Users\\Alice\\Secrets\\Head.glb",
+          "sizeBytes": 128,
+          "format": "glb_2_0",
+          "extensionsUsed": [],
+          "vrm": null,
+          "boundsMeters": null,
+          "objectHeadClearance": {
+            "status": "unknown",
+            "referenceHeadHmdMeters": [0.22, 0.26, 0.28],
+            "marginsMeters": null
+          },
+          "phrReadiness": "clearance_insufficient"
+        }
+      ]
+    }
+  ]
+}

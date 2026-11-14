@@ -1,8 +1,8 @@
 # Share links v0.1
 
-> Document version: 0.1.0
+> Document version: 0.1.1
 > Status: Candidate
-> Updated: 2026-10-28
+> Updated: 2026-11-14
 > Owner: AMF / Hosting
 
 An explicitly published Recipe declaration or BOOTH product selection is public under a
@@ -178,4 +178,5 @@ Production installation and real phone/desktop end-to-end acceptance remain auth
 
 ## Document changelog
 
+- 0.1.1 (2026-11-14): document client-side `parsePhrSpatialUrl` (`https://ph-r.com/s/<id>` and `phr://s/<id>`, distinct from `/r/<CODE>`) and `phr:` per-attempt confirmation allowlist in Electron navigation policy.
 - 0.1.0 (2026-10-28): Candidate service, selection format, golden vectors and Node implementation.

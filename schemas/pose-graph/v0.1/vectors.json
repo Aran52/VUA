@@ -1,0 +1,73 @@
+{
+  "validRequests": [
+    {
+      "schemaVersion": "0.1"
+    }
+  ],
+  "invalidRequests": [
+    {},
+    {
+      "schemaVersion": "0.2"
+    },
+    {
+      "schemaVersion": "0.1",
+      "extra": true
+    }
+  ],
+  "validResults": [
+    {
+      "poseGraph": {
+        "schemaVersion": "vua.pose-graph/v0.1",
+        "capturedAt": "2026-11-14T00:00:00Z",
+        "openxr": {
+          "presence": "found",
+          "runtimeName": "SteamVR"
+        },
+        "steamvrDrivers": ["space_calibrator", "slimevr"],
+        "lastHeadsetHint": "PICO 4 Ultra",
+        "poseSources": [
+          { "sourceId": "headset_6dof", "state": "ready", "detailCode": "openxr_ready" },
+          { "sourceId": "pharos", "state": "not_detected", "detailCode": null },
+          { "sourceId": "slimevr", "state": "active", "detailCode": "process_running" },
+          { "sourceId": "pico_motion", "state": "installed", "detailCode": "app_installed" },
+          { "sourceId": "lighthouse", "state": "ready", "detailCode": "calibrator_registered" },
+          { "sourceId": "eye_face_osc", "state": "not_detected", "detailCode": null }
+        ],
+        "pharosHub": {
+          "state": "not_detected",
+          "activeModes": [],
+          "wearableNodes": [
+            { "slot": "left_foot", "state": "not_connected", "footHeadingAvailable": false },
+            { "slot": "right_foot", "state": "not_connected", "footHeadingAvailable": false },
+            { "slot": "waist", "state": "not_connected", "footHeadingAvailable": false },
+            { "slot": "chest", "state": "not_connected", "footHeadingAvailable": false }
+          ],
+          "stereoBaseStationCount": null,
+          "panoramicAnchorCount": null
+        }
+      }
+    }
+  ],
+  "invalidResults": [
+    {
+      "poseGraph": {
+        "schemaVersion": "vua.pose-graph/v0.1",
+        "capturedAt": "2026-11-14T00:00:00Z",
+        "openxr": {
+          "presence": "found",
+          "runtimeName": "C:\\Program Files\\Steam\\steamxr_win64.json"
+        },
+        "steamvrDrivers": [],
+        "lastHeadsetHint": null,
+        "poseSources": [],
+        "pharosHub": {
+          "state": "not_detected",
+          "activeModes": [],
+          "wearableNodes": [],
+          "stereoBaseStationCount": null,
+          "panoramicAnchorCount": null
+        }
+      }
+    }
+  ]
+}

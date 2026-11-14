@@ -1,5 +1,5 @@
 import { isLibraryListV02, isLibraryListV03, type LibraryListParamsV02, type LibraryListParamsV03, type LibraryUseV02, type LibraryVn3CountsV03, type LibraryVn3RowV03 } from "@vua/contracts";
-import { isLibraryListV01, isLibraryProductFilesV01, type LibraryListParamsV01 } from "@vua/contracts";
+import { isGlbInspectionResultV01, isLibraryListV01, isLibraryProductFilesV01, type GlbInspectionResultV01, type LibraryListParamsV01 } from "@vua/contracts";
 import type { LibraryEntryMetadataV01 } from "@vua/contracts";
 import type { WarehouseEntry } from "./acquire-port.ts";
 import type { CatalogListView, CatalogProductSummary } from "./catalog-browser-port.ts";
@@ -60,6 +60,7 @@ export interface LibraryFileInventory {
 export interface LibraryBrowserPort {
   list(query: LibraryListParamsV01 | LibraryListParamsV02 | LibraryListParamsV03): Promise<LibraryPageView>;
   productFiles(productId: string): Promise<LibraryFileInventory>;
+  inspectGlb?(target: { readonly productId: string } | { readonly entryId: string }): Promise<GlbInspectionResultV01>;
 }
 /** Facts the current face adds to a row, absent on earlier faces. */
 function currentFacts(row: object): Pick<LibraryCardFacts, "vn3" | "addedAt" | "purchasedAt" | "publishedAt" | "sizeBytes"> {
@@ -112,6 +113,18 @@ export function createLiveLibraryBrowserPort(client: GatewayClient): LibraryBrow
       const response = await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "library.productFiles", params: { schemaVersion: "0.1", productId } });
       if (!response.ok || !isLibraryProductFilesV01(response.value) || response.value.productId !== productId) throw new Error("library_files_read_failed");
       return { productId, items: response.value.items };
+    },
+    async inspectGlb(target) {
+      const response = await client.invoke({
+        schemaVersion: 1,
+        requestId: crypto.randomUUID(),
+        method: "library.inspectGlb",
+        params: { schemaVersion: "0.1", ...target },
+      });
+      if (!response.ok || !isGlbInspectionResultV01(response.value)) {
+        throw new Error("library_glb_inspect_failed");
+      }
+      return response.value;
     },
   };
 }

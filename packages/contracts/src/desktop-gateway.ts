@@ -3,6 +3,9 @@ import { isLibraryListParamsV03, type LibraryListParamsV03 } from "./library-vie
 import { isUnityLicenseParams, type UnityLicenseRequestV1 } from "./unity-license-v01.js";
 import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams } from "./environment-deployment.js";
 import { isTermsParams, type TermsRequestV1 } from "./terms-v01.js";
+import { isTermsUseCheckParamsV02, type TermsCheckUseGatewayRequestV2 } from "./terms-v02.js";
+import { isObservePoseGraphParamsV01, type PoseGraphGatewayRequestV1 } from "./pose-graph-v01.js";
+import { isInspectGlbParamsV01, type InspectGlbGatewayRequestV1 } from "./glb-inspection-v01.js";
 import { isAmfProductionParams, type AmfProductionRequestV1 } from "./amf-production-v01.js";
 import { isScenarioEnvironmentParams, type ScenarioEnvironmentRequestV1 } from "./scenario-environment.js";
 import { isPlayCommandId, isPlayParams, type PlayRoute } from "./play-session.js";
@@ -1110,6 +1113,9 @@ export type VrchatGatewayValueV1 = VrchatStatusValueV1 | VrchatSignInValueV1 | V
 
 export type DesktopGatewayRequestV1 =
   | TermsRequestV1
+  | TermsCheckUseGatewayRequestV2
+  | PoseGraphGatewayRequestV1
+  | InspectGlbGatewayRequestV1
   | UnityLicenseRequestV1
   | AmfProductionRequestV1
   | ScenarioEnvironmentRequestV1
@@ -1234,6 +1240,8 @@ export const DESKTOP_GATEWAY_METHOD_KINDS = {
   "diagnostics.updateClientConfig": "command",
   "environment.inspectManagerApps": "query",
   "environment.openManagerApp": "command",
+  "environment.observePoseGraph": "query",
+  "library.inspectGlb": "query",
   "environment.startPlay": "command",
   "environment.stopPlay": "command",
   "environment.executeDeployment": "command",
@@ -2068,7 +2076,8 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
       return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["avatarId", "commandId"])
         && isVrchatBlueprintId(value.params.avatarId) && isIdentifier(value.params.commandId);
     case "terms.getProduct": case "terms.checkUse": case "terms.refreshProduct": case "terms.refreshLibrary":
-      return hasExactKeys(value, REQUEST_KEYS) && isTermsParams(value.method, value.params);
+      return hasExactKeys(value, REQUEST_KEYS)
+        && (isTermsParams(value.method, value.params) || (value.method === "terms.checkUse" && isTermsUseCheckParamsV02(value.params)));
     case "environment.listPlaySetups": case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
       return hasExactKeys(value, REQUEST_KEYS) && isScenarioEnvironmentParams(value.method,value.params);
     case "environment.unityLicense": case "environment.checkUnityLicense":
@@ -2109,6 +2118,10 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
     case "environment.openManagerApp":
       return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["managerId", "commandId"])
         && isPlayCommandId(value.params.commandId) && isOpenManagerAppParamsV02({ managerId: value.params.managerId });
+    case "environment.observePoseGraph":
+      return hasExactKeys(value, REQUEST_KEYS) && isObservePoseGraphParamsV01(value.params);
+    case "library.inspectGlb":
+      return hasExactKeys(value, REQUEST_KEYS) && isInspectGlbParamsV01(value.params);
     case "environment.startPlay": case "environment.stopPlay":
       return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["route", "commandId"])
         && isPlayCommandId(value.params.commandId) && isPlayParams({ route: value.params.route });

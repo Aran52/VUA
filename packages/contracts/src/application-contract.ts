@@ -3,6 +3,9 @@ import { isLibraryListParamsV03, type LibraryListParamsV03 } from "./library-vie
 import { isUnityLicenseParams } from "./unity-license-v01.js";
 import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams, type DeploymentPlanResult, type ToolDeploymentPlanResult, type DeploymentAccepted } from "./environment-deployment.js";
 import { isTermsParams, type TermsPresetId, type ProductTermsV01, type TermsUseCheckV01, type TermsAcceptedV01 } from "./terms-v01.js";
+import { isTermsUseCheckParamsV02, type TermsUseCheckParamsV02, type TermsUseCheckV02 } from "./terms-v02.js";
+import { isObservePoseGraphParamsV01, type ObservePoseGraphParamsV01, type PoseGraphResultV01 } from "./pose-graph-v01.js";
+import { isInspectGlbParamsV01, type InspectGlbParamsV01, type GlbInspectionResultV01 } from "./glb-inspection-v01.js";
 import { isAmfProductionParams } from "./amf-production-v01.js";
 import { isScenarioEnvironmentParams } from "./scenario-environment.js";
 import { isNetworkParams, type NetworkIntent, type NetworkResult } from "./environment-network.js";
@@ -2886,7 +2889,7 @@ export type ApplicationRequestV01 =
   | (ApplicationRequestBaseV01 & {readonly kind:"query";readonly method:"amf.production.readShareImage";readonly params:Readonly<Record<string,unknown>>})
   | (ApplicationRequestBaseV01 & {readonly kind:"command";readonly commandId:string;readonly method:"amf.production.exportShareImage";readonly params:Readonly<Record<string,unknown>>})
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "terms.getProduct"; readonly params: {readonly schemaVersion: "0.1"; readonly productId: string} })
-  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "terms.checkUse"; readonly params: {readonly schemaVersion: "0.1"; readonly presetId: TermsPresetId; readonly productIds: readonly string[]} })
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "terms.checkUse"; readonly params: {readonly schemaVersion: "0.1"; readonly presetId: TermsPresetId; readonly productIds: readonly string[]} | TermsUseCheckParamsV02 })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "terms.refreshProduct"; readonly params: {readonly schemaVersion: "0.1"; readonly productId: string} })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "terms.refreshLibrary"; readonly params: {readonly schemaVersion: "0.1"} })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.listPlaySetups" | "environment.getScenarioSop" | "environment.checkScenarioEnvironment"; readonly params: Readonly<Record<string, unknown>> })
@@ -2896,6 +2899,8 @@ export type ApplicationRequestV01 =
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "amf.production.prepare" | "amf.production.assemble" | "amf.production.reinspect" | "amf.production.open" | "amf.production.closeEditor" | "amf.production.rollback" | "amf.production.restoreRevision" | "amf.production.renameRecipe" | "amf.production.deleteRecipe" | "amf.production.saveRecipe" | "amf.production.prepareRecipe" | "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.applyRecipe" | "amf.production.localTest" | "amf.production.bakeTurntable" | "amf.production.upload" | "amf.production.faceTrackingPatch" | "amf.production.sdkFix" | "amf.production.changeSources" | "amf.production.delete" | "amf.production.setCapacity" | "amf.production.removeOutfit" | "amf.production.applyLighting" | "amf.production.setOptimizer" | "amf.production.applyTextureMemory" | "amf.production.saveFit" | "amf.production.renameFit" | "amf.production.deleteFit"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.inspectManagerApps"; readonly params: Readonly<Record<string, never>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly method: "environment.openManagerApp"; readonly commandId: string; readonly params: OpenManagerAppParamsV02 })
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.observePoseGraph"; readonly params: ObservePoseGraphParamsV01 })
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "library.inspectGlb"; readonly params: InspectGlbParamsV01 })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.observePlay"; readonly params: { readonly route: PlayRoute } })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "tools.observeConnection"; readonly params: { readonly toolId: ExternalToolId } })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly method: "tools.actConnection"; readonly commandId: string; readonly params: { readonly toolId: ExternalToolId; readonly action: ExternalToolAction } })
@@ -3076,9 +3081,11 @@ export interface DemoTaskStartedV01 {
 }
 
 export type ApplicationSuccessValueV01 =
-  | ProductTermsV01 | TermsUseCheckV01 | TermsAcceptedV01
+  | ProductTermsV01 | TermsUseCheckV01 | TermsUseCheckV02 | TermsAcceptedV01
   | ManagerAppsResult
   | ManagerAppLaunchResultV02
+  | PoseGraphResultV01
+  | GlbInspectionResultV01
   | PlaySessionResult
   | ExternalToolResult
   | InstallerToolResult
@@ -3296,7 +3303,7 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
     const command = value.method === "terms.refreshProduct" || value.method === "terms.refreshLibrary";
     return value.kind === (command ? "command" : "query") && (!command || isIdentifier(value.commandId))
       && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params", ...(command ? ["commandId"] : [])])
-      && isTermsParams(value.method, value.params);
+      && (isTermsParams(value.method, value.params) || (value.method === "terms.checkUse" && isTermsUseCheckParamsV02(value.params)));
   }
   if (value.method === "environment.unityLicense" || value.method === "environment.checkUnityLicense") {
     return value.kind === (value.method === "environment.unityLicense" ? "query" : "command")
@@ -3352,6 +3359,12 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
     && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"])
     && isPlayCommandId(value.commandId)
     && isOpenManagerAppParamsV02(value.params);
+  if (value.method === "environment.observePoseGraph") return value.kind === "query"
+    && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
+    && isObservePoseGraphParamsV01(value.params);
+  if (value.method === "library.inspectGlb") return value.kind === "query"
+    && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
+    && isInspectGlbParamsV01(value.params);
   if (value.method === "tools.observeConnection" || value.method === "tools.actConnection") {
     const command = value.method === "tools.actConnection";
     return value.kind === (command ? "command" : "query") && hasExactKeys(value, command ? ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"] : ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])

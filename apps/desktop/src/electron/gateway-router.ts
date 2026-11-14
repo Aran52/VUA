@@ -161,6 +161,10 @@ function toApplicationRequest(
       return { ...base, kind: "query", method: request.method, params: {} };
     case "environment.openManagerApp":
       return { ...base, kind: "command", method: request.method, commandId: request.params.commandId, params: { managerId: request.params.managerId } };
+    case "environment.observePoseGraph":
+      return { ...base, kind: "query", method: request.method, params: request.params };
+    case "library.inspectGlb":
+      return { ...base, kind: "query", method: request.method, params: request.params };
     case "environment.startPlay": case "environment.stopPlay":
       return { ...base, kind: "command", method: request.method, commandId: request.params.commandId, params: { route: request.params.route } };
     case "environment.executeDeployment":

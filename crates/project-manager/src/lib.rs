@@ -18,6 +18,7 @@ pub mod local_diagnostics_win;
 pub mod manager_apps;
 pub mod network_probe;
 pub mod play_session;
+pub mod pose_graph_win;
 pub mod project_inspection;
 pub mod project_lock;
 pub mod steam_tools;

@@ -27,6 +27,8 @@ import { guideChannelCopy } from "./guide-channel-copy.ts";
 import { recipeDraftFlowCopy } from "./recipe-draft-flow-copy.ts";
 import { installerToolCopy } from "./installer-tool-copy.ts";
 import { localDiagnosticsCopy } from "./local-diagnostics-copy.ts";
+import { poseGraphCopy } from "./pose-graph-copy.ts";
+import { glbInspectionCopy } from "./glb-inspection-copy.ts";
 import type { Strings } from "./strings.en.ts";
 
 /**
@@ -65,6 +67,8 @@ export const strings: Strings = {
   recipeDraftFlow: recipeDraftFlowCopy["ja"],
   installerTool: installerToolCopy["ja"],
   localDiagnostics: localDiagnosticsCopy["ja"],
+  poseGraph: poseGraphCopy["ja"],
+  glbInspection: glbInspectionCopy["ja"],
   websiteTests: {
     title: "接続テスト", test: "テスト", testAll: "すべてテスト", testing: "テスト中…",
     add: "サイトを追加", edit: "サイトを編集", editSite: "{name} を編集", testSite: "{name} をテスト",

@@ -4,6 +4,7 @@ import {
   INSTALLER_TOOL_ACTIONS,
   INSTALLER_TOOL_IDS,
   isDesktopGatewayRequestV1,
+  isPhrTermsPresetId,
   LIBRARY_SORTS,
   LIBRARY_VN3_ITEMS,
   LIBRARY_VN3_STATES,
@@ -12,7 +13,7 @@ import {
   PLAY_DEVICE_IDS,
   PLAY_PLATFORMS,
   SYMPTOM_IDS_V01,
-  TERMS_PRESET_IDS,
+  TERMS_PRESET_IDS_V02,
   type AiUploadConfirmationV01,
   type DesktopGatewayRequestV1,
 } from "@vua/contracts";
@@ -57,6 +58,10 @@ const vn3Filter=object({
   includeContact:{type:"boolean"},
 },[]);
 const playSelection=object({platform:{enum:[...PLAY_PLATFORMS]},device:{enum:[...PLAY_DEVICE_IDS]},connection:{type:["string","null"],enum:[...PLAY_CONNECTION_IDS,null]}},["platform","device","connection"]);
+const glbInspectInput={
+  ...object({productId:boothProduct,entryId:id},[]),
+  anyOf:[{required:["productId"]},{required:["entryId"]}],
+};
 export const AI_TOOLS:readonly AiToolSpec[]=[
   {name:"vua_unity_license",description:"Read Unity license file metadata, Hub/client process observations and the last explicit check. Starts no program and never reads license contents. File presence is only a hint; an explicit real Editor check is required to confirm usability.",inputSchema:object({}),title:"Read Unity license hints",next:"Explain the reported next action; the player runs a real check from VUA's interface.",expected:"Metadata-only hints and historical check evidence, not a fresh active-license claim.",method:"environment.unityLicense",fixed:{schemaVersion:"0.1"}},
   {name:"vua_status",description:"Read VUA version, build commit/time/dirty identity and available capabilities. No installation or module activation.",inputSchema:object({}),title:"Read VUA status",next:"Choose a scenario and read its SOP.",expected:"Actual capability availability and build identity.",method:"app.snapshot"},
@@ -79,11 +84,13 @@ export const AI_TOOLS:readonly AiToolSpec[]=[
   {name:"vua_request_installer_tool",description:"Queue launching, stopping or cancelling startup of an installed official-installer companion tool (SlimeVR Server, VRCT, VRCX, or VRCS) for player approval in VUA.",inputSchema:object({toolId:{enum:[...INSTALLER_TOOL_IDS]},action:{enum:[...INSTALLER_TOOL_ACTIONS]}}),title:"Launch or stop a companion tool",next:"Approve in VUA, then read vua_installer_tool_status.",expected:"Verified local executable launch or bounded stop of a VUA-started session.",method:"tools.actInstaller",command:true},
   {name:"vua_manager_apps",description:"Observe installed presence of external creator managers (Unity Hub, Creator Companion VCC, and ALCOM) without reading or modifying their projects or personal paths.",inputSchema:object({}),title:"Read external manager presence",next:"Request vua_request_open_manager only when the player wants to open a detected manager directly.",expected:"Sanitized presence facts for unity_hub, vcc, and alcom.",method:"environment.inspectManagerApps"},
   {name:"vua_request_open_manager",description:"Queue launching a locally installed external creator manager (unity_hub, vcc, or alcom) with zero project arguments for player approval in VUA. External projects stay strictly read-only.",inputSchema:object({managerId:{enum:[...MANAGER_APP_IDS]}}),title:"Open external manager app",next:"Approve on the Creator page in VUA; external project changes remain inside that manager.",expected:"Detached breakaway launch receipt for the selected manager app.",method:"environment.openManagerApp",command:true},
+  {name:"vua_pose_graph",description:"Read the passive local tracking and pose topology: active OpenXR runtime family, external SteamVR OpenVR drivers, body/face/optical+IMU pose bridges (including SlimeVR, mocopi, HaritoraX, Rebocap, Pharos Optical+IMU Hub, and VRCFaceTracking), and multi-space Space Calibrator hints.",inputSchema:object({}),title:"Read pose and tracking topology",next:"Explain detected runtimes, pose bridges and Space Calibrator alignment hints without claiming hardware pairing.",expected:"Sanitized OpenXR runtime, OpenVR driver and pose-source facts.",method:"environment.observePoseGraph",fixed:{schemaVersion:"0.1"}},
   {name:"vua_amf_materials",description:"List locally present production package references, verified Editor candidates and retained runs. AMF must be enabled; no raw material bytes are returned.",inputSchema:object({}),title:"Read AMF material references",next:"Choose source IDs and request preparation.",expected:"Actual local package references; not a claim of compatibility.",method:"amf.production.list",fixed:{schemaVersion:"0.1"}},
   {name:"vua_library",description:"Search the local AMF/BDL library by name, source, state, sort order and recorded VN3 terms filter. Returns the first image per product; includeImages: true returns every image. imported means local imports, not downloaded BOOTH purchases. No login, download or upload is performed.",inputSchema:object({text:{type:"string",maxLength:500},source:{enum:["all","imported","bought","gifts","free_downloads"]},state:{enum:["all","downloaded","cloud_only","missing","in_progress","attention"]},sort:{enum:[...LIBRARY_SORTS]},vn3:vn3Filter,offset:{type:"integer",minimum:0},limit:{type:"integer",minimum:1,maximum:50},includeImages:{type:"boolean"}},[]),title:"Read material library",next:"Choose a material and inspect its local files; for production use vua_amf_materials source IDs.",expected:"Bounded local library facts and total count.",method:"library.list",fixed:{schemaVersion:"0.1"}},
   {name:"vua_material_files",description:"Read captured files/copies for one BOOTH product in the local library. Does not access BOOTH or return file bytes.",inputSchema:object({productId:{type:"string",pattern:"^booth:[0-9]+$"}}),title:"Read material files",next:"Use verified local package references for AMF preparation.",expected:"Observed local-copy facts, not production qualification.",method:"library.productFiles",fixed:{schemaVersion:"0.1"}},
+  {name:"vua_glb_inspect",description:"Inspect local .glb and .vrm binary headers (<= 16 MiB JSON chunk, no binary buffer load) for one library productId or local entryId: glTF 2.0 / VRMC_vrm 1.0 / VRM 0.x flavor, scene world-space bounding box in meters, and >= 5 cm Object-Head clearance.",inputSchema:glbInspectInput,title:"Inspect GLB / VRM and Object-Head readiness",next:"Explain whether VRM 1.0 or 0.x conversion is needed and whether bounding dimensions meet >= 5 cm Object-Head clearance.",expected:"Header-only glTF / VRM metadata and world-space bounding dimensions.",method:"library.inspectGlb",fixed:{schemaVersion:"0.1"}},
   {name:"vua_terms",description:"Read the VN3 terms VUA recorded for one BOOTH product: linked documents, items A–X with conditions, and the creator's special note, which comes before every item. Reads local evidence only; nothing is downloaded.",inputSchema:object({productId:boothProduct}),title:"Read product terms",next:"Explain the items that matter for the player's intended use, and check several products together with vua_terms_check. not_observed means the terms were never read: the player reads them from the product in VUA's library.",expected:"Recorded terms; unknown items stay unknown, and the creator's document is the final word.",method:"terms.getProduct",fixed:{schemaVersion:"0.1"}},
-  {name:"vua_terms_check",description:"Check one intended use against the recorded VN3 terms of several BOOTH products together, such as an Avatar and its outfits. The strictest item decides, and unknown never passes. Reads local evidence only.",inputSchema:object({presetId:{enum:[...TERMS_PRESET_IDS]},productIds:{type:"array",minItems:1,maxItems:500,uniqueItems:true,items:boothProduct}}),title:"Check terms for a use",next:"Report the blocking items, required conditions and special notes. The player decides, and asks the creator where an item says so.",expected:"Per-product and combined decisions from recorded terms.",method:"terms.checkUse",fixed:{schemaVersion:"0.1"}},
+  {name:"vua_terms_check",description:"Check one intended use (including PH-R VRM 1.0 personal avatar, Object-Head, and shared-space presets) against the recorded VN3 terms of several BOOTH products together. The strictest item decides, unknown never passes, and v0.2 PH-R presets surface platformRestrictionHint when special notes mention platform-exclusive clauses.",inputSchema:object({presetId:{enum:[...TERMS_PRESET_IDS_V02]},productIds:{type:"array",minItems:1,maxItems:500,uniqueItems:true,items:boothProduct}}),title:"Check terms for a use",next:"Report the blocking items, required conditions, platformRestrictionHint and special notes. The player decides, and asks the creator where an item says so.",expected:"Per-product and combined decisions from recorded terms.",method:"terms.checkUse",fixed:{schemaVersion:"0.1"}},
   {name:"vua_recipes",description:"List saved Avatar Recipes stored locally in AMF, including title, revision, material count and timestamps.",inputSchema:object({}),title:"List saved Recipes",next:"Inspect one Recipe with vua_recipe or check its local material readiness with vua_recipe_materials.",expected:"Saved Recipe summaries in VUA's local store.",method:"amf.production.listRecipes",fixed:{schemaVersion:"0.1"}},
   {name:"vua_recipe",description:"Read one saved Avatar Recipe's full definition: base Avatar, outfit bindings, fit adjustments, lighting and optimizer settings.",inputSchema:object({recipeId:recipeIdSchema}),title:"Read saved Recipe",next:"Check local material readiness with vua_recipe_materials or compare against a run with vua_recipe_apply_plan.",expected:"Recorded Recipe document for the requested recipeId.",method:"amf.production.getRecipe",fixed:{schemaVersion:"0.1"}},
   {name:"vua_amf_run",description:"Read a compact AMF run summary: phase, recent steps, selection, prefab paths/names/avatar flags/bone counts and result/check/recovery facts. The resource_link vua://amf/runs/{runId} reads the full run, revision, checks, bindings and diagnostics through resources/read; revisions gives the five newest version records and revisionCount their number. While a step runs, progress reports its elapsed/usual seconds and Unity stage. Rendered previews follow as labelled images: the assembled Avatar from the front, side and back, and one per candidate prefab.",inputSchema:object({runId:id}),title:"Read AMF result",next:"Read progress while a step runs; check the previews and facts, then resolve ambiguity, inspect failures or review a plan before asking the player.",expected:"Observed prefab and retained run facts with their rendered previews.",method:"amf.production.get",fixed:{schemaVersion:"0.1"}},
@@ -110,6 +117,14 @@ export function aiGatewayRequest(spec:AiToolSpec,args:Record<string,unknown>,req
     params={limit:25,...query,schemaVersion};
   }
   if(spec.name==="vua_tasks")params={};
+  if(spec.name==="vua_glb_inspect") {
+    if ((args.productId !== undefined) === (args.entryId !== undefined)) {
+      throw new AiToolFailure("unsupported_tool_or_parameters", "Supply either productId or entryId, not both or neither.");
+    }
+  }
+  if(spec.name==="vua_terms_check") {
+    params={...args,schemaVersion:isPhrTermsPresetId(args.presetId)?"0.2":"0.1"};
+  }
   if(spec.name==="vua_sop") {
     if ((args.selection !== undefined) === (args.scenario !== undefined) || (args.selection !== undefined && args.connection !== undefined)) {
       throw new AiToolFailure("unsupported_tool_or_parameters", "Supply either selection {platform, device, connection} (v0.2) or scenario (v0.1), not both or neither.");

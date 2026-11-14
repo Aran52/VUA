@@ -75,10 +75,14 @@ describe("U9 navigation target classification", () => {
     });
   });
 
-  it("classifies the allowlisted external protocols including the Unity Hub handoff", () => {
-    for (const url of ["mailto:a@b.test", "steam://open/friends", "vrchat://launch", "discord://rpc", "unityhub://2022.3.22f1/887be4894c44"]) {
+  it("classifies the allowlisted external protocols including Unity Hub and PH-R spatial handoffs", () => {
+    for (const url of ["mailto:a@b.test", "steam://open/friends", "vrchat://launch", "discord://rpc", "unityhub://2022.3.22f1/887be4894c44", "phr://s/room-alpha"]) {
       expect(classifyNavigationTarget(url, allowed).kind).toBe("external-protocol");
     }
+    expect(classifyNavigationTarget("phr://s/room-alpha", allowed)).toEqual({
+      kind: "external-protocol",
+      protocol: "phr:",
+    });
   });
 
   it("rejects pseudo protocols and unknown schemes unconditionally", () => {

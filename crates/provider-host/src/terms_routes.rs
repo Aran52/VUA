@@ -3,28 +3,38 @@ use crate::provider_host::{
 };
 use serde_json::Value;
 use std::sync::Arc;
-use vua_acquisition::terms::{preset_ids, valid_product_id, TermsService};
+use vua_acquisition::terms::{preset_ids, preset_ids_v02, valid_product_id, TermsService};
 
 fn valid_params(method: &str, params: &Value) -> bool {
     let Some(p) = params.as_object() else {
         return false;
     };
-    if p.get("schemaVersion").and_then(Value::as_str) != Some("0.1") {
+    let Some(version) = p.get("schemaVersion").and_then(Value::as_str) else {
         return false;
-    }
+    };
     match method {
-        "terms.refreshLibrary" => p.len() == 1,
+        "terms.refreshLibrary" => version == "0.1" && p.len() == 1,
         "terms.refreshProduct" | "terms.getProduct" => {
-            p.len() == 2
+            version == "0.1"
+                && p.len() == 2
                 && p.get("productId")
                     .and_then(Value::as_str)
                     .is_some_and(valid_product_id)
         }
         "terms.checkUse" => {
-            p.len() == 3
-                && p.get("presetId")
+            let valid_preset = match version {
+                "0.1" => p
+                    .get("presetId")
                     .and_then(Value::as_str)
-                    .is_some_and(|id| preset_ids().contains(&id))
+                    .is_some_and(|id| preset_ids().contains(&id)),
+                "0.2" => p
+                    .get("presetId")
+                    .and_then(Value::as_str)
+                    .is_some_and(|id| preset_ids_v02().contains(&id)),
+                _ => false,
+            };
+            p.len() == 3
+                && valid_preset
                 && p.get("productIds")
                     .and_then(Value::as_array)
                     .is_some_and(|ids| {
@@ -92,14 +102,18 @@ pub(crate) fn request(
                     .iter()
                     .map(|v| v.as_str().expect("validated ID").into())
                     .collect();
-                service
-                    .check_use(
-                        request["params"]["presetId"]
-                            .as_str()
-                            .expect("validated preset"),
-                        &ids,
-                    )
-                    .map(|v| serde_json::to_value(v).expect("use check"))
+                let preset = request["params"]["presetId"]
+                    .as_str()
+                    .expect("validated preset");
+                if request["params"]["schemaVersion"].as_str() == Some("0.2") {
+                    service
+                        .check_use_v02(preset, &ids)
+                        .map(|v| serde_json::to_value(v).expect("use check v0.2"))
+                } else {
+                    service
+                        .check_use(preset, &ids)
+                        .map(|v| serde_json::to_value(v).expect("use check"))
+                }
             }
             _ => unreachable!("validated method"),
         };
@@ -160,6 +174,24 @@ mod tests {
                 "terms.checkUse",
                 "query",
                 json!({"schemaVersion":"0.1","presetId":"vrchat_personal","productIds":["booth:1","booth:1"]}),
+                "vua.terms.invalid_params",
+            ),
+            (
+                "terms.checkUse",
+                "query",
+                json!({"schemaVersion":"0.1","presetId":"phr_personal_avatar","productIds":["booth:1"]}),
+                "vua.terms.invalid_params",
+            ),
+            (
+                "terms.checkUse",
+                "query",
+                json!({"schemaVersion":"0.2","presetId":"phr_personal_avatar","productIds":["booth:1"]}),
+                "vua.terms.unavailable",
+            ),
+            (
+                "terms.getProduct",
+                "query",
+                json!({"schemaVersion":"0.2","productId":"booth:1"}),
                 "vua.terms.invalid_params",
             ),
         ] {

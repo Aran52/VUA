@@ -1,6 +1,6 @@
 # External Agent tools v0.1
 
-> Document version: 0.16.1
+> Document version: 0.17.0
 > Status: Candidate
 > Updated: 2026-11-14
 > Owner: Integration
@@ -53,8 +53,9 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_tool_status`, `vua_request_tool` | Candidate Steam connections for VRCFaceTracking, OpenVR Space Calibrator, OVR Advanced Settings, OVR Toolkit, OyasumiVR, OVR Overlay Translator, ChilloutVR, Reborn, Desktop+ and fpsVR |
 | `vua_installer_tool_status`, `vua_request_installer_tool` | Official-installer companion tools (`installer-tool v0.1`: SlimeVR Server, VRCT, VRCX, VRCS) |
 | `vua_manager_apps`, `vua_request_open_manager` | Sanitized local presence and approval-gated zero-argument breakaway launch of external creator managers ([manager-apps v0.2](manager-apps-v0.2.md): `unity_hub`, `vcc`, `alcom`); local filesystem paths are omitted |
-| `vua_library`, `vua_material_files` | Bounded existing local AMF/BDL library queries (including `v0.3` `sort` and `vn3` filters); no login/download/upload |
-| `vua_terms`, `vua_terms_check` | Recorded [VN3 terms](terms-v0.1.md) of BOOTH products and one use checked across several; local evidence only |
+| `vua_pose_graph` | Passive read-only [pose and tracking topology](pose-graph-v0.1.md) (`environment.observePoseGraph` `v0.1`: active OpenXR runtime family, external SteamVR OpenVR drivers, FBT/face/Pharos optical+IMU bridges and Space Calibrator hints) |
+| `vua_library`, `vua_material_files`, `vua_glb_inspect` | Bounded existing local AMF/BDL library queries (including `v0.3` `sort` and `vn3` filters) and header-only [GLB / VRM / Object-Head inspection](glb-inspection-v0.1.md) (`library.inspectGlb` `v0.1`); no login/download/upload |
+| `vua_terms`, `vua_terms_check` | Recorded [VN3 terms](terms-v0.1.md) of BOOTH products and one use checked across several, including [v0.2 PH-R presets](terms-v0.2.md) (`phr_personal_avatar`, `phr_object_head`, `phr_shared_space`) with `platformRestrictionHint`; local evidence only |
 | `vua_recipes`, `vua_recipe` | Saved local Avatar Recipe summaries and full Recipe documents |
 | `vua_amf_materials`, `vua_amf_run`, `vua_amf_plan`, `vua_amf_face_tracking_plan`, `vua_amf_release` | Candidate material-first read/plan facts, face-tracking patch plans, and a finished Avatar's turntable and uploads |
 | `vua_request_amf_prepare`, `vua_request_amf_assemble`, `vua_request_amf_reinspect`, `vua_request_amf_open` | Existing [AMF production](amf-production-v0.1.md) authority and Bridge v5 |
@@ -254,6 +255,8 @@ The [Recipe v0.5 contract](amf-recipe-v0.5.md) owns statuses, match rules and di
 
 ## Document changelog
 
+- 0.17.0 (2026-11-14): add `vua_pose_graph` (`pose-graph v0.1`), `vua_glb_inspect` (`glb-inspection v0.1`), and `terms v0.2` PH-R preset routing (`phr_personal_avatar`, `phr_object_head`, `phr_shared_space`) with `platformRestrictionHint` in `vua_terms_check`.
+- 0.16.1 (2026-11-14): add `vua_manager_apps` sanitized output and `vua_request_open_manager` (`manager-apps v0.2`).
 - 0.16.0 (2026-11-14): add `vua_local_diagnostics`, `vua_diagnose_symptom`, `vua_request_clear_osc_cache` (`local-diagnostics v0.1`), `vua_installer_tool_status`, `vua_request_installer_tool` and `ToolDeploymentIntent` (`installer-tool v0.1` / `environment-deployment v0.1`), `vua_recipes`, `vua_recipe`, `vua_amf_face_tracking_plan`, `vua_library` `v0.3` `sort`/`vn3` filters, and compact `optimizer`/`faceTracking`/`parameterBudget` fields in `vua_amf_run`.
 - 0.15.0 (2026-11-12): add Desktop+ and fpsVR to the Steam tools (`external-tool v0.4`).
 - 0.14.0 (2026-11-11): add `vua_play_setups` (`environment.listPlaySetups` `v0.2`) and `vua_sop` `selection` (`environment.getScenarioSop` `v0.2`) while keeping `v0.1` scenario SOP queries intact.

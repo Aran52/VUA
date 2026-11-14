@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vua.local/schemas/glb-inspection/v0.1/result.schema.json",
+  "title": "GlbInspectionResultV0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "items", "truncated"],
+  "properties": {
+    "schemaVersion": {
+      "const": "vua.glb-inspection/v0.1"
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "copyId",
+          "fileName",
+          "sizeBytes",
+          "format",
+          "extensionsUsed",
+          "vrm",
+          "boundsMeters",
+          "objectHeadClearance",
+          "phrReadiness"
+        ],
+        "properties": {
+          "copyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "fileName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "format": {
+            "enum": ["vrm_1_0", "vrm_0_x", "glb_2_0", "invalid_glb"]
+          },
+          "extensionsUsed": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "vrm": {
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "specVersion",
+                  "hasHumanoidHeadBone",
+                  "boneCount",
+                  "modelName",
+                  "authors",
+                  "avatarPermission",
+                  "commercialUsage",
+                  "modification",
+                  "licenseUrl"
+                ],
+                "properties": {
+                  "specVersion": { "type": ["string", "null"], "maxLength": 32 },
+                  "hasHumanoidHeadBone": { "type": "boolean" },
+                  "boneCount": { "type": "integer", "minimum": 0, "maximum": 512 },
+                  "modelName": { "type": ["string", "null"], "maxLength": 256 },
+                  "authors": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "items": { "type": "string", "maxLength": 256 }
+                  },
+                  "avatarPermission": { "type": ["string", "null"], "maxLength": 64 },
+                  "commercialUsage": { "type": ["string", "null"], "maxLength": 64 },
+                  "modification": { "type": ["string", "null"], "maxLength": 64 },
+                  "licenseUrl": { "type": ["string", "null"], "maxLength": 2048 }
+                }
+              }
+            ]
+          },
+          "boundsMeters": {
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["size", "min", "max"],
+                "properties": {
+                  "size": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "items": { "type": "number", "minimum": 0 }
+                  },
+                  "min": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "items": { "type": "number" }
+                  },
+                  "max": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "items": { "type": "number" }
+                  }
+                }
+              }
+            ]
+          },
+          "objectHeadClearance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["status", "referenceHeadHmdMeters", "marginsMeters"],
+            "properties": {
+              "status": {
+                "enum": ["passes", "insufficient_margin", "likely_unscaled", "unknown"]
+              },
+              "referenceHeadHmdMeters": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": { "type": "number", "minimum": 0 }
+              },
+              "marginsMeters": {
+                "oneOf": [
+                  { "type": "null" },
+                  {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "items": { "type": "number" }
+                  }
+                ]
+              }
+            }
+          },
+          "phrReadiness": {
+            "enum": [
+              "ready_vrm1_humanoid",
+              "ready_object_head",
+              "vrm0_needs_upgrade",
+              "clearance_insufficient",
+              "scale_suspect",
+              "missing_head_bone",
+              "invalid_glb"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

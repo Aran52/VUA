@@ -13,7 +13,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/vua-instance-identity.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-11-14 |
-| docs/protocols/ai-tools-v0.1.md | 0.16.1 | Candidate | Integration | 2026-11-14 |
+| docs/protocols/ai-tools-v0.1.md | 0.17.0 | Candidate | Integration | 2026-11-14 |
 | docs/protocols/amf-production-v0.1.md | 0.43.0 | Candidate | AMF | 2026-11-12 |
 | docs/protocols/amf-recipe-v0.4.md | 0.6.0 | Candidate | AMF | 2026-10-24 |
 | docs/protocols/amf-recipe-v0.5.md | 0.2.1 | Candidate | AMF | 2026-11-11 |
@@ -26,6 +26,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/bdl-queries-v0.5.md | 0.5 | Frozen | Data | 2026-09-22 |
 | docs/protocols/bdl-queries-v0.6.md | 0.6 | Frozen | Data | 2026-10-02 |
 | docs/protocols/terms-v0.1.md | 0.3.1 | Candidate | AMF | 2026-11-06 |
+| docs/protocols/terms-v0.2.md | 0.1.0 | Candidate | AMF | 2026-11-14 |
 | docs/protocols/booth-search-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/catalog-sync-v0.1.md | 0.1 | Frozen | Data | 2026-10-02 |
 | docs/protocols/catalog-sync-v0.2.md | 0.2 | Frozen | Data | 2026-10-02 |
@@ -45,6 +46,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/external-tool-v0.2.md | 0.1.2 | Superseded (→ docs/protocols/external-tool-v0.3.md) | Environment | 2026-10-14 |
 | docs/protocols/external-tool-v0.3.md | 0.1.0 | Superseded (→ docs/protocols/external-tool-v0.4.md) | Environment | 2026-11-11 |
 | docs/protocols/external-tool-v0.4.md | 0.1.0 | Candidate | Environment | 2026-11-11 |
+| docs/protocols/glb-inspection-v0.1.md | 0.1.0 | Candidate | AMF | 2026-11-14 |
 | docs/protocols/guide-content-v0.1.md | 0.1.0 | Candidate | Desktop | 2026-11-11 |
 | docs/protocols/inspection-evidence-v0.1.md | 0.1 | Frozen | Production | 2026-09-13 |
 | docs/protocols/inspection-queries-v0.1.md | 0.1 | Frozen | Data | 2026-09-13 |
@@ -77,6 +79,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/packages-repos-catalog-v0.1.md | 0.1 | Frozen | Core | 2026-09-17 |
 | docs/protocols/packages-repos-v0.2.md | 0.2.1 | Frozen | Core | 2026-09-21 |
 | docs/protocols/packages-templates-v0.1.md | 0.1.1 | Frozen | Core | 2026-09-20 |
+| docs/protocols/pose-graph-v0.1.md | 0.1.0 | Candidate | Environment | 2026-11-14 |
 | docs/protocols/production-evidence-v0.1.md | 0.1 | Frozen | Data | 2026-09-08 |
 | docs/protocols/production-use-case-v0.1.md | 0.1 | Frozen | Core | 2026-09-07 |
 | docs/protocols/production-use-case-v0.2.md | 0.2 | Frozen | Core | 2026-09-09 |
@@ -86,7 +89,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/recipe-image-share-v0.1.md | 0.1.0 | Candidate | AMF | 2026-10-29 |
 | docs/protocols/recipe-export-v0.1.md | 0.1.2 | Frozen | Core | 2026-09-22 |
 | docs/protocols/recipe-selection-draft-v0.1.md | 0.2.0 | Implementation baseline | AMF | 2026-11-11 |
-| docs/protocols/share-links-v0.1.md | 0.1.0 | Candidate | AMF / Hosting | 2026-10-28 |
+| docs/protocols/share-links-v0.1.md | 0.1.1 | Candidate | AMF / Hosting | 2026-11-14 |
 | docs/protocols/release-handoff-v0.1.md | 0.1 | Frozen | Core | 2026-09-16 |
 | docs/protocols/release-handoff-v0.2.md | 0.2 | Frozen | Core | 2026-09-21 |
 | docs/protocols/scenario-environment-v0.1.md | 0.1.0 | Candidate | Environment | 2026-10-13 |
@@ -133,6 +136,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/bdl-commands/v0.5 | 0.5 | Frozen | Data | 2026-10-03 |
 | schemas/bdl-queries/v0.6 | 0.6 | Frozen | Data | 2026-10-02 |
 | schemas/terms/v0.1 | 0.1 | Candidate | AMF | 2026-10-19 |
+| schemas/terms/v0.2 | 0.2 | Candidate | AMF | 2026-11-14 |
 | schemas/booth-search/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-12 |
 | schemas/catalog-sync/v0.1 | 0.1 | Frozen | Data | 2026-10-02 |
 | schemas/catalog-sync/v0.2 | 0.2 | Frozen | Data | 2026-10-02 |
@@ -153,6 +157,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/installer-tool/v0.1/ | 0.1 | Candidate | Environment | 2026-11-11 |
 | schemas/local-diagnostics/v0.1/ | 0.1 | Candidate | Environment | 2026-11-14 |
 | schemas/game-window-observe/v0.1/ | 0.1 | Candidate | Environment | 2026-10-08 |
+| schemas/glb-inspection/v0.1/ | 0.1 | Candidate | AMF | 2026-11-14 |
 | schemas/guide-content/v0.1/ | 0.1 | Candidate | Desktop | 2026-11-11 |
 | schemas/inspection-queries/v0.1 | 0.1 | Frozen | Data | 2026-09-13 |
 | schemas/library-download/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-08 |
@@ -183,6 +188,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/packages-templates/v0.1 | 0.1 | Frozen | Core | 2026-09-20 |
 | schemas/play-session/v0.1/ | 0.1 | Superseded (→ schemas/play-session/v0.2/) | Environment | 2026-10-09 |
 | schemas/play-session/v0.2/ | 0.2 | Candidate | Environment | 2026-10-09 |
+| schemas/pose-graph/v0.1/ | 0.1 | Candidate | Environment | 2026-11-14 |
 | schemas/project-inspection/v0.1 | 0.1 | Superseded | Environment | 2026-09-09 |
 | schemas/project-ops/v0.1 | 0.1 | Superseded | Environment | 2026-09-12 |
 | schemas/project-ops/v0.2 | 0.2 | Frozen | Core | 2026-09-12 |

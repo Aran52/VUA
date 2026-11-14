@@ -27,6 +27,8 @@ import { guideChannelCopy } from "./guide-channel-copy.ts";
 import { recipeDraftFlowCopy } from "./recipe-draft-flow-copy.ts";
 import { installerToolCopy } from "./installer-tool-copy.ts";
 import { localDiagnosticsCopy } from "./local-diagnostics-copy.ts";
+import { poseGraphCopy } from "./pose-graph-copy.ts";
+import { glbInspectionCopy } from "./glb-inspection-copy.ts";
 import type { Strings } from "./strings.en.ts";
 
 /**
@@ -65,6 +67,8 @@ export const strings: Strings = {
   recipeDraftFlow: recipeDraftFlowCopy["ko"],
   installerTool: installerToolCopy["ko"],
   localDiagnostics: localDiagnosticsCopy["ko"],
+  poseGraph: poseGraphCopy["ko"],
+  glbInspection: glbInspectionCopy["ko"],
   websiteTests: {
     title: "사이트 연결 테스트", test: "테스트", testAll: "전체 테스트", testing: "테스트 중…",
     add: "사이트 추가", edit: "사이트 편집", editSite: "{name} 편집", testSite: "{name} 테스트",

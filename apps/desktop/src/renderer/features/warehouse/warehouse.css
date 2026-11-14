@@ -1255,6 +1255,15 @@
 .vua-terms__note { display: grid; gap: 4px; }
 .vua-terms__note blockquote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--vua-warning); background: var(--vua-bg-elevated);
   white-space: pre-wrap; overflow-wrap: anywhere; max-height: 14rem; overflow: auto; }
+.vua-terms__platform-hint { margin: 0; padding: 8px 12px; border-left: 3px solid var(--vua-warning); border-radius: var(--vua-radius-control); background: var(--vua-bg-elevated); color: var(--vua-text-strong); font: var(--vua-font-caption); overflow-wrap: anywhere; }
+.vua-glb-inspection__list { display: grid; gap: var(--vua-space-2); margin: 0; padding: 0; list-style: none; }
+.vua-glb-inspection__item { display: flex; flex-direction: column; gap: var(--vua-space-1); padding: var(--vua-space-2) var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); font: var(--vua-font-caption); }
+.vua-glb-inspection__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-2); }
+.vua-glb-inspection__name { display: inline-flex; align-items: center; gap: var(--vua-space-2); min-width: 0; flex: 1 1 180px; }
+.vua-glb-inspection__name > svg { flex: none; color: var(--vua-text-secondary); }
+.vua-glb-inspection__name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--vua-weight-strong); color: var(--vua-text-strong); }
+.vua-glb-inspection__badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-1); }
+.vua-glb-inspection__meta { display: flex; flex-wrap: wrap; gap: var(--vua-space-1) var(--vua-space-3); color: var(--vua-text-secondary); overflow-wrap: anywhere; }
 .vua-terms__items summary { cursor: pointer; color: var(--vua-text-secondary); }
 .vua-terms__items dl { margin: 8px 0 0; display: grid; gap: var(--vua-space-1); }
 .vua-terms__items dl > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; padding: var(--vua-space-1) 0; }

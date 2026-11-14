@@ -38,6 +38,7 @@ mod known_packages;
 mod local_diagnostics_routes;
 mod network_routes;
 mod play_session_routes;
+mod pose_graph_routes;
 mod scenario_routes;
 mod terms_routes;
 mod unity_hub;

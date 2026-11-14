@@ -27,6 +27,8 @@ import { guideChannelCopy } from "./guide-channel-copy.ts";
 import { recipeDraftFlowCopy } from "./recipe-draft-flow-copy.ts";
 import { installerToolCopy } from "./installer-tool-copy.ts";
 import { localDiagnosticsCopy } from "./local-diagnostics-copy.ts";
+import { poseGraphCopy } from "./pose-graph-copy.ts";
+import { glbInspectionCopy } from "./glb-inspection-copy.ts";
 /**
  * VUA UI string table (en) — SOURCE language.
  * - This table is the structural source of truth: the widened Strings type
@@ -71,6 +73,8 @@ export const strings = {
   recipeDraftFlow: recipeDraftFlowCopy["en"],
   installerTool: installerToolCopy["en"],
   localDiagnostics: localDiagnosticsCopy["en"],
+  poseGraph: poseGraphCopy["en"],
+  glbInspection: glbInspectionCopy["en"],
   websiteTests: {
     title: "Website connectivity", test: "Test", testAll: "Test all", testing: "Testing…",
     add: "Add website", edit: "Edit website", editSite: "Edit {name}", testSite: "Test {name}",

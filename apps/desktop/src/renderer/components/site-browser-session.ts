@@ -1,10 +1,11 @@
-import { DESKTOP_BROWSER_SITES_V1, DESKTOP_BROWSER_TAB_LIMIT, type DesktopBrowserApiV1, type DesktopBrowserEventV1, type DesktopBrowserSiteIdV1, type RemoteContentViewStateV1 } from "@vua/contracts";
+import { DESKTOP_BROWSER_SITES_V1, DESKTOP_BROWSER_TAB_LIMIT, desktopBrowserBoothItemUrl, type DesktopBrowserApiV1, type DesktopBrowserEventV1, type DesktopBrowserSiteIdV1, type RemoteContentViewStateV1 } from "@vua/contracts";
 
 export type BrowserPurpose = "assets" | "knowledge";
 export interface BrowserTab {
   readonly id: string;
   readonly view: RemoteContentViewStateV1 | null;
   readonly site: DesktopBrowserSiteIdV1 | null;
+  readonly pendingItemId?: string | undefined;
   readonly title: string;
   readonly loading: boolean;
   readonly failure: number | "unavailable" | null;
@@ -24,6 +25,15 @@ function siteForUrl(value: string): DesktopBrowserSiteIdV1 | null {
       const expected = new URL(entry.url).hostname;
       return host === expected || host.endsWith(`.${expected}`);
     })?.id ?? null;
+  } catch { return null; }
+}
+
+function boothItemIdFromUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || (url.hostname !== "booth.pm" && !url.hostname.endsWith(".booth.pm"))) return null;
+    const match = /^(?:\/(?:ja|en|ko|zh-cn|zh-tw))?\/items\/([1-9][0-9]{0,19})\/?$/iu.exec(url.pathname);
+    return match ? `booth:${match[1]}` : null;
   } catch { return null; }
 }
 
@@ -63,11 +73,45 @@ export class SiteBrowserSession {
       activeId: id, initialized: true, limitReached: false });
     this.#openView(id, site);
   };
+  openBoothItem = (productId: string): void => {
+    const itemUrl = desktopBrowserBoothItemUrl(productId);
+    if (itemUrl === null) return;
+    const existing = this.#state.tabs.find(
+      tab => tab.pendingItemId === productId || (tab.view !== null && boothItemIdFromUrl(tab.view.url) === productId),
+    );
+    if (existing) {
+      this.activate(existing.id);
+      return;
+    }
+    if (this.#state.tabs.length >= DESKTOP_BROWSER_TAB_LIMIT) {
+      this.#write({ ...this.#state, limitReached: true }); return;
+    }
+    const id = crypto.randomUUID();
+    this.#write({
+      tabs: [...this.#state.tabs, { id, view: null, site: "booth", pendingItemId: productId, title: "", loading: true, failure: null, failedPage: false }],
+      activeId: id, initialized: true, limitReached: false,
+    });
+    this.#openItemView(id, productId);
+  };
   #openView(id: string, site: DesktopBrowserSiteIdV1): void {
     if (!this.#api) { this.#patch(id, { failure: "unavailable", loading: false }); return; }
     void this.#api.open(site).then(view => {
       if (!this.#state.tabs.some(tab => tab.id === id)) { void this.#api!.close(view.viewId).catch(() => {}); return; }
       this.#patch(id, { view: { ...view, url: view.url || DESKTOP_BROWSER_SITES_V1.find(entry => entry.id === site)!.url } });
+      const events = this.#early.get(view.viewId) ?? [];
+      this.#early.delete(view.viewId);
+      if (!this.#state.tabs.some(tab => tab.loading && !tab.view)) this.#early.clear();
+      for (const event of events) this.#event(event);
+    }).catch(() => this.#patch(id, { failure: "unavailable", loading: false }));
+  }
+  #openItemView(id: string, productId: string): void {
+    const itemUrl = desktopBrowserBoothItemUrl(productId);
+    if (!itemUrl || !this.#api?.openBoothItem) {
+      this.#patch(id, { failure: "unavailable", loading: false }); return;
+    }
+    void this.#api.openBoothItem(productId).then(view => {
+      if (!this.#state.tabs.some(tab => tab.id === id)) { void this.#api!.close(view.viewId).catch(() => {}); return; }
+      this.#patch(id, { view: { ...view, url: view.url || itemUrl }, pendingItemId: undefined });
       const events = this.#early.get(view.viewId) ?? [];
       this.#early.delete(view.viewId);
       if (!this.#state.tabs.some(tab => tab.loading && !tab.view)) this.#early.clear();
@@ -96,10 +140,15 @@ export class SiteBrowserSession {
     const tab = this.#state.tabs.find(tab => tab.id === id);
     if (!tab || (!tab.view && tab.loading)) return;
     this.#patch(id, { loading: true, failure: null, failedPage: false });
-    if (!tab.view) { this.#openView(id, tab.site ?? this.initial); return; }
+    if (!tab.view) {
+      if (tab.pendingItemId) this.#openItemView(id, tab.pendingItemId);
+      else this.#openView(id, tab.site ?? this.initial);
+      return;
+    }
     void this.#api?.[command](tab.view.viewId).catch(() => this.#patch(id, { failure: "unavailable", loading: false }));
   };
   #event(event: DesktopBrowserEventV1): void {
+    if (event.kind === "download-completed") return;
     if (event.kind === "tab-opened") {
       const parent = this.#state.tabs.find(tab => tab.view?.viewId === event.parentViewId);
       if (!parent) return;

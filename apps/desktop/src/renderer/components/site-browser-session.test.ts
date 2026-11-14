@@ -8,6 +8,7 @@ function harness() {
   const pending: ((view: RemoteContentViewStateV1) => void)[] = [];
   const api: DesktopBrowserApiV1 = {
     open: vi.fn(() => new Promise<RemoteContentViewStateV1>(resolve => pending.push(resolve))),
+    openBoothItem: vi.fn(() => new Promise<RemoteContentViewStateV1>(resolve => pending.push(resolve))),
     close: vi.fn(async () => {}),
     navigate: vi.fn(), goBack: vi.fn(), goForward: vi.fn(), reload: vi.fn(), setViewport: vi.fn(),
     events: { subscribe: callback => { listener = callback; return () => {}; } },
@@ -79,5 +80,27 @@ describe("retained browser session", () => {
     session.open(); const view = await h.settle();
     h.emit({ kind: "view-closed", viewId: view.viewId }); session.ensureInitial();
     expect(session.getSnapshot().tabs).toHaveLength(0); expect(h.api.open).toHaveBeenCalledTimes(1);
+  });
+  it("opens BOOTH items in a dedicated tab, reuses matching item tabs, and ignores download-completed events", async () => {
+    const h = harness(), session = new SiteBrowserSession(h.api, "assets");
+    session.open(); const home = await h.settle("https://booth.pm/");
+    const homeTabId = session.getSnapshot().activeId!;
+    session.openBoothItem("invalid");
+    expect(h.api.openBoothItem).not.toHaveBeenCalled();
+    session.openBoothItem("booth:778899");
+    session.openBoothItem("booth:778899");
+    expect(h.api.openBoothItem).toHaveBeenCalledTimes(1);
+    expect(h.api.openBoothItem).toHaveBeenCalledWith("booth:778899");
+    const itemTabId = session.getSnapshot().activeId!;
+    expect(itemTabId).not.toBe(homeTabId);
+    await h.settle("https://booth.pm/ja/items/778899");
+    session.activate(homeTabId);
+    expect(session.getSnapshot().activeId).toBe(homeTabId);
+    session.openBoothItem("booth:778899");
+    expect(h.api.openBoothItem).toHaveBeenCalledTimes(1);
+    expect(session.getSnapshot().activeId).toBe(itemTabId);
+    h.emit({ kind: "download-completed", downloadId: "dl-1", suggestedFileName: "free-item.zip" });
+    expect(session.getSnapshot().tabs).toHaveLength(2);
+    expect(session.getSnapshot().tabs[0]!.view?.viewId).toBe(home.viewId);
   });
 });

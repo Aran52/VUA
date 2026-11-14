@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import { Icon } from "@vua/design-system";
 import { DESKTOP_BROWSER_SITES_V1, DESKTOP_BROWSER_TAB_LIMIT } from "@vua/contracts";
 import { format, strings } from "../i18n/index.ts";
@@ -8,7 +8,12 @@ import { BrowserFrame } from "./BrowserFrame.tsx";
 import { siteBrowserSession, type BrowserPurpose, type BrowserTab } from "./site-browser-session.ts";
 import "../features/import/import-page.css";
 
-export function SiteBrowser({ purpose, onClose }: { purpose: BrowserPurpose; onClose: () => void }) {
+export function SiteBrowser({ purpose, onClose, shortcutsExtra, banner }: {
+  purpose: BrowserPurpose;
+  onClose: () => void;
+  shortcutsExtra?: ReactNode;
+  banner?: ReactNode;
+}) {
   const session = useMemo(() => siteBrowserSession(window.vua?.desktopBrowser, purpose), [purpose]);
   const state = useSyncExternalStore(session.subscribe, session.getSnapshot);
   useEffect(() => { session.ensureInitial(); }, [session]);
@@ -49,7 +54,9 @@ export function SiteBrowser({ purpose, onClose }: { purpose: BrowserPurpose; onC
         aria-current={tab.site === entry.id ? "true" : undefined} title={entry.url} onClick={event => {
           if (event.ctrlKey || event.metaKey) session.open(entry.id); else session.navigate(tab.id, entry.id);
         }} onAuxClick={event => { if (event.button === 1) { event.preventDefault(); session.open(entry.id); } }}>{entry.name}</button>)}
+      {shortcutsExtra}
     </nav> : null}
+    {banner}
     {state.limitReached ? <p className="vua-browser-frame__status" role="status">{copy.tabLimit}</p> : null}
     {tab.view && tab.failure !== null ? <div className="vua-browser-frame__status" role="status">{copy.failed} <Button variant="subtle" disabled={tab.loading} onClick={() => session.action(tab.id, "reload")}>{copy.retry}</Button></div> : null}
   </BrowserFrame>;

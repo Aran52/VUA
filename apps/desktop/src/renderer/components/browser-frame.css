@@ -13,9 +13,12 @@
 .vua-browser-frame__tab-close:hover, .vua-browser-frame__new-tab:hover { background: var(--vua-accent-tint); }
 .vua-browser-frame__new-tab { flex: 0 0 32px; border-radius: var(--vua-radius-md); }
 .vua-browser-frame__new-tab:disabled { opacity: 0.45; cursor: default; }
-.vua-browser-frame__shortcuts { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; border-bottom: 1px solid var(--vua-border); }
-.vua-browser-frame__shortcuts button { padding: 5px var(--vua-space-2); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-md); color: var(--vua-text-strong); background: transparent; cursor: pointer; font: var(--vua-font-caption); }
-.vua-browser-frame__shortcuts button:hover, .vua-browser-frame__shortcuts button[aria-current="true"] { background: var(--vua-accent-tint); border-color: var(--vua-accent); }
+.vua-browser-frame__shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 8px; border-bottom: 1px solid var(--vua-border); }
+.vua-browser-frame__shortcuts button:not(.vua-browser-frame__mode-switch) { padding: 5px var(--vua-space-2); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-md); color: var(--vua-text-strong); background: transparent; cursor: pointer; font: var(--vua-font-caption); }
+.vua-browser-frame__shortcuts button:not(.vua-browser-frame__mode-switch):hover, .vua-browser-frame__shortcuts button:not(.vua-browser-frame__mode-switch)[aria-current="true"] { background: var(--vua-accent-tint); border-color: var(--vua-accent); }
+.vua-browser-frame__mode-switch { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; padding: 5px var(--vua-space-2); border: 1px solid var(--vua-accent); border-radius: var(--vua-radius-md); color: var(--vua-accent-text); background: var(--vua-accent-tint); cursor: pointer; font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); }
+.vua-browser-frame__mode-switch:hover { border-color: var(--vua-border-focus); }
+.vua-browser-frame__mode-switch:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
 .vua-browser-frame__status { margin: 8px; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 .vua-browser-frame__error { max-width: 460px; padding: 24px; }
 /* Import stays in its dialog, but browsing leaves the shell navigation usable. */

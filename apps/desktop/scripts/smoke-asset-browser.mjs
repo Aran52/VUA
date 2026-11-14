@@ -41,6 +41,7 @@ async function waitFor(predicate, label, limit = 12_000) {
   throw new Error(`Timed out: ${label}`);
 }
 const fixtures = ["vua-knowledge", "persist:vua-remote"];
+let freeAssetQueries = 0;
 async function main() {
   try {
     createRequire(import.meta.url)(path.join(desktop, "dist/packaged-electron/main.js"));
@@ -48,6 +49,10 @@ async function main() {
     for (const partition of fixtures) await session.fromPartition(partition).protocol.handle("https", request => {
       const url = new URL(request.url);
       if (url.hostname === "vrc-style.com") return Response.error();
+      if (url.hostname === "booth.pm" && url.pathname.startsWith("/ja/browse/") && url.searchParams.get("max_price") === "0") {
+        freeAssetQueries += 1;
+        return new Response(`<!doctype html><html><head><title>BOOTH Free Browse</title></head><body><div class="market-items"><ul><li class="item-card" data-product-id="9900001" data-product-price="0" data-product-category="209"><div class="item-card__title">Synthetic Free Outfit</div><div class="item-card__shop-name">Synthetic Studio</div></li><li class="item-card" data-product-id="9900002" data-product-price="500" data-product-category="209"><div class="item-card__title">Synthetic Paid Outfit</div><div class="item-card__shop-name">Synthetic Studio</div></li></ul></div></body></html>`, { headers: { "content-type": "text/html; charset=utf-8" } });
+      }
       const label = url.hostname.replace(/[^\w.-]/g, "");
       return new Response(`<!doctype html><html><head><title>${label} ${url.pathname}</title><style>body{font:20px system-ui;padding:24px;min-height:2400px;background:#fafafa;color:#17142e}a{display:block;margin:20px 0}</style></head><body><h1>${label}</h1><a id="next" href="/second">Next page</a><a id="new-tab" href="/child" target="_blank">New tab</a><a id="outside" href="https://example.test/">Outside shortcut list</a><textarea id="note"></textarea><p>Isolated browser smoke fixture; no real account or material data.</p></body></html>`, { headers: { "content-type": "text/html; charset=utf-8" } });
     });
@@ -220,6 +225,24 @@ async function main() {
     await waitFor(() => remoteViews().every(view => !view.getVisible()), "asset hide");
     await click("shell-back"); await waitFor(frameFits, "asset return");
     assert(true, "Settings return restores the material browser and its shortcuts");
+    assert(freeAssetQueries === 0, "Startup and browsing never automatically query BOOTH free assets");
+    const retainedForFreeAssets = activeView().webContents.id;
+    await clickShell("[data-free-assets-open]");
+    await waitFor(async () => (await js('!!document.querySelector("[data-free-assets-view]")')) && remoteViews().every(view => !view.getVisible()), "Free assets sub-view open");
+    assert(remoteViews().length === 1 && freeAssetQueries === 0, "Opening Free assets hides the native browser view while retaining tabs and fires zero automatic requests");
+    await waitFor(() => js('!!document.querySelector(".vua-free-assets__input")'), "Free assets keyword input");
+    await js('(()=>{ const input = document.querySelector(".vua-free-assets__input"); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set; set.call(input, "SyntheticBaseA"); input.dispatchEvent(new Event("input", { bubbles: true })); })()');
+    await clickShell('.vua-free-assets__form button[type="submit"]');
+    await waitFor(() => js('document.querySelector("[data-free-assets-query]")?.disabled===false'), "Free assets query enabled");
+    await clickShell("[data-free-assets-query]");
+    await waitFor(async () => freeAssetQueries === 1 && (await js('!!document.querySelector(\'[data-product-id="booth:9900001"]\')')), "Free assets manual query result", 15_000);
+    assert(!(await js('!!document.querySelector(\'[data-product-id="booth:9900002"]\')')), "Manual Free assets query admits ¥0 cards and discards paid cards");
+    await clickShell('[data-product-id="booth:9900001"] .vua-free-assets__card-main');
+    await waitFor(() => activeView()?.webContents.getURL() === "https://booth.pm/ja/items/9900001", "Free asset opens BOOTH item tab");
+    await waitFor(frameFits, "BOOTH item tab fits");
+    assert(remoteViews().length === 2 && remoteViews().some(view => view.webContents.id === retainedForFreeAssets), "Opening a Free asset item keeps existing browser tabs");
+    await clickShell(".vua-browser-frame__bar button:last-child");
+    await waitFor(() => remoteViews().length === 1 && activeView()?.webContents.id === retainedForFreeAssets, "close BOOTH item tab");
     await clickShell(".vua-browser-frame__bar button:last-child");
     await waitFor(() => remoteViews().length === 0, "browser close");
     assert(await js('!!document.querySelector("main .vua-button")'), "Closing material browser offers reopening BOOTH");

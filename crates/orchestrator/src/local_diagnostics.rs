@@ -41,6 +41,9 @@ pub enum SymptomId {
     CrashOrEacBlock,
     AvatarHiddenOrGreyRobot,
     CannotUploadAvatar,
+    StreamingBlurryOrCompression,
+    PlayspaceDragOrHeightOffset,
+    FbtDriftOrCalibration,
 }
 
 impl SymptomId {
@@ -53,6 +56,9 @@ impl SymptomId {
             "crash_or_eac_block" => Some(Self::CrashOrEacBlock),
             "avatar_hidden_or_grey_robot" => Some(Self::AvatarHiddenOrGreyRobot),
             "cannot_upload_avatar" => Some(Self::CannotUploadAvatar),
+            "streaming_blurry_or_compression" => Some(Self::StreamingBlurryOrCompression),
+            "playspace_drag_or_height_offset" => Some(Self::PlayspaceDragOrHeightOffset),
+            "fbt_drift_or_calibration" => Some(Self::FbtDriftOrCalibration),
             _ => None,
         }
     }
@@ -369,6 +375,14 @@ impl SteamVrSettingsObservation {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SystemTuningObservation {
+    pub hardware_gpu_scheduling: Option<bool>,
+    pub power_plan_role: &'static str,
+    pub ovr_advanced_settings_installed: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RecentClientLogObservation {
     pub classification: &'static str,
     pub newest_modified_at: Option<String>,
@@ -386,6 +400,7 @@ pub struct LocalDiagnosticsSnapshot {
     pub steamvr_settings: SteamVrSettingsObservation,
     pub audio_endpoints: AudioEndpointObservation,
     pub streaming_settings: StreamingSettingsObservation,
+    pub system_tuning: SystemTuningObservation,
     pub recent_client_log: RecentClientLogObservation,
 }
 
@@ -529,6 +544,7 @@ impl LocalDiagnosticsService {
         let steamvr_settings = inspect_steamvr_settings(&self.roots);
         let audio_endpoints = inspect_audio_endpoints(&self.roots);
         let streaming_settings = inspect_streaming_settings(&self.roots);
+        let system_tuning = inspect_system_tuning(&self.roots);
         let recent_client_log = inspect_recent_client_log(&vrchat_root);
 
         LocalDiagnosticsSnapshot {
@@ -541,6 +557,7 @@ impl LocalDiagnosticsService {
             steamvr_settings,
             audio_endpoints,
             streaming_settings,
+            system_tuning,
             recent_client_log,
         }
     }
@@ -1054,7 +1071,159 @@ fn inspect_osc_local(osc_dir: &Path, probe: &dyn LocalDiagnosticsProbe) -> OscLo
 
 const SOUND_MAPPER_SUBKEY: &str = "Software\\Microsoft\\Multimedia\\Sound Mapper";
 const QUEST_LINK_SUBKEY: &str = "Software\\Oculus\\RemoteHeadset";
+const GRAPHICS_DRIVERS_SUBKEY: &str = "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers";
+const POWER_SCHEMES_SUBKEY: &str = "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes";
 const PICO_SETTINGS_MAX_BYTES: u64 = 512 * 1024;
+const LIBRARY_VDF_MAX_BYTES: u64 = 512 * 1024;
+
+fn inspect_system_tuning(roots: &EnvironmentRoots) -> SystemTuningObservation {
+    let hardware_gpu_scheduling = match roots.registry.get_u32(
+        RegistryHive::LocalMachine,
+        GRAPHICS_DRIVERS_SUBKEY,
+        "HwSchMode",
+    ) {
+        Some(2) => Some(true),
+        Some(1) => Some(false),
+        _ => None,
+    };
+
+    let active_scheme = roots
+        .registry
+        .get_string(
+            RegistryHive::LocalMachine,
+            POWER_SCHEMES_SUBKEY,
+            "ActivePowerScheme",
+        )
+        .or_else(|| {
+            roots.registry.get_string(
+                RegistryHive::CurrentUser,
+                POWER_SCHEMES_SUBKEY,
+                "ActivePowerScheme",
+            )
+        });
+    let power_plan_role = match active_scheme.as_deref() {
+        None => "unknown",
+        Some(raw) => {
+            let guid = raw
+                .trim()
+                .trim_matches('{')
+                .trim_matches('}')
+                .to_ascii_lowercase();
+            match guid.as_str() {
+                "" => "unknown",
+                "a1841308-3541-4fab-bc81-f71556f20b4a" => "power_saver",
+                "381b4222-f694-41f0-9685-ff5bb260df2e" => "balanced",
+                "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" | "e9a42b02-d5df-448d-aa00-03f14749eb61" => {
+                    "high_or_ultimate"
+                }
+                _ => "custom",
+            }
+        }
+    };
+
+    let ovr_advanced_settings_installed = detect_ovr_advanced_settings(roots);
+
+    SystemTuningObservation {
+        hardware_gpu_scheduling,
+        power_plan_role,
+        ovr_advanced_settings_installed,
+    }
+}
+
+fn is_regular_non_symlink_file(path: &Path) -> bool {
+    fs::symlink_metadata(path).is_ok_and(|m| !is_reparse_or_symlink(&m) && m.is_file())
+}
+
+fn detect_ovr_advanced_settings(roots: &EnvironmentRoots) -> bool {
+    let mut steam_roots = Vec::new();
+    for (hive, subkey, value_name) in [
+        (
+            RegistryHive::CurrentUser,
+            "Software\\Valve\\Steam",
+            "SteamPath",
+        ),
+        (
+            RegistryHive::LocalMachine,
+            "SOFTWARE\\WOW6432Node\\Valve\\Steam",
+            "InstallPath",
+        ),
+        (
+            RegistryHive::LocalMachine,
+            "SOFTWARE\\Valve\\Steam",
+            "InstallPath",
+        ),
+    ] {
+        if let Some(dir) = roots.registry.get_string(hive, subkey, value_name) {
+            let trimmed = dir.trim();
+            if !trimmed.is_empty() {
+                let path = PathBuf::from(trimmed);
+                if !steam_roots.contains(&path) {
+                    steam_roots.push(path);
+                }
+            }
+        }
+    }
+    for candidate in &roots.steam_install_candidates {
+        if !steam_roots.contains(candidate) {
+            steam_roots.push(candidate.clone());
+        }
+    }
+
+    let mut steamapps_dirs = Vec::new();
+    for steam_root in &steam_roots {
+        let primary = steam_root.join("steamapps");
+        if !steamapps_dirs.contains(&primary) {
+            steamapps_dirs.push(primary.clone());
+        }
+        let vdf = primary.join("libraryfolders.vdf");
+        if let Ok(text) = read_bounded_regular_utf8(&vdf, LIBRARY_VDF_MAX_BYTES) {
+            for line in text.lines().take(512) {
+                if let Some(rest) = line.trim().strip_prefix("\"path\"") {
+                    let quoted = rest.trim().trim_matches('"').replace("\\\\", "\\");
+                    if !quoted.is_empty() {
+                        let lib = PathBuf::from(quoted).join("steamapps");
+                        if !steamapps_dirs.contains(&lib) && steamapps_dirs.len() < 32 {
+                            steamapps_dirs.push(lib);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for steamapps in &steamapps_dirs {
+        if is_regular_non_symlink_file(&steamapps.join("appmanifest_1009850.acf")) {
+            return true;
+        }
+        let common = steamapps.join("common");
+        if is_regular_non_symlink_file(
+            &common
+                .join("OVR_AdvancedSettings")
+                .join("AdvancedSettings.exe"),
+        ) || is_regular_non_symlink_file(
+            &common
+                .join("OVR Advanced Settings")
+                .join("AdvancedSettings.exe"),
+        ) {
+            return true;
+        }
+    }
+
+    for common in &roots.steam_common {
+        if is_regular_non_symlink_file(
+            &common
+                .join("OVR_AdvancedSettings")
+                .join("AdvancedSettings.exe"),
+        ) || is_regular_non_symlink_file(
+            &common
+                .join("OVR Advanced Settings")
+                .join("AdvancedSettings.exe"),
+        ) {
+            return true;
+        }
+    }
+    false
+}
 
 fn inspect_audio_endpoints(roots: &EnvironmentRoots) -> AudioEndpointObservation {
     let record =
@@ -1549,10 +1718,15 @@ fn collect_findings_for_symptom(
     };
 
     let audio_relevant = matches!(symptom, SymptomId::AudioSilentOrWrongMic);
-    let osc_relevant = matches!(symptom, SymptomId::OscOrFaceTrackingNotResponding);
+    let osc_relevant = matches!(
+        symptom,
+        SymptomId::OscOrFaceTrackingNotResponding | SymptomId::FbtDriftOrCalibration
+    );
     let perf_relevant = matches!(
         symptom,
-        SymptomId::LowFpsOrVramPressure | SymptomId::CrashOrEacBlock
+        SymptomId::LowFpsOrVramPressure
+            | SymptomId::CrashOrEacBlock
+            | SymptomId::StreamingBlurryOrCompression
     );
     let disk_relevant = matches!(
         symptom,
@@ -1689,6 +1863,77 @@ fn collect_findings_for_symptom(
                 "steamvr_openxr",
             );
         }
+        if snapshot.system_tuning.hardware_gpu_scheduling == Some(true) {
+            push(
+                &mut out,
+                "windows_hags_enabled_vr_stutter_risk",
+                "info",
+                "hardware_os",
+            );
+        }
+    }
+
+    if matches!(
+        symptom,
+        SymptomId::LowFpsOrVramPressure
+            | SymptomId::StreamingBlurryOrCompression
+            | SymptomId::FbtDriftOrCalibration
+    ) && snapshot.system_tuning.power_plan_role == "power_saver"
+    {
+        push(
+            &mut out,
+            "windows_power_saver_active",
+            "warning",
+            "hardware_os",
+        );
+    }
+
+    if matches!(symptom, SymptomId::StreamingBlurryOrCompression) {
+        let low_streaming = snapshot
+            .streaming_settings
+            .quest_link
+            .encode_bitrate_mbps
+            .is_some_and(|b| b < 100)
+            || snapshot
+                .streaming_settings
+                .quest_link
+                .encode_resolution_width
+                .is_some_and(|w| w < 2800)
+            || snapshot.streaming_settings.quest_link.link_sharpening == Some(0)
+            || snapshot
+                .streaming_settings
+                .pico_connect
+                .bitrate_mbps
+                .is_some_and(|b| b < 50)
+            || snapshot
+                .streaming_settings
+                .pico_connect
+                .preset
+                .as_deref()
+                .is_some_and(|p| {
+                    matches!(p.to_ascii_lowercase().as_str(), "smooth" | "low" | "sd")
+                });
+        if low_streaming {
+            push(
+                &mut out,
+                "streaming_low_bitrate_or_sharpening_off",
+                "warning",
+                "steamvr_openxr",
+            );
+        }
+    }
+
+    if matches!(
+        symptom,
+        SymptomId::PlayspaceDragOrHeightOffset | SymptomId::FbtDriftOrCalibration
+    ) && snapshot.system_tuning.ovr_advanced_settings_installed
+    {
+        push(
+            &mut out,
+            "ovr_advanced_settings_installed_offset_check",
+            "info",
+            "companion_osc",
+        );
     }
 
     if snapshot.client_config.presence == "malformed" {
@@ -1882,6 +2127,14 @@ fn build_sop_steps(
                     instruction: "High streaming encode resolution (>4128 px) or bitrate (>500 Mbps Quest Link / >150 Mbps PICO Connect) saturates GPU video encoders and VRAM buffers. Step down to Balanced/HD preset or enable dynamic bitrate.",
                 });
             }
+            if has("windows_hags_enabled_vr_stutter_risk") || has("windows_power_saver_active") {
+                steps.push(DiagnosticSopStep {
+                    step_id: "perf_windows_hags_and_power_plan",
+                    layer: "hardware_os",
+                    title: "Check Windows GPU Scheduling (HAGS) and active power plan",
+                    instruction: "Windows Hardware-Accelerated GPU Scheduling or Power Saver mode can starve SteamVR compositor and wireless video encoders under high VRAM load. Switch Windows Power Mode to Balanced/High Performance, and test disabling Hardware-Accelerated GPU Scheduling if frame-time spikes persist.",
+                });
+            }
             if has("log_d3d11_crash_detected") {
                 steps.push(DiagnosticSopStep {
                     step_id: "perf_d3d11_vram_exhaustion",
@@ -1991,6 +2244,74 @@ fn build_sop_steps(
                 layer: "avatar_sdk",
                 title: "Confirm Unity 2022.3.22f1, missing scripts, and network proxy",
                 instruction: "Use VRChat's supported Unity 2022.3.22f1 editor, resolve Missing Scripts / Android shader errors in VUA Workshop's SDK Fixer, and run VUA Environment -> Network Check if upload stalls at 0%.",
+            });
+        }
+        SymptomId::StreamingBlurryOrCompression => {
+            steps.push(DiagnosticSopStep {
+                step_id: "streaming_check_wifi_band_and_router",
+                layer: "hardware_os",
+                title: "Verify dedicated 5 GHz / 6 GHz Wi-Fi or USB 3.0+ link bandwidth",
+                instruction: "For wireless PCVR (Virtual Desktop / PICO Connect / Air Link), wire the PC via Gigabit Ethernet and connect the headset to an uncongested 5 GHz (80 MHz) or 6 GHz channel; for wired Link, confirm USB 3.0 SuperSpeed negotiation instead of USB 2.0 fallback.",
+            });
+            steps.push(DiagnosticSopStep {
+                step_id: "streaming_raise_codec_bitrate_and_sharpening",
+                layer: "steamvr_openxr",
+                title: "Tune streaming codec, bitrate floor, and link sharpening",
+                instruction: "Prefer HEVC 10-bit or AV1 (Quest 3 / PICO 4 Ultra) at 120-200 Mbps (or H.264+ at 300-400 Mbps), enable Link Sharpening / Snapdragon Game Super Resolution, and avoid Ultra encode presets when GPU encoder utilization nears 100%.",
+            });
+            steps.push(DiagnosticSopStep {
+                step_id: "streaming_align_steamvr_and_streamer_scale",
+                layer: "steamvr_openxr",
+                title: "Keep SteamVR resolution near 100% and scale once in your streamer",
+                instruction: "Set quality in Virtual Desktop / PICO Connect / Quest Link first and keep SteamVR per-app resolution near 100% so double supersampling does not trigger dynamic bitrate drops and blocky compression.",
+            });
+        }
+        SymptomId::PlayspaceDragOrHeightOffset => {
+            steps.push(DiagnosticSopStep {
+                step_id: "playspace_reset_ovras_offsets",
+                layer: "companion_osc",
+                title: "Reset OVR Advanced Settings playspace and gravity offsets",
+                instruction: "Open OVR Advanced Settings -> Offsets and Motion tabs in your SteamVR dashboard, click Reset on X/Y/Z offsets, Space Drag, and Gravity, and disable Seated playspace overrides if your floor height stays shifted.",
+            });
+            steps.push(DiagnosticSopStep {
+                step_id: "playspace_redraw_guardian_boundary",
+                layer: "steamvr_openxr",
+                title: "Re-center headset floor level in Guardian / PICO Boundary / SteamVR",
+                instruction: "Clear old room history in Quest Guardian or PICO Boundary, touch a controller to the physical floor to set floor level, and run SteamVR Room Setup -> Quick Calibrate if SteamVR floor height still disagrees.",
+            });
+            steps.push(DiagnosticSopStep {
+                step_id: "playspace_vrchat_height_and_ik_mode",
+                layer: "client_config_cache",
+                title: "Check VRChat User Real Height and Seated / Standing toggle",
+                instruction: "Open VRChat Quick Menu -> Settings -> Tracking & IK, match User Real Height to your physical height, switch Measurement between Arm Span and Height if proportions feel stretched, and ensure Seated Mode is toggled as intended.",
+            });
+        }
+        SymptomId::FbtDriftOrCalibration => {
+            if has("steamvr_driver_blocked_by_safe_mode") {
+                steps.push(DiagnosticSopStep {
+                    step_id: "steamvr_unblock_safe_mode_drivers",
+                    layer: "steamvr_openxr",
+                    title: "Unblock SteamVR add-on drivers disabled by Safe Mode",
+                    instruction: "SteamVR Safe Mode has blocked one or more external tracking drivers (Pharos, SlimeVR, or Space Calibrator). Open SteamVR Settings -> Startup / Shutdown -> Manage Add-ons and re-enable them.",
+                });
+            }
+            steps.push(DiagnosticSopStep {
+                step_id: "fbt_check_multi_driver_and_safe_mode",
+                layer: "steamvr_openxr",
+                title: "Avoid running multiple OpenVR FBT drivers simultaneously",
+                instruction: "Inspect VUA Tools -> Pose & Tracking Topology to ensure two OpenVR FBT drivers (such as SlimeVR and Pharos or mocopi) are not spawning duplicate waist/foot trackers at the same time.",
+            });
+            steps.push(DiagnosticSopStep {
+                step_id: "fbt_space_calibrator_and_pharos_anchor",
+                layer: "companion_osc",
+                title: "Verify Pharos optical anchor / IMU yaw reset or Space Calibrator reference",
+                instruction: "For Pharos optical+IMU hybrid tracking, verify stereo station visibility or panoramic spatial anchor status; for mixed Lighthouse + standalone headsets, confirm OpenVR Space Calibrator continuous calibration targets the active HMD rather than a sleeping controller.",
+            });
+            steps.push(DiagnosticSopStep {
+                step_id: "fbt_reset_ovras_offset_and_tpose",
+                layer: "client_config_cache",
+                title: "Zero playspace offsets before running VRChat FBT calibration",
+                instruction: "Reset OVR Advanced Settings playspace offsets to 0.0 before entering VRChat FBT T-pose calibration — calibrating while playspace-shifted bakes a tilted hip/foot offset into IK.",
             });
         }
     }
@@ -2389,5 +2710,99 @@ mod tests {
             parse_oscquery_host_info(b"HTTP/1.1 200 OK\r\n\r\n{\"unrelated\":1}"),
             None
         );
+    }
+
+    #[test]
+    fn diagnoses_system_tuning_hags_power_plan_ovras_and_north_star_eval_symptoms() {
+        let temp = TestTempDir::new();
+        let mut roots = test_roots(temp.path());
+        let ovras_dir = temp
+            .path()
+            .join("Steam")
+            .join("steamapps")
+            .join("common")
+            .join("OVR_AdvancedSettings");
+        fs::create_dir_all(&ovras_dir).unwrap();
+        fs::write(ovras_dir.join("AdvancedSettings.exe"), b"MZ").unwrap();
+
+        roots.registry = Arc::new(
+            FakeRegistrySource::new()
+                .with_u32(
+                    RegistryHive::LocalMachine,
+                    GRAPHICS_DRIVERS_SUBKEY,
+                    "HwSchMode",
+                    2,
+                )
+                .with(
+                    RegistryHive::LocalMachine,
+                    POWER_SCHEMES_SUBKEY,
+                    "ActivePowerScheme",
+                    "{a1841308-3541-4fab-bc81-f71556f20b4a}",
+                )
+                .with_u32(
+                    RegistryHive::CurrentUser,
+                    QUEST_LINK_SUBKEY,
+                    "BitrateMbps",
+                    60,
+                )
+                .with_u32(
+                    RegistryHive::CurrentUser,
+                    QUEST_LINK_SUBKEY,
+                    "LinkSharpening",
+                    0,
+                ),
+        );
+
+        let svc = LocalDiagnosticsService::new(
+            roots,
+            Arc::new(FakeProbe {
+                running: Ok(false),
+                udp9000: UdpPortObservation::unbound(),
+                udp9001: UdpPortObservation::unbound(),
+                osc_query: OscQueryLoopbackObservation::not_detected(),
+            }),
+            Arc::new(FixedClock::new(&["2026-11-14T04:00:00.000Z"])),
+        );
+
+        let snap = svc.observe_local();
+        let raw_json = serde_json::to_string(&snap).unwrap();
+        // Raw Windows power-plan GUIDs must never leak across the wire.
+        assert!(!raw_json.contains("a1841308-3541-4fab-bc81-f71556f20b4a"));
+        assert_eq!(snap.system_tuning.hardware_gpu_scheduling, Some(true));
+        assert_eq!(snap.system_tuning.power_plan_role, "power_saver");
+        assert!(snap.system_tuning.ovr_advanced_settings_installed);
+
+        let blurry = svc.diagnose_symptom(SymptomId::StreamingBlurryOrCompression);
+        assert!(blurry
+            .findings
+            .iter()
+            .any(|f| f.code == "streaming_low_bitrate_or_sharpening_off"));
+        assert!(blurry
+            .findings
+            .iter()
+            .any(|f| f.code == "windows_hags_enabled_vr_stutter_risk"));
+        assert!(blurry
+            .findings
+            .iter()
+            .any(|f| f.code == "windows_power_saver_active"));
+        assert!(!blurry.sop_steps.is_empty());
+
+        let playspace = svc.diagnose_symptom(SymptomId::PlayspaceDragOrHeightOffset);
+        assert!(playspace
+            .findings
+            .iter()
+            .any(|f| f.code == "ovr_advanced_settings_installed_offset_check"));
+        assert!(!playspace.sop_steps.is_empty());
+
+        let fbt = svc.diagnose_symptom(SymptomId::FbtDriftOrCalibration);
+        assert!(fbt
+            .findings
+            .iter()
+            .any(|f| f.code == "ovr_advanced_settings_installed_offset_check"));
+        assert!(fbt
+            .findings
+            .iter()
+            .any(|f| f.code == "windows_power_saver_active"));
+        assert!(!fbt.sop_steps.is_empty());
     }
 }

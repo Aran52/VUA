@@ -46,6 +46,9 @@ function sopJumpForStep(stepId: string): { readonly page: PageId; readonly label
     case "osc_resolve_port_9000_conflict":
     case "osc_align_oscquery_port":
     case "osc_verify_radial_menu_and_companion":
+    case "fbt_check_multi_driver_and_safe_mode":
+    case "fbt_space_calibrator_and_pharos_anchor":
+    case "playspace_reset_ovras_offsets":
       return { page: "tools-discover", labelKey: "openTools" };
     case "osc_check_avatar_parameters":
     case "perf_avatar_texture_memory_optimization":
@@ -113,6 +116,11 @@ export function buildRedactedDiagnosticSummary(
           bitrateMbps: snapshot.streamingSettings.picoConnect.bitrateMbps,
         },
       },
+      systemTuning: {
+        hardwareGpuScheduling: snapshot.systemTuning.hardwareGpuScheduling,
+        powerPlanRole: snapshot.systemTuning.powerPlanRole,
+        ovrAdvancedSettingsInstalled: snapshot.systemTuning.ovrAdvancedSettingsInstalled,
+      },
       diagnosis: diagnosis
         ? {
             symptom: diagnosis.symptom,
@@ -128,9 +136,11 @@ export function buildRedactedDiagnosticSummary(
 export function LocalDiagnosticsPanel({
   onBack,
   navigate,
+  initialSymptom,
 }: {
   onBack: () => void;
   navigate?: ((page: PageId, hash?: string) => void) | undefined;
+  initialSymptom?: SymptomIdV01 | undefined;
 }) {
   useEscapeClose(true, onBack);
   const port = useGateway().environment.diagnostics;
@@ -138,7 +148,9 @@ export function LocalDiagnosticsPanel({
   const [snapshot, setSnapshot] = useState<LocalDiagnosticsSnapshotV01 | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [unavailable, setUnavailable] = useState(() => !port);
-  const [selectedSymptom, setSelectedSymptom] = useState<SymptomIdV01>("osc_or_face_tracking_not_responding");
+  const [selectedSymptom, setSelectedSymptom] = useState<SymptomIdV01>(
+    () => initialSymptom ?? "osc_or_face_tracking_not_responding",
+  );
   const [diagnosis, setDiagnosis] = useState<SymptomDiagnosisV01 | null>(null);
   const [diagnosing, setDiagnosing] = useState(false);
   const [summaryCopied, setSummaryCopied] = useState(false);
@@ -199,6 +211,12 @@ export function LocalDiagnosticsPanel({
       setDiagnosing(false);
     }
   };
+
+  useEffect(() => {
+    if (initialSymptom && initialSymptom !== selectedSymptom) {
+      void selectSymptom(initialSymptom);
+    }
+  }, [initialSymptom]);
 
   const canRunOfflineHelpers = snapshot?.clientRunning === false;
 
@@ -454,7 +472,28 @@ export function LocalDiagnosticsPanel({
                       preset: snapshot.streamingSettings.picoConnect.preset ?? copy.cards.streamingDefaultVal,
                       mbps: snapshot.streamingSettings.picoConnect.bitrateMbps ?? copy.cards.streamingDefaultVal,
                     })
-                  : copy.cards.steamvrClean}
+                  : copy.cards.streamingSecondaryClean}
+              </p>
+            </article>
+
+            <article className="vua-local-diag__card" data-diag-card="tuning">
+              <div className="vua-local-diag__card-head">
+                <h3>{copy.cards.tuningTitle}</h3>
+                <Icon name="gauge" size={20} />
+              </div>
+              <p className="vua-local-diag__primary-fact">
+                {snapshot.systemTuning.hardwareGpuScheduling === true
+                  ? copy.cards.hagsOn
+                  : snapshot.systemTuning.hardwareGpuScheduling === false
+                    ? copy.cards.hagsOff
+                    : copy.cards.hagsUnknown}
+                {" · "}
+                {copy.powerPlans[snapshot.systemTuning.powerPlanRole]}
+              </p>
+              <p className="vua-local-diag__secondary-fact">
+                {snapshot.systemTuning.ovrAdvancedSettingsInstalled
+                  ? copy.cards.ovrasInstalled
+                  : copy.cards.ovrasNotInstalled}
               </p>
             </article>
           </section>

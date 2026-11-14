@@ -588,7 +588,7 @@ function renderPage(
     case "settings-modules":
       return <ModulesPage onOpen={() => actions.navigate("warehouse")} />;
     case "tools-discover":
-      return <ToolsHub onPrepareSteam={() => actions.navigate("env-play")} />;
+      return <ToolsHub onPrepareSteam={() => actions.navigate("env-play")} navigate={actions.navigate} />;
     case "tools-devices":
     case "tools-calibration":
     case "tools-installed":

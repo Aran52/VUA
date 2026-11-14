@@ -47,7 +47,10 @@
                 "disk_cache_full",
                 "crash_or_eac_block",
                 "avatar_hidden_or_grey_robot",
-                "cannot_upload_avatar"
+                "cannot_upload_avatar",
+                "streaming_blurry_or_compression",
+                "playspace_drag_or_height_offset",
+                "fbt_drift_or_calibration"
               ]
             }
           }

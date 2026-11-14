@@ -84,6 +84,11 @@ test("buildRedactedDiagnosticSummary strips process names, PIDs, and blocked dri
         bitrateMbps: null,
       },
     },
+    systemTuning: {
+      hardwareGpuScheduling: true,
+      powerPlanRole: "power_saver",
+      ovrAdvancedSettingsInstalled: true,
+    },
   };
   assert.equal(isLocalDiagnosticsSnapshotV01(snapshot), true);
 
@@ -108,6 +113,11 @@ test("buildRedactedDiagnosticSummary strips process names, PIDs, and blocked dri
   assert.equal(parsed.schemaVersion, "vua.local-diagnostics/v0.1");
   assert.equal((parsed.steamvr as { blockedDriverCount: number }).blockedDriverCount, 2);
   assert.equal((parsed.osc as { udp9000: string }).udp9000, "bound");
+  assert.deepEqual(parsed.systemTuning, {
+    hardwareGpuScheduling: true,
+    powerPlanRole: "power_saver",
+    ovrAdvancedSettingsInstalled: true,
+  });
   assert.deepEqual(parsed.diagnosis, {
     symptom: "audio_silent_or_wrong_mic",
     findings: ["audio_virtual_mic_hijack_detected"],

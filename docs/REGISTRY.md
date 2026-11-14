@@ -51,7 +51,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/inspection-evidence-v0.1.md | 0.1 | Frozen | Production | 2026-09-13 |
 | docs/protocols/inspection-queries-v0.1.md | 0.1 | Frozen | Data | 2026-09-13 |
 | docs/protocols/installer-tool-v0.1.md | 0.1.0 | Candidate | Environment | 2026-11-11 |
-| docs/protocols/local-diagnostics-v0.1.md | 0.2.0 | Candidate | Environment | 2026-11-14 |
+| docs/protocols/local-diagnostics-v0.1.md | 0.3.0 | Candidate | Environment | 2026-11-14 |
 | docs/protocols/library-download-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-08 |
 | docs/protocols/library-entry-metadata-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-intake-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
@@ -79,7 +79,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/packages-repos-catalog-v0.1.md | 0.1 | Frozen | Core | 2026-09-17 |
 | docs/protocols/packages-repos-v0.2.md | 0.2.1 | Frozen | Core | 2026-09-21 |
 | docs/protocols/packages-templates-v0.1.md | 0.1.1 | Frozen | Core | 2026-09-20 |
-| docs/protocols/pose-graph-v0.1.md | 0.2.0 | Candidate | Environment | 2026-11-14 |
+| docs/protocols/pose-graph-v0.1.md | 0.3.0 | Candidate | Environment | 2026-11-14 |
 | docs/protocols/production-evidence-v0.1.md | 0.1 | Frozen | Data | 2026-09-08 |
 | docs/protocols/production-use-case-v0.1.md | 0.1 | Frozen | Core | 2026-09-07 |
 | docs/protocols/production-use-case-v0.2.md | 0.2 | Frozen | Core | 2026-09-09 |

@@ -7,6 +7,7 @@ import {
   type ToolCatalogEntryV01,
   type ToolGoalIdV01,
 } from "@vua/contracts";
+import type { PageId } from "../../app/nav-model.ts";
 import { currentLocale, format, strings } from "../../i18n/index.ts";
 import { structureCopy } from "../../i18n/structure-copy.ts";
 import { Button } from "../../components/primitives/Button.tsx";
@@ -98,7 +99,13 @@ export function ToolGroup({ title, group, selected, onSelect, onPrepareSteam }: 
   </section>;
 }
 
-export function ToolsHub({ onPrepareSteam }: { onPrepareSteam(): void }) {
+export function ToolsHub({
+  onPrepareSteam,
+  navigate,
+}: {
+  onPrepareSteam(): void;
+  navigate?: ((page: PageId, hash?: string) => void) | undefined;
+}) {
   const [selected, setSelected] = useState<string | null>(() => readRequestedTool());
   const [goalFilter, setGoalFilter] = useState<ToolGoalIdV01 | "all">("all");
   const [freeOnly, setFreeOnly] = useState(false);
@@ -184,6 +191,6 @@ export function ToolsHub({ onPrepareSteam }: { onPrepareSteam(): void }) {
       </div>
     </div>
     {filteredGroups.map(group => <ToolGroup key={group.key} title={strings.journey[group.key]} group={group} selected={selected} onSelect={setSelected} onPrepareSteam={onPrepareSteam} />)}
-    <PoseGraphSection />
+    <PoseGraphSection navigate={navigate} />
   </div>;
 }

@@ -25,6 +25,7 @@
         },
         "steamvrDrivers": ["space_calibrator", "slimevr", "pharos"],
         "blockedSteamvrDrivers": ["space_calibrator"],
+        "fbtDriverConflictRisk": "multiple_openvr_fbt_drivers",
         "lastHeadsetHint": "PICO 4 Ultra",
         "poseSources": [
           { "sourceId": "headset_6dof", "state": "ready", "detailCode": "openxr_ready" },
@@ -91,6 +92,7 @@
         },
         "steamvrDrivers": [],
         "blockedSteamvrDrivers": [],
+        "fbtDriverConflictRisk": "none",
         "lastHeadsetHint": null,
         "poseSources": [],
         "pharosHub": {
@@ -115,6 +117,7 @@
         },
         "steamvrDrivers": [],
         "blockedSteamvrDrivers": [],
+        "fbtDriverConflictRisk": "none",
         "lastHeadsetHint": null,
         "poseSources": [
           { "sourceId": "headset_6dof", "state": "not_detected", "detailCode": null },

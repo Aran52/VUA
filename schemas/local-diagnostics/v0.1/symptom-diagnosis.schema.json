@@ -28,7 +28,10 @@
             "disk_cache_full",
             "crash_or_eac_block",
             "avatar_hidden_or_grey_robot",
-            "cannot_upload_avatar"
+            "cannot_upload_avatar",
+            "streaming_blurry_or_compression",
+            "playspace_drag_or_height_offset",
+            "fbt_drift_or_calibration"
           ]
         },
         "capturedAt": { "type": "string", "minLength": 1 },
@@ -54,6 +57,10 @@
                   "steamvr_high_supersampling",
                   "steamvr_app_overscaled",
                   "streaming_high_bitrate_or_encode_width",
+                  "streaming_low_bitrate_or_sharpening_off",
+                  "windows_hags_enabled_vr_stutter_risk",
+                  "windows_power_saver_active",
+                  "ovr_advanced_settings_installed_offset_check",
                   "client_cache_near_limit",
                   "drive_free_space_low",
                   "client_config_malformed",

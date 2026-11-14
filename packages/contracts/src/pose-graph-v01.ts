@@ -107,12 +107,19 @@ export interface PharosHubObservationV01 {
   readonly panoramicAnchorCount: number | null;
 }
 
+export const FBT_DRIVER_CONFLICT_RISKS = [
+  "none",
+  "multiple_openvr_fbt_drivers",
+] as const;
+export type FbtDriverConflictRiskV01 = typeof FBT_DRIVER_CONFLICT_RISKS[number];
+
 export interface PoseGraphSnapshotV01 {
   readonly schemaVersion: typeof POSE_GRAPH_SCHEMA;
   readonly capturedAt: string;
   readonly openxr: OpenXrRuntimeObservationV01;
   readonly steamvrDrivers: readonly SteamVrPoseDriverIdV01[];
   readonly blockedSteamvrDrivers: readonly SteamVrPoseDriverIdV01[];
+  readonly fbtDriverConflictRisk: FbtDriverConflictRiskV01;
   readonly lastHeadsetHint: string | null;
   readonly poseSources: readonly PoseSourceObservationV01[];
   readonly pharosHub: PharosHubObservationV01;
@@ -162,6 +169,7 @@ export function isPoseGraphSnapshotV01(v: unknown): v is PoseGraphSnapshotV01 {
     "openxr",
     "steamvrDrivers",
     "blockedSteamvrDrivers",
+    "fbtDriverConflictRisk",
     "lastHeadsetHint",
     "poseSources",
     "pharosHub",
@@ -174,6 +182,7 @@ export function isPoseGraphSnapshotV01(v: unknown): v is PoseGraphSnapshotV01 {
   if (v.openxr.runtimeName !== null && !safeLabel(v.openxr.runtimeName, 80)) return false;
 
   if (!validDriverList(v.steamvrDrivers) || !validDriverList(v.blockedSteamvrDrivers)) return false;
+  if (!FBT_DRIVER_CONFLICT_RISKS.includes(v.fbtDriverConflictRisk as FbtDriverConflictRiskV01)) return false;
 
   if (v.lastHeadsetHint !== null && !safeLabel(v.lastHeadsetHint, 80)) return false;
 

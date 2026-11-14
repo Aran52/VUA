@@ -12,6 +12,9 @@ export const SYMPTOM_IDS_V01 = [
   "crash_or_eac_block",
   "avatar_hidden_or_grey_robot",
   "cannot_upload_avatar",
+  "streaming_blurry_or_compression",
+  "playspace_drag_or_height_offset",
+  "fbt_drift_or_calibration",
 ] as const;
 export type SymptomIdV01 = typeof SYMPTOM_IDS_V01[number];
 
@@ -48,6 +51,10 @@ export const DIAGNOSTIC_FINDING_CODES_V01 = [
   "steamvr_high_supersampling",
   "steamvr_app_overscaled",
   "streaming_high_bitrate_or_encode_width",
+  "streaming_low_bitrate_or_sharpening_off",
+  "windows_hags_enabled_vr_stutter_risk",
+  "windows_power_saver_active",
+  "ovr_advanced_settings_installed_offset_check",
   "client_cache_near_limit",
   "drive_free_space_low",
   "client_config_malformed",
@@ -144,6 +151,21 @@ export interface StreamingSettingsObservationV01 {
   readonly picoConnect: PicoConnectSettingsObservationV01;
 }
 
+export const POWER_PLAN_ROLES_V01 = [
+  "power_saver",
+  "balanced",
+  "high_or_ultimate",
+  "custom",
+  "unknown",
+] as const;
+export type PowerPlanRoleV01 = typeof POWER_PLAN_ROLES_V01[number];
+
+export interface SystemTuningObservationV01 {
+  readonly hardwareGpuScheduling: boolean | null;
+  readonly powerPlanRole: PowerPlanRoleV01;
+  readonly ovrAdvancedSettingsInstalled: boolean;
+}
+
 export interface RecentClientLogObservationV01 {
   readonly classification: ClientLogClassificationV01;
   readonly newestModifiedAt: string | null;
@@ -159,6 +181,7 @@ export interface LocalDiagnosticsSnapshotV01 {
   readonly steamvrSettings: SteamVrSettingsObservationV01;
   readonly audioEndpoints: AudioEndpointObservationV01;
   readonly streamingSettings: StreamingSettingsObservationV01;
+  readonly systemTuning: SystemTuningObservationV01;
   readonly recentClientLog: RecentClientLogObservationV01;
 }
 
@@ -313,7 +336,7 @@ function isOscQueryObservation(v: unknown): v is OscQueryLoopbackObservationV01 
 export function isLocalDiagnosticsSnapshotV01(v: unknown): v is LocalDiagnosticsSnapshotV01 {
   if (!exactKeys(v, [
     "schemaVersion", "capturedAt", "clientRunning", "clientConfig",
-    "clientCache", "osc", "steamvrSettings", "audioEndpoints", "streamingSettings", "recentClientLog",
+    "clientCache", "osc", "steamvrSettings", "audioEndpoints", "streamingSettings", "systemTuning", "recentClientLog",
   ])) return false;
   if (v.schemaVersion !== LOCAL_DIAGNOSTICS_SCHEMA || !nonEmptyString(v.capturedAt, 64)) return false;
   if (v.clientRunning !== null && typeof v.clientRunning !== "boolean") return false;
@@ -374,6 +397,12 @@ export function isLocalDiagnosticsSnapshotV01(v: unknown): v is LocalDiagnostics
     || !["found", "missing", "malformed", "read_failed"].includes(String(pico.presence))
     || (pico.preset !== null && !nonEmptyString(pico.preset, 32))
     || (pico.bitrateMbps !== null && (!nonNegInt(pico.bitrateMbps) || pico.bitrateMbps < 1 || pico.bitrateMbps > 2000))) return false;
+
+  if (!exactKeys(v.systemTuning, ["hardwareGpuScheduling", "powerPlanRole", "ovrAdvancedSettingsInstalled"])) return false;
+  const tuning = v.systemTuning;
+  if ((tuning.hardwareGpuScheduling !== null && typeof tuning.hardwareGpuScheduling !== "boolean")
+    || !POWER_PLAN_ROLES_V01.includes(tuning.powerPlanRole as PowerPlanRoleV01)
+    || typeof tuning.ovrAdvancedSettingsInstalled !== "boolean") return false;
 
   if (!exactKeys(v.recentClientLog, ["classification", "newestModifiedAt"])) return false;
   const log = v.recentClientLog;

@@ -43,6 +43,7 @@
         "steamvrSettings",
         "audioEndpoints",
         "streamingSettings",
+        "systemTuning",
         "recentClientLog"
       ],
       "properties": {
@@ -182,6 +183,22 @@
                 "bitrateMbps": { "type": ["integer", "null"], "minimum": 1, "maximum": 2000 }
               }
             }
+          }
+        },
+        "systemTuning": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hardwareGpuScheduling",
+            "powerPlanRole",
+            "ovrAdvancedSettingsInstalled"
+          ],
+          "properties": {
+            "hardwareGpuScheduling": { "type": ["boolean", "null"] },
+            "powerPlanRole": {
+              "enum": ["power_saver", "balanced", "high_or_ultimate", "custom", "unknown"]
+            },
+            "ovrAdvancedSettingsInstalled": { "type": "boolean" }
           }
         },
         "recentClientLog": {

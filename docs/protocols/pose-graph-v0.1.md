@@ -1,6 +1,6 @@
 # Pose source and device graph v0.1
 
-> Document version: 0.2.0
+> Document version: 0.3.0
 > Status: Candidate
 > Owner: Environment
 > Updated: 2026-11-14
@@ -47,8 +47,11 @@ to the Host (`Environment`) provider and remains available whether or not the AM
 | --- | --- | --- | --- |
 | `environment.observePoseGraph` | query | `{ schemaVersion: "0.1" }` | `{ poseGraph }` |
 
-## Closed vocabularies (`0.2.0`)
+## Closed vocabularies (`0.3.0`)
 
+- `fbtDriverConflictRisk`:
+  - `none` — zero or one unblocked external OpenVR full-body tracking driver registered in `steamvrDrivers`
+  - `multiple_openvr_fbt_drivers` — two or more unblocked external OpenVR full-body tracking drivers among `pharos`, `slimevr`, `mocopi`, `haritorax` and `rebocap` are simultaneously registered, risking virtual tracker slot contention
 - `poseSources[].sourceId` (emitted in canonical order, 10 items):
   - `headset_6dof` — HMD / OpenXR / SteamVR 6DoF head & hand pose
   - `pharos` — Pharos optical+IMU dual-mode full-body & spatial anchor hub
@@ -72,6 +75,7 @@ to the Host (`Environment`) provider and remains available whether or not the AM
 
 ## Document changelog
 
+- 0.3.0 (2026-11-14): add `fbtDriverConflictRisk` (`none | multiple_openvr_fbt_drivers`) for simultaneous unblocked external OpenVR FBT drivers (`pharos`, `slimevr`, `mocopi`, `haritorax`, `rebocap`) and bound `libraryfolders.vdf` reads (`<= 64 KiB`, non-symlink).
 - 0.2.0 (2026-11-14): add freshness-gated Pharos `hub-status.json` live telemetry (per-node
   `trackingMode` including `passive_retroreflective` battery-depletion fallback, `batteryPercent`,
   `calibrationState`, `spatialAnchorReady`), `driver.vrdrivermanifest` inspection,

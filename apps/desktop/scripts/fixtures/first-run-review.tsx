@@ -127,6 +127,11 @@ function syntheticDiagnosticsSnapshot(): LocalDiagnosticsSnapshotV01 {
       questLink: { presence: "missing", encodeResolutionWidth: null, encodeBitrateMbps: null, dynamicBitrate: null, linkSharpening: null },
       picoConnect: { presence: "found", preset: "ultra", bitrateMbps: 150 },
     },
+    systemTuning: {
+      hardwareGpuScheduling: true,
+      powerPlanRole: "balanced",
+      ovrAdvancedSettingsInstalled: true,
+    },
     recentClientLog: {
       classification: "clean_or_inconclusive",
       newestModifiedAt: now,
@@ -170,6 +175,7 @@ function syntheticPoseGraph(): PoseGraphSnapshotV01 {
     openxr: { presence: "found", runtimeName: "SteamVR" },
     steamvrDrivers: ["pharos", "space_calibrator", "slimevr"],
     blockedSteamvrDrivers: ["space_calibrator"],
+    fbtDriverConflictRisk: "multiple_openvr_fbt_drivers",
     lastHeadsetHint: "PICO 4 Pro",
     poseSources: POSE_SOURCE_IDS.map(sourceId => ({
       sourceId,

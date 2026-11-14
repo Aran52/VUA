@@ -68,5 +68,11 @@ describe("pose-graph v0.1 contract", () => {
     const stale = structuredClone(vectors.validResults[0]) as typeof base;
     stale.poseGraph.pharosHub.telemetryFresh = false;
     expect(isPoseGraphResultV01(stale)).toBe(false);
+
+    const invalidRisk = structuredClone(vectors.validResults[0]) as {
+      poseGraph: { fbtDriverConflictRisk: string };
+    };
+    invalidRisk.poseGraph.fbtDriverConflictRisk = "unknown_risk";
+    expect(isPoseGraphResultV01(invalidRisk)).toBe(false);
   });
 });

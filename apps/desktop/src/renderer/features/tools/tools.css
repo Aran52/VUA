@@ -102,5 +102,9 @@
 .vua-pose-graph__sources, .vua-pose-graph__drivers { display: grid; gap: var(--vua-space-2); margin: 0; padding: 0; list-style: none; }
 .vua-pose-graph__source, .vua-pose-graph__driver { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-2) var(--vua-space-3); padding-top: var(--vua-space-2); border-top: 1px solid var(--vua-border); }
 .vua-pose-graph__source:first-child, .vua-pose-graph__driver:first-child { padding-top: 0; border-top: 0; }
-.vua-pose-graph__source-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vua-pose-graph__source-main { display: flex; flex-direction: column; gap: var(--vua-space-1); min-width: 0; }
 .vua-pose-graph__badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-1); }
+.vua-pose-graph__alert { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-3); }
+.vua-pose-graph__alert-copy { display: grid; gap: var(--vua-space-1); flex: 1 1 280px; min-width: 0; }
+.vua-pose-graph__alert-text { display: flex; align-items: flex-start; gap: var(--vua-space-2); margin: 0; color: var(--vua-text-strong); font: var(--vua-font-caption); }
+.vua-pose-graph__alert-text > svg { flex-shrink: 0; margin-top: 1px; color: var(--vua-warning-text); }

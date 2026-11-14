@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PoseGraphSnapshotV01, PoseSourceStateV01 } from "@vua/contracts";
+import { Icon } from "@vua/design-system";
+import type { PageId } from "../../app/nav-model.ts";
 import { Badge } from "../../components/primitives/Badge.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import { useGateway } from "../../gateway/index.ts";
 import { format, strings } from "../../i18n/index.ts";
-
-const copy = strings.poseGraph;
 
 function sourceTone(state: PoseSourceStateV01, detailCode: string | null): "success" | "warning" | "neutral" {
   if (detailCode === "blocked_by_safe_mode") return "warning";
   return state === "active" || state === "ready" ? "success" : "neutral";
 }
 
-export function PoseGraphSection() {
+export function PoseGraphSection({
+  navigate,
+}: {
+  navigate?: ((page: PageId, hash?: string) => void) | undefined;
+}) {
+  const copy = strings.poseGraph;
   const port = useGateway().environment.poseGraph;
   const [snapshot, setSnapshot] = useState<PoseGraphSnapshotV01 | null>(null);
   const [busy, setBusy] = useState(false);
@@ -73,6 +78,40 @@ export function PoseGraphSection() {
 
       {snapshot ? (
         <div className="vua-pose-graph__body">
+          {snapshot.fbtDriverConflictRisk === "multiple_openvr_fbt_drivers"
+          || snapshot.blockedSteamvrDrivers.length > 0 ? (
+            <div className="vua-pose-graph__panel vua-pose-graph__alert" role="status" data-pose-conflict-alert>
+              <div className="vua-pose-graph__alert-copy">
+                {snapshot.fbtDriverConflictRisk === "multiple_openvr_fbt_drivers" ? (
+                  <p className="vua-pose-graph__alert-text">
+                    <Icon name="warning" size={16} />
+                    <span>{copy.conflictMultipleFbtDrivers}</span>
+                  </p>
+                ) : null}
+                {snapshot.blockedSteamvrDrivers.length > 0 ? (
+                  <p className="vua-pose-graph__alert-text">
+                    <Icon name="warning" size={16} />
+                    <span>
+                      {format(copy.conflictSafeModeBlocked, {
+                        drivers: snapshot.blockedSteamvrDrivers.map((id) => copy.driverNames[id]).join(", "),
+                      })}
+                    </span>
+                  </p>
+                ) : null}
+              </div>
+              {navigate ? (
+                <Button
+                  variant="subtle"
+                  data-nav-id="pose-graph-diagnose-fbt"
+                  onClick={() => navigate("help", "help?sub=diagnostics&symptom=fbt_drift_or_calibration")}
+                >
+                  {copy.diagnoseInHelpCta}
+                  <Icon name="arrow-right" size={16} />
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="vua-pose-graph__summary">
             <div className="vua-pose-graph__panel">
               <h3>{copy.openxrTitle}</h3>
@@ -111,33 +150,41 @@ export function PoseGraphSection() {
                   ) : null}
                 </span>
               </div>
-              {snapshot.pharosHub.telemetryState === "live"
-              && (snapshot.pharosHub.stereoBaseStationCount !== null || snapshot.pharosHub.panoramicAnchorCount !== null) ? (
+              {snapshot.pharosHub.telemetryState === "live" ? (
                 <p className="vua-pose-graph__meta">
-                  {format(copy.pharosStationsLine, {
-                    stereo: snapshot.pharosHub.stereoBaseStationCount ?? 0,
-                    anchors: snapshot.pharosHub.panoramicAnchorCount ?? 0,
-                  })}
-                  {" · "}
-                  {copy.pharosCalibration[snapshot.pharosHub.calibrationState]}
+                  {snapshot.pharosHub.stereoBaseStationCount !== null
+                  || snapshot.pharosHub.panoramicAnchorCount !== null
+                    ? `${format(copy.pharosStationsLine, {
+                        stereo: snapshot.pharosHub.stereoBaseStationCount ?? 0,
+                        anchors: snapshot.pharosHub.panoramicAnchorCount ?? 0,
+                      })} · ${copy.pharosCalibration[snapshot.pharosHub.calibrationState]}`
+                    : copy.pharosCalibration[snapshot.pharosHub.calibrationState]}
                 </p>
               ) : null}
-              {snapshot.pharosHub.wearableNodes.some((node) => node.state === "connected") ? (
+              {snapshot.pharosHub.telemetryState === "live"
+              || snapshot.pharosHub.wearableNodes.some((node) => node.state === "connected") ? (
                 <div className="vua-pose-graph__badges">
-                  {snapshot.pharosHub.wearableNodes
-                    .filter((node) => node.state === "connected")
-                    .map((node) => {
-                      const modeLabel = node.trackingMode ? ` · ${copy.pharosNodeModes[node.trackingMode]}` : "";
-                      const batteryLabel = node.batteryPercent !== null ? ` (${node.batteryPercent}%)` : "";
+                  {snapshot.pharosHub.wearableNodes.map((node) => {
+                    if (node.state !== "connected") {
                       return (
-                        <Badge
-                          key={node.slot}
-                          tone={node.trackingMode === "passive_retroreflective" ? "warning" : "success"}
-                        >
-                          {`${copy.pharosSlots[node.slot]}${modeLabel}${batteryLabel}`}
+                        <Badge key={node.slot} tone="neutral">
+                          {`${copy.pharosSlots[node.slot]} · ${copy.pharosSlotDisconnected}`}
                         </Badge>
                       );
-                    })}
+                    }
+                    const lowBattery = node.batteryPercent !== null && node.batteryPercent <= 20;
+                    const modeLabel = node.trackingMode ? ` · ${copy.pharosNodeModes[node.trackingMode]}` : "";
+                    const batteryLabel = node.batteryPercent !== null ? ` (${node.batteryPercent}%)` : "";
+                    const headingLabel = node.footHeadingAvailable ? ` · ${copy.pharosFootHeading}` : "";
+                    return (
+                      <Badge
+                        key={node.slot}
+                        tone={node.trackingMode === "passive_retroreflective" || lowBattery ? "warning" : "success"}
+                      >
+                        {`${copy.pharosSlots[node.slot]}${modeLabel}${batteryLabel}${headingLabel}`}
+                      </Badge>
+                    );
+                  })}
                 </div>
               ) : null}
             </div>

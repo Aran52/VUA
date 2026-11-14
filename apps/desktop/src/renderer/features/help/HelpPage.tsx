@@ -1,3 +1,4 @@
+import { SYMPTOM_IDS_V01, type SymptomIdV01 } from "@vua/contracts";
 import type { PageId } from "../../app/nav-model.ts";
 import { useEffect, useState } from "react";
 import { Icon, type IconName } from "@vua/design-system";
@@ -14,14 +15,20 @@ import { GuideEntryButton } from "../guide/GuideEntryButton.tsx";
 import { GUIDE_TARGETS } from "../guide/guide-target.ts";
 import { LicensedEntryGuides } from "./LicensedEntryGuides.tsx";
 
-function isDiagnosticsHash(): boolean {
+function readDiagnosticsRoute(): { readonly open: boolean; readonly symptom: SymptomIdV01 | undefined } {
   try {
     const raw = window.location.hash.replace(/^#/, "");
     const queryIndex = raw.indexOf("?");
-    if (queryIndex < 0) return false;
-    return new URLSearchParams(raw.slice(queryIndex + 1)).get("sub") === "diagnostics";
+    if (queryIndex < 0) return { open: false, symptom: undefined };
+    const params = new URLSearchParams(raw.slice(queryIndex + 1));
+    if (params.get("sub") !== "diagnostics") return { open: false, symptom: undefined };
+    const rawSymptom = params.get("symptom");
+    const symptom = rawSymptom && (SYMPTOM_IDS_V01 as readonly string[]).includes(rawSymptom)
+      ? (rawSymptom as SymptomIdV01)
+      : undefined;
+    return { open: true, symptom };
   } catch {
-    return false;
+    return { open: false, symptom: undefined };
   }
 }
 
@@ -46,13 +53,13 @@ export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeG
   const copy = strings.journey;
   const faq = strings.helpFaq;
   const [openFailed, setOpenFailed] = useState(false);
-  const [diagnosticsOpen, setDiagnosticsOpen] = useState(isDiagnosticsHash);
+  const [diagnosticsRoute, setDiagnosticsRoute] = useState(readDiagnosticsRoute);
   useEffect(() => {
     if (page !== "help") {
-      setDiagnosticsOpen(false);
+      setDiagnosticsRoute({ open: false, symptom: undefined });
       return;
     }
-    const sync = () => setDiagnosticsOpen(isDiagnosticsHash());
+    const sync = () => setDiagnosticsRoute(readDiagnosticsRoute());
     sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
@@ -63,8 +70,8 @@ export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeG
   </div>;
   if (page === "help-encyclopedia") return <EncyclopediaPage onBack={() => navigate("help")} guideRequest={guideRequest} acknowledgeGuide={acknowledgeGuide} />;
   if (page === "help-wizard") return <VuaGuide onBack={() => navigate("help")} navigate={navigate} />;
-  if (diagnosticsOpen) return <LocalDiagnosticsPanel navigate={navigate} onBack={() => {
-    setDiagnosticsOpen(false);
+  if (diagnosticsRoute.open) return <LocalDiagnosticsPanel initialSymptom={diagnosticsRoute.symptom} navigate={navigate} onBack={() => {
+    setDiagnosticsRoute({ open: false, symptom: undefined });
     try { window.location.hash = "help"; } catch { /* Hash stays optional in restricted frames. */ }
   }} />;
 
@@ -106,7 +113,7 @@ export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeG
         <HelpRow id="help-wizard" icon="arrow-right" title={copy.wizard} onClick={() => navigate("help-wizard")} />
         <HelpRow id="help-encyclopedia" icon="folder" title={copy.guide} onClick={() => navigate("help-encyclopedia")} />
         <HelpRow id="help-diagnostics" icon="gauge" title={strings.localDiagnostics.entryTitle} hint={strings.localDiagnostics.entryHint} onClick={() => {
-          setDiagnosticsOpen(true);
+          setDiagnosticsRoute({ open: true, symptom: undefined });
           try { window.location.hash = "help?sub=diagnostics"; } catch { /* Hash stays optional in restricted frames. */ }
         }} />
         <HelpRow id="help-game-assistant" icon="anim" title={copy.gameGuide} hint={hints.gameHint} onClick={openGameGuide} />

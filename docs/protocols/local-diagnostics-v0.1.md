@@ -1,6 +1,6 @@
 # Local multi-layer diagnostics and guarded client helpers v0.1
 
-> Document version: 0.2.0
+> Document version: 0.3.0
 > Status: Candidate
 > Owner: Environment
 > Updated: 2026-11-14
@@ -35,6 +35,10 @@ available whether or not the AMF module is enabled.
    - PCVR streaming inspection reads numeric `HKCU\Software\Oculus\RemoteHeadset` Quest Link limits
      (`EncodeWidth`, `BitrateMbps`, `DBR`, `LinkSharpening`) and non-symlink PICO Connect settings
      presence only, without exporting account tokens or file paths.
+   - Windows GPU & playspace tuning inspection (`systemTuning`) reads `HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\HwSchMode`
+     (`hardwareGpuScheduling: boolean | null`), classifies `HKLM\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\ActivePowerScheme`
+     into a closed `powerPlanRole` enum (`power_saver | balanced | high_or_ultimate | custom | unknown` — raw custom power-scheme GUIDs never cross the wire),
+     and checks Steam library folders (`appmanifest_1009850.acf` / `OVR_AdvancedSettings/AdvancedSettings.exe`) for `ovrAdvancedSettingsInstalled: boolean`.
    - Client log inspection reads at most the trailing `128 KiB` of the newest `output_log_*.txt`
      and emits only a closed classification enum plus modification timestamp — raw log lines, world
      IDs (`wrld_*`), user IDs (`usr_*`) and local paths never cross the contract boundary.
@@ -67,6 +71,11 @@ repeating filesystem writes; replaying the same command ID with different parame
   - `crash_or_eac_block`
   - `avatar_hidden_or_grey_robot`
   - `cannot_upload_avatar`
+  - `streaming_blurry_or_compression`
+  - `playspace_drag_or_height_offset`
+  - `fbt_drift_or_calibration`
+- `systemTuning.powerPlanRole`:
+  - `power_saver`, `balanced`, `high_or_ultimate`, `custom`, `unknown`
 - `recentClientLog.classification`:
   - `no_logs`, `clean_or_inconclusive`, `eac_launch_violation`, `disk_full_write_error`,
     `d3d11_device_lost_or_oom`, `osc_socket_conflict`, `openvr_init_failed`, `read_failed`
@@ -79,6 +88,10 @@ repeating filesystem writes; replaying the same command ID with different parame
   - `audio_virtual_mic_hijack_detected`
   - `audio_communications_default_mismatch`
   - `streaming_high_bitrate_or_encode_width`
+  - `streaming_low_bitrate_or_sharpening_off`
+  - `windows_hags_enabled_vr_stutter_risk`
+  - `windows_power_saver_active`
+  - `ovr_advanced_settings_installed_offset_check`
   - `steamvr_driver_blocked_by_safe_mode`
   - `steamvr_high_supersampling`
   - `steamvr_app_overscaled`
@@ -106,5 +119,6 @@ repeating filesystem writes; replaying the same command ID with different parame
 
 ## Document changelog
 
+- 0.3.0 (2026-11-14): add privacy-safe Windows GPU & playspace tuning observations (`systemTuning`: `hardwareGpuScheduling`, `powerPlanRole`, `ovrAdvancedSettingsInstalled`), North Star Eval Category A symptom-to-SOP diagnoses (`streaming_blurry_or_compression`, `playspace_drag_or_height_offset`, `fbt_drift_or_calibration`), and findings for low streaming bitrate/sharpening off, Windows HAGS VR stutter risk, Power Saver throttling and OVRAS playspace offset checks.
 - 0.2.0 (2026-11-14): add read-only OSCQuery loopback discovery (`osc.oscQuery`), privacy-safe Windows default audio endpoint projections (`audioEndpoints`), PCVR Quest Link / PICO Connect streaming observations (`streamingSettings`), and deterministic findings for virtual-microphone hijacks, communications-endpoint drift, OSCQuery UDP port drift and high streaming bitrate/encode width.
 - 0.1.0 (2026-11-14): introduce Host-owned local multi-layer observation, deterministic symptom-to-SOP diagnosis and offline OSC/config helpers.

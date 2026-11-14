@@ -72,6 +72,8 @@ pub const STEAMVR_POSE_DRIVER_IDS: [&str; 9] = [
     "rebocap",
 ];
 
+const FBT_OPENVR_DRIVER_IDS: [&str; 5] = ["pharos", "slimevr", "mocopi", "haritorax", "rebocap"];
+
 pub const PHAROS_WEARABLE_SLOTS: [&str; 4] = ["left_foot", "right_foot", "waist", "chest"];
 
 const CANDIDATE_EXE_NAMES: [&str; 16] = [
@@ -175,6 +177,7 @@ pub struct PoseGraphSnapshotV01 {
     pub openxr: OpenXrRuntimeObservation,
     pub steamvr_drivers: Vec<&'static str>,
     pub blocked_steamvr_drivers: Vec<&'static str>,
+    pub fbt_driver_conflict_risk: &'static str,
     pub last_headset_hint: Option<String>,
     pub pose_sources: Vec<PoseSourceObservation>,
     pub pharos_hub: PharosHubObservation,
@@ -465,12 +468,23 @@ impl PoseGraphService {
             }
         };
 
+        let unblocked_fbt_driver_count = FBT_OPENVR_DRIVER_IDS
+            .iter()
+            .filter(|id| has_driver(id) && !is_blocked(id))
+            .count();
+        let fbt_driver_conflict_risk = if unblocked_fbt_driver_count >= 2 {
+            "multiple_openvr_fbt_drivers"
+        } else {
+            "none"
+        };
+
         PoseGraphSnapshotV01 {
             schema_version: POSE_GRAPH_SCHEMA,
             captured_at,
             openxr,
             steamvr_drivers,
             blocked_steamvr_drivers,
+            fbt_driver_conflict_risk,
             last_headset_hint,
             pose_sources: vec![
                 headset_source,
@@ -1039,7 +1053,7 @@ fn effective_steam_common_roots(roots: &EnvironmentRoots) -> Vec<PathBuf> {
     };
     let mut out = vec![install.join("steamapps").join("common")];
     let vdf = install.join("steamapps").join("libraryfolders.vdf");
-    if let Ok(text) = fs::read_to_string(vdf) {
+    if let Some(text) = read_bounded_regular_utf8(&vdf, MAX_OPENVR_JSON_BYTES) {
         for line in text.lines() {
             let trimmed = line.trim();
             if let Some(rest) = trimmed.strip_prefix("\"path\"") {
@@ -1170,6 +1184,7 @@ mod tests {
         assert_eq!(snap.openxr.runtime_name, None);
         assert!(snap.steamvr_drivers.is_empty());
         assert!(snap.blocked_steamvr_drivers.is_empty());
+        assert_eq!(snap.fbt_driver_conflict_risk, "none");
         assert_eq!(snap.last_headset_hint, None);
         assert_eq!(snap.pose_sources.len(), 10);
         for (idx, id) in POSE_SOURCE_IDS.iter().enumerate() {
@@ -1270,6 +1285,7 @@ mod tests {
             snap.steamvr_drivers,
             vec!["space_calibrator", "slimevr", "pharos", "mocopi"]
         );
+        assert_eq!(snap.fbt_driver_conflict_risk, "multiple_openvr_fbt_drivers");
         assert_eq!(snap.blocked_steamvr_drivers, vec!["space_calibrator"]);
         assert_eq!(snap.last_headset_hint.as_deref(), Some("PICO 4 Ultra"));
         assert_eq!(snap.pharos_hub.state, "driver_registered");

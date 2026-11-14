@@ -62,6 +62,11 @@ const sampleSnapshot: LocalDiagnosticsSnapshotV01 = {
       bitrateMbps: null,
     },
   },
+  systemTuning: {
+    hardwareGpuScheduling: false,
+    powerPlanRole: "balanced",
+    ovrAdvancedSettingsInstalled: false,
+  },
   recentClientLog: {
     classification: "clean_or_inconclusive",
     newestModifiedAt: null,

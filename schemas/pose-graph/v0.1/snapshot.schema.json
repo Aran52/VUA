@@ -10,6 +10,7 @@
     "openxr",
     "steamvrDrivers",
     "blockedSteamvrDrivers",
+    "fbtDriverConflictRisk",
     "lastHeadsetHint",
     "poseSources",
     "pharosHub"
@@ -73,6 +74,9 @@
           "rebocap"
         ]
       }
+    },
+    "fbtDriverConflictRisk": {
+      "enum": ["none", "multiple_openvr_fbt_drivers"]
     },
     "lastHeadsetHint": {
       "type": ["string", "null"],

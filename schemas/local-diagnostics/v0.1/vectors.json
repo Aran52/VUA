@@ -158,6 +158,11 @@
               "bitrateMbps": null
             }
           },
+          "systemTuning": {
+            "hardwareGpuScheduling": true,
+            "powerPlanRole": "high_or_ultimate",
+            "ovrAdvancedSettingsInstalled": true
+          },
           "recentClientLog": {
             "classification": "clean_or_inconclusive",
             "newestModifiedAt": "2026-11-13T23:59:00Z"
@@ -232,6 +237,11 @@
               "preset": null,
               "bitrateMbps": null
             }
+          },
+          "systemTuning": {
+            "hardwareGpuScheduling": null,
+            "powerPlanRole": "unknown",
+            "ovrAdvancedSettingsInstalled": false
           },
           "recentClientLog": {
             "classification": "no_logs",

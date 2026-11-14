@@ -15,6 +15,7 @@ describe("forward-compatibility gateway ports", () => {
         openxr: { presence: "found", runtimeName: "SteamVR OpenXR" },
         steamvrDrivers: ["space_calibrator", "pharos"],
         blockedSteamvrDrivers: [],
+        fbtDriverConflictRisk: "none",
         lastHeadsetHint: "Quest 3",
         poseSources: [
           { sourceId: "headset_6dof", state: "ready", detailCode: null },

@@ -963,10 +963,7 @@ mod tests {
             .expect("exe name")
             .to_string_lossy()
             .to_lowercase();
-        assert_eq!(os::has_process_named(&current_name).unwrap(), true);
-        assert_eq!(
-            os::has_process_named("vua-definitely-not-running-process-0000.exe").unwrap(),
-            false
-        );
+        assert!(os::has_process_named(&current_name).unwrap());
+        assert!(!os::has_process_named("vua-definitely-not-running-process-0000.exe").unwrap());
     }
 }

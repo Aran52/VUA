@@ -327,10 +327,11 @@ mod tests {
     }
 
     fn fake_roots(root: &Path) -> EnvironmentRoots {
-        let mut roots = EnvironmentRoots::default();
-        roots.local_low = root.to_path_buf();
-        roots.registry = Arc::new(FakeRegistrySource::new());
-        roots
+        EnvironmentRoots {
+            local_low: root.to_path_buf(),
+            registry: Arc::new(FakeRegistrySource::new()),
+            ..EnvironmentRoots::default()
+        }
     }
 
     #[test]

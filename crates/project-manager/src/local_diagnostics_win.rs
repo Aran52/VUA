@@ -2,20 +2,23 @@
 //! inspection (`GetExtendedUdpTable` `AF_INET`, `UDP_TABLE_OWNER_PID`) and Toolhelp32
 //! process liveness/basename resolution without binding UDP sockets or touching game memory.
 
-use vua_orchestrator::local_diagnostics::{LocalDiagnosticsProbe, UdpPortObservation};
+use vua_orchestrator::local_diagnostics::{
+    LocalDiagnosticsProbe, ProcessProbeUnavailable, UdpPortObservation,
+};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct WindowsLocalDiagnosticsProbe;
 
 impl LocalDiagnosticsProbe for WindowsLocalDiagnosticsProbe {
-    fn is_client_running(&self) -> Result<bool, ()> {
+    fn is_client_running(&self) -> Result<bool, ProcessProbeUnavailable> {
         #[cfg(windows)]
         {
-            crate::play_session::os::has_process_named("vrchat.exe").map_err(|_| ())
+            crate::play_session::os::has_process_named("vrchat.exe")
+                .map_err(|_| ProcessProbeUnavailable)
         }
         #[cfg(not(windows))]
         {
-            Err(())
+            Err(ProcessProbeUnavailable)
         }
     }
 

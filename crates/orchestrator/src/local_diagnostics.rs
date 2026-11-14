@@ -97,12 +97,24 @@ impl UdpPortObservation {
     }
 }
 
+/// Returned when OS process liveness enumeration is unavailable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProcessProbeUnavailable;
+
+impl std::fmt::Display for ProcessProbeUnavailable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("process probe unavailable")
+    }
+}
+
+impl std::error::Error for ProcessProbeUnavailable {}
+
 /// OS process & UDP owner table probe port so tests run deterministically without
 /// touching live machine processes or UDP sockets.
 pub trait LocalDiagnosticsProbe: Send + Sync {
     /// Returns `Ok(true)` if `VRChat.exe` is running, `Ok(false)` if confirmed absent,
-    /// or `Err(())` if process enumeration is unavailable.
-    fn is_client_running(&self) -> Result<bool, ()>;
+    /// or `Err(ProcessProbeUnavailable)` if process enumeration is unavailable.
+    fn is_client_running(&self) -> Result<bool, ProcessProbeUnavailable>;
 
     /// Inspects the OS IPv4 UDP owner table for `port` without binding a socket.
     fn probe_udp_port(&self, port: u16) -> UdpPortObservation;
@@ -1511,13 +1523,13 @@ mod tests {
     }
 
     struct FakeProbe {
-        running: Result<bool, ()>,
+        running: Result<bool, ProcessProbeUnavailable>,
         udp9000: UdpPortObservation,
         udp9001: UdpPortObservation,
     }
 
     impl LocalDiagnosticsProbe for FakeProbe {
-        fn is_client_running(&self) -> Result<bool, ()> {
+        fn is_client_running(&self) -> Result<bool, ProcessProbeUnavailable> {
             self.running
         }
         fn probe_udp_port(&self, port: u16) -> UdpPortObservation {
@@ -1530,12 +1542,13 @@ mod tests {
     }
 
     fn test_roots(base: &Path) -> EnvironmentRoots {
-        let mut roots = EnvironmentRoots::default();
-        roots.local_low = base.join("LocalLow");
-        roots.steam_install_candidates = vec![base.join("Steam")];
-        roots.openvrpaths = vec![base.join("openvrpaths.vrpath")];
-        roots.registry = Arc::new(FakeRegistrySource::new());
-        roots
+        EnvironmentRoots {
+            local_low: base.join("LocalLow"),
+            steam_install_candidates: vec![base.join("Steam")],
+            openvrpaths: vec![base.join("openvrpaths.vrpath")],
+            registry: Arc::new(FakeRegistrySource::new()),
+            ..EnvironmentRoots::default()
+        }
     }
 
     #[test]

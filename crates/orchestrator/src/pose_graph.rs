@@ -35,10 +35,22 @@ pub const POSE_SOURCE_IDS: [&str; 6] = [
 
 pub const PHAROS_WEARABLE_SLOTS: [&str; 4] = ["left_foot", "right_foot", "waist", "chest"];
 
+/// Returned when OS process liveness enumeration is unavailable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PoseProbeUnavailable;
+
+impl std::fmt::Display for PoseProbeUnavailable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("pose process probe unavailable")
+    }
+}
+
+impl std::error::Error for PoseProbeUnavailable {}
+
 /// OS process liveness port so unit and route tests run deterministically without reading
 /// live host processes.
 pub trait PoseProcessProbe: Send + Sync {
-    fn is_process_running(&self, exe_name: &str) -> Result<bool, ()>;
+    fn is_process_running(&self, exe_name: &str) -> Result<bool, PoseProbeUnavailable>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -657,7 +669,7 @@ mod tests {
         running: HashSet<String>,
     }
     impl PoseProcessProbe for StubPoseProbe {
-        fn is_process_running(&self, exe_name: &str) -> Result<bool, ()> {
+        fn is_process_running(&self, exe_name: &str) -> Result<bool, PoseProbeUnavailable> {
             Ok(self.running.contains(&exe_name.to_ascii_lowercase()))
         }
     }

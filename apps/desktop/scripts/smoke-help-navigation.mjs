@@ -127,8 +127,9 @@ async function run() {
       window.setSize(width + 1, height);
       await delay(50);
       window.setSize(width, height);
+      await delay(200);
       // Wake page painting without showing the native window, then capture its settled frame.
-      await window.webContents.capturePage();
+      await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true });
       await delay(500);
       await js('document.getAnimations().filter(a=>Number.isFinite(a.effect?.getComputedTiming().endTime)).forEach(a=>a.finish())');
       await delay(100);
@@ -143,14 +144,14 @@ async function run() {
       if (selector) {
         // Scrolling after the first paint leaves a stale hidden-window frame on Windows.
         // Repaint the scrolled viewport, then measure again before cropping the requested element.
-        await window.webContents.capturePage();
+        await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true });
         await delay(150);
         region = await js(`(()=>{
           const rect=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
           return {x:Math.floor(rect.x),y:Math.floor(rect.y),width:Math.ceil(rect.width),height:Math.ceil(rect.height)};
         })()`);
       }
-      const image = await window.webContents.capturePage(region);
+      const image = await window.webContents.capturePage(region, { stayHidden: true, stayAwake: true });
       fs.writeFileSync(path.join(output, `${name}.png`), image.toPNG());
       if (guideMediaOutput && publishableCaptures.has(name)) {
         const png = image.toPNG();
@@ -552,7 +553,8 @@ async function run() {
   } catch (error) {
     console.error(error);
     if (window && !window.isDestroyed()) {
-      fs.writeFileSync(path.join(output, "failure.png"), (await window.webContents.capturePage(undefined, { stayHidden: true })).toPNG());
+      const failureCapture = await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true }).catch(() => null);
+      if (failureCapture) fs.writeFileSync(path.join(output, "failure.png"), failureCapture.toPNG());
       const dom = await window.webContents.executeJavaScript('({hash:location.hash, heading:document.querySelector("main h1")?.textContent, wizard:document.querySelector(".vua-onboarding")?.dataset.wizardStep, amfSwitch:document.querySelector("[data-nav-id=toggle-amf]")?{checked:document.querySelector("[data-nav-id=toggle-amf]").checked,disabled:document.querySelector("[data-nav-id=toggle-amf]").disabled}:null, status:[...document.querySelectorAll("[data-amf-setup] [role=status]")].map(e=>e.textContent), playDrawer:document.querySelector(".vua-play-drawer")?.dataset.open, playPhase:document.querySelector(".vua-play-current [data-phase]")?.dataset.phase, escapeOwners:[...document.querySelectorAll("[role=dialog], [role=menu], .vua-tour")].map(e=>({role:e.getAttribute("role"),className:e.className,step:e.dataset.tourStep}))})');
       fs.writeFileSync(path.join(output, "navigation.json"), JSON.stringify({ index: window.webContents.navigationHistory.getActiveIndex(), entries: window.webContents.navigationHistory.getAllEntries(), dom }, null, 2));
       console.error(JSON.stringify(dom));

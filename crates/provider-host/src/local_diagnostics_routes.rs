@@ -198,11 +198,13 @@ mod tests {
     }
 
     struct StubProbe {
-        running: Result<bool, ()>,
+        running: Result<bool, vua_orchestrator::local_diagnostics::ProcessProbeUnavailable>,
     }
 
     impl LocalDiagnosticsProbe for StubProbe {
-        fn is_client_running(&self) -> Result<bool, ()> {
+        fn is_client_running(
+            &self,
+        ) -> Result<bool, vua_orchestrator::local_diagnostics::ProcessProbeUnavailable> {
             self.running
         }
         fn probe_udp_port(&self, _port: u16) -> UdpPortObservation {
@@ -210,12 +212,17 @@ mod tests {
         }
     }
 
-    fn test_service(root: &Path, running: Result<bool, ()>) -> LocalDiagnosticsService {
-        let mut roots = EnvironmentRoots::default();
-        roots.local_low = root.join("LocalLow");
-        roots.steam_install_candidates = Vec::new();
-        roots.openvrpaths = Vec::new();
-        roots.registry = Arc::new(FakeRegistrySource::new());
+    fn test_service(
+        root: &Path,
+        running: Result<bool, vua_orchestrator::local_diagnostics::ProcessProbeUnavailable>,
+    ) -> LocalDiagnosticsService {
+        let roots = EnvironmentRoots {
+            local_low: root.join("LocalLow"),
+            steam_install_candidates: Vec::new(),
+            openvrpaths: Vec::new(),
+            registry: Arc::new(FakeRegistrySource::new()),
+            ..EnvironmentRoots::default()
+        };
         LocalDiagnosticsService::new(
             roots,
             Arc::new(StubProbe { running }),

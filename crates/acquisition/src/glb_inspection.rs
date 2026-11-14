@@ -806,7 +806,7 @@ mod tests {
 
     fn pack_synthetic_glb(json_doc: &Value, bin_tail_len: usize) -> Vec<u8> {
         let mut json_bytes = serde_json::to_vec(json_doc).unwrap();
-        while json_bytes.len() % 4 != 0 {
+        while !json_bytes.len().is_multiple_of(4) {
             json_bytes.push(b' ');
         }
         let bin_padded = (bin_tail_len + 3) & !3;

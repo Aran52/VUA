@@ -61,7 +61,7 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::Arc;
-    use vua_orchestrator::pose_graph::PoseProcessProbe;
+    use vua_orchestrator::pose_graph::{PoseProbeUnavailable, PoseProcessProbe};
     use vua_orchestrator::{EnvironmentRoots, FakeRegistrySource, FixedClock};
 
     static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(1);
@@ -91,19 +91,21 @@ mod tests {
 
     struct StubProbe;
     impl PoseProcessProbe for StubProbe {
-        fn is_process_running(&self, _exe_name: &str) -> Result<bool, ()> {
+        fn is_process_running(&self, _exe_name: &str) -> Result<bool, PoseProbeUnavailable> {
             Ok(false)
         }
     }
 
     fn test_service(root: &Path) -> PoseGraphService {
-        let mut roots = EnvironmentRoots::default();
-        roots.local_low = root.join("LocalLow");
-        roots.steam_common = vec![root.join("steam_common")];
-        roots.steam_install_candidates = Vec::new();
-        roots.openvrpaths = Vec::new();
+        let mut roots = EnvironmentRoots {
+            local_low: root.join("LocalLow"),
+            steam_common: vec![root.join("steam_common")],
+            steam_install_candidates: Vec::new(),
+            openvrpaths: Vec::new(),
+            registry: Arc::new(FakeRegistrySource::new()),
+            ..EnvironmentRoots::default()
+        };
         roots.vr_runtime_roots.pico = Vec::new();
-        roots.registry = Arc::new(FakeRegistrySource::new());
         PoseGraphService::new(
             roots,
             Arc::new(StubProbe),

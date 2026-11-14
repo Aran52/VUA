@@ -130,7 +130,7 @@
 .vua-bulk-files__product h3 { margin: 0 0 var(--vua-space-2); overflow-wrap: anywhere; }
 .vua-bulk-files__product ul { margin: var(--vua-space-2) 0; padding-left: var(--vua-space-5); }
 
-.vua-warehouse__select { position: relative; }
+.vua-warehouse__select { position: relative; display: flex; }
 
 .vua-warehouse__toolbar {
   display: flex;
@@ -156,6 +156,7 @@
 }
 
 .vua-warehouse__filter {
+  display: flex;
   width: 100%;
   min-width: 0;
   height: var(--vua-control-height);
@@ -165,6 +166,9 @@
   background: var(--vua-bg-panel);
   color: var(--vua-text-strong);
   font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
 }
 
@@ -1299,16 +1303,16 @@
 .vua-warehouse .vua-page__hero[hidden], .vua-warehouse__browse[hidden] { display: none; }
 .vua-warehouse__browse { display: flex; flex-direction: column; flex: 1; gap: var(--vua-space-3); min-width: 0; min-height: 0; }
 .vua-warehouse__filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2); }
-.vua-warehouse__searchbox { position: relative; flex: 2 1 150px; min-width: 150px; }
+.vua-warehouse__searchbox { position: relative; flex: 1.6 1 144px; min-width: 144px; }
 .vua-warehouse__searchbox > svg { position: absolute; left: var(--vua-space-3); top: 50%; transform: translateY(-50%); color: var(--vua-text-secondary); pointer-events: none; }
 .vua-warehouse__searchbox .vua-warehouse__search { padding-inline-start: calc(var(--vua-space-3) + 24px); }
-.vua-warehouse__filters > .vua-warehouse__select { flex: 1 1 112px; min-width: 104px; max-width: 164px; }
+.vua-warehouse__filters > .vua-warehouse__select { flex: 1 1 104px; min-width: 96px; max-width: 168px; }
 .vua-warehouse__views { flex: none; }
 .vua-warehouse__views > button { padding-inline: var(--vua-space-2); }
 .vua-warehouse__toolbar { min-height: 32px; }
 .vua-warehouse__toolbar-gap { flex: 1; }
 
-.vua-vn3-filter { position: relative; flex: 1 1 112px; min-width: 104px; max-width: 148px; }
+.vua-vn3-filter { position: relative; flex: 1 1 104px; min-width: 96px; max-width: 148px; }
 .vua-vn3-filter__button { display: flex; align-items: center; justify-content: space-between; gap: var(--vua-space-1); padding-inline-end: var(--vua-space-2); text-align: start; }
 .vua-vn3-filter__button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vua-vn3-filter__button > svg { flex: none; color: var(--vua-text-secondary); }

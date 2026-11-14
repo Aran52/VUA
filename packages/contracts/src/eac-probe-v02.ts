@@ -221,6 +221,10 @@ export interface EacRepairResultV02 {
   readonly eacSnapshot: EacProbeSnapshotV02;
 }
 
+export interface EacExperimentalConfigResultV02 {
+  readonly enabled: boolean;
+}
+
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

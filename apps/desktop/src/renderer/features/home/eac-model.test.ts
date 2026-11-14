@@ -1,0 +1,96 @@
+import { describe, expect, it } from "vitest";
+import type { EacProbeSnapshotV02 } from "@vua/contracts";
+import { eacCopy } from "../../i18n/eac-copy.ts";
+import {
+  eacConclusionHeadline,
+  eacEncyclopediaSection,
+  isUnloadingLong,
+  selectLadderStep,
+  shouldShowInlineEacRow,
+} from "./eac-model.ts";
+
+const baseSnapshot: EacProbeSnapshotV02 = {
+  schemaVersion: "vua.eac-probe/v0.2",
+  capturedAt: "2026-11-14T10:02:00.000Z",
+  processes: [],
+  services: [
+    { name: "EasyAntiCheat_EOS", present: true, state: "stopped", firstObservedAt: null },
+    { name: "EasyAntiCheat_EOSSys", present: true, state: "stop_pending", firstObservedAt: "2026-11-14T10:00:00.000Z" },
+  ],
+  steam: { runningFlag: 0 },
+  install: { eacFolder: "present", setupSignature: "verified", serviceBinary: "verified" },
+  logFindings: [],
+  conclusion: "unloading",
+  guidanceCode: "vua.eac_probe.driver_unloading",
+  plan: ["wait_unload", "restart_pc"],
+  terminationCapability: {
+    state: "unavailable",
+    reason: "no_allowlisted_candidate",
+    candidate: null,
+  },
+  diagnostics: [],
+};
+
+describe("eac-model view rules", () => {
+  it("hides inline status when ready or session_active and shows it for actionable states", () => {
+    expect(shouldShowInlineEacRow(null)).toBe(false);
+    expect(shouldShowInlineEacRow({ ...baseSnapshot, conclusion: "ready", plan: [] })).toBe(false);
+    expect(shouldShowInlineEacRow({ ...baseSnapshot, conclusion: "session_active", plan: [] })).toBe(false);
+    expect(shouldShowInlineEacRow(baseSnapshot)).toBe(true);
+    expect(shouldShowInlineEacRow({ ...baseSnapshot, conclusion: "not_installed", plan: ["official_repair"] })).toBe(true);
+  });
+
+  it("switches unloading headline and ladder focus to restart_pc after five minutes", () => {
+    const twoMinNow = Date.parse("2026-11-14T10:02:15.000Z");
+    expect(isUnloadingLong(baseSnapshot, twoMinNow)).toBe(false);
+    expect(eacConclusionHeadline(baseSnapshot, eacCopy.en, twoMinNow)).toContain("2 min so far");
+    expect(selectLadderStep(baseSnapshot, 0, twoMinNow)).toEqual({
+      current: "wait_unload",
+      index: 0,
+      hasNext: true,
+    });
+    expect(selectLadderStep(baseSnapshot, 1, twoMinNow)).toEqual({
+      current: "restart_pc",
+      index: 1,
+      hasNext: false,
+    });
+
+    const sixMinNow = Date.parse("2026-11-14T10:06:05.000Z");
+    expect(isUnloadingLong(baseSnapshot, sixMinNow)).toBe(true);
+    expect(eacConclusionHeadline(baseSnapshot, eacCopy.en, sixMinNow)).toBe(
+      eacCopy.en.conclusions.unloading_long,
+    );
+    expect(selectLadderStep(baseSnapshot, 0, sixMinNow)).toEqual({
+      current: "restart_pc",
+      index: 1,
+      hasNext: false,
+    });
+  });
+
+  it("maps conclusions and log codes to the six guide-start encyclopedia sections", () => {
+    expect(eacEncyclopediaSection(baseSnapshot)).toBe("eac-30005-occupied");
+    expect(eacEncyclopediaSection({ ...baseSnapshot, conclusion: "not_installed" })).toBe("eac-not-installed");
+    expect(eacEncyclopediaSection({ ...baseSnapshot, conclusion: "session_active" })).toBe("eac-sdk-multi-instance");
+    expect(
+      eacEncyclopediaSection({
+        ...baseSnapshot,
+        conclusion: "ready",
+        logFindings: [{ code: "start_service_1275", observedAt: null }],
+      }),
+    ).toBe("eac-1275-driver-blocked");
+    expect(
+      eacEncyclopediaSection({
+        ...baseSnapshot,
+        conclusion: "ready",
+        logFindings: [{ code: "untrusted_system_file", observedAt: null }],
+      }),
+    ).toBe("eac-untrusted-system-file");
+    expect(
+      eacEncyclopediaSection({
+        ...baseSnapshot,
+        conclusion: "ready",
+        logFindings: [{ code: "connection_lost", observedAt: null }],
+      }),
+    ).toBe("eac-connection-lost");
+  });
+});

@@ -13,6 +13,8 @@ import {
   isEacTerminateResult,
   isEacTerminationReceiptV01,
 } from "./eac-probe-v02.js";
+import { isApplicationRequestV01 } from "./application-contract.js";
+import { DESKTOP_GATEWAY_METHOD_KINDS, isDesktopGatewayRequestV1 } from "./desktop-gateway.js";
 
 const SCHEMA_ROOT = path.resolve(__dirname, "../../../schemas/eac-probe/v0.2");
 const TERMINATE_FIXTURES_ROOT = path.resolve(
@@ -98,5 +100,76 @@ describe("eac-probe v0.2 contract fixtures and guards", () => {
       },
     };
     expect(isEacProbeSnapshotV02(mismatched)).toBe(false);
+  });
+
+  it("registers Gateway and Application envelopes while keeping experimental sync host-only", () => {
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["environment.inspectEac"]).toBe("query");
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["environment.terminateEacResidual"]).toBe("command");
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["environment.launchEacRepair"]).toBe("command");
+
+    expect(
+      isDesktopGatewayRequestV1({
+        schemaVersion: 1,
+        requestId: "req-eac-1",
+        method: "environment.inspectEac",
+        params: { schemaVersion: "0.2" },
+      }),
+    ).toBe(true);
+    expect(
+      isDesktopGatewayRequestV1({
+        schemaVersion: 1,
+        requestId: "req-eac-1",
+        method: "environment.inspectEac",
+        params: { schemaVersion: "0.2", experimentalTerminationEnabled: true },
+      }),
+    ).toBe(false);
+    expect(
+      isDesktopGatewayRequestV1({
+        schemaVersion: 1,
+        requestId: "req-eac-term",
+        method: "environment.terminateEacResidual",
+        params: {
+          schemaVersion: "0.2",
+          pid: 14200,
+          created: "134075820000000000",
+          path: "D:\\SteamLibrary\\steamapps\\common\\VRChat\\start_protected_game.exe",
+          confirmed: true,
+          commandId: "cmd-eac-1",
+        },
+      }),
+    ).toBe(true);
+    expect(
+      isDesktopGatewayRequestV1({
+        schemaVersion: 1,
+        requestId: "req-eac-repair",
+        method: "environment.launchEacRepair",
+        params: {
+          schemaVersion: "0.2",
+          confirmed: true,
+          commandId: "cmd-eac-repair-1",
+        },
+      }),
+    ).toBe(true);
+
+    // Host-only internal command: valid in ApplicationRequestV01, rejected in DesktopGatewayRequestV1.
+    expect(
+      isDesktopGatewayRequestV1({
+        schemaVersion: 1,
+        requestId: "req-eac-sync",
+        method: "environment.configureEacExperimental",
+        params: { enabled: true, commandId: "cmd-sync-1" },
+      }),
+    ).toBe(false);
+    expect(
+      isApplicationRequestV01({
+        contractVersion: "0.1",
+        requestId: "req-eac-sync",
+        correlationId: "req-eac-sync",
+        kind: "command",
+        commandId: "cmd-sync-1",
+        method: "environment.configureEacExperimental",
+        params: { enabled: true },
+      }),
+    ).toBe(true);
   });
 });

@@ -19,6 +19,7 @@ import { unityLicenseCopy } from "./unity-license-copy.ts";
 import { useTermsCopy } from "./use-terms-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
+import { eacCopy } from "./eac-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
 import { contextGuideCopy } from "./context-guide-copy.ts";
 import { helpFaqCopy } from "./help-faq-copy.ts";
@@ -58,6 +59,7 @@ export const strings: Strings = {
   unityLicense: unityLicenseCopy.ko,
   useTerms: useTermsCopy.ko,
   environmentCards: environmentCopy["ko"],
+  eac: eacCopy["ko"],
   journey: journeyCopy["ko"],
   avatarOptimizer: avatarOptimizerCopy["ko"],
   guideChannel: guideChannelCopy["ko"],

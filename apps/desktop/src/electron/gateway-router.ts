@@ -48,6 +48,9 @@ export interface DesktopGatewayRouteContext {
     /** 上传未被受理时立即删除已写出的交接文件。 */
     discardSdkHandoff(): void;
   } | undefined;
+  readonly eac?: {
+    isExperimentalEnabled(): boolean;
+  } | undefined;
 }
 
 /** vrchat-session v0.1 的方法名集合(Kernel 分流,不进 Provider)。 */
@@ -136,6 +139,16 @@ function toApplicationRequest(
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "environment.observePlay":
       return { ...base, kind: "query", method: request.method, params: request.params };
+    case "environment.inspectEac":
+      return { ...base, kind: "query", method: request.method, params: request.params };
+    case "environment.terminateEacResidual": {
+      const { commandId, ...params } = request.params;
+      return { ...base, kind: "command", method: request.method, commandId, params };
+    }
+    case "environment.launchEacRepair": {
+      const { commandId, ...params } = request.params;
+      return { ...base, kind: "command", method: request.method, commandId, params };
+    }
     case "tools.observeConnection":
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "tools.actConnection":
@@ -725,6 +738,25 @@ export async function routeDesktopGatewayInvoke(
         requestId: request.requestId,
         ok: true,
         value,
+      };
+    }
+    if (request.method === "environment.terminateEacResidual" && context.eac?.isExperimentalEnabled() !== true) {
+      return {
+        schemaVersion: DESKTOP_GATEWAY_VERSION,
+        requestId: request.requestId,
+        ok: false,
+        error: {
+          code: "application",
+          application: {
+            contractVersion: APPLICATION_CONTRACT_VERSION,
+            code: "vua.eac.experimental_disabled",
+            category: "permission",
+            messageKey: "errors.eac.experimentalDisabled",
+            recoverable: true,
+            retryable: false,
+            correlationId: request.requestId,
+          },
+        },
       };
     }
     // 托管上传开始前:玩家已在 VUA 登录时,把会话一次性交到工作工程的 Editor

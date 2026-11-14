@@ -48,7 +48,7 @@ const en = {
     steamIdle: "Clear (0)",
     steamUnknown: "Not set",
     install: "Install files",
-    installVerified: "Folder present · setup & service signatures verified",
+    installVerified: "Folder present · setup and service signatures verified",
     installSummary: "Folder: {folder} · Setup: {setup} · Service: {service}",
     installStates: {
       present: "present",
@@ -67,7 +67,7 @@ const en = {
       untrusted_system_file: "Untrusted system file / Error 30004",
       connection_lost: "EAC verified connection lost",
     },
-    details: "Details (PIDs & full paths)",
+    details: "Details (PIDs and full paths)",
     noPath: "Path unavailable",
   },
   steps: {
@@ -92,7 +92,7 @@ const en = {
       hint: "Locates EasyAntiCheat_EOS_Setup.exe in Explorer, or verifies its Epic Games / EasyAntiCheat Oy signature and starts it via UAC when experimental recovery is enabled.",
     },
     restart_pc: {
-      button: "See restart & driver steps",
+      button: "See restart and driver steps",
       hint: "A kernel driver stuck in stop-pending can only be cleared by restarting Windows.",
     },
   },
@@ -105,11 +105,11 @@ const en = {
     confirm: "Start local test anyway",
   },
   experimental: {
-    title: "EAC process & UAC repair recovery",
+    title: "EAC process and UAC repair recovery",
     description: "Allow ending an allowlisted user-mode EAC launcher process after VRChat exits, and launching the verified official EAC repair tool directly via Windows UAC. Never touches services, kernel drivers, or active game sessions.",
     consentTitle: "Enable experimental EAC recovery actions?",
     consentBody: "When enabled, VUA can offer to end a verified user-mode launcher left behind after VRChat closes and launch EasyAntiCheat_EOS_Setup.exe via Windows UAC after per-use confirmation. Process termination carries residual account risk; VUA never terminates active VRChat sessions or Windows services.",
-    consentConfirm: "Understand & enable",
+    consentConfirm: "Understand and enable",
   },
   terminateConfirm: {
     title: "End residual EAC launcher process?",

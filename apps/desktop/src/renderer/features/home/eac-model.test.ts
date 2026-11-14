@@ -8,9 +8,11 @@ import {
   disarmUnloadReminder,
   eacConclusionHeadline,
   eacEncyclopediaSection,
+  formatRepairOutcome,
   isUnloadReminderArmed,
   isUnloadingLong,
   selectLadderStep,
+  shouldPromptBeforeLaunch,
   shouldShowInlineEacRow,
 } from "./eac-model.ts";
 
@@ -51,6 +53,33 @@ describe("eac-model view rules", () => {
     expect(shouldShowInlineEacRow({ ...baseSnapshot, conclusion: "session_active", plan: [] })).toBe(false);
     expect(shouldShowInlineEacRow(baseSnapshot)).toBe(true);
     expect(shouldShowInlineEacRow({ ...baseSnapshot, conclusion: "not_installed", plan: ["official_repair"] })).toBe(true);
+  });
+
+  it("prompts before launch only on actionable blocking conclusions and skips unknown or session_active", () => {
+    expect(shouldPromptBeforeLaunch({ ...baseSnapshot, conclusion: "ready", plan: [] })).toBe(false);
+    expect(shouldPromptBeforeLaunch({ ...baseSnapshot, conclusion: "session_active", plan: [] })).toBe(false);
+    expect(shouldPromptBeforeLaunch({ ...baseSnapshot, conclusion: "unknown", plan: [] })).toBe(false);
+
+    expect(shouldPromptBeforeLaunch({ ...baseSnapshot, conclusion: "unloading" })).toBe(true);
+    expect(shouldPromptBeforeLaunch({ ...baseSnapshot, conclusion: "residual_process" })).toBe(true);
+    expect(shouldPromptBeforeLaunch({ ...baseSnapshot, conclusion: "steam_stale" })).toBe(true);
+    expect(shouldPromptBeforeLaunch({ ...baseSnapshot, conclusion: "not_installed" })).toBe(true);
+    expect(shouldPromptBeforeLaunch({ ...baseSnapshot, conclusion: "install_damaged" })).toBe(true);
+  });
+
+  it("formats background repair outcomes including non-zero exit codes and reparse-point refusals", () => {
+    expect(formatRepairOutcome({ outcome: "completed", exitCode: 0 }, eacCopy.en)).toBe(
+      "Official EAC repair finished (exit code 0).",
+    );
+    expect(formatRepairOutcome({ outcome: "completed", exitCode: 1 }, eacCopy.en)).toContain(
+      "exited with code 1",
+    );
+    expect(formatRepairOutcome({ outcome: "elevation_declined", exitCode: null }, eacCopy.en)).toBe(
+      eacCopy.en.repairConfirm.declined,
+    );
+    expect(formatRepairOutcome({ outcome: "reparse_point_refused", exitCode: null }, eacCopy.en)).toBe(
+      eacCopy.en.repairConfirm.reparseRefused,
+    );
   });
 
   it("switches unloading headline and ladder focus to restart_pc after five minutes", () => {

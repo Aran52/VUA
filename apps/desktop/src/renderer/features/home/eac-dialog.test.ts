@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { EAC_CONCLUSIONS_V02, type EacProbeSnapshotV02 } from "@vua/contracts";
+import { format, strings } from "../../i18n/index.ts";
 import { EacDialog } from "./EacDialog.tsx";
 
 const { gateway } = vi.hoisted(() => ({
@@ -87,5 +88,41 @@ describe("EacDialog rendering across all eight conclusions", () => {
       }),
     );
     expect(html).toBe("");
+  });
+
+  it("renders background lastRepair status for UAC decline and non-zero exit codes", () => {
+    const base = fixtures.find((item) => item.conclusion === "not_installed") ?? fixtures[0]!;
+    const declinedHtml = renderToStaticMarkup(
+      createElement(EacDialog, {
+        open: true,
+        initialSnapshot: {
+          ...base,
+          lastRepair: {
+            outcome: "elevation_declined",
+            exitCode: null,
+            updatedAt: "2026-11-14T10:15:00.000Z",
+          },
+        },
+        onClose: vi.fn(),
+      }),
+    );
+    expect(declinedHtml).toContain('data-testid="eac-last-repair"');
+    expect(declinedHtml).toContain(strings.eac.repairConfirm.declined);
+
+    const nonZeroHtml = renderToStaticMarkup(
+      createElement(EacDialog, {
+        open: true,
+        initialSnapshot: {
+          ...base,
+          lastRepair: {
+            outcome: "completed",
+            exitCode: 2,
+            updatedAt: "2026-11-14T10:16:00.000Z",
+          },
+        },
+        onClose: vi.fn(),
+      }),
+    );
+    expect(nonZeroHtml).toContain(format(strings.eac.repairConfirm.completedNonZero, { code: 2 }));
   });
 });

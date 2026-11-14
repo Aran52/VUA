@@ -642,6 +642,7 @@ export const strings: Strings = {
       verification_failed: "安裝流程已結束，但找不到預期的程式檔案。請確認安裝路徑後重新檢查。",
       elevation_required: "安裝需要 Windows 管理員權限。請重試並在提示視窗中允許，或手動執行官方安裝程式。",
       elevation_declined: "未授予 Windows 管理員權限，安裝未能繼續。準備好後請重新檢查並重試。",
+      invalid_location: "安裝程式快取目錄位於掛載磁碟區或不支援的重新解析路徑上，無法自動提權啟動。請改用標準磁碟機路徑，或手動執行官方安裝程式。",
     },
     "installerHint": "Unity CLI 仍處於實驗階段。取得工具後請先重新檢查，再安裝編輯器；帳號登入與授權啟用仍需手動完成。",
     "installerKinds": {"unity_cli":"Unity CLI","hub_cli":"本機既有 Unity Hub CLI","unity_cli_bootstrap":"下載官方 Unity CLI"},

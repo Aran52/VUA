@@ -1,11 +1,13 @@
 //! Handle-locked executable verification and zero-argument UAC launch helper.
 //!
-//! Holding an open file handle with `FILE_SHARE_READ` only (`0x0000_0001`), rejecting any
-//! reparse point (junction or symlink) along the path, and launching via the handle's
-//! `GetFinalPathNameByHandleW` DOS path prevents concurrent writers, deleters, renamers,
-//! and ancestor-junction retargeting between verification and process creation.
+//! Holding an open file handle with `FILE_SHARE_READ` only (`0x0000_0001`), pinning launch to
+//! the handle's `GetFinalPathNameByHandleW` DOS path, and rejecting any reparse point remaining
+//! along that resolved final path prevents concurrent writers, deleters, renamers, and
+//! ancestor-junction retargeting between verification and process creation while still allowing
+//! Steam libraries or app-data directories relocated via NTFS junctions or symlinks.
 
 use sha2::{Digest, Sha256};
+use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -13,6 +15,65 @@ use std::time::{Duration, Instant};
 
 const INTEGRITY_ERROR: &str = "vua.deployment.installer_integrity_failed";
 const FILE_SHARE_READ_ONLY: u32 = 0x0000_0001;
+
+#[derive(Debug)]
+pub enum LockOpenError {
+    /// The handle's resolved final path still traverses a reparse point (for example a volume
+    /// mounted onto an NTFS folder with no drive letter).
+    ReparsePointInFinalPath,
+    /// Input path failed basic Win32 path safety (relative, device namespace, quotes, or control chars).
+    UnsupportedPath(&'static str),
+    /// Target exists but is a directory or special file rather than a regular file.
+    NotRegularFile,
+    /// Underlying OS open/metadata error.
+    Io(io::Error),
+}
+
+impl LockOpenError {
+    pub fn is_not_found(&self) -> bool {
+        matches!(self, Self::Io(err) if err.kind() == io::ErrorKind::NotFound)
+    }
+
+    pub fn is_reparse_point(&self) -> bool {
+        matches!(self, Self::ReparsePointInFinalPath)
+    }
+
+    pub fn is_invalid_location(&self) -> bool {
+        matches!(
+            self,
+            Self::ReparsePointInFinalPath | Self::UnsupportedPath(_)
+        )
+    }
+}
+
+impl fmt::Display for LockOpenError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ReparsePointInFinalPath => write!(
+                f,
+                "resolved executable path traverses a folder mount or reparse point; use a standard drive path or run the installer manually"
+            ),
+            Self::UnsupportedPath(reason) => write!(f, "{reason}"),
+            Self::NotRegularFile => write!(f, "locked executable target is not a regular file"),
+            Self::Io(err) => write!(f, "{err}"),
+        }
+    }
+}
+
+impl std::error::Error for LockOpenError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
+impl From<io::Error> for LockOpenError {
+    fn from(err: io::Error) -> Self {
+        Self::Io(err)
+    }
+}
 
 /// Strips Windows `\\?\` / `\\?\UNC\` extended-length prefixes into ordinary Win32 DOS or UNC
 /// paths accepted by `ShellExecuteExW` and `CreateProcessW`. Rejects raw `\\.\` or `\\?\Volume`
@@ -116,52 +177,45 @@ pub struct LockedExecutable {
 }
 
 impl LockedExecutable {
-    /// Opens `path` read-only with `FILE_SHARE_READ` only on Windows, rejects any reparse point
-    /// along the path or resolved handle lineage, and pins `self.path` to the handle's clean DOS
-    /// path (`GetFinalPathNameByHandleW` without `\\?\`) so concurrent writes, deletes, renames,
-    /// and parent-junction swaps fail until this guard is dropped.
-    pub fn open_read_locked(path: &Path) -> io::Result<Self> {
+    /// Opens `path` read-only with `FILE_SHARE_READ` only on Windows, resolves `self.path` to the
+    /// open handle's clean DOS path (`GetFinalPathNameByHandleW` without `\\?\`), and refuses only
+    /// if that resolved final path still contains a reparse point. Input paths that traverse an
+    /// NTFS junction or symlink to a standard drive resolve to their real target path and succeed,
+    /// while subsequent retargeting of the input junction cannot affect `self.path`.
+    pub fn open_read_locked(path: &Path) -> Result<Self, LockOpenError> {
         let lossy = path.to_string_lossy();
         if !path.is_absolute() || lossy.contains('"') || lossy.chars().any(char::is_control) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
+            return Err(LockOpenError::UnsupportedPath(
                 "executable path must be an absolute path free of quotes and control characters",
             ));
         }
 
-        let normalized_input = strip_windows_verbatim_prefix(path).ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "executable path uses an unsupported device prefix",
-            )
-        })?;
+        let normalized_input = strip_windows_verbatim_prefix(path).ok_or(
+            LockOpenError::UnsupportedPath("executable path uses an unsupported device prefix"),
+        )?;
 
         #[cfg(windows)]
         let (file, resolved_path) = {
             use std::os::windows::fs::OpenOptionsExt;
-            if path_has_reparse_point_component(&normalized_input)? {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "reparse point (junction or symlink) along executable path is refused",
-                ));
-            }
             let file = OpenOptions::new()
                 .read(true)
                 .share_mode(FILE_SHARE_READ_ONLY)
                 .open(&normalized_input)?;
             let metadata = file.metadata()?;
             if !metadata.is_file() {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "locked executable target is not a regular file",
-                ));
+                return Err(LockOpenError::NotRegularFile);
             }
-            let final_path = final_dos_path_from_handle(&file)?;
+            let final_path = final_dos_path_from_handle(&file).map_err(|err| {
+                if err.kind() == io::ErrorKind::InvalidInput {
+                    LockOpenError::UnsupportedPath(
+                        "executable handle resolved to a non-DOS device path",
+                    )
+                } else {
+                    LockOpenError::Io(err)
+                }
+            })?;
             if path_has_reparse_point_component(&final_path)? {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "resolved executable path contains a reparse point",
-                ));
+                return Err(LockOpenError::ReparsePointInFinalPath);
             }
             (file, final_path)
         };
@@ -171,10 +225,7 @@ impl LockedExecutable {
             let file = OpenOptions::new().read(true).open(&normalized_input)?;
             let metadata = file.metadata()?;
             if !metadata.is_file() {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "locked executable target is not a regular file",
-                ));
+                return Err(LockOpenError::NotRegularFile);
             }
             (file, normalized_input)
         };
@@ -510,7 +561,8 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
-    fn windows_open_read_locked_strips_verbatim_prefix_and_refuses_ancestor_junctions() {
+    fn windows_open_read_locked_resolves_input_junctions_to_clean_dos_path_and_detects_reparse_points(
+    ) {
         let dir = unique_temp_dir("reparse-guard");
         let real_sub = dir.join("real_bin");
         std::fs::create_dir_all(&real_sub).unwrap();
@@ -523,15 +575,14 @@ mod tests {
         // 1. Canonicalized `\\?\C:\...` input resolves to a clean Win32 DOS path without `\\?\`.
         let verbatim = std::fs::canonicalize(&target).unwrap();
         assert!(verbatim.to_string_lossy().starts_with(r"\\?\"));
+        let expected_dos = strip_windows_verbatim_prefix(&verbatim).unwrap();
         let locked = LockedExecutable::open_read_locked(&verbatim).unwrap();
-        assert!(
-            !locked.path().to_string_lossy().starts_with(r"\\?\"),
-            "locked path must not carry verbatim prefix: {}",
-            locked.path().display()
-        );
+        assert_eq!(locked.path(), expected_dos.as_path());
         drop(locked);
 
-        // 2. An ancestor NTFS junction (`mklink /J`, unprivileged on Windows) is refused.
+        // 2. An input NTFS junction (`mklink /J`, e.g. relocated Steam library or app data dir)
+        // succeeds and pins `locked.path()` to the underlying real DOS path (`real_bin\setup.exe`),
+        // so retargeting the junction after verification cannot swap the executable launched.
         let junction_sub = dir.join("junction_bin");
         let mklink = std::process::Command::new("cmd")
             .args([
@@ -547,8 +598,18 @@ mod tests {
 
         let via_junction = junction_sub.join("setup.exe");
         assert!(via_junction.is_file());
-        let err = LockedExecutable::open_read_locked(&via_junction).unwrap_err();
-        assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
+        assert!(path_has_reparse_point_component(&via_junction).unwrap());
+
+        let locked_via_junction = LockedExecutable::open_read_locked(&via_junction).unwrap();
+        assert_eq!(locked_via_junction.path(), expected_dos.as_path());
+        assert!(!path_has_reparse_point_component(locked_via_junction.path()).unwrap());
+        drop(locked_via_junction);
+
+        // 3. Readable error reason when final-path reparse refusal occurs.
+        let refusal = LockOpenError::ReparsePointInFinalPath;
+        assert!(refusal.is_reparse_point());
+        assert!(refusal.is_invalid_location());
+        assert!(refusal.to_string().contains("reparse point"));
 
         let _ = std::fs::remove_dir(&junction_sub);
         std::fs::remove_dir_all(dir).unwrap();

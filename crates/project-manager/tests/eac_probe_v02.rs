@@ -555,8 +555,11 @@ fn sorts_processes_deterministically_by_kind_and_pid() {
 
 #[test]
 fn windows_repair_launcher_refuses_missing_and_unsigned_setup_without_executing() {
+    use std::sync::{Arc, Mutex};
+    use vua_orchestrator::Clock;
     use vua_project_manager::eac_probe::v02::{
-        resolve_verified_repair_setup_path, EacRepairOutcome, RepairLauncher, WindowsRepairLauncher,
+        resolve_verified_repair_setup_path, EacLastRepairV02, EacRepairOutcome, RepairLauncher,
+        WindowsRepairLauncher,
     };
 
     let repair_schema_path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -574,11 +577,18 @@ fn windows_repair_launcher_refuses_missing_and_unsigned_setup_without_executing(
             .as_nanos()
     ));
     let launcher = WindowsRepairLauncher::new();
+    let clock: Arc<dyn Clock> = Arc::new(FixedClock::new(&["2026-11-14T08:10:00Z"]));
+    let last_repair: Arc<Mutex<Option<EacLastRepairV02>>> = Arc::new(Mutex::new(None));
 
     // 1. Non-existent VRChat root -> not_found
-    let missing_root = launcher.launch_official_repair(&temp_root);
+    let missing_root =
+        launcher.launch_official_repair(&temp_root, clock.clone(), last_repair.clone());
     assert_eq!(missing_root.outcome, EacRepairOutcome::NotFound);
     assert_eq!(missing_root.exit_code, None);
+    assert_eq!(
+        last_repair.lock().unwrap().as_ref().map(|r| r.outcome),
+        Some(EacRepairOutcome::NotFound)
+    );
     assert!(validator
         .validate(&serde_json::to_value(&missing_root).unwrap())
         .is_ok());
@@ -586,7 +596,8 @@ fn windows_repair_launcher_refuses_missing_and_unsigned_setup_without_executing(
     // 2. VRChat root without EasyAntiCheat_EOS_Setup.exe -> not_found
     let eac_dir = temp_root.join("EasyAntiCheat");
     std::fs::create_dir_all(&eac_dir).unwrap();
-    let missing_exe = launcher.launch_official_repair(&temp_root);
+    let missing_exe =
+        launcher.launch_official_repair(&temp_root, clock.clone(), last_repair.clone());
     assert_eq!(missing_exe.outcome, EacRepairOutcome::NotFound);
     assert!(validator
         .validate(&serde_json::to_value(&missing_exe).unwrap())
@@ -605,12 +616,16 @@ fn windows_repair_launcher_refuses_missing_and_unsigned_setup_without_executing(
         resolved.display()
     );
 
-    let unsigned_receipt = launcher.launch_official_repair(&temp_root);
+    let unsigned_receipt = launcher.launch_official_repair(&temp_root, clock, last_repair.clone());
     assert_eq!(
         unsigned_receipt.outcome,
         EacRepairOutcome::VerificationFailed
     );
     assert_eq!(unsigned_receipt.exit_code, None);
+    assert_eq!(
+        last_repair.lock().unwrap().as_ref().map(|r| r.outcome),
+        Some(EacRepairOutcome::VerificationFailed)
+    );
     assert!(validator
         .validate(&serde_json::to_value(&unsigned_receipt).unwrap())
         .is_ok());
@@ -795,9 +810,10 @@ fn unreadable_service_binary_path_maps_to_unknown_not_install_damaged() {
 #[test]
 fn eac_probe_service_inspect_queries_install_source_strictly_once() {
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
+    use vua_orchestrator::Clock;
     use vua_project_manager::eac_probe::v02::{
-        EacRepairOutcome, EacRepairReceiptV02, EacServiceDeps, RepairLauncher,
+        EacLastRepairV02, EacRepairOutcome, EacRepairReceiptV02, EacServiceDeps, RepairLauncher,
         WindowsProcessTerminator,
     };
 
@@ -815,7 +831,12 @@ fn eac_probe_service_inspect_queries_install_source_strictly_once() {
 
     struct NoopRepair;
     impl RepairLauncher for NoopRepair {
-        fn launch_official_repair(&self, _vrchat_dir: &Path) -> EacRepairReceiptV02 {
+        fn launch_official_repair(
+            &self,
+            _vrchat_dir: &Path,
+            _clock: Arc<dyn Clock>,
+            _last_repair: Arc<Mutex<Option<EacLastRepairV02>>>,
+        ) -> EacRepairReceiptV02 {
             EacRepairReceiptV02::new(EacRepairOutcome::Launched, None)
         }
     }
@@ -836,11 +857,213 @@ fn eac_probe_service_inspect_queries_install_source_strictly_once() {
 
     let snap = service.inspect();
     assert_eq!(snap.conclusion, EacConclusionV02::Ready);
+    assert_eq!(snap.last_repair, None);
     assert_eq!(
         counter.load(Ordering::SeqCst),
         1,
         "inspect must query InstallSource only once per poll"
     );
+}
+
+#[test]
+fn r4_matches_vrchat_exe_outside_detected_vrchat_dir_for_inspect_terminate_and_repair() {
+    use std::sync::{Arc, Mutex};
+    use vua_orchestrator::Clock;
+    use vua_project_manager::eac_probe::v02::{
+        EacLastRepairV02, EacRepairOutcome, EacRepairReceiptV02, EacServiceDeps, RepairLauncher,
+        WindowsProcessTerminator,
+    };
+    use vua_project_manager::TerminationGuard;
+
+    struct NeverCalledRepair;
+    impl RepairLauncher for NeverCalledRepair {
+        fn launch_official_repair(
+            &self,
+            _vrchat_dir: &Path,
+            _clock: Arc<dyn Clock>,
+            _last_repair: Arc<Mutex<Option<EacLastRepairV02>>>,
+        ) -> EacRepairReceiptV02 {
+            panic!("official repair must never run when any VRChat.exe is active");
+        }
+    }
+
+    let launcher_path = r"D:\SteamLibrary\steamapps\common\VRChat\start_protected_game.exe";
+    let custom_sdk_vrchat = r"E:\CustomSdkClients\VRChat_TestCopy\VRChat.exe";
+    let mut visible = HashSet::new();
+    visible.insert(9500);
+
+    let service = EacProbeService::with_deps(EacServiceDeps {
+        processes: Arc::new(FakeProcesses(Ok(vec![
+            ProcessEntryV02 {
+                image_name: "VRChat.exe".to_owned(),
+                pid: 9500,
+                created: Some(134392000100000950),
+                path: Some(custom_sdk_vrchat.to_owned()),
+            },
+            ProcessEntryV02 {
+                image_name: "start_protected_game.exe".to_owned(),
+                pid: 9012,
+                created: Some(134392000100000000),
+                path: Some(launcher_path.to_owned()),
+            },
+        ]))),
+        windows: Arc::new(FakeWindows(Ok(visible))),
+        services: Arc::new(FakeServices(Ok(clean_services()))),
+        steam: Arc::new(FakeSteam(Ok(Some(1)))),
+        install: Arc::new(FakeInstall(Ok(clean_install()))),
+        logs: Arc::new(FakeLogs(Ok(vec![]))),
+        signature_verifier: Arc::new(FakeVerifier(true)),
+        terminator: Arc::new(WindowsProcessTerminator),
+        repair_launcher: Arc::new(NeverCalledRepair),
+        clock: Arc::new(FixedClock::new(&["2026-11-14T08:20:00Z"])),
+    });
+    service.set_experimental_termination(true);
+
+    let snap = service.inspect();
+    assert_eq!(snap.conclusion, EacConclusionV02::SessionActive);
+    assert_eq!(snap.termination_capability.state, "unavailable");
+    assert_eq!(snap.termination_capability.reason, "active_vrchat_session");
+    assert!(snap.processes.iter().any(|p| p.pid == 9500));
+    assert_schema_valid(&snap);
+
+    let term = service
+        .terminate_residual(9012, "134392000100000000", launcher_path, "corr-r4-custom")
+        .unwrap();
+    assert_eq!(term.termination.kind, "refused");
+    assert_eq!(
+        term.termination.guard,
+        Some(TerminationGuard::ActiveVrchatSession)
+    );
+
+    let repair = service.launch_repair().unwrap();
+    assert_eq!(
+        repair.repair.outcome,
+        EacRepairOutcome::ActiveSessionRefused
+    );
+    assert_eq!(
+        repair.eac_snapshot.last_repair.as_ref().map(|r| r.outcome),
+        Some(EacRepairOutcome::ActiveSessionRefused)
+    );
+    assert_schema_valid(&repair.eac_snapshot);
+}
+
+#[test]
+fn eac_probe_service_tracks_background_repair_outcomes_in_snapshot_last_repair() {
+    use std::sync::{mpsc, Arc, Mutex};
+    use vua_orchestrator::Clock;
+    use vua_project_manager::eac_probe::v02::{
+        record_last_repair, EacLastRepairV02, EacRepairOutcome, EacRepairReceiptV02,
+        EacServiceDeps, RepairLauncher, WindowsProcessTerminator,
+    };
+
+    struct ControlledAsyncRepair {
+        next_terminal: Mutex<(EacRepairOutcome, Option<i32>)>,
+        release_rx: Mutex<Option<mpsc::Receiver<()>>>,
+        done_tx: Mutex<Option<mpsc::Sender<()>>>,
+    }
+
+    impl RepairLauncher for ControlledAsyncRepair {
+        fn launch_official_repair(
+            &self,
+            _vrchat_dir: &Path,
+            clock: Arc<dyn Clock>,
+            last_repair: Arc<Mutex<Option<EacLastRepairV02>>>,
+        ) -> EacRepairReceiptV02 {
+            record_last_repair(
+                &last_repair,
+                EacRepairOutcome::Launched,
+                None,
+                clock.as_ref(),
+            );
+            let (outcome, exit_code) = *self.next_terminal.lock().unwrap();
+            let rx = self.release_rx.lock().unwrap().take().unwrap();
+            let tx = self.done_tx.lock().unwrap().take().unwrap();
+            std::thread::spawn(move || {
+                rx.recv().unwrap();
+                record_last_repair(&last_repair, outcome, exit_code, clock.as_ref());
+                tx.send(()).unwrap();
+            });
+            EacRepairReceiptV02::new(EacRepairOutcome::Launched, None)
+        }
+    }
+
+    let (rel_tx1, rel_rx1) = mpsc::channel();
+    let (done_tx1, done_rx1) = mpsc::channel();
+    let launcher = Arc::new(ControlledAsyncRepair {
+        next_terminal: Mutex::new((EacRepairOutcome::ElevationDeclined, None)),
+        release_rx: Mutex::new(Some(rel_rx1)),
+        done_tx: Mutex::new(Some(done_tx1)),
+    });
+
+    let service = EacProbeService::with_deps(EacServiceDeps {
+        processes: Arc::new(FakeProcesses(Ok(vec![]))),
+        windows: Arc::new(FakeWindows(Ok(HashSet::new()))),
+        services: Arc::new(FakeServices(Ok(clean_services()))),
+        steam: Arc::new(FakeSteam(Ok(Some(0)))),
+        install: Arc::new(FakeInstall(Ok(clean_install()))),
+        logs: Arc::new(FakeLogs(Ok(vec![]))),
+        signature_verifier: Arc::new(FakeVerifier(true)),
+        terminator: Arc::new(WindowsProcessTerminator),
+        repair_launcher: launcher.clone(),
+        clock: Arc::new(FixedClock::new(&[
+            "2026-11-14T08:30:00Z",
+            "2026-11-14T08:30:01Z",
+            "2026-11-14T08:30:05Z",
+            "2026-11-14T08:30:06Z",
+            "2026-11-14T08:30:10Z",
+            "2026-11-14T08:30:11Z",
+            "2026-11-14T08:30:15Z",
+            "2026-11-14T08:30:16Z",
+        ])),
+    });
+    service.set_experimental_termination(true);
+
+    // 1. Launch returns immediately with Launched while UAC prompt is still open
+    let launched = service.launch_repair().unwrap();
+    assert_eq!(launched.repair.outcome, EacRepairOutcome::Launched);
+    assert_eq!(
+        launched
+            .eac_snapshot
+            .last_repair
+            .as_ref()
+            .map(|r| r.outcome),
+        Some(EacRepairOutcome::Launched)
+    );
+    assert_schema_valid(&launched.eac_snapshot);
+
+    // 2. Worker finishes with ElevationDeclined -> subsequent inspect poll surfaces it
+    rel_tx1.send(()).unwrap();
+    done_rx1.recv().unwrap();
+    let declined_snap = service.inspect();
+    assert_eq!(
+        declined_snap.last_repair,
+        Some(EacLastRepairV02 {
+            outcome: EacRepairOutcome::ElevationDeclined,
+            exit_code: None,
+            updated_at: "2026-11-14T08:30:05Z".to_owned(),
+        })
+    );
+    assert_schema_valid(&declined_snap);
+
+    // 3. Second run finishes with non-zero exit code -> surfaced in lastRepair
+    let (rel_tx2, rel_rx2) = mpsc::channel();
+    let (done_tx2, done_rx2) = mpsc::channel();
+    *launcher.next_terminal.lock().unwrap() = (EacRepairOutcome::Completed, Some(1));
+    *launcher.release_rx.lock().unwrap() = Some(rel_rx2);
+    *launcher.done_tx.lock().unwrap() = Some(done_tx2);
+
+    let _ = service.launch_repair().unwrap();
+    rel_tx2.send(()).unwrap();
+    done_rx2.recv().unwrap();
+    let nonzero_snap = service.inspect();
+    assert_eq!(
+        nonzero_snap
+            .last_repair
+            .as_ref()
+            .map(|r| (r.outcome, r.exit_code)),
+        Some((EacRepairOutcome::Completed, Some(1)))
+    );
+    assert_schema_valid(&nonzero_snap);
 }
 
 #[test]

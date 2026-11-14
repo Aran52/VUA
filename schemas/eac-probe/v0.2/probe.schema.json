@@ -70,6 +70,16 @@
     "terminationCapability": {
       "$ref": "#/$defs/terminationCapability"
     },
+    "lastRepair": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/lastRepair"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "diagnostics": {
       "type": "array",
       "items": {
@@ -342,6 +352,68 @@
         },
         "detail": {
           "type": "string"
+        }
+      }
+    },
+    "repairOutcome": {
+      "enum": [
+        "launched",
+        "already_running",
+        "completed",
+        "elevation_declined",
+        "reparse_point_refused",
+        "verification_failed",
+        "active_session_refused",
+        "not_found",
+        "launch_failed",
+        "timed_out"
+      ]
+    },
+    "lastRepair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "exitCode", "updatedAt"],
+      "properties": {
+        "outcome": {
+          "$ref": "#/$defs/repairOutcome"
+        },
+        "exitCode": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updatedAt": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "completed"
+          }
+        },
+        "required": ["outcome"]
+      },
+      "then": {
+        "properties": {
+          "exitCode": {
+            "type": "integer"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "exitCode": {
+            "type": "null"
+          }
         }
       }
     }

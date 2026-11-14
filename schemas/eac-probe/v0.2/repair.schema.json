@@ -16,6 +16,7 @@
         "already_running",
         "completed",
         "elevation_declined",
+        "reparse_point_refused",
         "verification_failed",
         "active_session_refused",
         "not_found",
@@ -24,7 +25,31 @@
       ]
     },
     "exitCode": {
-      "type": ["integer", "null"]
+      "type": ["integer", "null"],
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    }
+  },
+  "if": {
+    "properties": {
+      "outcome": {
+        "const": "completed"
+      }
+    },
+    "required": ["outcome"]
+  },
+  "then": {
+    "properties": {
+      "exitCode": {
+        "type": "integer"
+      }
+    }
+  },
+  "else": {
+    "properties": {
+      "exitCode": {
+        "type": "null"
+      }
     }
   }
 }

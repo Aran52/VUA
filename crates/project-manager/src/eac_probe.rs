@@ -343,7 +343,9 @@ pub mod v02 {
         terminate_candidate, PreCheck, TerminationGuard, TerminationReceiptV01, TerminationRequest,
     };
     use crate::environment_managers::ManagerRoots;
-    use crate::verified_launch::{strip_windows_verbatim_prefix, LockedExecutable};
+    use crate::verified_launch::{
+        strip_windows_verbatim_prefix, ElevatedLaunchOutcome, LockedExecutable,
+    };
     use crate::{ProcessEntry, ProcessSnapshotSource};
 
     pub const EAC_PROBE_SCHEMA_VERSION_V02: &str = "vua.eac-probe/v0.2";
@@ -417,12 +419,10 @@ pub mod v02 {
                 };
                 is_inside_directory_ci(root, Path::new(raw_path))
             }
-            ProcessKindV02::VrchatGame => match (vrchat_dir, proc_path) {
-                (Some(root), Some(raw_path)) => is_inside_directory_ci(root, Path::new(raw_path)),
-                // Preserve R4 active-session safety when VRChat.exe is running with an unreadable
-                // image path or when the Steam VRChat root could not be resolved.
-                _ => true,
-            },
+            // R4 (ADR 006): ANY running `VRChat.exe` process counts as an active session by image
+            // name alone (including secondary installs or SDK custom client copies), never narrowed
+            // by Steam directory containment.
+            ProcessKindV02::VrchatGame => true,
             ProcessKindV02::EacService => match proc_path {
                 None => true,
                 Some(raw_path) => {
@@ -702,6 +702,14 @@ pub mod v02 {
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
     #[serde(rename_all = "camelCase")]
+    pub struct EacLastRepairV02 {
+        pub outcome: EacRepairOutcome,
+        pub exit_code: Option<i32>,
+        pub updated_at: String,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+    #[serde(rename_all = "camelCase")]
     pub struct EacProbeSnapshotV02 {
         pub schema_version: &'static str,
         pub captured_at: String,
@@ -714,6 +722,7 @@ pub mod v02 {
         pub guidance_code: &'static str,
         pub plan: Vec<EacRecoveryStepId>,
         pub termination_capability: EacTerminationCapabilityV02,
+        pub last_repair: Option<EacLastRepairV02>,
         pub diagnostics: Vec<ManagerDiagnostic>,
     }
 
@@ -731,12 +740,13 @@ pub mod v02 {
     }
 
     pub fn probe_eac_v02(sources: &EacSources<'_>, clock: &dyn Clock) -> EacProbeSnapshotV02 {
-        probe_eac_v02_internal(sources, Some(sources.allowlist), clock)
+        probe_eac_v02_internal(sources, Some(sources.allowlist), None, clock)
     }
 
     fn probe_eac_v02_internal(
         sources: &EacSources<'_>,
         explicit_allowlist: Option<&AllowlistV01>,
+        last_repair: Option<EacLastRepairV02>,
         clock: &dyn Clock,
     ) -> EacProbeSnapshotV02 {
         let captured_at = clock.now_rfc3339();
@@ -1020,6 +1030,7 @@ pub mod v02 {
             guidance_code: conclusion.guidance_code(),
             plan,
             termination_capability,
+            last_repair,
             diagnostics,
         }
     }
@@ -1210,6 +1221,7 @@ pub mod v02 {
         AlreadyRunning,
         Completed,
         ElevationDeclined,
+        ReparsePointRefused,
         VerificationFailed,
         ActiveSessionRefused,
         NotFound,
@@ -1297,11 +1309,44 @@ pub mod v02 {
         if !is_strictly_inside_root(&real_root, &real_target) {
             return Err(EacRepairOutcome::VerificationFailed);
         }
-        strip_windows_verbatim_prefix(&real_target).ok_or(EacRepairOutcome::VerificationFailed)
+        strip_windows_verbatim_prefix(&real_target).ok_or(EacRepairOutcome::ReparsePointRefused)
+    }
+
+    pub fn record_last_repair(
+        slot: &Mutex<Option<EacLastRepairV02>>,
+        outcome: EacRepairOutcome,
+        exit_code: Option<i32>,
+        clock: &dyn Clock,
+    ) {
+        if let Ok(mut guard) = slot.lock() {
+            *guard = Some(EacLastRepairV02 {
+                outcome,
+                exit_code,
+                updated_at: clock.now_rfc3339(),
+            });
+        }
+    }
+
+    fn map_elevated_repair_outcome(
+        outcome: ElevatedLaunchOutcome,
+    ) -> (EacRepairOutcome, Option<i32>) {
+        match outcome {
+            ElevatedLaunchOutcome::Completed { exit_code } => {
+                (EacRepairOutcome::Completed, Some(exit_code))
+            }
+            ElevatedLaunchOutcome::ElevationDeclined => (EacRepairOutcome::ElevationDeclined, None),
+            ElevatedLaunchOutcome::LaunchFailed => (EacRepairOutcome::LaunchFailed, None),
+            ElevatedLaunchOutcome::TimedOut => (EacRepairOutcome::TimedOut, None),
+        }
     }
 
     pub trait RepairLauncher: Send + Sync {
-        fn launch_official_repair(&self, vrchat_dir: &Path) -> EacRepairReceiptV02;
+        fn launch_official_repair(
+            &self,
+            vrchat_dir: &Path,
+            clock: Arc<dyn Clock>,
+            last_repair: Arc<Mutex<Option<EacLastRepairV02>>>,
+        ) -> EacRepairReceiptV02;
     }
 
     struct InFlightRepairGuard(Arc<AtomicBool>);
@@ -1312,10 +1357,11 @@ pub mod v02 {
     }
 
     /// Launches `EasyAntiCheat_EOS_Setup.exe` without blocking the single-threaded core provider
-    /// frame loop: path containment, handle lock (`FILE_SHARE_READ`), ancestor reparse-point check,
-    /// PE check, and WinVerifyTrust leaf-CN check run synchronously (<50 ms); the blocking UAC
-    /// prompt (`ShellExecuteExW` `runas`) and child wait run on a dedicated worker thread holding
-    /// the locked file handle open until exit or 300-second timeout.
+    /// frame loop: path containment, handle lock (`FILE_SHARE_READ`), resolved-final-path
+    /// reparse-point check, PE check, and WinVerifyTrust leaf-CN check run synchronously (<50 ms);
+    /// the blocking UAC prompt (`ShellExecuteExW` `runas`) and child wait run on a dedicated
+    /// worker thread holding the locked file handle open until exit or 300-second timeout and
+    /// writing the terminal outcome into `last_repair`.
     #[derive(Debug, Default, Clone)]
     pub struct WindowsRepairLauncher {
         in_flight: Arc<AtomicBool>,
@@ -1328,24 +1374,37 @@ pub mod v02 {
     }
 
     impl RepairLauncher for WindowsRepairLauncher {
-        fn launch_official_repair(&self, vrchat_dir: &Path) -> EacRepairReceiptV02 {
+        fn launch_official_repair(
+            &self,
+            vrchat_dir: &Path,
+            clock: Arc<dyn Clock>,
+            last_repair: Arc<Mutex<Option<EacLastRepairV02>>>,
+        ) -> EacRepairReceiptV02 {
+            let sync_failure = |outcome: EacRepairOutcome| {
+                record_last_repair(&last_repair, outcome, None, clock.as_ref());
+                EacRepairReceiptV02::new(outcome, None)
+            };
+
             let real_target = match resolve_verified_repair_setup_path(vrchat_dir) {
                 Ok(target) => target,
-                Err(outcome) => return EacRepairReceiptV02::new(outcome, None),
+                Err(outcome) => return sync_failure(outcome),
             };
             let mut locked = match LockedExecutable::open_read_locked(&real_target) {
                 Ok(locked) => locked,
-                Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-                    return EacRepairReceiptV02::new(EacRepairOutcome::NotFound, None);
+                Err(err) if err.is_not_found() => {
+                    return sync_failure(EacRepairOutcome::NotFound);
+                }
+                Err(err) if err.is_invalid_location() => {
+                    return sync_failure(EacRepairOutcome::ReparsePointRefused);
                 }
                 Err(_) => {
-                    return EacRepairReceiptV02::new(EacRepairOutcome::VerificationFailed, None);
+                    return sync_failure(EacRepairOutcome::VerificationFailed);
                 }
             };
             if !locked.has_pe_header()
                 || !locked.verify_authenticode_leaf_cn(EAC_TRUSTED_LEAF_SIGNERS)
             {
-                return EacRepairReceiptV02::new(EacRepairOutcome::VerificationFailed, None);
+                return sync_failure(EacRepairOutcome::VerificationFailed);
             }
             if self
                 .in_flight
@@ -1354,16 +1413,31 @@ pub mod v02 {
             {
                 return EacRepairReceiptV02::new(EacRepairOutcome::AlreadyRunning, None);
             }
+            record_last_repair(
+                &last_repair,
+                EacRepairOutcome::Launched,
+                None,
+                clock.as_ref(),
+            );
             let guard = InFlightRepairGuard(self.in_flight.clone());
+            let worker_clock = clock.clone();
+            let worker_last_repair = last_repair.clone();
             let spawned = std::thread::Builder::new()
                 .name("vua-eac-repair".to_owned())
                 .spawn(move || {
                     let _guard = guard;
-                    let _ = locked.run_elevated_no_args(std::time::Duration::from_secs(300));
+                    let exec = locked.run_elevated_no_args(std::time::Duration::from_secs(300));
+                    let (outcome, exit_code) = map_elevated_repair_outcome(exec);
+                    record_last_repair(
+                        &worker_last_repair,
+                        outcome,
+                        exit_code,
+                        worker_clock.as_ref(),
+                    );
                 });
             match spawned {
                 Ok(_) => EacRepairReceiptV02::new(EacRepairOutcome::Launched, None),
-                Err(_) => EacRepairReceiptV02::new(EacRepairOutcome::LaunchFailed, None),
+                Err(_) => sync_failure(EacRepairOutcome::LaunchFailed),
             }
         }
     }
@@ -1381,8 +1455,9 @@ pub mod v02 {
         pub clock: Arc<dyn Clock>,
     }
 
-    /// Stateful host service owning the in-memory `firstObservedAt` service streak tracker and
-    /// experimental switch state synchronized from Electron Main.
+    /// Stateful host service owning the in-memory `firstObservedAt` service streak tracker,
+    /// latest official repair outcome (`lastRepair`), and experimental switch state synchronized
+    /// from Electron Main.
     pub struct EacProbeService {
         processes: Arc<dyn ProcessSnapshotSourceV02>,
         windows: Arc<dyn WindowVisibilitySource>,
@@ -1396,6 +1471,7 @@ pub mod v02 {
         repair_launcher: Arc<dyn RepairLauncher>,
         clock: Arc<dyn Clock>,
         experimental_enabled: Mutex<bool>,
+        last_repair: Arc<Mutex<Option<EacLastRepairV02>>>,
     }
 
     impl EacProbeService {
@@ -1414,6 +1490,7 @@ pub mod v02 {
                 repair_launcher: Arc::new(WindowsRepairLauncher::new()),
                 clock: Arc::new(SystemClock),
                 experimental_enabled: Mutex::new(false),
+                last_repair: Arc::new(Mutex::new(None)),
             }
         }
 
@@ -1431,6 +1508,7 @@ pub mod v02 {
                 repair_launcher: deps.repair_launcher,
                 clock: deps.clock,
                 experimental_enabled: Mutex::new(false),
+                last_repair: Arc::new(Mutex::new(None)),
             }
         }
 
@@ -1464,7 +1542,8 @@ pub mod v02 {
                 signature_verifier: self.signature_verifier.as_ref(),
                 experimental_termination_enabled: self.experimental_termination(),
             };
-            probe_eac_v02_internal(&sources, None, self.clock.as_ref())
+            let current_last_repair = self.last_repair.lock().ok().and_then(|g| g.clone());
+            probe_eac_v02_internal(&sources, None, current_last_repair, self.clock.as_ref())
         }
 
         pub fn terminate_residual(
@@ -1490,14 +1569,9 @@ pub mod v02 {
                 .map_err(EacTerminateError::ProcessUnreadable)?;
             let vrchat_dir = self.install.detect_vrchat_root();
 
+            // R4: ANY running VRChat.exe process counts as an active session by image name alone.
             let any_vrchat_game = raw_processes.iter().any(|entry| {
                 ProcessKindV02::classify(&entry.image_name) == Some(ProcessKindV02::VrchatGame)
-                    && process_belongs_to_vrchat_or_eos(
-                        ProcessKindV02::VrchatGame,
-                        entry.path.as_deref(),
-                        vrchat_dir.as_deref(),
-                        None,
-                    )
             });
             let any_eac_present = raw_processes.iter().any(|entry| {
                 let Some(kind) = ProcessKindV02::classify(&entry.image_name) else {
@@ -1601,16 +1675,17 @@ pub mod v02 {
                 .map_err(EacRepairError::ProcessUnreadable)?;
             let vrchat_dir = self.install.detect_vrchat_root();
 
+            // R4: ANY running VRChat.exe process counts as an active session by image name alone.
             let any_vrchat_game = raw_processes.iter().any(|entry| {
                 ProcessKindV02::classify(&entry.image_name) == Some(ProcessKindV02::VrchatGame)
-                    && process_belongs_to_vrchat_or_eos(
-                        ProcessKindV02::VrchatGame,
-                        entry.path.as_deref(),
-                        vrchat_dir.as_deref(),
-                        None,
-                    )
             });
             if any_vrchat_game {
+                record_last_repair(
+                    &self.last_repair,
+                    EacRepairOutcome::ActiveSessionRefused,
+                    None,
+                    self.clock.as_ref(),
+                );
                 return Ok(EacRepairResultV02 {
                     repair: EacRepairReceiptV02::new(EacRepairOutcome::ActiveSessionRefused, None),
                     eac_snapshot: self.inspect(),
@@ -1618,13 +1693,42 @@ pub mod v02 {
             }
 
             let Some(vrchat_dir) = vrchat_dir else {
+                record_last_repair(
+                    &self.last_repair,
+                    EacRepairOutcome::NotFound,
+                    None,
+                    self.clock.as_ref(),
+                );
                 return Ok(EacRepairResultV02 {
                     repair: EacRepairReceiptV02::new(EacRepairOutcome::NotFound, None),
                     eac_snapshot: self.inspect(),
                 });
             };
 
-            let repair = self.repair_launcher.launch_official_repair(&vrchat_dir);
+            let repair = self.repair_launcher.launch_official_repair(
+                &vrchat_dir,
+                self.clock.clone(),
+                self.last_repair.clone(),
+            );
+            if repair.outcome != EacRepairOutcome::AlreadyRunning {
+                if repair.outcome == EacRepairOutcome::Launched {
+                    if self.last_repair.lock().ok().is_some_and(|g| g.is_none()) {
+                        record_last_repair(
+                            &self.last_repair,
+                            EacRepairOutcome::Launched,
+                            None,
+                            self.clock.as_ref(),
+                        );
+                    }
+                } else {
+                    record_last_repair(
+                        &self.last_repair,
+                        repair.outcome,
+                        repair.exit_code,
+                        self.clock.as_ref(),
+                    );
+                }
+            }
             let eac_snapshot = self.inspect();
             Ok(EacRepairResultV02 {
                 repair,

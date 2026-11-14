@@ -14,6 +14,7 @@ import {
   eacConclusionHeadline,
   eacGuideTarget,
   formatEvidenceTime,
+  formatRepairOutcome,
   isUnloadReminderArmed,
   isUnloadingLong,
   selectLadderStep,
@@ -244,29 +245,10 @@ export function EacDialog({
     try {
       const outcome = await eacPort.launchRepair(crypto.randomUUID());
       applySnapshot(outcome.eacSnapshot);
-      switch (outcome.repair.outcome) {
-        case "launched":
-          setFeedback(copy.repairConfirm.launched);
-          break;
-        case "already_running":
-          setFeedback(copy.repairConfirm.alreadyRunning);
-          break;
-        case "completed":
-          setFeedback(
-            format(copy.repairConfirm.completed, {
-              code: outcome.repair.exitCode ?? 0,
-            }),
-          );
-          break;
-        case "elevation_declined":
-          setFeedback(copy.repairConfirm.declined);
-          break;
-        case "active_session_refused":
-          setFeedback(copy.repairConfirm.activeRefused);
-          break;
-        default:
-          setFeedback(format(copy.repairConfirm.failed, { outcome: outcome.repair.outcome }));
-          break;
+      if (outcome.repair.outcome === "already_running" || !outcome.eacSnapshot.lastRepair) {
+        setFeedback(formatRepairOutcome(outcome.repair, copy));
+      } else {
+        setFeedback(null);
       }
     } catch (error) {
       setFeedback(
@@ -284,6 +266,9 @@ export function EacDialog({
     : copy.dialogTitle;
   const ladder = snapshot ? selectLadderStep(snapshot, stepOffset, nowMs) : { current: null, index: 0, hasNext: false };
   const candidate = snapshot?.terminationCapability.candidate ?? null;
+  const lastRepairFeedback = snapshot?.lastRepair
+    ? formatRepairOutcome(snapshot.lastRepair, copy)
+    : null;
 
   const processesText = !snapshot || snapshot.processes.length === 0
     ? copy.evidence.processesNone
@@ -454,7 +439,8 @@ export function EacDialog({
                 ) : null}
 
                 {remindArmed ? <p className="vua-eac-dialog__feedback" role="status">{copy.remindArmed}</p> : null}
-                {feedback ? <p className="vua-eac-dialog__feedback" role="status">{feedback}</p> : null}
+                {lastRepairFeedback ? <p className="vua-eac-dialog__feedback" role="status" data-testid="eac-last-repair">{lastRepairFeedback}</p> : null}
+                {feedback && feedback !== lastRepairFeedback ? <p className="vua-eac-dialog__feedback" role="status">{feedback}</p> : null}
               </>
             ) : null}
           </div>

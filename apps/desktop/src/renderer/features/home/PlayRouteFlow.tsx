@@ -18,7 +18,7 @@ import { readDeploymentReceipt, type DeploymentReceiptBookmark } from "../deploy
 import { PICO_RUNTIME_PAGE, readDeploymentManualHandoff } from "../deployer/deployment-handoff.ts";
 import { ToolReinstallRow } from "../tools/ToolReinstall.tsx";
 import { EacDialog } from "./EacDialog.tsx";
-import { eacConclusionHeadline, shouldShowInlineEacRow } from "./eac-model.ts";
+import { eacConclusionHeadline, shouldPromptBeforeLaunch, shouldShowInlineEacRow } from "./eac-model.ts";
 import { StepRows } from "./PlaySetupFlow.tsx";
 import { checklistSignature, playChecklist, playFlowPhase, progressPercent, readConfirmed, writeConfirmed, type PlayFlowPhase } from "./play-flow-model.ts";
 import "./play-flow.css";
@@ -208,8 +208,8 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
       void eac.inspect().then(
         (snap) => {
           setEacSnapshot(snap);
-          if (snap.conclusion === "ready") onLaunch(false);
-          else setPreLaunchPrompt(snap);
+          if (shouldPromptBeforeLaunch(snap)) setPreLaunchPrompt(snap);
+          else onLaunch(false);
         },
         () => { onLaunch(false); },
       ).finally(() => { setEacChecking(false); });
@@ -244,7 +244,7 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
       ? session.issue
       : null;
   const timeoutEacAttribution =
-    timeoutIssue !== null && eacSnapshot !== null && eacSnapshot.conclusion !== "ready"
+    timeoutIssue !== null && eacSnapshot !== null && eacSnapshot.conclusion !== "ready" && eacSnapshot.conclusion !== "unknown"
       ? format(strings.environmentCards.eacAttribution[timeoutIssue], {
           reason: eacConclusionHeadline(eacSnapshot, strings.eac, Date.now()),
         })

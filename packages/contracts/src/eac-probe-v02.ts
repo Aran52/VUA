@@ -80,6 +80,7 @@ export const EAC_REPAIR_OUTCOMES_V02 = [
   "already_running",
   "completed",
   "elevation_declined",
+  "reparse_point_refused",
   "verification_failed",
   "active_session_refused",
   "not_found",
@@ -140,6 +141,12 @@ export interface EacDiagnosticV02 {
   readonly detail: string;
 }
 
+export interface EacLastRepairV02 {
+  readonly outcome: EacRepairOutcomeV02;
+  readonly exitCode: number | null;
+  readonly updatedAt: string;
+}
+
 export interface EacProbeSnapshotV02 {
   readonly schemaVersion: typeof EAC_PROBE_SCHEMA_V02;
   readonly capturedAt: string;
@@ -152,6 +159,7 @@ export interface EacProbeSnapshotV02 {
   readonly guidanceCode: string;
   readonly plan: readonly EacRecoveryStepIdV02[];
   readonly terminationCapability: EacTerminationCapabilityV02;
+  readonly lastRepair?: EacLastRepairV02 | null;
   readonly diagnostics: readonly EacDiagnosticV02[];
 }
 
@@ -353,23 +361,49 @@ function isTerminationCapability(value: unknown): value is EacTerminationCapabil
   );
 }
 
+function validExitCodeInt32(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= -2147483648 && Number(value) <= 2147483647;
+}
+
+function validRepairOutcomeAndExitCode(
+  outcome: unknown,
+  exitCode: unknown,
+): outcome is EacRepairOutcomeV02 {
+  if (typeof outcome !== "string" || !(EAC_REPAIR_OUTCOMES_V02 as readonly string[]).includes(outcome)) {
+    return false;
+  }
+  return outcome === "completed" ? validExitCodeInt32(exitCode) : exitCode === null;
+}
+
+function isLastRepair(value: unknown): value is EacLastRepairV02 {
+  return (
+    closed(value, ["outcome", "exitCode", "updatedAt"]) &&
+    validRepairOutcomeAndExitCode(value.outcome, value.exitCode) &&
+    validTimestamp(value.updatedAt)
+  );
+}
+
+const SNAPSHOT_BASE_KEYS = [
+  "schemaVersion",
+  "capturedAt",
+  "processes",
+  "services",
+  "steam",
+  "install",
+  "logFindings",
+  "conclusion",
+  "guidanceCode",
+  "plan",
+  "terminationCapability",
+  "diagnostics",
+] as const;
+
 export function isEacProbeSnapshotV02(value: unknown): value is EacProbeSnapshotV02 {
-  if (
-    !closed(value, [
-      "schemaVersion",
-      "capturedAt",
-      "processes",
-      "services",
-      "steam",
-      "install",
-      "logFindings",
-      "conclusion",
-      "guidanceCode",
-      "plan",
-      "terminationCapability",
-      "diagnostics",
-    ])
-  ) {
+  const hasLastRepair = record(value) && Object.hasOwn(value, "lastRepair");
+  if (!closed(value, hasLastRepair ? [...SNAPSHOT_BASE_KEYS, "lastRepair"] : SNAPSHOT_BASE_KEYS)) {
+    return false;
+  }
+  if (hasLastRepair && value.lastRepair !== null && !isLastRepair(value.lastRepair)) {
     return false;
   }
   if (
@@ -503,9 +537,7 @@ export function isEacRepairReceiptV02(value: unknown): value is EacRepairReceipt
   return (
     closed(value, ["schemaVersion", "outcome", "exitCode"]) &&
     value.schemaVersion === EAC_REPAIR_SCHEMA_V02 &&
-    typeof value.outcome === "string" &&
-    (EAC_REPAIR_OUTCOMES_V02 as readonly string[]).includes(value.outcome) &&
-    (value.exitCode === null || Number.isSafeInteger(value.exitCode))
+    validRepairOutcomeAndExitCode(value.outcome, value.exitCode)
   );
 }
 

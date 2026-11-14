@@ -36,10 +36,12 @@ and rejects both `environment.terminateEacResidual` and `environment.launchEacRe
 forwarding when disabled; Main synchronizes the persisted boolean to the supervised Provider
 (including on Provider reconnect) through the internal host-only command
 `environment.configureEacExperimental`, which is never routed from the renderer or AI tool catalog.
-Official EAC repair performs path-containment, handle-locking, reparse-point refusal, and
-Authenticode verification synchronously, then hands UAC (`runas`) elevation off to a background
+Official EAC repair performs path-containment, handle-locking, final-path reparse-point refusal,
+and Authenticode verification synchronously, then hands UAC (`runas`) elevation off to a background
 worker thread (`outcome: "launched"`) so the core Provider frame loop never blocks on UAC or GUI
-setup windows.
+setup windows; when the worker finishes, its terminal outcome (`completed` with `exitCode`,
+`elevation_declined`, `launch_failed`, or `timed_out`) is recorded in `eacSnapshot.lastRepair` so
+dialog polling surfaces UAC declines, launch failures, and non-zero exit codes.
 
 ## Snapshot (`vua.eac-probe/v0.2`)
 
@@ -47,7 +49,10 @@ setup windows.
   `FILETIME` 100-ns creation ticks as a base-10 string (`^[0-9]{1,20}$`) or `null` so 64-bit values
   survive JSON parsing without IEEE-754 precision loss. `kind` adds `vrchat_launcher`
   (`start_protected_game.exe`, `launch.exe`); `easyanticheat_eos.exe` is classified as
-  `eac_service` (`LocalSystem`) and is never a user-mode termination candidate.
+  `eac_service` (`LocalSystem`) and is never a user-mode termination candidate. Launcher/loader
+  findings are scoped inside the detected VRChat directory, while `vrchat_game` (`VRChat.exe`)
+  matches unconditionally by process name so R4 active-session protection covers secondary or SDK
+  test client copies as well.
 - `services[]`: exactly two entries in fixed order `["EasyAntiCheat_EOS", "EasyAntiCheat_EOSSys"]`
   with `{ name, present, state, firstObservedAt }`. `EasyAntiCheat_EOSSys` is dynamically registered
   during play and absent (`present: false, state: "stopped"`) when VRChat is cleanly idle.
@@ -66,6 +71,10 @@ setup windows.
   `session_active`, or `unknown`. Omits `terminate_residual` whenever the experimental switch is
   disabled or no verified allowlisted user-mode candidate is present.
 - `terminationCapability`: `{ state: "unavailable" | "disabled" | "available", reason, candidate }`.
+- `lastRepair`: `null` or `{ outcome, exitCode, updatedAt }`, reporting the most recent official
+  repair attempt in this Provider session (`launched`, `completed`, `elevation_declined`,
+  `reparse_point_refused`, `verification_failed`, `active_session_refused`, `not_found`,
+  `launch_failed`, or `timed_out`).
 
 ## Sources and implementation
 

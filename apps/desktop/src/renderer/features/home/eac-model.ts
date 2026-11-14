@@ -1,6 +1,7 @@
 import type {
   EacProbeSnapshotV02,
   EacRecoveryStepIdV02,
+  EacRepairOutcomeV02,
   GuideTargetV1,
 } from "@vua/contracts";
 import { toast } from "../../components/primitives/toast-store.ts";
@@ -131,6 +132,52 @@ export function shouldShowInlineEacRow(snapshot: EacProbeSnapshotV02 | null): bo
     && snapshot.conclusion !== "ready"
     && snapshot.conclusion !== "session_active"
   );
+}
+
+/**
+ * Only actionable blocking EAC conclusions intercept Play launch with the "Launch anyway" prompt.
+ * `ready`, `session_active`, and `unknown` (for example when SCM DACLs block binary path queries)
+ * proceed without pre-launch modal interception.
+ */
+export function shouldPromptBeforeLaunch(snapshot: EacProbeSnapshotV02): boolean {
+  switch (snapshot.conclusion) {
+    case "unloading":
+    case "residual_process":
+    case "steam_stale":
+    case "not_installed":
+    case "install_damaged":
+      return true;
+    case "ready":
+    case "session_active":
+    case "unknown":
+      return false;
+  }
+}
+
+export function formatRepairOutcome(
+  repair: { readonly outcome: EacRepairOutcomeV02; readonly exitCode: number | null },
+  copy: Strings["eac"],
+): string {
+  switch (repair.outcome) {
+    case "launched":
+      return copy.repairConfirm.launched;
+    case "already_running":
+      return copy.repairConfirm.alreadyRunning;
+    case "completed": {
+      const code = repair.exitCode ?? 0;
+      return code === 0
+        ? format(copy.repairConfirm.completed, { code })
+        : format(copy.repairConfirm.completedNonZero, { code });
+    }
+    case "elevation_declined":
+      return copy.repairConfirm.declined;
+    case "reparse_point_refused":
+      return copy.repairConfirm.reparseRefused;
+    case "active_session_refused":
+      return copy.repairConfirm.activeRefused;
+    default:
+      return format(copy.repairConfirm.failed, { outcome: repair.outcome });
+  }
 }
 
 export function eacConclusionHeadline(

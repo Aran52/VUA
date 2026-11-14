@@ -15,9 +15,9 @@ use vua_project_manager::eac_install::{
 };
 use vua_project_manager::eac_logs::{EacLogFinding, LogSource};
 use vua_project_manager::eac_probe::v02::{
-    CandidateSignatureVerifier, EacProbeService, EacRepairOutcome, EacRepairReceiptV02,
-    EacServiceDeps, ProcessEntryV02, ProcessSnapshotSourceV02, ProcessTerminator, RepairLauncher,
-    SteamRunningSource, WindowVisibilitySource,
+    CandidateSignatureVerifier, EacLastRepairV02, EacProbeService, EacRepairOutcome,
+    EacRepairReceiptV02, EacServiceDeps, ProcessEntryV02, ProcessSnapshotSourceV02,
+    ProcessTerminator, RepairLauncher, SteamRunningSource, WindowVisibilitySource,
 };
 use vua_project_manager::eac_service::{
     EacServiceName, EacServiceState, RawServiceObservation, ServiceStatusSource,
@@ -170,7 +170,12 @@ impl ProcessTerminator for SyntheticTerminator {
 
 struct SyntheticRepairLauncher(Arc<AtomicUsize>);
 impl RepairLauncher for SyntheticRepairLauncher {
-    fn launch_official_repair(&self, _vrchat_dir: &Path) -> EacRepairReceiptV02 {
+    fn launch_official_repair(
+        &self,
+        _vrchat_dir: &Path,
+        _clock: Arc<dyn Clock>,
+        _last_repair: Arc<Mutex<Option<EacLastRepairV02>>>,
+    ) -> EacRepairReceiptV02 {
         self.0.fetch_add(1, Ordering::SeqCst);
         EacRepairReceiptV02::new(EacRepairOutcome::Completed, Some(0))
     }
@@ -451,6 +456,14 @@ fn launch_eac_repair_validates_closed_params_refuses_active_session_and_validate
     assert_eq!(completed["ok"], true);
     assert_eq!(completed["value"]["repair"]["outcome"], "completed");
     assert_eq!(completed["value"]["repair"]["exitCode"], 0);
+    assert_eq!(
+        completed["value"]["eacSnapshot"]["lastRepair"]["outcome"],
+        "completed"
+    );
+    assert_eq!(
+        completed["value"]["eacSnapshot"]["lastRepair"]["exitCode"],
+        0
+    );
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     assert!(repair_validator
         .validate(&completed["value"]["repair"])

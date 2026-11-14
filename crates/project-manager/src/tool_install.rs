@@ -606,8 +606,14 @@ fn verify_locked_installer(
     spec: &InstallerToolSpec,
     report: &mut DeploymentReporter<'_>,
 ) -> Result<(crate::verified_launch::LockedExecutable, String), &'static str> {
-    let mut locked = crate::verified_launch::LockedExecutable::open_read_locked(path)
-        .map_err(|_| INTEGRITY_ERROR)?;
+    let mut locked =
+        crate::verified_launch::LockedExecutable::open_read_locked(path).map_err(|err| {
+            if err.is_invalid_location() {
+                "vua.deployment.invalid_location"
+            } else {
+                INTEGRITY_ERROR
+            }
+        })?;
     let digest = locked.verify_sha256_and_size(
         MAX_SETUP_BYTES,
         Some(spec.size),

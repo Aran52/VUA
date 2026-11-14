@@ -216,7 +216,7 @@ async function run() {
     await waitFor(() => js('!!document.getElementById("route-varjo-details") && !!document.querySelector("[data-nav-id=play-official-varjo-base]") && document.querySelector("[data-nav-id=route-varjo-action]")?.getAttribute("aria-busy")==="false"'), "Varjo's steps link its official page");
     assert(await js('!document.querySelector(".vua-setup__connections")'), "A wired headset skips the connection question");
     await js('document.querySelector("[data-nav-id=play-device-quest]").click()');
-    await waitFor(() => js('!!document.getElementById("route-quest-details") && !!document.querySelector("[data-nav-id=play-official-quest-link]")'), "Meta Quest's steps");
+    await waitFor(() => js('!!document.getElementById("route-quest-details") && !!document.querySelector("[data-nav-id=play-official-quest-link]") && document.querySelector("[data-nav-id=route-quest-action]")?.getAttribute("aria-busy")==="false"'), "Meta Quest's steps");
     assert(await js('document.querySelectorAll(".vua-setup__connections input[type=radio]").length===5'), "Meta Quest offers its five connections, including no PC");
     await js(`(() => {
       window.__helpEscapeTrace = [];
@@ -230,7 +230,7 @@ async function run() {
       record('before-connection');
     })()`);
     await js('document.querySelector("[data-nav-id=play-connection-virtual-desktop]").click()');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=play-official-virtual-desktop]")'), "Choosing a connection changes the steps");
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=play-official-virtual-desktop]") && document.querySelector("[data-nav-id=route-quest-action]")?.getAttribute("aria-busy")==="false"'), "Choosing a connection changes the steps");
     await js('window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape"}))');
     await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="false"'), "Esc closes the choices");
     fs.writeFileSync(path.join(output, "escape-trace.json"), JSON.stringify(await js('window.__helpEscapeTrace'), null, 2));

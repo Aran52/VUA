@@ -27,9 +27,11 @@ describe("native frames", () => {
   it("rejects malformed, duplicate or out-of-range readings", () => {
     for (const value of [null, {}, { cpuUsagePercent: 101, gpus: [] },
       { cpuUsagePercent: 10, gpus: [gpu("duplicate", 1), gpu("duplicate", 2)] },
-      { cpuUsagePercent: 10, gpus: [gpu("bad", -1)] }]) expect(parseResourceSample(JSON.stringify(value))).toBeNull();
+      { cpuUsagePercent: 10, gpus: [gpu("bad", -1)] },
+      { cpuUsagePercent: 10, gpus: [], steamVrRunning: "yes" }]) expect(parseResourceSample(JSON.stringify(value))).toBeNull();
     expect(parseResourceSample("broken")).toBeNull();
     expect(parseResourceSample('{"cpuUsagePercent":null,"gpus":[]}')).toEqual({ cpuUsagePercent: null, gpus: [] });
+    expect(parseResourceSample('{"cpuUsagePercent":12,"gpus":[],"steamVrRunning":true}')).toEqual({ cpuUsagePercent: 12, gpus: [], steamVrRunning: true });
   });
 });
 function nativeChild() {
@@ -47,14 +49,14 @@ describe("collector freshness and lifecycle", () => {
     expect(spawnImpl).toHaveBeenCalledTimes(1);
     expect(spawnImpl).toHaveBeenCalledWith("bundled-provider.exe", ["--observe-system-resources"], { windowsHide: true });
     expect(collector.snapshotV2().gpuUsagePercent).toBeNull();
-    const frame = JSON.stringify({ cpuUsagePercent: 25, gpus: [gpu("iGPU", 90, "integrated"), gpu("game", 80, "discrete", 6, 8)] }) + "\n";
+    const frame = JSON.stringify({ cpuUsagePercent: 25, gpus: [gpu("iGPU", 90, "integrated"), gpu("game", 80, "discrete", 6, 8)], steamVrRunning: true }) + "\n";
     child.stdout.write(frame.slice(0, 20));
     expect(collector.snapshotV2().cpuUsagePercent).toBeNull();
     child.stdout.write(frame.slice(20));
-    expect(collector.snapshotV2()).toMatchObject({ cpuUsagePercent: 25, gpuUsagePercent: 80, gpuName: "game", vramUsedBytes: 6, vramTotalBytes: 8 });
+    expect(collector.snapshotV2()).toMatchObject({ cpuUsagePercent: 25, gpuUsagePercent: 80, gpuName: "game", vramUsedBytes: 6, vramTotalBytes: 8, steamVrRunning: true });
     expect(Object.keys(collector.snapshot()).sort()).toEqual(["ramTotalBytes", "ramUsedBytes", "sampledAt", "schemaVersion", "vramTotalBytes", "vramUsedBytes"].sort());
     now += RESOURCE_STALE_AFTER_MS + 1;
-    expect(collector.snapshotV2()).toMatchObject({ cpuUsagePercent: null, gpuUsagePercent: null, vramUsedBytes: null });
+    expect(collector.snapshotV2()).toMatchObject({ cpuUsagePercent: null, gpuUsagePercent: null, vramUsedBytes: null, steamVrRunning: null });
     child.stdout.write(frame);
     child.stdout.write("broken\n");
     expect(collector.snapshotV2().gpuUsagePercent).toBeNull();

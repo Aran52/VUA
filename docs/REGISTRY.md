@@ -35,7 +35,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/catalog-orders-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-11-07 |
 | docs/protocols/desktop-browser-v0.1.md | 1.1.0 | Candidate | Desktop | 2026-10-11 |
 | docs/protocols/desktop-library-v0.1.md | 1.4.0 | Candidate | Desktop | 2026-10-12 |
-| docs/protocols/desktop-resource-v0.2.md | 1.0.0 | Candidate | Desktop | 2026-10-10 |
+| docs/protocols/desktop-resource-v0.2.md | 1.1.0 | Candidate | Desktop | 2026-11-14 |
 | docs/protocols/desktop-startup-v0.1.md | 1.0.0 | Candidate | Desktop | 2026-10-10 |
 | docs/protocols/desktop-window-v0.2.md | 1.0.2 | Candidate | Desktop | 2026-10-10 |
 | docs/protocols/download-events-v0.1.md | 0.1 | Frozen | Data | 2026-09-06 |

@@ -224,6 +224,8 @@ export const strings = {
     progress: "{done}/{total}",
     openAria: "Open Notification Center ({count} active)",
     closeAria: "Close Notification Center",
+    pinAria: "Keep Notification Center open",
+    unpinAria: "Unpin Notification Center",
     empty: "No notifications",
     unlabeledTask: "Background task",
   },
@@ -249,6 +251,13 @@ export const strings = {
     unavailable: "Unavailable",
     gpuKinds: {"discrete":"Dedicated GPU","integrated":"Integrated GPU","unknown":"Unknown type"},
     sharedMemory: "GPU shares system memory — no dedicated VRAM figure",
+    trend60s: "60s peak trend",
+    steamVrRunningNote: "SteamVR runtime detected",
+    capacity: {
+      comfortable: "{freeRam} GB free RAM — comfortable for concurrent Unity builds",
+      single: "{freeRam} GB free RAM — best to run one Unity build at a time",
+      tight: "{freeRam} GB free RAM — close heavy apps before starting a Unity build",
+    },
     closeAria: "Close resource details",
   },
   nav: {

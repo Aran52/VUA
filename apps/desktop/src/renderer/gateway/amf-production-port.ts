@@ -457,7 +457,7 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
   };
   const accepted = (value: unknown, title: string): AmfProductionAccepted => {
     if (!record(value) || value.schemaVersion !== "0.1" || !text(value.runId) || !text(value.taskId) || !value.taskId) throw new Error("amf_production_receipt_invalid");
-    registerTaskIdentity(value.taskId, { title, originPage: "workshop", notifyOnComplete: true });
+    registerTaskIdentity(value.taskId, { title, originPage: "workshop", notifyOnComplete: true, notifyFamily: "amf:production" });
     return { runId: value.runId, taskId: value.taskId };
   };
   return {

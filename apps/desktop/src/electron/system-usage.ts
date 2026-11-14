@@ -13,7 +13,11 @@ export interface GpuSample {
   readonly dedicatedUsedBytes: number | null;
   readonly dedicatedTotalBytes: number | null;
 }
-interface NativeSample { readonly cpuUsagePercent: number | null; readonly gpus: readonly GpuSample[] }
+interface NativeSample {
+  readonly cpuUsagePercent: number | null;
+  readonly gpus: readonly GpuSample[];
+  readonly steamVrRunning?: boolean | null;
+}
 
 const finiteOrNull = (value: unknown, max = Number.MAX_SAFE_INTEGER): value is number | null =>
   value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= max);
@@ -22,6 +26,7 @@ export function parseResourceSample(line: string): NativeSample | null {
   try {
     const value = JSON.parse(line) as NativeSample;
     if (!value || !finiteOrNull(value.cpuUsagePercent, 100) || !Array.isArray(value.gpus) || value.gpus.length > 64) return null;
+    if (value.steamVrRunning !== undefined && value.steamVrRunning !== null && typeof value.steamVrRunning !== "boolean") return null;
     const ids = new Set<string>();
     for (const gpu of value.gpus) {
       if (!gpu || typeof gpu.id !== "string" || !gpu.id.length || gpu.id.length > 256 || ids.has(gpu.id)
@@ -97,6 +102,7 @@ export class SystemUsageCollector {
       gpuName: gpu?.name ?? null, gpuKind: gpu?.kind ?? null,
       vramUsedBytes: gpu?.kind === "discrete" ? gpu.dedicatedUsedBytes : null,
       vramTotalBytes: gpu?.kind === "discrete" ? gpu.dedicatedTotalBytes : null,
+      steamVrRunning: fresh?.steamVrRunning ?? null,
       sampledAt: new Date(this.now()).toISOString() };
   }
   snapshot(): SystemResourceUsageV1 {

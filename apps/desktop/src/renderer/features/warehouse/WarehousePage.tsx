@@ -560,6 +560,7 @@ export function WarehousePage({
         title: copy.catalogSync.taskTitle,
         originPage: "warehouse",
         notifyOnComplete: true,
+        notifyFamily: "library:sync",
       });
       setSyncRunId(outcome.runId);
       setSyncNotice("started");
@@ -947,7 +948,7 @@ export function WarehousePage({
   }, []);
   useEffect(() => window.vua?.events.subscribe((event) => {
     if ("taskId" in event && typeof event.payload === "object" && event.payload !== null && "operation" in event.payload && event.payload.operation === "library.reconcileSources") {
-      registerTaskIdentity(event.taskId, { title: copy.libraryState.reconciliationTitle, originPage: "warehouse", notifyOnComplete: true });
+      registerTaskIdentity(event.taskId, { title: copy.libraryState.reconciliationTitle, originPage: "warehouse", notifyOnComplete: true, notifyFamily: "library:reconcile" });
     }
     if (event.kind === "task.completed" || event.kind === "task.persistenceFailed") {
       setReloadKey((key) => key + 1); setDetailReloadKey((key) => key + 1);
@@ -1054,7 +1055,7 @@ export function WarehousePage({
         return;
       }
       toast(format(copy.cardMenu.downloadQueuedHint, { count: outcome.accepted }), "success");
-      registerTaskIdentity(outcome.taskId, { title: `${copy.cardMenu.download} · ${resultsView?.items.find((item) => item.productId === productId)?.title ?? productId}`, originPage: "warehouse", notifyOnComplete: true });
+      registerTaskIdentity(outcome.taskId, { title: `${copy.cardMenu.download} · ${resultsView?.items.find((item) => item.productId === productId)?.title ?? productId}`, originPage: "warehouse", notifyOnComplete: true, notifyFamily: "library:download" });
       setDownloadWatchBatch(outcome.batchId);
       setTransfers(prev => [...prev.filter(t => t.batchId !== outcome.batchId), { batchId: outcome.batchId, productId, paused: false }]);
       setReloadKey((key) => key + 1);

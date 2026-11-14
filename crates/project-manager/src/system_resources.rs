@@ -18,6 +18,7 @@ pub struct GpuSample {
 pub struct ResourceSample {
     pub cpu_usage_percent: Option<f64>,
     pub gpus: Vec<GpuSample>,
+    pub steam_vr_running: Option<bool>,
 }
 
 /// The busiest engine represents one physical GPU; processes sharing the same
@@ -247,6 +248,14 @@ mod native {
         result
     }
 
+    const STEAMVR_PROCESS_NAMES: &[&str] = &["vrserver.exe", "vrmonitor.exe", "vrcompositor.exe"];
+
+    fn observe_steamvr_running() -> Option<bool> {
+        crate::play_session::os::running_from_candidates(STEAMVR_PROCESS_NAMES)
+            .ok()
+            .map(|running| !running.is_empty())
+    }
+
     pub struct Sampler {
         query: Option<Query>,
         adapter_cache: AdapterStaticCache,
@@ -274,10 +283,12 @@ mod native {
                     self.query = Query::open();
                 }
             }
+            let steam_vr_running = observe_steamvr_running();
             let Some(query) = &self.query else {
                 return ResourceSample {
                     cpu_usage_percent: None,
                     gpus: vec![],
+                    steam_vr_running,
                 };
             };
             if unsafe { PdhCollectQueryData(query.handle) } != 0 {
@@ -285,6 +296,7 @@ mod native {
                 return ResourceSample {
                     cpu_usage_percent: None,
                     gpus: vec![],
+                    steam_vr_running,
                 };
             }
             let mut engines = std::collections::BTreeMap::<String, Vec<(String, f64)>>::new();
@@ -328,6 +340,7 @@ mod native {
             ResourceSample {
                 cpu_usage_percent: query.cpu(),
                 gpus,
+                steam_vr_running,
             }
         }
     }
@@ -345,6 +358,7 @@ impl Sampler {
         ResourceSample {
             cpu_usage_percent: None,
             gpus: vec![],
+            steam_vr_running: None,
         }
     }
 }
@@ -373,5 +387,15 @@ mod tests {
         );
         assert_eq!(instance_parts(id), Some((id.into(), None)));
         assert_eq!(instance_parts("unrecognized"), None);
+    }
+    #[test]
+    fn resource_sample_serializes_steam_vr_running_in_camel_case() {
+        let json = serde_json::to_value(ResourceSample {
+            cpu_usage_percent: Some(12.5),
+            gpus: vec![],
+            steam_vr_running: Some(true),
+        })
+        .expect("serialize ResourceSample");
+        assert_eq!(json["steamVrRunning"], serde_json::json!(true));
     }
 }

@@ -228,6 +228,8 @@ export const strings: Strings = {
     progress: "{done}/{total}",
     openAria: "開啟通知中心（{count} 項進行中）",
     closeAria: "關閉通知中心",
+    pinAria: "釘選通知中心（點擊頁面不自動收合）",
+    unpinAria: "取消釘選通知中心",
     empty: "暫無通知",
     unlabeledTask: "背景任務",
   },
@@ -253,6 +255,13 @@ export const strings: Strings = {
     unavailable: "暫無法讀取",
     gpuKinds: {"discrete":"獨立顯示卡","integrated":"內建顯示卡","unknown":"類型未知"},
     sharedMemory: "顯示卡與系統共享記憶體，沒有獨立的顯示記憶體讀數",
+    trend60s: "近 60 秒峰值走勢",
+    steamVrRunningNote: "已偵測到 SteamVR 正在執行",
+    capacity: {
+      comfortable: "可用記憶體 {freeRam} GB · 可從容並行執行 Unity 建置",
+      single: "可用記憶體 {freeRam} GB · 建議每次只執行一項 Unity 建置",
+      tight: "可用記憶體 {freeRam} GB · 啟動 Unity 建置前建議先關閉高佔用程式",
+    },
     closeAria: "關閉資源詳情",
   },
   nav: {

@@ -11,6 +11,8 @@ import {
   canDismiss,
   isTerminalStatus,
   loadDismissedIds,
+  persistDismissedSet,
+  pruneDismissedIds,
   saveDismissedId,
   visibleNotifications,
 } from "./notification-model.ts";
@@ -39,7 +41,18 @@ export function useNotificationCenter() {
     };
   }, [gateway]);
 
-  // 通知投影:活动任务恒显;终态任务仅 notifyOnComplete 保留的最新一条可见
+  // Prune stale dismissed IDs once authoritative task list has loaded.
+  useEffect(() => {
+    if (view.tasks.length === 0) return;
+    const knownIds = new Set(view.tasks.map((task) => task.id));
+    setDismissed((current) => {
+      const pruned = pruneDismissedIds(current, knownIds);
+      if (pruned !== current) persistDismissedSet(pruned);
+      return pruned;
+    });
+  }, [view.tasks]);
+
+  // 通知投影:活动任务恒显;终态任务按 notifyFamily 各族保留最新一条可见
   const notifications = useMemo(
     () => visibleNotifications(view.tasks, dismissed),
     [view.tasks, dismissed],

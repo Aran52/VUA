@@ -64,6 +64,7 @@ import { ToastHost } from "./components/primitives/ToastHost.tsx";
 import { Tooltip } from "./components/primitives/Tooltip.tsx";
 import { AiRequestsHere } from "./features/ai-requests/AiRequestsHere.tsx";
 import { ResourceMonitor } from "./features/resource-monitor/ResourceMonitor.tsx";
+import { useResourceUsage } from "./features/resource-monitor/resource-usage-store.ts";
 import { BootGate, BootSplash } from "./components/splash/BootSplash.tsx";
 import { bootProgress } from "./app/boot-progress.ts";
 import { ToolsPage, type ToolsPageId } from "./features/tools/ToolsPage.tsx";
@@ -228,8 +229,8 @@ function ExperimentalSettingsPage() {
   </div>;
 }
 
-/** VUA cannot tell yet whether SteamVR is running (issue #27), so the automatic saver option stays hidden. */
-const steamVRDetection = false;
+/** Read-only SteamVR runtime process observation via desktop-resource v0.2 (issue #27). */
+const steamVRDetection = true;
 
 function ThemeSettingsPage({
   theme,
@@ -336,22 +337,24 @@ function ThemeSettingsPage({
         </div>
         <div className="vua-preference-row">
           <div><h3>{copy.saverHeading}</h3><p>{copy.saverDescription}</p></div>
-          <div className="vua-settings-row">
-            <Toggle on={saverOn} onToggle={onSaverToggle} label={saverOn ? copy.saverTurnOff : copy.saverTurnOn} />
-            {saverSource === "auto" ? <span className="vua-text-secondary">{copy.saverStateAuto}</span> : null}
+          <div className="vua-settings-saver">
+            <div className="vua-settings-row">
+              <Toggle on={saverOn} onToggle={onSaverToggle} label={saverOn ? copy.saverTurnOff : copy.saverTurnOn} />
+              {saverSource === "auto" ? <span className="vua-text-secondary">{copy.saverStateAuto}</span> : null}
+            </div>
+            {steamVRDetection ? (
+              <label className="vua-settings-check">
+                <input
+                  type="checkbox"
+                  checked={saverAuto}
+                  aria-label={copy.saverAutoAria}
+                  data-nav-id="theme-saver-auto"
+                  onChange={(event) => onSaverAutoChange(event.target.checked)}
+                />
+                <span>{copy.saverAutoLabel}</span>
+              </label>
+            ) : null}
           </div>
-          {/* The SteamVR option shows once VUA can tell that SteamVR is running (issue #27). */}
-          {steamVRDetection ? (
-            <label className="vua-settings-check">
-              <input
-                type="checkbox"
-                checked={saverAuto}
-                aria-label={copy.saverAutoAria}
-                onChange={(event) => onSaverAutoChange(event.target.checked)}
-              />
-              <span>{copy.saverAutoLabel}</span>
-            </label>
-          ) : null}
         </div>
       </Card>
     </div>
@@ -874,7 +877,8 @@ function AppShell({
       return false;
     }
   });
-  const steamVRRunning = false;
+  const { snapshot: resourceUsage } = useResourceUsage();
+  const steamVRRunning = resourceUsage?.steamVrRunning === true;
   const saverApplied =
     effectsOverrideFromUrl ||
     resourceSaverActive({

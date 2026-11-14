@@ -217,6 +217,8 @@ export const strings: Strings = {
     progress: "{done}/{total}",
     openAria: "알림 센터 열기(진행 중 {count}개)",
     closeAria: "알림 센터 닫기",
+    pinAria: "알림 센터 고정",
+    unpinAria: "알림 센터 고정 해제",
     empty: "알림이 없어요",
     unlabeledTask: "백그라운드 작업",
   },
@@ -242,6 +244,13 @@ export const strings: Strings = {
     unavailable: "확인할 수 없음",
     gpuKinds: {"discrete":"외장 GPU","integrated":"내장 GPU","unknown":"종류 미확인"},
     sharedMemory: "GPU가 시스템 메모리를 공유하므로 별도 전용 VRAM 수치는 표시되지 않아요",
+    trend60s: "최근 60초 피크 추이",
+    steamVrRunningNote: "SteamVR 실행 감지됨",
+    capacity: {
+      comfortable: "여유 메모리 {freeRam} GB · Unity 빌드를 여유롭게 병행할 수 있어요",
+      single: "여유 메모리 {freeRam} GB · Unity 빌드는 한 번에 하나씩 실행하는 것이 좋아요",
+      tight: "여유 메모리 {freeRam} GB · Unity 빌드 전에 무거운 앱을 먼저 닫아 주세요",
+    },
     closeAria: "리소스 상세 닫기",
   },
   nav: {

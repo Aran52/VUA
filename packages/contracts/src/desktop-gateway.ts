@@ -1891,6 +1891,8 @@ export interface SystemResourceUsageV2 extends Omit<SystemResourceUsageV1, "sche
   readonly gpuUsagePercent: number | null;
   readonly gpuName: string | null;
   readonly gpuKind: "discrete" | "integrated" | "unknown" | null;
+  /** Read-only local SteamVR process observation (`vrserver.exe` / `vrmonitor.exe` / `vrcompositor.exe`); null when unavailable or stale. */
+  readonly steamVrRunning?: boolean | null;
 }
 
 export interface DesktopSystemApiV2 extends DesktopSystemApiV1 {

@@ -4,6 +4,8 @@ import {
   activeTaskCount,
   canDismiss,
   isTerminalStatus,
+  notificationBellAlert,
+  pruneDismissedIds,
   scrollClosesPanel,
   taskRowOpenTarget,
   visibleNotifications,
@@ -167,4 +169,23 @@ test("tasks reaching terminal during the session no longer show (F2)", () => {
   const persistent: TaskItem = { ...finished, notifyOnComplete: true };
   assert.equal(visibleNotifications([persistent], new Set()).length, 1);
   assert.equal(visibleNotifications([persistent], new Set(["t-run"])).length, 0);
+});
+
+test("multi-family retention preserves the latest terminal receipt per notifyFamily, prunes stale dismissed IDs, and computes bell alerts", () => {
+  const syncOld: TaskItem = { id: "sync-1", title: "Sync", status: "completed", originPage: "warehouse", cancellable: false, notifyOnComplete: true, notifyFamily: "library:sync" };
+  const syncNew: TaskItem = { id: "sync-2", title: "Sync", status: "completed", originPage: "warehouse", cancellable: false, notifyOnComplete: true, notifyFamily: "library:sync" };
+  const uploadFail: TaskItem = { id: "upload-1", title: "Upload", status: "failed", originPage: "release", cancellable: false, notifyOnComplete: true, notifyFamily: "amf:upload" };
+  const visible = visibleNotifications([syncOld, syncNew, uploadFail], new Set());
+  assert.deepEqual(visible.map((t) => t.id), ["sync-2", "upload-1"]);
+
+  assert.equal(notificationBellAlert(visible, 0, new Set()), "failed");
+  assert.equal(notificationBellAlert(visible, 0, new Set(["upload-1"])), "unseen");
+  assert.equal(notificationBellAlert(visible, 0, new Set(["upload-1", "sync-2"])), null);
+  assert.equal(notificationBellAlert(visible, 1, new Set(["upload-1", "sync-2"])), "unseen");
+
+  const pruned = pruneDismissedIds(new Set(["stale-1", "sync-1"]), new Set(["sync-1", "sync-2", "upload-1"]));
+  assert.deepEqual([...pruned], ["sync-1"]);
+  // Empty knownTaskIds before initial load never wipes dismissed history.
+  const untouched = pruneDismissedIds(new Set(["stale-1"]), new Set());
+  assert.deepEqual([...untouched], ["stale-1"]);
 });

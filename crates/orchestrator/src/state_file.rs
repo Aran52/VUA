@@ -157,9 +157,21 @@ impl<T: Serialize + DeserializeOwned> StateFile<T> {
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent).map_err(StateFileError::Io)?;
         }
-        let temp = self.path.with_extension("tmp");
-        std::fs::write(&temp, bytes).map_err(StateFileError::Io)?;
-        std::fs::rename(&temp, &self.path).map_err(StateFileError::Io)?;
+        let mut temp_os = self.path.clone().into_os_string();
+        temp_os.push(format!(".{}.tmp", std::process::id()));
+        let temp = PathBuf::from(temp_os);
+        let write_result = (|| -> std::io::Result<()> {
+            use std::io::Write;
+            let mut file = std::fs::File::create(&temp)?;
+            file.write_all(&bytes)?;
+            file.sync_all()?;
+            drop(file);
+            std::fs::rename(&temp, &self.path)
+        })();
+        if let Err(err) = write_result {
+            let _ = std::fs::remove_file(&temp);
+            return Err(StateFileError::Io(err));
+        }
         Ok(())
     }
 

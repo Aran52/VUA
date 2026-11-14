@@ -338,6 +338,8 @@ describe("built-in MCP, using the official HTTP client", () => {
     const { client, calls } = await setup();
     for (const request of [
       { name: "execute_shell", arguments: { command: "anything" } },
+      { name: "vua_sop", arguments: {} },
+      { name: "vua_sop", arguments: { scenario: "desktop_play", selection: { platform: "vrchat", device: "pc", connection: null } } },
       { name: "vua_sop", arguments: { scenario: "desktop_play", connection: "wifi" } },
       { name: "vua_sop", arguments: { selection: { platform: "reborn", device: "pc", connection: null } } },
       { name: "vua_sop", arguments: { selection: { platform: "chilloutvr", device: "quest", connection: "standalone" } } },
@@ -476,6 +478,14 @@ describe("MCP result envelope", () => {
     code = "vua.unknown.future";
     expect(data(await client.callTool({ name: "vua_status" }))).toMatchObject({ error: code, retryable: false });
     await expect(client.readResource({ uri: "vua://amf/runs/n3-test" })).rejects.toMatchObject({ data: { error: code, mutationStarted: false, retryable: false } });
+    const { client: disabledClient } = await setup(async request => ({ schemaVersion: 1, requestId: request.requestId, ok: false, error: { code: "application", application: {
+      contractVersion: "0.1", code: "vua.amf.unavailable", category: "unavailable", messageKey: "errors.amf.unavailable", recoverable: true, retryable: false, correlationId: request.requestId,
+    } } }));
+    expect(data(await disabledClient.callTool({ name: "vua_amf_materials" }))).toMatchObject({
+      error: "vua.amf.unavailable",
+      retryable: false,
+      nextAction: expect.stringContaining("Settings → Modules"),
+    });
     expect([...safeErrorMessage("x".repeat(800))]).toHaveLength(512);
     for (const message of ["Failed at /home/synthetic/private/project", "Failed at \\\\host\\share\\private", `Pairing ${token}`]) expect(safeErrorMessage(message, [token])).not.toMatch(/private|home|host|a{43}/u);
     expect(safeErrorMessage('Failed: {"password":"synthetic-password","access_token":"synthetic-token"}')).not.toMatch(/synthetic-password|synthetic-token/u);

@@ -257,9 +257,11 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   }
 
   #unavailable(request: ApplicationRequestV01): ApplicationResponseV01 {
+    const state = this.moduleSnapshot().state;
+    const retryable = state === "starting" || state === "stopping" || this.#changing;
     return { contractVersion: this.contractVersion, requestId: request.requestId, ok: false,
       error: { contractVersion: this.contractVersion, code: "vua.amf.unavailable", category: "unavailable",
-        messageKey: "errors.amf.unavailable", recoverable: true, retryable: true, correlationId: request.correlationId } };
+        messageKey: "errors.amf.unavailable", recoverable: true, retryable, correlationId: request.correlationId } };
   }
 
   /** Snapshot merges wait briefly; an AMF operation the player asked for may read the whole work

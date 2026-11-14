@@ -42,7 +42,7 @@ const MESSAGES: Readonly<Record<string, string>> = {
   result_too_large: "The selected result exceeds the MCP response limit.",
 };
 export class AiToolFailure extends Error {
-  constructor(readonly code: string, readonly publicMessage?: string) { super(code); }
+  constructor(readonly code: string, readonly publicMessage?: string, readonly retryable?: boolean) { super(code); }
 }
 /** Error details are prose only: remove local paths, URLs and credential-shaped values. */
 export function safeErrorMessage(value: string, secrets: readonly string[] = []): string {
@@ -65,14 +65,16 @@ export function errorFields(error: unknown, secrets: readonly string[] = []) {
   const code = /^[a-z][a-z0-9_.-]{0,127}$/u.test(candidate) ? candidate : "request_failed";
   const detail = error instanceof AiToolFailure ? error.publicMessage : undefined;
   const fallback = typeof MESSAGES[code] === "string" ? MESSAGES[code] : "VUA could not complete this request. Read its current facts and recovery action.";
+  const retryable = MCP_RETRYABLE_CODES[code] === true && (!(error instanceof AiToolFailure) || error.retryable !== false);
   return { error: code, message: safeErrorMessage(detail ?? fallback, secrets),
     ...(code === "vua.amf_production.project_open" ? {suggestedAction:"amf.production.closeEditor"} : {}),
     nextAction: code === "vua.amf_production.project_open" ? "Request vua_request_amf_close_editor and wait for player approval, then inspect its task before retrying production."
+      : code === "vua.amf.unavailable" && !retryable ? "Ask the player to enable or repair the AMF module in VUA Settings → Modules, then retry."
       : code.includes("license") ? "Open VUA Settings → Accounts → Unity, activate a valid license in Hub, then reinspect retained AMF work."
       : code === "review_pending_requests_first" ? "Ask the player to decide waiting requests in VUA, or withdraw one with vua_withdraw_request."
-      : MCP_RETRYABLE_CODES[code] === true ? "Wait for the current work or connection to settle, then retry the same read or approval request."
+      : retryable ? "Wait for the current work or connection to settle, then retry the same read or approval request."
       : "Read current capabilities and facts, then correct the request or follow the recovery shown in VUA.",
-    mutationStarted: false, retryable: MCP_RETRYABLE_CODES[code] === true };
+    mutationStarted: false, retryable };
 }
 const pick = (value: Record<string, unknown>, keys: readonly string[]) => Object.fromEntries(keys.filter(key => key in value).map(key => [key, value[key]]));
 const rows = (value: unknown): Record<string, unknown>[] => Array.isArray(value) ? value.filter(isRecord) : [];

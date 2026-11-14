@@ -27,8 +27,8 @@
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use vua_orchestrator::CREDENTIAL_ENV_REMOVALS;
+use std::time::Duration;
+use vua_orchestrator::strip_sensitive_env;
 
 /// Handshake payload schema version (`schemas/unity-bridge/handshake/v1.0/`).
 /// The bridge package writes the same constant (`EditorHandshake`).
@@ -291,9 +291,7 @@ impl EditorSpawner for DetachedEditorSpawner {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());
-        for key in CREDENTIAL_ENV_REMOVALS.iter() {
-            command.env_remove(key);
-        }
+        strip_sensitive_env(&mut command);
         // Dropping the child detaches it (std does not kill on drop): the
         // editor outlives this call and is managed by the user/OS.
         let pid = command.spawn()?.id();
@@ -306,10 +304,12 @@ pub struct SystemWait;
 
 impl HandoffWait for SystemWait {
     fn now_millis(&self) -> u64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|value| value.as_millis() as u64)
-            .unwrap_or_default()
+        static MONOTONIC_ORIGIN: std::sync::OnceLock<std::time::Instant> =
+            std::sync::OnceLock::new();
+        MONOTONIC_ORIGIN
+            .get_or_init(std::time::Instant::now)
+            .elapsed()
+            .as_millis() as u64
     }
 
     fn sleep(&self, duration: Duration) {

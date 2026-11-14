@@ -1,5 +1,5 @@
 import { EXTERNAL_TOOL_ACTIONS, EXTERNAL_TOOL_IDS, isDesktopGatewayRequestV1, PLAY_CONNECTION_IDS, PLAY_DEVICE_IDS, PLAY_PLATFORMS, TERMS_PRESET_IDS, type AiUploadConfirmationV01, type DesktopGatewayRequestV1 } from "@vua/contracts";
-import { MCP_TASK_STATES } from "./ai-tool-results.js";
+import { AiToolFailure, MCP_TASK_STATES } from "./ai-tool-results.js";
 /** VRChat and SteamVR reach agents through the play route; a reinstall stays with the player. */
 export const AGENT_TOOL_IDS = EXTERNAL_TOOL_IDS.filter(id => id !== "vrchat" && id !== "steamvr");
 export const AGENT_TOOL_ACTIONS = EXTERNAL_TOOL_ACTIONS.filter(action => action !== "reinstall");
@@ -61,7 +61,12 @@ export function aiGatewayRequest(spec:AiToolSpec,args:Record<string,unknown>,req
   let params={...args,...spec.fixed}; let method=spec.method;
   if(spec.name==="vua_library") {const {includeImages: _includeImages,...query}=params;params={limit:25,...query};}
   if(spec.name==="vua_tasks")params={};
-  if(spec.name==="vua_sop") params=args.selection!==undefined&&args.scenario===undefined&&args.connection===undefined?{schemaVersion:"0.2",selection:args.selection}:{schemaVersion:"0.1",scenario:args};
+  if(spec.name==="vua_sop") {
+    if ((args.selection !== undefined) === (args.scenario !== undefined) || (args.selection !== undefined && args.connection !== undefined)) {
+      throw new AiToolFailure("unsupported_tool_or_parameters", "Supply either selection {platform, device, connection} (v0.2) or scenario (v0.1), not both or neither.");
+    }
+    params=args.selection!==undefined?{schemaVersion:"0.2",selection:args.selection}:{schemaVersion:"0.1",scenario:args};
+  }
   if(spec.name==="vua_check_environment"||spec.name==="vua_plan_installation"||spec.name==="vua_request_installation") {
     const supplied=args.intent as Record<string,unknown>;params={...args,intent:{editorRoot:"C:\\Program Files\\Unity\\Hub\\Editor",useMirrors:true,...supplied}};
     if(spec.name==="vua_check_environment")params.schemaVersion="0.1";
@@ -71,9 +76,9 @@ export function aiGatewayRequest(spec:AiToolSpec,args:Record<string,unknown>,req
   const request={schemaVersion:1,requestId,method,params};
   // An upload request waits for the player's confirmation; it is checked as it will be dispatched.
   if(spec.name==="vua_request_amf_upload"){
-    if(!isDesktopGatewayRequestV1(withUploadConfirmation(request as DesktopGatewayRequestV1,{avatarName:"Avatar",rightsConfirmed:true})))throw new Error("The parameters are not supported by this VUA version. Read the tool schema and current facts again.");
+    if(!isDesktopGatewayRequestV1(withUploadConfirmation(request as DesktopGatewayRequestV1,{avatarName:"Avatar",rightsConfirmed:true})))throw new AiToolFailure("unsupported_tool_or_parameters", "The parameters are not supported by this VUA version. Read the tool schema and current facts again.");
     return request as DesktopGatewayRequestV1;
   }
-  if(!isDesktopGatewayRequestV1(request))throw new Error("The parameters are not supported by this VUA version. Read the tool schema and current facts again.");
+  if(!isDesktopGatewayRequestV1(request))throw new AiToolFailure("unsupported_tool_or_parameters", "The parameters are not supported by this VUA version. Read the tool schema and current facts again.");
   return request;
 }

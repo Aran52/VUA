@@ -539,11 +539,11 @@ function resolveAmfEndpoint(): DesktopProviderEndpoint {
 function vrchatRouteFace(host: ModuleProvider): NonNullable<DesktopGatewayRouteContext["vrchat"]> {
   /** Before the provider accepts the upload: when the player is signed in, place the
    *  one-time session file beside the Bridge files of the run's work project. */
-  const writeSdkHandoff = async (runId: string): Promise<void> => {
+  const writeSdkHandoff = async (runId: string): Promise<string> => {
     const service = vrchatService;
-    if (service === null) return;
+    if (service === null) return "";
     const session = service.sdkSession();
-    if (session === null) return;
+    if (session === null) return "";
     const response = await host.invoke({
       contractVersion: APPLICATION_CONTRACT_VERSION,
       requestId: `vrchat-handoff-${crypto.randomUUID()}`,
@@ -557,9 +557,10 @@ function vrchatRouteFace(host: ModuleProvider): NonNullable<DesktopGatewayRouteC
       && typeof (value as { projectRoot?: unknown }).projectRoot === "string"
       ? (value as { projectRoot: string }).projectRoot
       : null;
-    if (projectRoot === null || projectRoot.length === 0 || path.isAbsolute(projectRoot) === false) return;
+    if (projectRoot === null || projectRoot.length === 0 || path.isAbsolute(projectRoot) === false) return "";
     const file = await writeSdkSessionFile(projectRoot, session);
     service.noteSdkHandoff(file);
+    return file;
   };
   return {
     handle: request => {
@@ -569,7 +570,11 @@ function vrchatRouteFace(host: ModuleProvider): NonNullable<DesktopGatewayRouteC
     },
     snapshot: () => vrchatService?.snapshot() ?? { experimentalEnabled: false, signedIn: false },
     writeSdkHandoff,
-    discardSdkHandoff: () => vrchatService?.clearSdkHandoffs(),
+    discardSdkHandoff: (file?: string) => {
+      if (file === "") return;
+      if (typeof file === "string") vrchatService?.discardSdkHandoff(file);
+      else vrchatService?.clearSdkHandoffs();
+    },
   };
 }
 
@@ -2162,10 +2167,10 @@ app.whenReady().then(async () => {
     version: app.getVersion(), ...aiConnectionStore(app.getPath("userData"), safeStorage), ...aiRequestStore(app.getPath("userData")),
     build: typeof __VUA_BUILD_INFO__ === "undefined" ? (await import("../../scripts/build-info.mjs")).buildInfo : __VUA_BUILD_INFO__,
     invoke: request => routeDesktopGatewayInvoke({ provider: provider!, productVersion: app.getVersion(),
-      platform: process.platform as "win32" | "darwin" | "linux", rendererUrl,
+      platform: process.platform as "win32" | "darwin" | "linux", rendererUrl, trustedInternalCaller: true,
       resolveMaterialSource: resolveProductionContext, launchAmfEditor: (runId, taskId) => launchAmfEditor(provider!, runId, taskId),
       vrchat: vrchatRouteFace(provider!) },
-      mainWindow?.webContents.getURL() ?? "", request),
+      mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents.getURL() : "", request),
   });
   aiTools.subscribe(snapshot => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("vua:ai-tools:changed", snapshot);

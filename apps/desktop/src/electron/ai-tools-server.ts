@@ -278,7 +278,7 @@ export class AiToolsServer {
   }
   private result(body: Record<string, unknown>, isError = false, images: CallToolResult["content"] = []): CallToolResult {
     if (isError) {
-      const fields = errorFields(new AiToolFailure(String(body.error), typeof body.message === "string" ? body.message : undefined), [this.token]);
+      const fields = errorFields(new AiToolFailure(String(body.error), typeof body.message === "string" ? body.message : undefined, typeof body.retryable === "boolean" ? body.retryable : undefined), [this.token]);
       body = { ...body, ...fields, nextAction: body.nextAction ?? fields.nextAction };
     }
     const text = JSON.stringify(body);
@@ -313,7 +313,7 @@ export class AiToolsServer {
     if (!result.ok) {
       if (result.error.code === "application") {
         const detail = result.error.application.params?.detail;
-        throw new AiToolFailure(result.error.application.code, typeof detail === "string" ? detail : undefined);
+        throw new AiToolFailure(result.error.application.code, typeof detail === "string" ? detail : undefined, result.error.application.retryable);
       }
       throw new AiToolFailure(result.error.code);
     }

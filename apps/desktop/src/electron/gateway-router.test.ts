@@ -1947,4 +1947,22 @@ describe("vrchat-session v0.1 routing (experimental VRChat sign-in)", () => {
     expect(JSON.stringify(response)).not.toContain("secret-pw");
     expect(seen).toHaveLength(1);
   });
+
+  it("passes the run-specific handoff path to discardSdkHandoff and supports trustedInternalCaller when headless", async () => {
+    const provider = new MockOrchestratorProviderV01(); await provider.start();
+    const invoke = vi.spyOn(provider, "invoke");
+    const discarded: Array<string | undefined> = [];
+    const face = {
+      handle: vi.fn(),
+      snapshot: () => ({ experimentalEnabled: true, signedIn: true }),
+      writeSdkHandoff: vi.fn(async (runId: string) => `C:\\Work\\${runId}\\.vua\\bridge\\vrchat-session.json`),
+      discardSdkHandoff: vi.fn((file?: string) => { discarded.push(file); }),
+    };
+    invoke.mockImplementationOnce(async () => ({ ok: false, error: { contractVersion: "0.1", code: "vua.amf_production.upload_busy", category: "conflict", messageKey: "errors.amf.uploadBusy", recoverable: true, retryable: true, correlationId: "up-b" } } as never));
+    await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, trustedInternalCaller: true, vrchat: face }, "",
+      { schemaVersion: 1, requestId: "up-b", method: "amf.production.upload", params: { schemaVersion: "0.1", runId: "run-b", avatarName: "Meiyun", rightsConfirmed: true } });
+    expect(discarded).toEqual([`C:\\Work\\run-b\\.vua\\bridge\\vrchat-session.json`]);
+    await expect(routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl }, "", request()))
+      .rejects.toThrow("untrusted renderer origin");
+  });
 });

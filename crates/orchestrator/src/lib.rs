@@ -111,8 +111,8 @@ pub use overlay_surface::{
 };
 pub use plan_documents::{ApproveOutcome, PlanDocumentStore, APPROVED_PLAN_SCHEMA_VERSION};
 pub use process::{
-    outcome_with_exit, FakeProcessRunner, ProcessError, ProcessOutcome, ProcessRunner, ProcessSpec,
-    StdProcessRunner, CREDENTIAL_ENV_REMOVALS,
+    outcome_with_exit, strip_sensitive_env, FakeProcessRunner, ProcessError, ProcessOutcome,
+    ProcessRunner, ProcessSpec, StdProcessRunner, CREDENTIAL_ENV_REMOVALS,
 };
 pub use production_evidence::{
     EvidenceKind, EvidenceResolution, EvidenceSourceRef, EvidenceStore, EvidenceSubject,

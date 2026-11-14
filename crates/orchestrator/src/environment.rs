@@ -1310,15 +1310,27 @@ fn parse_vdf_library_roots(vdf_path: &Path) -> Vec<PathBuf> {
 }
 
 fn tcp_reachable(probe: &str) -> bool {
-    let Ok(addrs) = probe.to_socket_addrs() else {
-        return false;
-    };
-    for address in addrs {
-        if TcpStream::connect_timeout(&address, NETWORK_TIMEOUT).is_ok() {
-            return true;
+    let target = probe.to_owned();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let deadline = std::time::Instant::now() + NETWORK_TIMEOUT;
+        let Ok(addrs) = target.to_socket_addrs() else {
+            let _ = tx.send(false);
+            return;
+        };
+        for address in addrs {
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            if remaining.is_zero() {
+                break;
+            }
+            if TcpStream::connect_timeout(&address, remaining).is_ok() {
+                let _ = tx.send(true);
+                return;
+            }
         }
-    }
-    false
+        let _ = tx.send(false);
+    });
+    rx.recv_timeout(NETWORK_TIMEOUT).unwrap_or(false)
 }
 
 /// `(free_bytes, total_bytes)` for the drive holding `path`. Windows uses the
